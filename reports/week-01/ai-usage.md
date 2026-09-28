@@ -11,6 +11,12 @@ Generated the initial repository skeleton from the Assignment 1 requirements:
 `.github/dependabot.yml`, `.lycheeignore`, root `README.md`, and empty templates
 for `docs/research/*` and `reports/week-01/*`.
 
+Generated the AI agent setup for the repository:
+`AGENTS.md` (shared rules for all AI tools: roles, workflow, checklist, log format),
+`CLAUDE.md` (imports `AGENTS.md`), and the Claude Code subagents
+`.claude/agents/formater.md`, `.claude/agents/orchestrator.md`, `.claude/agents/techlead.md`.
+Added `.claude/settings.local.json` and `.agents-log.md` to `.gitignore`.
+
 ## What we did with the output
 
 TODO — what we accepted unchanged, what we edited, what we rejected and why.
