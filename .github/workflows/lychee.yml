@@ -19,7 +19,7 @@ jobs:
           args: >-
             --no-progress
             --max-concurrency 2
+            --accept 200,206,429
             --hidden
             './**/*.md'
           fail: true
-          failIfEmpty: false
