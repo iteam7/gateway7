@@ -1,0 +1,34 @@
+# Editor state
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Build output
+build/
+dist/
+out/
+target/
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+
+# Recordings (private-only, never commit)
+*.mp4
+*.mkv
+*.webm
+*.m4a

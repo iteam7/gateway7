@@ -1,0 +1,21 @@
+# AI usage — Week 01
+
+## Tools
+
+Claude Code (Claude Opus 5.5), CLI.
+
+## What we used them for
+
+Generated the initial repository skeleton from the Assignment 1 requirements:
+`.gitignore`, `.github/pull_request_template.md`, `.github/workflows/lychee.yml`,
+`.github/dependabot.yml`, `.lycheeignore`, root `README.md`, and empty templates
+for `docs/research/*` and `reports/week-01/*`.
+
+## What we did with the output
+
+TODO — what we accepted unchanged, what we edited, what we rejected and why.
+The workflow and templates were checked against the course requirements by hand.
+
+## What was not used
+
+No AI output was used as a research finding.
