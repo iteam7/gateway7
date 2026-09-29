@@ -3,6 +3,7 @@
 ## Tools
 
 Claude Code (Claude Opus 5.5), CLI.
+OpenCode (GPT-6 Sol), CLI.
 
 ## What we used them for
 
@@ -16,6 +17,9 @@ Generated the AI agent setup for the repository:
 `CLAUDE.md` (imports `AGENTS.md`), and the Claude Code subagents
 `.claude/agents/formater.md`, `.claude/agents/orchestrator.md`, `.claude/agents/techlead.md`.
 Added `.claude/settings.local.json` and `.agents-log.md` to `.gitignore`.
+
+Used OpenCode to inspect the failed Lychee run and correct the broken course-rules
+link in `AGENTS.md`; checked the destination against the current course rules.
 
 ## What we did with the output
 

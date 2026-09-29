@@ -8,7 +8,7 @@ Project: Modular LLM Gateway, team 7, ITPD course.
 The course rules live in [inno-itpd/itpd](https://github.com/inno-itpd/itpd).
 Read the current versions before checking work:
 
-- [rules.md](https://github.com/inno-itpd/itpd/blob/main/rules.md)
+- [rules.md](https://github.com/inno-itpd/itpd/blob/main/course/rules.md)
 - [Artifact Requirements](https://github.com/inno-itpd/itpd/blob/main/requirements/artifact-requirements.md)
 - [Repository Requirements](https://github.com/inno-itpd/itpd/blob/main/requirements/repository-requirements.md)
 - [Process Requirements](https://github.com/inno-itpd/itpd/blob/main/requirements/process-requirements.md)
