@@ -21,6 +21,13 @@ Added `.claude/settings.local.json` and `.agents-log.md` to `.gitignore`.
 Used OpenCode to inspect the failed Lychee run and correct the broken course-rules
 link in `AGENTS.md`; checked the destination against the current course rules.
 
+Used Claude Code on `reports/week-01/candidate-list.md`: on 2026-10-02 it opened
+each of the 11 official sources and checked the relevance line and decision
+against it (three lines were corrected: Agent Router, NeMo Guardrails, APISIX),
+grouped the candidates into four categories with one selected per category,
+wrote an explicit rejection reason for each of the 7 rejected candidates, and
+checked that all links resolve.
+
 ## What we did with the output
 
 TODO — what we accepted unchanged, what we edited, what we rejected and why.
