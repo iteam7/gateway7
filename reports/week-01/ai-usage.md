@@ -21,6 +21,14 @@ Added `.claude/settings.local.json` and `.agents-log.md` to `.gitignore`.
 Used OpenCode to inspect the failed Lychee run and correct the broken course-rules
 link in `AGENTS.md`; checked the destination against the current course rules.
 
+Used Claude Code to diagnose a failed link check (GitHub answered 503 to the
+course-rule links from the Actions runner) and to add 503 to the accepted
+status codes in `.github/workflows/lychee.yml`.
+
+Used OpenCode (GPT-6.1 Sol) on 2026-10-02 to merge `main` into the branch for
+gateway7 [PR #11](https://github.com/iteam7/gateway7/pull/11).
+No tests or linters were run, as requested by the user.
+
 ## What we did with the output
 
 TODO — what we accepted unchanged, what we edited, what we rejected and why.
