@@ -21,6 +21,10 @@ Added `.claude/settings.local.json` and `.agents-log.md` to `.gitignore`.
 Used OpenCode to inspect the failed Lychee run and correct the broken course-rules
 link in `AGENTS.md`; checked the destination against the current course rules.
 
+Used Claude Code to move the value propositions (VP-01, VP-02) from the team's
+research draft into `docs/research/value-proposition.md` and to check their
+GAP references and format against the course rules; the text itself came from the draft.
+
 ## What we did with the output
 
 TODO — what we accepted unchanged, what we edited, what we rejected and why.
