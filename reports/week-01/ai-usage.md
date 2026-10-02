@@ -21,6 +21,9 @@ Added `.claude/settings.local.json` and `.agents-log.md` to `.gitignore`.
 Used OpenCode to inspect the failed Lychee run and correct the broken course-rules
 link in `AGENTS.md`; checked the destination against the current course rules.
 
+Used Claude Code to move the value propositions (VP-01, VP-02) from the team's
+research draft into `docs/research/value-proposition.md` and to check their
+GAP references and format against the course rules; the text itself came from the draft.
 
 Used Claude Code on `reports/week-01/candidate-list.md`: on 2026-10-02 it opened
 each of the 11 official sources and checked the relevance line and decision
@@ -32,7 +35,6 @@ checked that all links resolve.
 Used Claude Code to diagnose a failed link check (GitHub answered 503 to the
 course-rule links from the Actions runner) and to add 503 to the accepted
 status codes in `.github/workflows/lychee.yml`.
-
 
 ## What we did with the output
 
