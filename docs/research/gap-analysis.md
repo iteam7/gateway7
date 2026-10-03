@@ -1,6 +1,6 @@
 # Gap Analysis
 
-**Status, 2026-09-30:** Candidate gaps, not validated gaps. Documentation supports the trade-offs below, but the Customer meeting has not happened and alternatives have not been tested under the same workload. In particular, the required “alternatives do not serve it” test is unresolved. Keeping this limitation explicit is more defensible than inventing an absence of competitor capabilities.
+**Status, 2026-10-03:** Candidate gaps, not validated gaps. The [October 2 kickoff](../../reports/week-01/meeting-report.md) clarified a corporate plugin host, with privacy filtering as one use case. The hypotheses below remain relevant to that use case; alternatives have not been tested under the same workload. In particular, the required “alternatives do not serve it” test is unresolved. Keeping this limitation explicit is more defensible than inventing an absence of competitor capabilities.
 
 ## GAP-01: Privacy-configuration assurance for small teams
 
@@ -46,4 +46,4 @@
 
 ## Decision gate
 
-Before calling these validated gaps, obtain the Customer's workflow and requirements, revise the [value propositions](value-proposition.md), and test the closest alternative. If an existing gateway plus configuration satisfies the workflow, prefer extension or integration over claiming a nonexistent market gap. Record that decision and any disagreement in the meeting report.
+Before calling these validated gaps, obtain a concrete Customer workflow and test the closest alternative. The [value propositions](value-proposition.md) now distinguish the broader plugin-host direction from the privacy-use-case proposal. If an existing gateway plus configuration satisfies the workflow, prefer extension or integration over claiming a nonexistent market gap. Record that decision and any disagreement in the meeting report.

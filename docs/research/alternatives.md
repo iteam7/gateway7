@@ -4,9 +4,11 @@
 
 **Status:** Documentation research checked on 2026-09-30. This is a proposed user segment, not a customer-validated finding. No product was installed or benchmarked. gateway7 capabilities below are proposals, not implemented features. A library is compared as an application-level substitute, not misrepresented as a complete gateway.
 
-**Research-board arrangement:** The linked Markdown gallery is proposed as the navigable, read-only evidence overview, with images in the weekly report. The research guide permits repository screenshot storage, but the assignment separately requests a board. This is a declared deviation requiring course/Customer acceptance; public access will only be established after authorized repository integration. No external board has been created.
+**Research-board arrangement:** The [Markdown gallery](../../reports/week-01/evidence-gallery.md) contains nine documentation screenshots (at least two per alternative), with dates, captions and sources. It is proposed as the navigable, read-only evidence overview, with images in the weekly report. The research guide permits repository screenshot storage, but the assignment separately requests a board. This is a declared deviation requiring course/Customer acceptance; public access is available on the PR branch; course acceptance is not yet confirmed. No external board has been created.
 
 See the [candidate search](../../reports/week-01/candidate-list.md), [comparison](comparison.md), [gap hypotheses](gap-analysis.md), and [proposed value](value-proposition.md).
+
+**Kickoff update, 2026-10-03:** The [October 2 meeting](../../reports/week-01/meeting-report.md) clarified a corporate plugin host covering requests and responses; privacy filtering is one plugin. The privacy-focused research below is retained as one part of that broader direction, not treated as a complete evaluation of every gateway function.
 
 ## Properties
 
@@ -30,7 +32,7 @@ The evaluation framework is listed here for review. Because the initial research
 
 **Property coverage:** P1: O1; P2: O1/O3; P3: O2/O3; P4: O2/O3; P5: O1/O2; P6: O4; P7: O2/O3. Each P1–P7 observation and its interpretation is compared in [the matrix](comparison.md); O references below are local to this alternative.
 
-**Version / date checked:** Public product documentation and gateway main README, 2026-09-30; no release installed. The product docs now display PRISMA AIRS AI Gateway branding, while the repository retains Portkey naming. The README describes a 2.0 pre-release; do not combine its promised feature set with the currently documented configuration.
+**Version / date checked:** Public product documentation and gateway main README, 2026-09-30; README setup/guardrail screenshots added 2026-10-03; no release installed. The product docs now display PRISMA AIRS AI Gateway branding, while the repository retains Portkey naming. The README describes a 2.0 pre-release; do not combine its promised feature set with the currently documented configuration.
 
 ### Observations
 
@@ -38,6 +40,8 @@ The evaluation framework is listed here for review. Because the initial research
 - **O2:** Product guardrails are tiered: BASIC on Developer, additional PARTNER/PRO on Production, and custom guardrails on Enterprise. The general guide states that checks evaluate only the final request message. [Guardrails guide](https://portkey.ai/docs/product/guardrails)
 - **O3:** PII redaction can use provider integrations or BASIC Regex Match with a chosen replacement; both input and output hooks are documented. Redaction is irreversible, and original-data handling varies by provider. [PII redaction](https://portkey.ai/docs/product/guardrails/pii-redaction)
 - **O4:** The PII guide exposes transformation indicators and check results. The captured limitations distinguish non-customizable pre-built patterns from the Regex Match route for custom patterns; do not generalize the pre-built limitation to all regex configuration. [PII redaction](https://portkey.ai/docs/product/guardrails/pii-redaction)
+
+- **O5 (2026-10-03):** The README shows retry configuration and an output guardrail that denies a chosen word. This is documentation, not an executed test. [Gateway example](https://github.com/Portkey-AI/gateway#3-routing--guardrails)
 
 ### Strengths
 

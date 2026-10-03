@@ -1,6 +1,6 @@
 # Value Proposition
 
-**Proposed direction, 2026-09-30:** A small text-only LLM gateway emphasizing explicit, testable privacy behavior and a core-plus-plugins architecture. No implementation, customer endorsement, measured advantage, or market validation is claimed. Both entries depend on [unvalidated gap hypotheses](gap-analysis.md).
+**Update after the 2026-10-02 kickoff:** The Customer described a corporate plugin host with request and response processing. The original privacy-focused VP-01/VP-02 proposals below are retained as one use case and an extension workflow within that host; they were not presented or endorsed at the meeting. No implementation, measured advantage or market validation is claimed. Both entries depend on [unvalidated gap hypotheses](gap-analysis.md).
 
 ## VP-01: Predictable local preflight for small teams
 
@@ -8,7 +8,7 @@
 
 For developers who must control which conversation text leaves their environment, gateway7 proposes a narrowly scoped proxy that applies a mandatory local policy before forwarding and makes its supported fields, failure behavior and logging boundary explicit. The intended benefit is easier verification of one agreed workflow, not unique ownership of local redaction.
 
-**What we would build:** Supported text fields pass through an ordered policy pipeline; decisions are allow, mask, block or error. The core prevents forwarding on policy errors or unsupported content. Default audit records contain request IDs, rule IDs, actions and durations rather than raw payloads. An isolated fake upstream records only synthetic test requests so the team can verify the boundary.
+**What we would build for this privacy configuration:** Supported text fields pass through an ordered policy pipeline; decisions are allow, mask, block or error. Other plugins may instead log or flag, as the Customer described. The core prevents forwarding on policy errors or unsupported content. Default audit records contain request IDs, rule IDs, actions and durations rather than raw payloads. An isolated fake upstream records only synthetic test requests so the team can verify the boundary.
 
 **What it costs:** Preflight adds latency; fail-closed behavior can reduce availability; masking can reduce answer usefulness. Initial scope excludes streaming, images, attachments and tool payloads, rather than silently passing them unexamined. A self-hosted service still needs operation and updates. “Local” does not mean “accurate” or “compliant.”
 
@@ -32,8 +32,10 @@ For developers maintaining organization-specific sensitive-data rules, gateway7 
 
 ## Proposed MVP and boundaries
 
+**MVP-0 discussed at kickoff:** one provider, a server-configured key (for example an uncommitted `.env`), a simple phone-number masking plugin, forwarding and returning the result. The estimate was two to three weeks, with CI and linters first. The broader target supports request hooks, response hooks and then routing; plugin installation may require a restart. Python is preferred, and Python or Go was accepted. The remaining boundaries below are proposals to confirm, not all MVP-0 commitments.
+
 - Core: one OpenAI-style text chat endpoint, configuration validation, ordered plugin execution and provider dispatch
-- Providers: two adapters selected with Customer; use a fake upstream during safety tests
+- Providers: one adapter for MVP-0; Claude and Gemini were accepted as initial broader targets. Use a fake upstream during safety tests
 - Filters: one deterministic domain-pattern plugin and one adapter to an existing detector, if needed
 - Verification: offline fixtures, full supported-message coverage, block/error non-forwarding and metadata-only logging tests
 - Exclusions: streaming, multimodal requests, arbitrary tools, restoration storage, complex routing, billing, multi-tenant governance and an untrusted plugin marketplace
@@ -42,15 +44,15 @@ This is a proposal for subsequent work. Assignment 1 is research-only; building 
 
 ## Assumptions
 
-No assumption is marked confirmed until its evidence is recorded in the [meeting report](../../reports/week-01/meeting-report.md) or a subsequent experiment.
+The kickoff established the broader direction, but did not settle the detailed assumptions below. No assumption is marked confirmed until its evidence is recorded in the [meeting report](../../reports/week-01/meeting-report.md) or a subsequent experiment.
 
 | Assumption | Supports | How we will check it | When |
 | --- | --- | --- | --- |
-| A small-team text workflow is the right user segment | VP-01, VP-02 | Ask Customer for current process, users, concrete examples and consequences | During the Week 1 kickoff, before approving scope |
-| The useful initial boundary can exclude streaming, tools and attachments | VP-01 | Present explicit exclusions and ask which break the workflow | During kickoff |
+| A small-team text workflow is the right user segment | VP-01, VP-02 | Ask Customer for current process, users, concrete examples and consequences | Week 2 follow-up; unresolved at kickoff |
+| The useful initial boundary can exclude streaming, tools and attachments | VP-01 | Present explicit exclusions and ask which break the workflow | Week 2 follow-up; unresolved at kickoff |
 | Existing configurations impose a meaningful verification burden | GAP-01, VP-01 | Compare the same synthetic scenario in LiteLLM and the proposed workflow; accept reuse if sufficient | Week 2 planning, before committing to standalone implementation |
-| Custom domain identifiers matter more than broad model/provider coverage | GAP-02, VP-02 | Request a fictionalized format and benign counterexamples; rank needs | During kickoff |
+| Custom domain identifiers matter more than broad model/provider coverage | GAP-02, VP-02 | Request a fictionalized format and benign counterexamples; rank needs | Week 2 follow-up; unresolved at kickoff |
 | An offline contract runner improves policy-change review | VP-02 | A second developer performs the same change with the baseline and proposed interface; record effort/errors | Week 2 experiment |
-| Added latency and fail-closed rejection are acceptable | VP-01 | Agree budgets with Customer, then measure local synthetic cases | Budgets at kickoff; measurements after the first authorized implementation |
+| Added latency and fail-closed rejection are acceptable | VP-01 | Agree budgets with Customer, then measure local synthetic cases | Budgets in Week 2 follow-up; measurements after implementation |
 | The proposed core/plugin split fits team capacity | VP-01, VP-02 | Break the scope into owned tasks and review estimates | Week 2 planning |
 | Selected detector languages/entity types match the workflow | VP-01, VP-02 | Agree a representative synthetic corpus; report precision/recall by category | Corpus during Week 2 planning, measurement later |

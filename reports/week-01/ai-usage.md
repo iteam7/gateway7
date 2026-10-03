@@ -4,6 +4,7 @@
 
 Claude Code (Claude Opus 5.5), CLI.
 OpenCode (GPT-6 Sol), CLI.
+OpenAI assistant, for the October 3 corrections and evidence checks.
 
 ## What we used them for
 
@@ -41,6 +42,8 @@ checked that all links resolve.
 Used Claude Code to diagnose a failed link check (GitHub answered 503 to the
 course-rule links from the Actions runner) and to add 503 to the accepted
 status codes in `.github/workflows/lychee.yml`.
+
+Used the OpenAI assistant on October 3 to check current course rules and repository evidence, correct facts against the kickoff and participant feedback, fill existing report fields, restore/capture documentation screenshots with license notices, and check links. The transcript was replaced with sanitized summary notes because publication permission was unconfirmed. No competitor runtime testing or human assessment is claimed.
 
 ## What we did with the output
 
