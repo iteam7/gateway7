@@ -6,7 +6,7 @@
 **Duration:** 49 minutes
 **Attended:** azamatbayramov, Customer, and one member of another course team working on the same project (shown as `Guest` in the notes)
 **Presented:** nothing prepared; the session was a question-and-answer round, and our `VP-01`/`VP-02` direction was not shown
-**Recording:** initiated by the Customer; the participant does not recall asking the separate permission questions. The recording link remains private
+**Recording:** initiated by the Customer; the participant does not recall asking the separate permission questions. On October 3 azamatbayramov clarified that the Customer supplied only a transcript and conversation overview, with no recording or recording link; instructor access cannot be verified
 **Transcript publication:** unconfirmed after participant clarification on October 3; see [sanitized summary notes](meeting-notes.md) instead. The previous transcript remains in Git history
 **Transcript shared privately:** unconfirmed; obtain permission before sharing a verbatim transcript
 **Script:** [meeting-script.md](meeting-script.md)
@@ -34,18 +34,18 @@
 
 ## Action points
 
-October 3 post-kickoff clarification by azamatbayramov: repository infrastructure is his next task; architecture planning should be proposed to another team member. These assignments were made after the kickoff. October 8 was not agreed, and no replacement dates or architecture owner have been confirmed.
+October 3 post-kickoff clarification by azamatbayramov: repository infrastructure is his next task; he assigned base-architecture planning to ExFuseMe. These assignments were made after the kickoff. October 8 was not agreed. The current architecture target is proposed for October 12, outside the assignment's required Week 2 window (October 2–8); it is not a kickoff commitment. The infrastructure date remains unagreed.
 
 | Action | Owner | Due |
 | ------ | ----- | --- |
 | Prepare the repository infrastructure for development, including CI and linters | azamatbayramov (assigned October 3) | Week 2 proposed; date to agree |
-| Propose the architecture for MVP-0: core/plugin contract, request and response flow, one provider, and the upper limit of running plugins | Another team member (proposed; username to agree) | Week 2 proposed; date to agree |
+| Propose the architecture for MVP-0: core/plugin contract, request and response flow, one provider, and the upper limit of running plugins | ExFuseMe (assigned October 3) | Proposed: 2026-10-12; not confirmed, outside Week 2 |
 
 ## Open questions
 
 | Question | What it would change | Follow-up |
 | -------- | -------------------- | --------- |
-| What is the upper limit of plugins running at once in our architecture, and what slows down past it? | How plugins pass a request between each other, and whether the core needs more than a simple chain | Not assigned at the meeting; carried into Week 2 architecture |
+| What is the upper limit of plugins running at once in our architecture, and what slows down past it? | How plugins pass a request between each other, and whether the core needs more than a simple chain | ExFuseMe, architecture proposal (assigned after kickoff on October 3) |
 | Python or Go for the gateway? | The plugin-authoring experience for agents and the performance ceiling | Team decision, Week 2 planning |
 | Do provider keys live in the gateway's configuration or in an external secret manager? | Deployment and security scope of MVP-0 | Week 2 planning |
 | Does `VP-01` stay a privacy-preflight proposition, or become one plugin under a plugin-host proposition? | The framing of `VP-01` and `GAP-01`, and what MVP-0 demonstrates | Week 2 research update |

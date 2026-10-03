@@ -65,7 +65,9 @@ Team 7 · Week 01 · Assignment 1
 }
 
 == Kickoff recording
-#if recording != "" { link(recording)[Open the private kickoff recording] } else { field("") }
+#if recording != "" { link(recording)[Open the private kickoff recording] } else {
+  [Unavailable: the Customer supplied a transcript and conversation overview, but no recording or recording link. Instructor access cannot be verified.]
+}
 
 #if transcript != "" [
   == Meeting transcript
