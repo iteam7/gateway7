@@ -4,8 +4,6 @@
 
 **Status:** Documentation research checked on 2026-09-30. This is a proposed user segment, not a customer-validated finding. No product was installed or benchmarked. gateway7 capabilities below are proposals, not implemented features. A library is compared as an application-level substitute, not misrepresented as a complete gateway.
 
-**Evidence gallery:** [Documentation screenshots and captions](../../reports/week-01/evidence-gallery.md). The screenshots document published capabilities, not runtime tests.
-
 **Research-board arrangement:** The linked Markdown gallery is proposed as the navigable, read-only evidence overview, with images in the weekly report. The research guide permits repository screenshot storage, but the assignment separately requests a board. This is a declared deviation requiring course/Customer acceptance; public access will only be established after authorized repository integration. No external board has been created.
 
 See the [candidate search](../../reports/week-01/candidate-list.md), [comparison](comparison.md), [gap hypotheses](gap-analysis.md), and [proposed value](value-proposition.md).
