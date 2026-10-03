@@ -68,4 +68,3 @@ Publication permission for the transcript is unconfirmed. This revision uses san
 ## Privacy
 
 No recording, recording link, university email, identity mapping or credential is included in this revised public tree. The previously published transcript remains in Git history; publication permission is unconfirmed and no history rewrite is claimed.
-

@@ -57,4 +57,3 @@ Factual correction record, separate from that pending assessment: [PR #17](https
 ## What was not used
 
 AI-generated text is not independent research evidence. Source-grounded AI assistance was used to draft and correct research; claims must trace to the cited sources, and unvalidated gaps remain hypotheses.
-
