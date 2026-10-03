@@ -61,7 +61,7 @@ The evaluation framework is listed here for review. Because the initial research
 
 **Evaluation depth:** Published documentation and screenshot inspection only; no installation, runtime test or benchmark.
 
-**Property coverage:** P1: O1/O4; P2: O1/O2; P3: O2/O3; P4: O2/O3; P5: O1/O4; P6: O2/O5; P7: O1/O4. Each P1–P7 observation and its interpretation is compared in [the matrix](comparison.md); O references below are local to this alternative.
+**Property coverage:** P1: O1/O4; P2: O1/O2; P3: O2/O3; P4: O2/O3; P5: O1/O4; P6: O2/O5/O6; P7: O1/O4. Each P1–P7 observation and its interpretation is compared in [the matrix](comparison.md); O references below are local to this alternative.
 
 **Version / date checked:** Current official documentation, 2026-09-30; no release installed. Former Microsoft project links redirect to Data Privacy Stack, and current documentation describes a community transition.
 
@@ -73,6 +73,7 @@ The evaluation framework is listed here for review. Because the initial research
 - **O4:** The documented modules are privacy-processing components. In this substitute, provider routing, request interception, authentication, and application-wide enforcement are integration work, not properties demonstrated by those modules. This is an architectural inference from O1–O3, not a claim about every Presidio-based product.
 
 - **O5:** Analyzer decision explanations can expose recognizers, regex, contextual words and confidence changes; documented logging uses correlation IDs. These are reusable detection-level building blocks, not a complete gateway audit trail. [Decision process](https://presidio.dataprivacystack.org/analyzer/decision_process/)
+- **O6 (2026-10-03):** Presidio documents evaluation tooling and synthetic dataset generation. Presidio-Research evaluates the analyzer and individual recognizers; detector evaluation is already supported. [Evaluation documentation](https://presidio.dataprivacystack.org/evaluation/) and [Presidio-Research](https://github.com/data-privacy-stack/presidio-research)
 
 ### Strengths
 
@@ -92,7 +93,7 @@ The evaluation framework is listed here for review. Because the initial research
 
 **Evaluation depth:** Published documentation and screenshot inspection only; no installation, runtime test or benchmark.
 
-**Property coverage:** P1: O1; P2: O2; P3: O2/O3; P4: O2/O3; P5: O2/O5; P6: O4; P7: O3. Each P1–P7 observation and its interpretation is compared in [the matrix](comparison.md); O references below are local to this alternative.
+**Property coverage:** P1: O1; P2: O2; P3: O2/O3/O6; P4: O2/O3; P5: O2/O5; P6: O4/O6; P7: O3. Each P1–P7 observation and its interpretation is compared in [the matrix](comparison.md); O references below are local to this alternative.
 
 **Version / date checked:** Current official documentation, 2026-09-30; no release installed. Feature claims concern the documented paths below, not every historical version or paid feature.
 
@@ -103,6 +104,7 @@ The evaluation framework is listed here for review. Because the initial research
 - **O3:** Custom guardrail classes can edit or block content. The guide warns that `during_call` runs concurrently and edits may not precede transmission. Streaming behavior differs between hooks and buffered built-ins. [Custom guardrails](https://docs.litellm.ai/docs/proxy/guardrails/custom_guardrail)
 - **O4:** Presidio tracing includes entity categories, scores, and execution duration. This is evidence that explainability is already supported, not unique to gateway7. [Presidio integration](https://docs.litellm.ai/docs/proxy/guardrails/pii_masking_v2)
 - **O5:** The separately documented `hide-secrets` integration is labelled Enterprise-only and uses `detect-secrets`; this does not imply all custom secret filtering requires that tier. [Secret detection](https://docs.litellm.ai/docs/proxy/guardrails/secret_detection)
+- **O6 (2026-10-03):** LiteLLM documents `default_on` guardrails that run even when callers supply an empty `guardrails` array, optional execution records in non-streaming responses, and `mock_response` testing without an LLM call. These are documentation observations, not executed results. [Guardrails quickstart](https://docs.litellm.ai/docs/proxy/guardrails/quick_start) and [Mock completions](https://docs.litellm.ai/docs/completion/mock_requests)
 
 ### Strengths
 

@@ -34,7 +34,7 @@
 
 ## Action points
 
-October 3 correction: the participant confirmed that October 8 was not agreed. These follow-ups remain proposed; confirm owners and real due dates in Week 2 planning.
+October 3 correction: the participant confirmed that October 8 was not agreed. These follow-ups remain proposed; confirm owners and real due dates in Week 2 planning (October 2–8). Record any new assignment with its confirmation date as a post-kickoff clarification, not as a decision agreed at the kickoff.
 
 | Action | Owner | Due |
 | ------ | ----- | --- |
