@@ -34,7 +34,7 @@
 
 ## Action points
 
-October 3 correction: the participant confirmed that October 8 was not agreed. These follow-ups remain proposed; confirm owners and real due dates in Week 2 planning.
+October 3 correction: the participant confirmed that October 8 was not agreed. These follow-ups remain proposed; confirm owners and real due dates in Week 2 planning (October 2–8). Record any new assignment with its confirmation date as a post-kickoff clarification, not as a decision agreed at the kickoff.
 
 | Action | Owner | Due |
 | ------ | ----- | --- |
@@ -56,3 +56,4 @@ October 3 correction: the participant confirmed that October 8 was not agreed. T
 | ------------- | ------------------- | ---------------- |
 | Users should be able to send requests through the gateway with their own provider keys, as in azamatbayramov's workplace | It is a poor practice; the gateway should hold a key pool, and building the option in encourages it | Kept only as an optional feature an operator can turn off; gateway-held keys are the default path |
 | `VP-01` frames the product as a privacy preflight that masks or blocks text before forwarding (written direction, not presented) | Filtering personal data alone is a solved problem; the value is a plugin host where each company plugs in its own policy | The October 3 [VP clarification](../../docs/research/value-proposition.md) retains privacy as one use case inside the plugin host; the detailed proposal still needs validation |
+

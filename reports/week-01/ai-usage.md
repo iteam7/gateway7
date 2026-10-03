@@ -45,11 +45,16 @@ status codes in `.github/workflows/lychee.yml`.
 
 Used the OpenAI assistant on October 3 to check current course rules and repository evidence, correct facts against the kickoff and participant feedback, fill existing report fields, restore/capture documentation screenshots with license notices, and check links. The transcript was replaced with sanitized summary notes because publication permission was unconfirmed. No competitor runtime testing or human assessment is claimed.
 
+Used the OpenAI assistant again on October 3 for additional official-source verification and source-grounded research corrections, PR and exact-commit CI evidence checks, and targeted edits to the existing research/report files and a submission checklist. This assistance includes research drafting; it does not establish the gap hypotheses or replace the team's assessment of the output.
+
 ## What we did with the output
 
-TODO — what we accepted unchanged, what we edited, what we rejected and why.
+TODO — the team must state what we accepted unchanged, what we edited, what we rejected and why; no human assessment has been supplied for the October 3 assistance.
 The workflow and templates were checked against the course requirements by hand.
+
+Factual correction record, separate from that pending assessment: [PR #17](https://github.com/iteam7/gateway7/pull/17) left the root README, comparison and candidate list unchanged. It corrected inaccurate attendance, presented-direction, due-date and consent claims, and replaced the transcript with sanitized summary notes. This describes the documented changes, not the team's reasons for accepting, editing or rejecting AI output.
 
 ## What was not used
 
-No AI output was used as a research finding.
+AI-generated text is not independent research evidence. Source-grounded AI assistance was used to draft and correct research; claims must trace to the cited sources, and unvalidated gaps remain hypotheses.
+

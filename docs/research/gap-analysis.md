@@ -11,7 +11,7 @@
 | Required test | Current assessment | Evidence or next check |
 | --- | --- | --- |
 | Someone needs it | Unvalidated: developer responsible for preventing accidental disclosure in multi-turn LLM requests | Ask Customer about a specific workflow, sensitive fields, failure consequences and existing controls; do not assume regulated deployment |
-| Alternatives do not serve it | Unproven: documented caveats create configuration choices, but LiteLLM and other gateways can potentially be configured to meet the requirement | Compare setup and failure handling for the same synthetic scenario; abandon this gap if a supported preset is sufficient |
+| Alternatives do not serve it | Unproven: ALT-03 already documents local Presidio integration, pre-call masking and default-on enforcement (O2/O3/O6). Inference: any remaining opportunity concerns Customer-specific configuration assurance | Map one Customer workflow to the supported configuration, including input fields, timing, detector errors and logs; retain only an evidenced unmet requirement or material setup burden, and abandon this gap if configuration meets the job |
 | It is reachable | Plausible: package a mandatory local preflight that checks supported text fields before forwarding and rejects unsupported inputs or failed checks | Write an explicit allow/mask/block/error contract and data-flow diagram |
 | Buildable by 3–4 in this course | Plausible only with narrow scope | One endpoint, two provider adapters, deterministic fixtures, no streaming or attachments in the first version; review estimate with Customer |
 
@@ -26,7 +26,7 @@
 | Required test | Current assessment | Evidence or next check |
 | --- | --- | --- |
 | Someone needs it | Unvalidated: developer who changes domain filters and must explain effects to an application owner | Ask Customer for a realistic identifier pattern, benign look-alikes, and who approves policy changes |
-| Alternatives do not serve it | Unproven: custom hooks, recognizers and traces already exist | Evaluate whether a preset/test helper for LiteLLM or Presidio meets the job more cheaply; this may become a reuse project |
+| Alternatives do not serve it | Unproven: ALT-02 supplies recognizer evaluation and synthetic datasets (O6); ALT-03 supplies custom hooks, execution records and mocked LLM calls (O3/O6). Inference: any remaining opportunity concerns a combined policy-review workflow | For one Customer rule and benign look-alikes, assess whether existing tools provide the reviewer's required before/after decisions, rule identity and error behavior; prefer a preset or integration if sufficient, and retain only a concrete unmet review requirement |
 | It is reachable | Plausible: add a versioned filter interface and offline fixture runner reporting rule IDs, actions and expected-versus-actual outcomes | Define plugin inputs, outputs, errors, ordering and compatibility checks |
 | Buildable by 3–4 in this course | Plausible for trusted plugins and a limited text policy | Two sample plugins and a local CLI/report; no plugin marketplace, untrusted-code sandbox or automatic policy synthesis |
 
@@ -46,4 +46,6 @@
 
 ## Decision gate
 
-Before calling these validated gaps, obtain a concrete Customer workflow and test the closest alternative. The [value propositions](value-proposition.md) now distinguish the broader plugin-host direction from the privacy-use-case proposal. If an existing gateway plus configuration satisfies the workflow, prefer extension or integration over claiming a nonexistent market gap. Record that decision and any disagreement in the meeting report.
+Before calling these validated gaps, obtain a concrete Customer workflow and compare the closest alternative. The [value propositions](value-proposition.md) now distinguish the broader plugin-host direction from the privacy-use-case proposal. If an existing gateway plus configuration satisfies the workflow, prefer extension or integration over claiming a nonexistent market gap. Record that decision and any disagreement in the meeting report.
+
+Documentation or source comparison can establish or reject specific capability claims; the synthetic checks above are proposed follow-up validation, not a [Week 1 implementation requirement](https://github.com/inno-itpd/itpd/blob/main/requirements/process-requirements.md#research-is-the-weeks-work).
