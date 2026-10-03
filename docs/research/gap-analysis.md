@@ -1,38 +1,36 @@
 # Gap Analysis
 
-**Status, 2026-10-03:** Candidate gaps, not validated market gaps. The [October 2 kickoff](../../reports/week-01/meeting-report.md#summary) happened and changed the framing: corporate IT teams should be able to add or replace plugins for requests and responses; privacy filtering is one example. The Customer explicitly acknowledged existing gateways. That supports investigating an extensibility workflow, not claiming that competitors cannot do it. Alternatives have not been tested under the same workload, so the required “alternatives do not serve it” test remains unresolved.
-
-The original `GAP-01` and `GAP-02` identifiers are retained. Their narrower privacy use cases now sit inside the plugin-host direction rather than defining the whole product. This dated revision does not claim that our written propositions were presented or endorsed at the meeting.
+**Status, 2026-10-03:** Candidate gaps, not validated gaps. The [October 2 kickoff](../../reports/week-01/meeting-report.md) clarified a corporate plugin host, with privacy filtering as one use case. The hypotheses below remain relevant to that use case; alternatives have not been tested under the same workload. In particular, the required “alternatives do not serve it” test is unresolved. Keeping this limitation explicit is more defensible than inventing an absence of competitor capabilities.
 
 ## GAP-01: Privacy-configuration assurance for small teams
 
 **Evidence:** “Filtering effectiveness depends on request coverage, hook timing, service boundaries, and configuration, rather than the presence of a ‘guardrail’ checkbox.” [PAT-02](comparison.md#whole-table-patterns), P2/P3/P7; ALT-01 O2–O3, ALT-02 O4, ALT-03 O2–O3, ALT-04 O1–O3 in [the observations](alternatives.md).
 
-**Hypothesis, revised after kickoff:** The IT team deploying a corporate gateway may need a locally inspectable privacy-plugin configuration with explicit coverage and failure behavior. The original small-application-team segment was not established; this remains one workflow within a broader plugin host.
+**Hypothesis:** A small application team may need a narrow, locally inspectable text-gateway setup with explicit coverage and failure behavior more than a large set of optional policies.
 
 | Required test | Current assessment | Evidence or next check |
 | --- | --- | --- |
-| Someone needs it | Partly supported: Customer named corporate access control, code fingerprinting and organization-specific logging; no concrete privacy-policy workflow was validated | [Kickoff summary and disagreements](../../reports/week-01/meeting-report.md); obtain synthetic examples and existing-control details in follow-up |
+| Someone needs it | Unvalidated: developer responsible for preventing accidental disclosure in multi-turn LLM requests | Ask Customer about a specific workflow, sensitive fields, failure consequences and existing controls; do not assume regulated deployment |
 | Alternatives do not serve it | Unproven: documented caveats create configuration choices, but LiteLLM and other gateways can potentially be configured to meet the requirement | Compare setup and failure handling for the same synthetic scenario; abandon this gap if a supported preset is sufficient |
-| It is reachable | Plausible: provide a privacy plugin that checks specified text fields and has an explicit configured action | Define request and response hooks plus allow/mask/block/log/error behavior; do not impose one policy choice on every corporate workflow |
-| Buildable by 3–4 in this course | Plausible only with narrow scope | First runnable milestone: one provider and one simple masking plugin; request/response hooks and Claude/Gemini support are staged goals. The meeting estimate was two to three weeks, not delivery during Assignment 1 |
+| It is reachable | Plausible: package a mandatory local preflight that checks supported text fields before forwarding and rejects unsupported inputs or failed checks | Write an explicit allow/mask/block/error contract and data-flow diagram |
+| Buildable by 3–4 in this course | Plausible only with narrow scope | One endpoint, two provider adapters, deterministic fixtures, no streaming or attachments in the first version; review estimate with Customer |
 
-**Proposed evidence of value:** A new user can identify exactly which fields are checked, verify the selected error policy (including zero upstream calls for a blocking configuration), and verify that default diagnostic logs contain no fixture values. Establish baseline results first; no timing or accuracy advantage is claimed yet.
+**Proposed evidence of value:** A new user can identify exactly which fields are checked, observe that a detector timeout causes zero upstream calls, and verify that default logs contain no fixture values. Establish baseline results first; no timing or accuracy advantage is claimed yet.
 
 ## GAP-02: Verifiable domain-filter changes
 
 **Evidence:** “Existing components expose extension points and decision information, but assembling and validating a domain policy remains integration work.” [PAT-03](comparison.md#whole-table-patterns), P4/P6/P7; ALT-01 O3–O4, ALT-02 O2–O5, ALT-03 O3–O4, ALT-04 O2–O3 in [the observations](alternatives.md).
 
-**Hypothesis, revised after kickoff:** Corporate developers maintaining organization-specific filters may value a small plugin contract, focused authoring instructions and synthetic regression reports. The Customer supported easy plugin creation and called coding-agent instructions a nice-to-have; a comparative workflow advantage remains unmeasured.
+**Hypothesis:** Developers maintaining organization-specific identifier rules may value a small contract and synthetic regression report that make plugin changes reviewable without needing live provider calls.
 
 | Required test | Current assessment | Evidence or next check |
 | --- | --- | --- |
-| Someone needs it | Customer-supported direction: IT departments adapt their own policy and logging plugins; precise filter-review needs remain unvalidated | [Kickoff decisions](../../reports/week-01/meeting-report.md#decisions); obtain a fictional identifier, benign examples and the policy-approval workflow |
+| Someone needs it | Unvalidated: developer who changes domain filters and must explain effects to an application owner | Ask Customer for a realistic identifier pattern, benign look-alikes, and who approves policy changes |
 | Alternatives do not serve it | Unproven: custom hooks, recognizers and traces already exist | Evaluate whether a preset/test helper for LiteLLM or Presidio meets the job more cheaply; this may become a reuse project |
 | It is reachable | Plausible: add a versioned filter interface and offline fixture runner reporting rule IDs, actions and expected-versus-actual outcomes | Define plugin inputs, outputs, errors, ordering and compatibility checks |
 | Buildable by 3–4 in this course | Plausible for trusted plugins and a limited text policy | Two sample plugins and a local CLI/report; no plugin marketplace, untrusted-code sandbox or automatic policy synthesis |
 
-**Proposed evidence of value:** A sample domain filter can be added without editing the core, passes synthetic positive/negative cases, and follows its documented configured failure behavior after a plugin error. Tests prove the stated contract for those fixtures, not universal PII detection.
+**Proposed evidence of value:** A sample domain filter can be added without editing the core, passes synthetic positive/negative cases, and cannot silently bypass mandatory filtering after a plugin error. Tests prove the stated contract for those fixtures, not universal PII detection.
 
 ## Rejected gaps
 
@@ -48,4 +46,4 @@ The original `GAP-01` and `GAP-02` identifiers are retained. Their narrower priv
 
 ## Decision gate
 
-The [value propositions](value-proposition.md) now reflect the recorded plugin-host direction. Before calling these validated gaps, obtain a concrete Customer workflow and test the closest configured alternative. If an existing gateway plus configuration satisfies the workflow, prefer extension or integration over claiming a nonexistent market gap. Record that decision and any disagreement in the meeting report.
+Before calling these validated gaps, obtain a concrete Customer workflow and test the closest alternative. The [value propositions](value-proposition.md) now distinguish the broader plugin-host direction from the privacy-use-case proposal. If an existing gateway plus configuration satisfies the workflow, prefer extension or integration over claiming a nonexistent market gap. Record that decision and any disagreement in the meeting report.

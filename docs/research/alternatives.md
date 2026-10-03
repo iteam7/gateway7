@@ -1,12 +1,14 @@
 # Alternatives
 
-**Problem space:** Corporate IT teams need to mediate applications' LLM requests and responses while adapting access, usage tracking and data-handling policies to their own systems through replaceable plugins.
+**Problem space:** Small application teams need to send text conversations to different LLM providers while applying inspectable, locally controlled rules that reduce accidental disclosure of sensitive information without reimplementing the rules in every application.
 
-**Research scope and status:** Documentation research was conducted on 2026-09-30 under a narrower hypothesis: small application teams needed locally controlled privacy checks before sending text to LLM providers. The [2026-10-02 kickoff](../../reports/week-01/meeting-report.md#summary) broadened the Customer's scope to a corporate plugin host. The comparison below remains evidence about the privacy-processing slice and plugin extension points; it is not a full evaluation of authentication, key management, token accounting or response-analysis integrations. Those require further research. No product was installed or benchmarked; gateway7 capabilities remain proposals.
+**Status:** Documentation research checked on 2026-09-30. This is a proposed user segment, not a customer-validated finding. No product was installed or benchmarked. gateway7 capabilities below are proposals, not implemented features. A library is compared as an application-level substitute, not misrepresented as a complete gateway.
 
-**Research-board arrangement:** The [read-only evidence gallery](../../reports/week-01/evidence-gallery.md) contains nine dated documentation screenshots with source links and property/observation captions, at least two for each alternative. ALT-01 uses October 3 captures of the MIT-licensed gateway README; the other images preserve September 30 documentation. Images are stored as Week 1 evidence. A repository gallery is our proposed substitute for the external board; acceptance of that deviation has not been confirmed. The gallery does not establish hands-on product performance.
+**Research-board arrangement:** The [Markdown gallery](../../reports/week-01/evidence-gallery.md) contains nine documentation screenshots (at least two per alternative), with dates, captions and sources. It is proposed as the navigable, read-only evidence overview, with images in the weekly report. The research guide permits repository screenshot storage, but the assignment separately requests a board. This is a declared deviation requiring course/Customer acceptance; public access is available on the PR branch; course acceptance is not yet confirmed. No external board has been created.
 
 See the [candidate search](../../reports/week-01/candidate-list.md), [comparison](comparison.md), [gap hypotheses](gap-analysis.md), and [proposed value](value-proposition.md).
+
+**Kickoff update, 2026-10-03:** The [October 2 meeting](../../reports/week-01/meeting-report.md) clarified a corporate plugin host covering requests and responses; privacy filtering is one plugin. The privacy-focused research below is retained as one part of that broader direction, not treated as a complete evaluation of every gateway function.
 
 ## Properties
 
@@ -28,9 +30,9 @@ The evaluation framework is listed here for review. Because the initial research
 
 **Evaluation depth:** Published documentation and screenshot inspection only; no installation, runtime test or benchmark.
 
-**Property coverage:** P1: O1; P2: O1/O3; P3: O2/O3/O5; P4: O2/O3; P5: O1/O2; P6: O4; P7: O2/O3. Each P1–P7 observation and its interpretation is compared in [the matrix](comparison.md); O references below are local to this alternative.
+**Property coverage:** P1: O1; P2: O1/O3; P3: O2/O3; P4: O2/O3; P5: O1/O2; P6: O4; P7: O2/O3. Each P1–P7 observation and its interpretation is compared in [the matrix](comparison.md); O references below are local to this alternative.
 
-**Version / date checked:** Public product documentation and gateway main README, 2026-09-30; README setup/guardrail evidence rechecked and captured 2026-10-03; no release installed. The product docs now display PRISMA AIRS AI Gateway branding, while the repository retains Portkey naming. The README describes a 2.0 pre-release; do not combine its promised feature set with the currently documented configuration.
+**Version / date checked:** Public product documentation and gateway main README, 2026-09-30; README setup/guardrail screenshots added 2026-10-03; no release installed. The product docs now display PRISMA AIRS AI Gateway branding, while the repository retains Portkey naming. The README describes a 2.0 pre-release; do not combine its promised feature set with the currently documented configuration.
 
 ### Observations
 
@@ -39,7 +41,7 @@ The evaluation framework is listed here for review. Because the initial research
 - **O3:** PII redaction can use provider integrations or BASIC Regex Match with a chosen replacement; both input and output hooks are documented. Redaction is irreversible, and original-data handling varies by provider. [PII redaction](https://portkey.ai/docs/product/guardrails/pii-redaction)
 - **O4:** The PII guide exposes transformation indicators and check results. The captured limitations distinguish non-customizable pre-built patterns from the Regex Match route for custom patterns; do not generalize the pre-built limitation to all regex configuration. [PII redaction](https://portkey.ai/docs/product/guardrails/pii-redaction)
 
-- **O5 (README rechecked 2026-10-03):** The quickstart documents an output guardrail denying a chosen word plus retry configuration attached to a client request. This is a documented example, not an executed test. [Gateway routing/guardrail example](https://github.com/Portkey-AI/gateway#3-routing--guardrails)
+- **O5 (2026-10-03):** The README shows retry configuration and an output guardrail that denies a chosen word. This is documentation, not an executed test. [Gateway example](https://github.com/Portkey-AI/gateway#3-routing--guardrails)
 
 ### Strengths
 

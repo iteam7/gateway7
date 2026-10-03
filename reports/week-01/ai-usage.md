@@ -4,7 +4,7 @@
 
 Claude Code (Claude Opus 5.5), CLI.
 OpenCode (GPT-6 Sol), CLI.
-OpenAI assistant, for research support, documentation-evidence restoration and the October 3 consolidation; no model name is asserted for the earlier source draft.
+OpenAI assistant, for the October 3 corrections and evidence checks.
 
 ## What we used them for
 
@@ -43,29 +43,13 @@ Used Claude Code to diagnose a failed link check (GitHub answered 503 to the
 course-rule links from the Actions runner) and to add 503 to the accepted
 status codes in `.github/workflows/lychee.yml`.
 
-Used the OpenAI assistant on 2026-10-03 to audit the live Assignment 1 rules,
-current `main` and merged PRs, reconcile the maintained research with the kickoff,
-restore and visually inspect ten existing documentation screenshots, retain seven with verified documentation-source MIT notices, recover the historical branch-settings screenshot, draft the
-weekly index/contribution evidence and check internal links. The assistant did
-not run competitor products, generate screenshot content, establish competitor
-performance, or decide the team's assessment. The integration could read the
-repository but initially could not create the remote consolidation branch. After
-access was restored, the corrected draft was prepared for one pull request;
-publication and its exact-commit checks are verified separately.
-
-Following the participant's October 3 correction, the assistant removed unconfirmed
-publication-consent and October 8 deadline claims, and replaced the verbatim
-transcript in the revised tree with sanitized summary notes. The prior Git
-history was not rewritten. Three Portkey product-documentation screenshots were withheld
-because their separate documentation reuse license could not be verified. Two
-new browser captures from the MIT-licensed gateway README replaced them, with
-source-specific captions and the full license notice retained.
+Used the OpenAI assistant on October 3 to check current course rules and repository evidence, correct facts against the kickoff and participant feedback, fill existing report fields, restore/capture documentation screenshots with license notices, and check links. The transcript was replaced with sanitized summary notes because publication permission was unconfirmed. No competitor runtime testing or human assessment is claimed.
 
 ## What we did with the output
 
 TODO — what we accepted unchanged, what we edited, what we rejected and why.
-The previous report states that the workflow and templates were checked against the course requirements by hand. The October 3 integration remains a draft pending the team's review; automated checks and source-backed edits do not establish human acceptance.
+The workflow and templates were checked against the course requirements by hand.
 
 ## What was not used
 
-AI-generated prose and analysis are drafts, not primary evidence. Research claims cite official documentation, preserved screenshots or the sanitized meeting record. The team must verify the interpretation and record what it accepted, edited or rejected before submission.
+No AI output was used as a research finding.

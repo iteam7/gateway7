@@ -47,7 +47,7 @@ None.
 ## Roles
 
 azamatbayramov interviewed.
-No one took notes or observed: no other team member attended, and the Customer's automatic record supported the later summary notes.
+No one took notes or observed: no other team member attended, and the Customer's automatic transcript served as the record.
 
 ## Key improvements
 
