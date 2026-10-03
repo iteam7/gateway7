@@ -1,10 +1,12 @@
 # Candidate List
 
-**Problem space:** Small application teams need to send text conversations to different LLM providers while applying inspectable, locally controlled rules that reduce accidental disclosure of sensitive information, without reimplementing those rules in every application.
+**Original research problem space (2026-09-30):** Small application teams need to send text conversations to different LLM providers while applying inspectable, locally controlled rules that reduce accidental disclosure of sensitive information, without reimplementing those rules in every application.
 
 **Search date:** 2026-09-30.
 **Method:** desk research of official documentation and project repositories only.
 No product was installed, tested or benchmarked, and no customer was interviewed for this list.
+
+The October 2 kickoff subsequently broadened the direction to a corporate plugin host. This dated list preserves the privacy-focused search that actually happened; see the [current problem space and evaluation limits](../../docs/research/alternatives.md). Rejected managed services are not automatically unsuitable for that broader direction.
 
 ## Search trace
 

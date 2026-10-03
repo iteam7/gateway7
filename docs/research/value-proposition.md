@@ -1,56 +1,62 @@
 # Value Proposition
 
-**Proposed direction, 2026-09-30:** A small text-only LLM gateway emphasizing explicit, testable privacy behavior and a core-plus-plugins architecture. No implementation, customer endorsement, measured advantage, or market validation is claimed. Both entries depend on [unvalidated gap hypotheses](gap-analysis.md).
+**Revised direction, 2026-10-03:** A modular corporate LLM gateway whose trusted plugins can inspect requests and responses and adapt organization-specific policies. The [October 2 kickoff](../../reports/week-01/meeting-report.md#summary) established that direction; it did not endorse the team's earlier written privacy-first propositions, which were not presented. Python is the working proposal; the meeting accepted Python or Go. No implementation, measured advantage or market validation is claimed.
+
+The original `VP-01` and `VP-02` identifiers are retained as narrower parts of that direction. Both depend on [gap hypotheses](gap-analysis.md) whose underserved tests remain open. Existing plugin systems are credible reuse baselines.
 
 ## VP-01: Predictable local preflight for small teams
 
-**Closes:** [GAP-01](gap-analysis.md#gap-01-privacy-configuration-assurance-for-small-teams), if its need and underserved tests are validated.
+**Revision:** The original small-team privacy-first proposition is narrowed to a sample privacy workflow inside the corporate plugin host. It no longer defines all gateway policy or assumes every company wants blocking.
 
-For developers who must control which conversation text leaves their environment, gateway7 proposes a narrowly scoped proxy that applies a mandatory local policy before forwarding and makes its supported fields, failure behavior and logging boundary explicit. The intended benefit is easier verification of one agreed workflow, not unique ownership of local redaction.
+**Closes:** [GAP-01](gap-analysis.md#gap-01-privacy-configuration-assurance-for-small-teams), if its specific need and underserved tests are validated.
 
-**What we would build:** Supported text fields pass through an ordered policy pipeline; decisions are allow, mask, block or error. The core prevents forwarding on policy errors or unsupported content. Default audit records contain request IDs, rule IDs, actions and durations rather than raw payloads. An isolated fake upstream records only synthetic test requests so the team can verify the boundary.
+For an IT team controlling which conversation text reaches a provider, gateway7 proposes an inspectable privacy-plugin configuration with explicit supported fields, processing stages and failure behavior. Its potential benefit is easier verification of one selected workflow. Local redaction and guardrails already exist in the alternatives.
 
-**What it costs:** Preflight adds latency; fail-closed behavior can reduce availability; masking can reduce answer usefulness. Initial scope excludes streaming, images, attachments and tool payloads, rather than silently passing them unexamined. A self-hosted service still needs operation and updates. “Local” does not mean “accurate” or “compliant.”
+**What we would build:** A trusted example plugin masks a synthetic phone-number pattern before forwarding. The later plugin contract covers both request and response hooks, with documented configured actions such as allow, mask, block or log. Tests use a fake upstream and synthetic text. Metadata-only diagnostic logging is a proposed default; customer-specific logging is configurable and requires its own data-handling review. Fail-closed handling is a proposed option to validate, not a Customer-approved universal policy.
 
-**How a competitor would respond:** LiteLLM could document or bundle a privacy-focused preset using its existing local filtering and hooks. Portkey or Kong could offer a similar guided workflow. If those options satisfy the Customer, a preset or extension is more rational than a separate gateway. See [ALT-01, ALT-03 and ALT-04](alternatives.md).
+**What it costs:** Processing adds latency; blocking reduces availability; masking can remove useful context. A simple digit-pattern demonstration is not a PII detector or a compliance guarantee. Supported text fields, streaming, tools and attachments require explicit decisions before implementation.
 
-**Validation:** First compare equivalent configurations and failure cases. Reject the proposition if the Customer has no such workflow or if gateway7 offers no meaningful reduction in setup mistakes or verification effort. Set measurable targets only after a baseline and Customer agreement.
+**How a competitor would respond:** LiteLLM can package an equivalent configuration around existing local filters and hooks; Portkey and Kong can guide users through their existing guardrails. If configuration or an extension meets the workflow more cheaply, building a separate gateway has not earned its place. See [ALT-01, ALT-03 and ALT-04](alternatives.md).
+
+**Validation:** Compare the same synthetic request, response and failure cases in the closest configured alternative. Record coverage, mistakes and explanation effort before setting any performance or usability target.
 
 ## VP-02: Testable domain-filter extensions
 
+**Revision:** Retain domain filters as a concrete extension task while making the contract suitable for the wider plugin-host direction. The Customer's examples also included access control, token accounting and organization-specific logging; they are scope examples, not a promise to implement all of them in MVP-0.
+
 **Closes:** [GAP-02](gap-analysis.md#gap-02-verifiable-domain-filter-changes), if validated.
 
-For developers maintaining organization-specific sensitive-data rules, gateway7 proposes a small versioned plugin contract and an offline regression workflow, so a policy change can be reviewed against synthetic examples before it is enabled. The intended distinction is the focused change-and-check experience, not the existence of custom regexes or plugins.
+For corporate developers who maintain organization-specific rules, gateway7 proposes a small documented plugin contract, a worked example and synthetic regression fixtures so changes can be reviewed without sending real data to an LLM. The proposed distinction is the author-and-check workflow, not the existence of plugins, regexes or AI-assisted development.
 
-**What we would build:** Two trusted sample plugins, a documented schema, deterministic ordering, configuration validation, and a fixture runner producing expected/actual decisions by rule ID. The core retains control of forwarding and handles plugin exceptions according to the mandatory policy. Reuse existing detectors where their behavior fits the agreed task.
+**What we would build:** Request and response hook contracts, deterministic ordering, configuration validation and explicit exception behavior. Trusted plugins are loaded at startup; installing or changing one can require a restart. Focused instructions and an example should let a coding agent find the contract without loading the whole codebase. An offline fixture runner is a team proposal to evaluate, not a mandatory testing regime imposed on all plugin authors.
 
-**What it costs:** A stable interface creates maintenance obligations; fixtures require curation and can miss realistic cases. Trusted plugins can still contain defects; this design is not an untrusted-code sandbox. Narrow rules may under-detect contextual information or over-redact benign text.
+**What it costs:** Stable interfaces and examples need maintenance; fixtures miss realistic cases; restarts interrupt service. Trusted Python plugins execute server-side code and are not an untrusted-code sandbox. A short contract can limit plugin flexibility.
 
-**How a competitor would respond:** Presidio users can package recognizers and evaluation scripts; LiteLLM users can add a custom guardrail and tests. The project must demonstrate a workflow improvement against those baselines, and should pivot to an extension if that is the better fit. See [ALT-02 and ALT-03](alternatives.md).
+**How a competitor would respond:** LiteLLM users can write custom guardrails and tests; Presidio users can package recognizers and evaluation scripts. These baselines may already satisfy the need. A focused guide or extension could be the better outcome. See [ALT-02 and ALT-03](alternatives.md).
 
-**Validation:** Have another team member add a supplied synthetic identifier rule without changing core code, run positive/negative/error fixtures, and explain the result from the report. Repeat the same task with the closest existing alternative. Record errors and effort, not only a successful demo.
+**Validation:** Have another developer implement one synthetic filter without editing the core, exercise positive, negative and exception cases, then repeat with the closest existing alternative. Record effort and mistakes. Keep API/security guarantees distinct from the quality of any generated plugin.
 
 ## Proposed MVP and boundaries
 
-- Core: one OpenAI-style text chat endpoint, configuration validation, ordered plugin execution and provider dispatch
-- Providers: two adapters selected with Customer; use a fake upstream during safety tests
-- Filters: one deterministic domain-pattern plugin and one adapter to an existing detector, if needed
-- Verification: offline fixtures, full supported-message coverage, block/error non-forwarding and metadata-only logging tests
-- Exclusions: streaming, multimodal requests, arbitrary tools, restoration storage, complex routing, billing, multi-tenant governance and an untrusted plugin marketplace
+The following stages separate the meeting's first runnable example from the broader direction:
 
-This is a proposal for subsequent work. Assignment 1 is research-only; building a prototype is not needed to complete this week's assignment.
+- **MVP-0 discussed at kickoff:** one-provider proxy; provider key configured on the server, for example through an uncommitted `.env`; one simple phone-number masking plugin; forwarding and returning the result. The estimate was two to three weeks after the kickoff, preceded by CI and linter setup, not delivery for Assignment 1.
+- **Broader Customer direction:** client authentication and operator-held provider keys; request hooks first, response hooks second, routing third. Claude and Gemini were acceptable initial provider targets; broad provider coverage was not required. Users' own keys were discussed only as an optional operator-disableable feature.
+- **Plugin lifecycle:** startup loading and restart on plugin installation are acceptable; hot loading is not required. Plugin-authoring guidance for coding agents is a nice-to-have.
+- **Still to decide:** the exact client API, first provider, key-storage approach, streaming/tool/multimodal support, precise failure and logging defaults, plugin-count limit and latency budget. These are not settled by calling the system “OpenAI-compatible” or “secure.”
+- **Proposed limits:** trusted plugins, no marketplace or untrusted-code sandbox, no complete enterprise-gateway replacement. Complex routing and full token-accounting/access-control feature sets can follow the first runnable milestone.
+
+Assignment 1 is research-only. No gateway prototype is included or needed to complete this week's research deliverables.
 
 ## Assumptions
 
-No assumption is marked confirmed until its evidence is recorded in the [meeting report](../../reports/week-01/meeting-report.md) or a subsequent experiment.
-
-| Assumption | Supports | How we will check it | When |
+| Assumption | Supports | Current evidence / status | How and when to check |
 | --- | --- | --- | --- |
-| A small-team text workflow is the right user segment | VP-01, VP-02 | Ask Customer for current process, users, concrete examples and consequences | During the Week 1 kickoff, before approving scope |
-| The useful initial boundary can exclude streaming, tools and attachments | VP-01 | Present explicit exclusions and ask which break the workflow | During kickoff |
-| Existing configurations impose a meaningful verification burden | GAP-01, VP-01 | Compare the same synthetic scenario in LiteLLM and the proposed workflow; accept reuse if sufficient | Week 2 planning, before committing to standalone implementation |
-| Custom domain identifiers matter more than broad model/provider coverage | GAP-02, VP-02 | Request a fictionalized format and benign counterexamples; rank needs | During kickoff |
-| An offline contract runner improves policy-change review | VP-02 | A second developer performs the same change with the baseline and proposed interface; record effort/errors | Week 2 experiment |
-| Added latency and fail-closed rejection are acceptable | VP-01 | Agree budgets with Customer, then measure local synthetic cases | Budgets at kickoff; measurements after the first authorized implementation |
-| The proposed core/plugin split fits team capacity | VP-01, VP-02 | Break the scope into owned tasks and review estimates | Week 2 planning |
-| Selected detector languages/entity types match the workflow | VP-01, VP-02 | Agree a representative synthetic corpus; report precision/recall by category | Corpus during Week 2 planning, measurement later |
+| Corporate IT teams need easy organization-specific extensions | GAP-02, VP-02 | Customer-supported direction in the [kickoff](../../reports/week-01/meeting-report.md#summary); not a market study | Obtain one concrete workflow and current integration cost in the next alignment |
+| A narrower privacy-plugin setup reduces verification mistakes | GAP-01, VP-01 | Unvalidated; ALT-03 already offers local filters and extension hooks | Compare the same synthetic cases in Week 2 before claiming an advantage |
+| A concise contract, example and offline fixtures improve plugin changes | GAP-02, VP-02 | Agent-focused documentation was welcomed as a nice-to-have; the combined workflow is untested | Another developer performs the same change on gateway7 and the baseline during Week 2 planning/experiments |
+| A one-provider masking proxy is a useful first runnable milestone | VP-01, VP-02 | Proposed by azamatbayramov at kickoff; not contested; two-to-three-week estimate | Split into owned work and review the estimate during Week 2 planning |
+| Streaming, tools and attachments can initially be excluded | VP-01 | Unanswered at kickoff | Present explicit exclusions in the next Customer alignment before implementation |
+| The chosen key-storage, error and logging policies meet the workflow | VP-01, VP-02 | Server-held keys preferred; storage/security details and budgets unresolved | Document trade-offs and obtain scope agreement in Week 2 |
+| The simple architecture has an acceptable plugin-count limit | VP-02 | Customer requested an explicit limit; no numeric target agreed | State assumptions, test a synthetic chain after implementation, and report the measured boundary |
+| Python is the final team choice | VP-02 | Working proposal; Python and Go accepted at kickoff | Confirm the team's choice and setup in Week 2; do not claim a delivered implementation |

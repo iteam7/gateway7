@@ -4,11 +4,12 @@
 
 **Date:** 2026-10-02
 **Duration:** 49 minutes
-**Attended:** azamatbayramov, Customer, and one member of another course team working on the same project (shown as `Guest` in the transcript)
+**Attended:** azamatbayramov, Customer, and one member of another course team working on the same project (shown as `Guest` in the notes)
 **Presented:** nothing prepared; the session was a question-and-answer round, and our `VP-01`/`VP-02` direction was not shown
-**Recording:** permitted, linked from the Week 01 Moodle submission
-**Transcript publication:** permitted (answer given outside the recording), see [the transcript](meeting-transcript.md)
-**Transcript shared privately:** permitted (answer given outside the recording); not needed, because publication is permitted
+**Recording:** the Customer initiated recording; the participant does not recall asking the separate permission questions. The recording link remains private
+**Transcript publication:** unconfirmed; the participant does not remember asking. The verbatim transcript is withheld from this revised public tree
+**Transcript shared privately:** unconfirmed; obtain permission before any private transcript sharing
+**Evidence:** [sanitized summary notes](meeting-notes.md), prepared on October 3 from the existing record; not a verbatim transcript. The previous published transcript remains in Git history, which this change does not rewrite
 **Script:** [meeting-script.md](meeting-script.md)
 
 ## Summary
@@ -34,10 +35,12 @@
 
 ## Action points
 
+The meeting supports the following planning follow-ups. On October 3, azamatbayramov confirmed that October 8 was not an agreed deadline. Owners and exact dates must be agreed during Week 2 planning; the rows below do not assert a meeting commitment to an invented date.
+
 | Action | Owner | Due |
 | ------ | ----- | --- |
-| Write the MVP-0 plan: proxy, provider key from `.env`, one provider, phone-number masking plugin | azamatbayramov | 2026-10-08 (Week 2) |
-| Plan the development infrastructure for the codebase: CI and linters | azamatbayramov | 2026-10-08 (Week 2) |
+| Write the MVP-0 plan: proxy, provider key from `.env`, one provider, phone-number masking plugin | azamatbayramov (proposed owner) | Not agreed; schedule during Week 2 planning |
+| Plan the development infrastructure for the codebase: CI and linters | azamatbayramov (proposed owner) | Not agreed; schedule during Week 2 planning |
 
 ## Open questions
 
@@ -53,4 +56,4 @@
 | Your position | Customer's position | What you changed |
 | ------------- | ------------------- | ---------------- |
 | Users should be able to send requests through the gateway with their own provider keys, as in azamatbayramov's workplace | It is a poor practice; the gateway should hold a key pool, and building the option in encourages it | Kept only as an optional feature an operator can turn off; gateway-held keys are the default path |
-| `VP-01` frames the product as a privacy preflight that masks or blocks text before forwarding (written direction, not presented) | Filtering personal data alone is a solved problem; the value is a plugin host where each company plugs in its own policy | Nothing yet: `VP-01` is unchanged in this change, and its re-framing is an open question above |
+| `VP-01` frames the product as a privacy preflight that masks or blocks text before forwarding (written direction, not presented) | Filtering personal data alone is a solved problem; the value is a plugin host where each company plugs in its own policy | At the meeting, the written proposition had not been revised. The subsequent October 3 [research revision](../../docs/research/value-proposition.md) now places privacy filtering inside the plugin-host direction; it is not presented as a decision made during the call |

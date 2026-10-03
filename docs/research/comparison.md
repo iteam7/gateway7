@@ -1,6 +1,6 @@
 # Comparison
 
-Documentation checked on 2026-09-30. **O** means observed in the cited documentation; **I** means our interpretation for the proposed small-team text gateway. No runtime comparison or customer validation has been completed. Observation numbers refer to [alternatives.md](alternatives.md).
+Documentation checked on 2026-09-30. **O** means observed in the cited documentation; **I** means our interpretation for the proposed small-team text gateway. No runtime comparison has been completed. The October 2 kickoff clarified the corporate plugin-host direction, but did not validate this matrix against a concrete customer workflow; see the [scope update](alternatives.md). Observation numbers refer to [alternatives.md](alternatives.md).
 
 | Property | ALT-01 Portkey | ALT-02 Presidio + middleware | ALT-03 LiteLLM + Presidio | ALT-04 Kong on-prem + sanitizer |
 | --- | --- | --- | --- | --- |

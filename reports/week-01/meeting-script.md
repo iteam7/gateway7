@@ -3,7 +3,7 @@
 ## Context
 
 No script was written before the meeting.
-This file was reconstructed on 2026-10-02, after the meeting, from the questions actually asked; see [the transcript](meeting-transcript.md) and the deviations in the [week report](README.md#deviations).
+This file was reconstructed on 2026-10-02, after the meeting, from the questions actually asked; see [the sanitized summary notes](meeting-notes.md) and the deviations in the [week report](README.md#deviations).
 
 The team had not yet written its problem-space sentence, so this file works from the proposed direction in our value proposition draft: a small text-only LLM gateway with explicit, testable privacy behavior and a core-plus-plugins architecture.
 Our draft `VP-01` and `VP-02` assume a privacy preflight with a plugin contract for domain filters, their assumptions table lists the user segment and the scope boundary as unchecked, and their MVP boundaries leave the two provider adapters to be selected with the Customer.
@@ -47,7 +47,7 @@ None.
 ## Roles
 
 azamatbayramov interviewed.
-No one took notes or observed: no other team member attended, and the Customer's automatic transcript served as the record.
+No one took notes or observed: no other team member attended, and the Customer's automatic record supported the later summary notes.
 
 ## Key improvements
 

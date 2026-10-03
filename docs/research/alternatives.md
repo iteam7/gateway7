@@ -1,10 +1,10 @@
 # Alternatives
 
-**Problem space:** Small application teams need to send text conversations to different LLM providers while applying inspectable, locally controlled rules that reduce accidental disclosure of sensitive information without reimplementing the rules in every application.
+**Problem space:** Corporate IT teams need to mediate applications' LLM requests and responses while adapting access, usage tracking and data-handling policies to their own systems through replaceable plugins.
 
-**Status:** Documentation research checked on 2026-09-30. This is a proposed user segment, not a customer-validated finding. No product was installed or benchmarked. gateway7 capabilities below are proposals, not implemented features. A library is compared as an application-level substitute, not misrepresented as a complete gateway.
+**Research scope and status:** Documentation research was conducted on 2026-09-30 under a narrower hypothesis: small application teams needed locally controlled privacy checks before sending text to LLM providers. The [2026-10-02 kickoff](../../reports/week-01/meeting-report.md#summary) broadened the Customer's scope to a corporate plugin host. The comparison below remains evidence about the privacy-processing slice and plugin extension points; it is not a full evaluation of authentication, key management, token accounting or response-analysis integrations. Those require further research. No product was installed or benchmarked; gateway7 capabilities remain proposals.
 
-**Research-board arrangement:** The linked Markdown gallery is proposed as the navigable, read-only evidence overview, with images in the weekly report. The research guide permits repository screenshot storage, but the assignment separately requests a board. This is a declared deviation requiring course/Customer acceptance; public access will only be established after authorized repository integration. No external board has been created.
+**Research-board arrangement:** The [read-only evidence gallery](../../reports/week-01/evidence-gallery.md) contains seven dated documentation screenshots with source links and property/observation captions for ALT-02–ALT-04. Two rights-cleared ALT-01 screenshots are still required. Images are stored as Week 1 evidence. A repository gallery is our proposed substitute for the external board; acceptance of that deviation has not been confirmed. The gallery does not establish hands-on product performance.
 
 See the [candidate search](../../reports/week-01/candidate-list.md), [comparison](comparison.md), [gap hypotheses](gap-analysis.md), and [proposed value](value-proposition.md).
 
