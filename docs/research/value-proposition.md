@@ -1,6 +1,6 @@
 # Value Proposition
 
-**Update after the 2026-10-02 kickoff:** The Customer described a corporate plugin host with request and response processing. The original privacy-focused VP-01/VP-02 proposals below are retained as one use case and an extension workflow within that host; they were not presented or endorsed at the meeting. No implementation, measured advantage or market validation is claimed. Both entries depend on [unvalidated gap hypotheses](gap-analysis.md).
+**Update after the 2026-10-02 kickoff:** The Customer confirmed the project need for a corporate plugin host with company-authored request and response plugins and configurable policy actions. The original privacy-focused VP-01/VP-02 proposals below are retained as one use case and an extension workflow within that host; their detailed designs were not presented or endorsed at the meeting. The broader need is Customer-confirmed, while the narrower workflow benefits and competitive differentiation remain [gap hypotheses](gap-analysis.md). No implementation or measured advantage is claimed.
 
 ## VP-01: Predictable local preflight for small teams
 
@@ -44,7 +44,7 @@ This is a proposal for subsequent work. Assignment 1 is research-only; building 
 
 ## Assumptions
 
-The kickoff established the broader direction, but did not settle the detailed assumptions below. No assumption is marked confirmed until its evidence is recorded in the [meeting report](../../reports/week-01/meeting-report.md) or a subsequent experiment.
+The kickoff confirmed the broader plugin-host need and the scope decisions recorded in the [meeting report](../../reports/week-01/meeting-report.md#decisions). The table below contains the narrower assumptions that the recorded meeting did not settle; it does not reopen the confirmed project direction. Confirm an assumption only when supporting evidence is recorded in a subsequent meeting report or research result.
 
 | Assumption | Supports | How we will check it | When |
 | --- | --- | --- | --- |

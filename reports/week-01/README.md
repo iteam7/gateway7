@@ -9,7 +9,7 @@ License: [MIT](../../LICENSE).
 
 ## Summary
 
-We researched eleven candidates, compared four alternatives on seven properties, and retained two gap hypotheses. Existing products already support local filtering and custom extensions, so a comparative advantage remains unproven. The October 2 kickoff broadened the direction from privacy preflight to a corporate plugin host. MVP-0 is a one-provider proxy with a server-configured key and simple masking plugin, estimated at two to three weeks with CI and linters first; no implementation is claimed for Assignment 1.
+We researched eleven candidates, compared four alternatives on seven properties, and retained two gap hypotheses. The Customer confirmed the corporate plugin-host need. Existing products already support local filtering and custom extensions, so a comparative advantage remains unproven. The October 2 kickoff broadened the direction from privacy preflight to a corporate plugin host. MVP-0 is a one-provider proxy with a server-configured key and simple masking plugin, estimated at two to three weeks with CI and linters first; no implementation is claimed for Assignment 1.
 
 ## Coverage
 
@@ -24,7 +24,7 @@ We researched eleven candidates, compared four alternatives on seven properties,
 | Meeting script    | [meeting-script.md](meeting-script.md)                                            |
 | Customer kickoff  | [meeting-report.md](meeting-report.md), [meeting-notes.md](meeting-notes.md) |
 | AI usage          | [ai-usage.md](ai-usage.md)                                                        |
-| Remaining submission work | [submission-checklist.md](submission-checklist.md), unresolved confirmations and final package checks |
+| Submission preparation | [submission-checklist.md](submission-checklist.md), [Typst wrapper](submission.typ), [sanitized PDF preview](submission-preview.pdf); private fields and final package checks remain open |
 
 Publication permission for the transcript is unconfirmed. This revision uses sanitized summary notes; the previous transcript remains in Git history, which has not been rewritten.
 
@@ -60,7 +60,8 @@ Publication permission for the transcript is unconfirmed. This revision uses san
   Our `VP-01`/`VP-02` direction was not shown at the kickoff; the disagreement with `VP-01` comes from the Customer's description of the product, not from a reaction to a presentation.
 - **Publication/private-sharing permission unconfirmed.**
   The Customer initiated recording. On October 3 the participant did not recall asking the separate permission questions; the earlier claims of off-record permission were removed. Summary notes replace the verbatim transcript in this revised tree.
-- **Action deadlines unagreed.** October 8 was not agreed. The meeting report leaves real owners/dates to be confirmed rather than inventing replacements.
+- **Post-kickoff assignments and unagreed deadlines.** On October 3 azamatbayramov assigned repository infrastructure to himself and base-architecture work to ExFuseMe. The [meeting report](meeting-report.md#action-points) dates that clarification. The proposed architecture date, October 12, is outside the required Week 2 window (October 2–8); the infrastructure date remains unagreed. October 8 was not agreed at kickoff.
+- **Recording unavailable.** The Customer supplied a transcript and conversation overview, but no recording or recording link, as azamatbayramov confirmed on October 3. The recording-link requirement remains unmet; receipt of those texts does not establish transcript-sharing permission.
 - **Repository gallery instead of an external board.** The [gallery](evidence-gallery.md) contains at least two screenshots per alternative, with source captions and [license notices](../../ATTRIBUTION.md). Course acceptance of this arrangement remains unconfirmed.
 - **Research limits.** Criteria were refined during research, and the gap hypotheses still need comparative validation. Declaring deviations does not waive the corresponding requirements.
 - **Historical branch evidence.** PR #11 (`fill_alternatives`) and PR #12 (`fill_gap-analysis`) used underscores instead of hyphens. PR #12's source branch was absent at the October 3 audit; its PR and commit remain accessible, but the deletion time and actor are unverified. These historical deviations are not repaired by renaming evidence or rewriting history.

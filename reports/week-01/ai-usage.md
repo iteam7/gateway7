@@ -43,16 +43,21 @@ Used Claude Code to diagnose a failed link check (GitHub answered 503 to the
 course-rule links from the Actions runner) and to add 503 to the accepted
 status codes in `.github/workflows/lychee.yml`.
 
-Used the OpenAI assistant on October 3 to check current course rules and repository evidence, correct facts against the kickoff and participant feedback, fill existing report fields, restore/capture documentation screenshots with license notices, and check links. The transcript was replaced with sanitized summary notes because publication permission was unconfirmed. No competitor runtime testing or human assessment is claimed.
+Used the OpenAI assistant on October 3 to check current course rules and repository evidence, correct facts against the kickoff and participant feedback, fill existing report fields, restore/capture documentation screenshots with license notices, and check links. The transcript was replaced with sanitized summary notes because publication permission was unconfirmed. No competitor runtime testing is claimed; the participant assessment now recorded below is separate from these tool-assisted checks.
 
 Used the OpenAI assistant again on October 3 for additional official-source verification and source-grounded research corrections, PR and exact-commit CI evidence checks, and targeted edits to the existing research/report files and a submission checklist. This assistance includes research drafting; it does not establish the gap hypotheses or replace the team's assessment of the output.
 
+Used the OpenAI assistant for this submission-preparation revision to record the participant's assessment and current follow-up assignments, distinguish the Customer-confirmed project need from competitive-gap hypotheses, and author and render a Typst wrapper with private inputs kept out of Git. The generated preview is a draft, not a completed private submission.
+
 ## What we did with the output
 
-TODO — the team must state what we accepted unchanged, what we edited, what we rejected and why; no human assessment has been supplied for the October 3 assistance.
-The workflow and templates were checked against the course requirements by hand.
+Participant assessment supplied by azamatbayramov on October 3:
 
-Factual correction record, separate from that pending assessment: [PR #17](https://github.com/iteam7/gateway7/pull/17) left the root README, comparison and candidate list unchanged. It corrected inaccurate attendance, presented-direction, due-date and consent claims, and replaced the transcript with sanitized summary notes. This describes the documented changes, not the team's reasons for accepting, editing or rejecting AI output.
+- **Accepted for review:** the targeted corrections in [PR #17](https://github.com/iteam7/gateway7/pull/17); he asked to move it out of draft after the corrections. This is a participant-level assessment, not an invented endorsement from every team member.
+- **Changed:** attendance to one team member, removed an unagreed October 8 deadline, and changed transcript permissions to unconfirmed. These changes reflect his corrections to the meeting account rather than treating AI reconstruction as fact.
+- **Rejected:** a wholesale rewrite of the existing artifacts. He requested small corrections to the team's existing work, saying a complete rewrite would look strange. The root README, comparison and candidate list were left unchanged in PR #17.
+
+The workflow and templates were checked against the course requirements by hand. No separate unchanged-output acceptance or assessment from the other members is claimed.
 
 ## What was not used
 
