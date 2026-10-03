@@ -56,8 +56,10 @@ publication and its exact-commit checks are verified separately.
 Following the participant's October 3 correction, the assistant removed unconfirmed
 publication-consent and October 8 deadline claims, and replaced the verbatim
 transcript in the revised tree with sanitized summary notes. The prior Git
-history was not rewritten. Three Portkey documentation screenshots were withheld
-because their documentation reuse license could not be verified.
+history was not rewritten. Three Portkey product-documentation screenshots were withheld
+because their separate documentation reuse license could not be verified. Two
+new browser captures from the MIT-licensed gateway README replaced them, with
+source-specific captions and the full license notice retained.
 
 ## What we did with the output
 

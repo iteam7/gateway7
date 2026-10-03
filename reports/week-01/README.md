@@ -9,7 +9,7 @@ Assignment 1 is initial project research. This report was consolidated on 2026-1
 
 ## Summary
 
-We considered eleven candidates and researched Portkey, Presidio with application middleware, LiteLLM with Presidio, and Kong on-prem across seven properties. Their documentation already supports local processing, custom rules and extension points, so none of those alone is a defensible uniqueness claim. Seven documentation screenshots preserve relevant configuration and limitation evidence for three alternatives. Portkey screenshot reuse was not cleared, so those images are withheld and its visual-evidence minimum remains open. No runtime benchmark was performed.
+We considered eleven candidates and researched Portkey, Presidio with application middleware, LiteLLM with Presidio, and Kong on-prem across seven properties. Their documentation already supports local processing, custom rules and extension points, so none of those alone is a defensible uniqueness claim. Nine documentation screenshots preserve configuration and limitation evidence, at least two per alternative. Portkey uses two fresh captures of its MIT-licensed gateway README; three earlier product-docs crops with unverified reuse terms remain excluded. No runtime benchmark was performed.
 
 The initial privacy-first framing was too narrow. At the October 2 kickoff, the Customer described a corporate plugin host: request processing first, response processing second, routing third; operator-held provider keys are preferred, and installing plugins can require a restart. Claude and Gemini were acceptable initial targets. Our two revised propositions treat inspectable privacy behavior and testable domain-filter changes as parts of that host. Their comparative advantage remains a hypothesis to test against configured alternatives.
 
@@ -19,14 +19,14 @@ The first runnable milestone discussed was a one-provider proxy with a server-co
 
 | Deliverable | Artifact / status |
 | --- | --- |
-| Team and project | Project section above; four-member contribution evidence below. Current write permissions still need administrator verification |
+| Team and project | Project section above; four-member contribution and current access evidence below |
 | Repository setup | [Root README](../../README.md), [MIT license](../../LICENSE), [.gitignore](../../.gitignore), [PR template](../../.github/pull_request_template.md), [link workflow](../../.github/workflows/lychee.yml), [Dependabot](../../.github/dependabot.yml); platform evidence below |
 | Candidate list | [candidate-list.md](candidate-list.md), including all eleven candidates and rejection reasons |
 | Alternatives research | [alternatives.md](../../docs/research/alternatives.md), ALT-01–ALT-04 with source-linked observations and limitations |
 | Compare alternatives | [comparison.md](../../docs/research/comparison.md), seven properties and four synthesis patterns |
 | Gap analysis | [gap-analysis.md](../../docs/research/gap-analysis.md), GAP-01/GAP-02 and rejected gaps; underserved tests remain unproven |
 | Value proposition | [value-proposition.md](../../docs/research/value-proposition.md), VP-01/VP-02, costs, competitor responses, staged scope and assumptions |
-| Research board | [Evidence gallery](evidence-gallery.md), seven included documentation screenshots; two rights-cleared Portkey screenshots and acceptance of the gallery substitution remain open |
+| Research board | [Evidence gallery](evidence-gallery.md), nine documentation screenshots with at least two per alternative; acceptance of the gallery substitution remains open |
 | Meeting script | [meeting-script.md](meeting-script.md), a retrospective record, with preparation and coverage deviations below |
 | Customer kickoff | [meeting-report.md](meeting-report.md) and [meeting-notes.md](meeting-notes.md); sanitized summary notes replace the transcript because publication permission is unconfirmed |
 | AI usage | [ai-usage.md](ai-usage.md); the team must supply its own accepted/changed/rejected assessment |
@@ -39,7 +39,7 @@ The first runnable milestone discussed was a one-provider proxy with a server-co
 - **Approved merged PR:** [PR #13](https://github.com/iteam7/gateway7/pull/13), authored by ExFuseMe, with [azamatbayramov's approval](https://github.com/iteam7/gateway7/pull/13#pullrequestreview-5396752624). This is other-member review evidence, not self-approval.
 - **Latest main link check at audit time:** [successful run 37125360390](https://github.com/iteam7/gateway7/actions/runs/37125360390) for full SHA `4d62cd7f947809b754276a201b3947ee9aa524da`, completed 2026-10-03. This run predates the consolidated corrections; it does not validate their final commit. The actual submission must use a green run on its final `main` SHA.
 - **Link exceptions:** [.lycheeignore](../../.lycheeignore) has no excluded URLs. The existing workflow accepts HTTP 429 and 503 as well as 200/206; 503 was added in [PR #16](https://github.com/iteam7/gateway7/pull/16) after transient GitHub failures. This consolidation preserves that authorized setting. A green run therefore does not prove every destination returned content, and final browser verification is still required.
-- **Collaborator access:** all four members have commit-via-PR and other-member approval evidence below. Current write permissions could not be independently read with the available integration; an administrator must verify them before submission.
+- **Collaborator access:** rechecked through GitHub on 2026-10-03 after repository access was restored: azamatbayramov has admin access; ExFuseMe, DeniBorsh and iceberkut each have write access. All four also have commit-via-PR and other-member approval evidence below.
 
 ## Contribution
 
@@ -62,7 +62,7 @@ Commit evidence for DeniBorsh is traced through PR ownership because that commit
 - **Permission evidence.** On October 3 the participant could not confirm that publication or private-sharing permission had been requested; the Customer had initiated recording. The earlier off-record-permission assertions were removed. The revised tree uses sanitized summary notes and withholds the verbatim transcript pending consent. The earlier published transcript remains in Git history; no history rewrite or retroactive consent is claimed.
 - **Action deadlines not agreed.** The original report's October 8 action deadlines were rejected by the participant on October 3. No substitute date is invented; Week 2 planning must agree owners and due dates. The assignment's two dated-action minimum remains open.
 - **Research properties refined during research.** The original criteria and candidate selection were developed together. No separate pre-evaluation commitment is claimed.
-- **Repository evidence gallery.** Seven captioned documentation screenshots are included in the repository rather than an external board, with source MIT notices in [attribution](../../ATTRIBUTION.md). The gallery is navigable and read-only for public readers after publication, but course acceptance of this substitution remains open. Portkey screenshots are withheld until rights-cleared evidence is available.
+- **Repository evidence gallery.** Nine captioned documentation screenshots are included in the repository rather than an external board, with source MIT notices in [attribution](../../ATTRIBUTION.md). The gallery is navigable and read-only for public readers after publication, but course acceptance of this substitution remains open. The earlier Portkey product-docs crops were replaced by two October 3 captures from the MIT-licensed gateway README; the original crops remain excluded.
 - **Documentation-only evaluation.** No products were installed or benchmarked. The Customer clarified a direction, while GAP-01/GAP-02 still lack comparative validation. These are limitations, not claims that the rubric has been fully met.
 - **Late hand-in.** The team intends to submit on October 3, after the October 2 hard deadline, and the stated 10%-per-day late policy applies. This does not claim an extension or a completed Moodle submission.
 

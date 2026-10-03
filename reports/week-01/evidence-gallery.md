@@ -1,14 +1,14 @@
 # Alternative analysis: documentation evidence gallery
 
-The source package records these public-documentation screenshots as captured on **2026-09-30 (UTC)**. The original image bytes were restored unchanged and all ten original images were visually rechecked on **2026-10-03 (UTC)**. They establish documented capabilities and constraints, **not executed runtime tests**, measured performance, or proof of compliance. No visible account identity, private personal data, or credentials were found in the image pixels.
+Seven ALT-02–ALT-04 public-documentation screenshots were captured on **2026-09-30 (UTC)** according to their source package, restored unchanged and visually rechecked on **2026-10-03 (UTC)**. Two ALT-01 screenshots were captured directly from Portkey's MIT-licensed gateway README on **2026-10-03 (UTC)**. All nine establish documented capabilities and constraints, **not executed runtime tests**, measured performance or proof of compliance. No private account identity, personal data or real credentials appears in the images; the Portkey key text is the source's masked example.
 
-This public gallery contains seven screenshots for ALT-02–ALT-04. ALT-01 screenshots are withheld until rights-cleared replacement evidence is available; the two-per-alternative requirement is not yet met. The preserved Kong crops show limitations and dependencies without shrinking an entire page into unreadable text. Source links identify the original documentation; captions summarize only assertions visible in each crop. Pricing pages were not used.
+This gallery contains at least two screenshots for each alternative. Source links and captions identify exactly what each screenshot supports. The three earlier Portkey product-docs crops were not republished because their separate documentation reuse license was unverified; the two gateway-README captures replace them with attributable evidence. They do not visually establish the separately cited PII redaction limitations.
 
 ## Evidence map
 
 | Alternative | Properties / observations supported | Screenshots |
 | --- | --- | --- |
-| [ALT-01](../../docs/research/alternatives.md#alt-01-portkey-ai-gateway-direct-competitor) | P3/P4/P6/P7; O2–O4 | Withheld: two rights-cleared screenshots still required |
+| [ALT-01](../../docs/research/alternatives.md#alt-01-portkey-ai-gateway-direct-competitor) | P1/P3/P5; O1/O5 | Local setup/client, output guardrail/retry example |
 | [ALT-02](../../docs/research/alternatives.md#alt-02-presidio-with-application-middleware-adjacent-substitute) | P2/P4/P6/P7; O1/O2/O5 | Features/warning, decision trace |
 | [ALT-03](../../docs/research/alternatives.md#alt-03-litellm-proxy-with-presidio-open-source--self-hosted-competitor) | P2/P3/P5/P7; O2/O3 | Deployment dependencies, hook timing |
 | [ALT-04](../../docs/research/alternatives.md#alt-04-kong-ai-gateway-on-prem-with-ai-pii-sanitizer-enterprise-competitor) | P2/P3/P5/P7; O1–O3 | License/sanitization, service flow, on-prem configuration |
@@ -17,7 +17,23 @@ Source owners retain rights in the documentation and product names shown; these 
 
 ## ALT-01 — Portkey
 
-Two public screenshots are still required. Three documentation crops were inspected privately, but their documentation redistribution license was not established. They are not included in this public tree. The official [PII redaction documentation](https://portkey.ai/docs/product/guardrails/pii-redaction) and [guardrails guide](https://portkey.ai/docs/product/guardrails) remain the primary sources for ALT-01 O2–O4. The MIT license of the separate gateway software repository is not assumed to cover those pages.
+### 01 — Local setup and provider client
+
+![Portkey gateway README showing local setup and an OpenAI-compatible client](images/alternatives/ALT-01-01-gateway-setup.jpg)
+
+- **Captured:** 2026-10-03 (UTC), directly in a browser; no product execution.
+- **Source:** [Gateway README: Setup your AI Gateway](https://github.com/Portkey-AI/gateway#1-setup-your-ai-gateway), associated documentation covered by the [gateway MIT license](https://github.com/Portkey-AI/gateway/blob/main/LICENSE).
+- **Visible evidence:** Local startup requires Node.js/npm; the README names local gateway and console endpoints and provides a Python OpenAI-compatible client example with a selected provider. The key shown is a masked documentation example, not a credential.
+- **Interpretation:** ALT-01 O1, P1/P5: a documented local integration path exists, unlike building all provider interception around a standalone detector. No installation success, setup-time claim or production data boundary was tested.
+
+### 02 — Output guardrail and retries
+
+![Portkey gateway README showing an output guardrail and retry configuration](images/alternatives/ALT-01-02-gateway-guardrails.jpg)
+
+- **Captured:** 2026-10-03 (UTC), directly in a browser; no product execution.
+- **Source:** [Gateway README: Routing and Guardrails](https://github.com/Portkey-AI/gateway#3-routing--guardrails), under the same retained MIT notice.
+- **Visible evidence:** The example sets a retry count and an output rule that denies a response containing a chosen word, then attaches the configuration to a client call. Part of a request/retry flow diagram is visible; the code comment extends beyond the horizontal viewport.
+- **Interpretation:** ALT-01 O5, P3: configurable response checks are documented. This example does not prove multi-turn request coverage, PII effectiveness or the behavior of every product edition.
 
 ## ALT-02 — Presidio
 
@@ -83,8 +99,8 @@ Two public screenshots are still required. Three documentation crops were inspec
 
 ## Verification and limits
 
-- All seven included JPEGs decode successfully and were visually checked against their captions. Their bytes match the restored source archive; none was generated or edited during this review.
+- All nine included JPEGs decode successfully and were visually checked against their captions. The seven restored images retain their source bytes; the two new Portkey images are direct browser captures. No evidence image was generated or retouched.
 - Pixel inspection found no private identities or secrets. JPEG inspection found no EXIF metadata. Standard JPEG fields and, in three files, color profiles remain.
-- All eight unique source pages were accessible when rechecked on 2026-10-03. Public product documentation can change; the original package's capture date applies to every image above.
+- The original eight documentation source pages and the replacement Portkey gateway README were accessible when checked on 2026-10-03. Public documentation can change; each image's capture date is recorded above.
 - ALT-02-02 has a bottom-edge crop limitation. Its caption intentionally limits visible evidence to readable text.
 - No effectiveness, false-negative rate, latency, cost, deployment success, or legal/compliance claim was independently tested here.
