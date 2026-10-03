@@ -34,12 +34,12 @@
 
 ## Action points
 
-October 3 correction: the participant confirmed that October 8 was not agreed. These follow-ups remain proposed; confirm owners and real due dates in Week 2 planning (October 2–8). Record any new assignment with its confirmation date as a post-kickoff clarification, not as a decision agreed at the kickoff.
+October 3 post-kickoff clarification by azamatbayramov: repository infrastructure is his next task; architecture planning should be proposed to another team member. These assignments were made after the kickoff. October 8 was not agreed, and no replacement dates or architecture owner have been confirmed.
 
 | Action | Owner | Due |
 | ------ | ----- | --- |
-| Write the MVP-0 plan: proxy, provider key from `.env`, one provider, phone-number masking plugin | azamatbayramov (proposed) | Not agreed; confirm in Week 2 planning |
-| Plan the development infrastructure for the codebase: CI and linters | azamatbayramov (proposed) | Not agreed; confirm in Week 2 planning |
+| Prepare the repository infrastructure for development, including CI and linters | azamatbayramov (assigned October 3) | Week 2 proposed; date to agree |
+| Propose the architecture for MVP-0: core/plugin contract, request and response flow, one provider, and the upper limit of running plugins | Another team member (proposed; username to agree) | Week 2 proposed; date to agree |
 
 ## Open questions
 

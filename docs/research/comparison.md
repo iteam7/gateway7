@@ -1,6 +1,6 @@
 # Comparison
 
-Documentation checked on 2026-09-30. **O** means observed in the cited documentation; **I** means our interpretation for the proposed small-team text gateway. No runtime comparison or customer validation has been completed. Observation numbers refer to [alternatives.md](alternatives.md).
+Initial documentation comparison: 2026-09-30; additional counterevidence recorded on 2026-10-03. **O** means observed in the cited documentation; **I** means our interpretation for the proposed small-team text gateway. No runtime comparison has been completed. The [October 2 kickoff](../../reports/week-01/meeting-report.md#decisions) confirmed the broader corporate plugin-host need; it did not validate the narrower privacy-focused workflow or establish competitor shortfalls. Observation numbers refer to [alternatives.md](alternatives.md).
 
 | Property | ALT-01 Portkey | ALT-02 Presidio + middleware | ALT-03 LiteLLM + Presidio | ALT-04 Kong on-prem + sanitizer |
 | --- | --- | --- | --- | --- |
@@ -19,4 +19,4 @@ Documentation checked on 2026-09-30. **O** means observed in the cited documenta
 3. **PAT-03:** Existing components expose extension points and decision information, but assembling and validating a domain policy remains integration work. Outcome: investigate [GAP-02](gap-analysis.md#gap-02-verifiable-domain-filter-changes).
 4. **PAT-04:** General gateways provide wider integration and operational capabilities than this course project can credibly reproduce; specialist libraries leave integration work to the adopter. Outcome: reject broad platform parity and universal protection in [rejected gaps](gap-analysis.md#rejected-gaps).
 
-These patterns describe the researched options. PAT-02 and PAT-03 do not prove that an underserved segment exists. A customer workflow and the same scenario applied to configured alternatives are needed before promoting either hypothesis to a validated gap.
+These patterns describe the researched options. The Customer-confirmed plugin-host need gives the project a direction, but PAT-02 and PAT-03 do not establish an underserved workflow. Before promoting GAP-01 or GAP-02 to a validated competitive gap, identify the specific job and current difficulty, then assess whether the documented configurations of the closest alternatives already meet it.

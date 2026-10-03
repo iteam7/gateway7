@@ -2,11 +2,18 @@
 
 Open items for Modular LLM Gateway, team 7, as of October 3, 2026. This list does not satisfy the missing requirements or confirm that the assignment has been submitted.
 
+## Recorded updates
+
+- [x] Replace the AI-assessment placeholder with azamatbayramov's actual accepted/changed/rejected decisions; do not attribute an assessment to other members.
+- [x] Assign repository infrastructure to azamatbayramov as an October 3 post-kickoff clarification; leave the second owner and dates proposed.
+- [x] Trace the Customer-confirmed corporate plugin-host need to the kickoff while retaining the specific competitive-gap uncertainty.
+- [x] Keep the current public meeting evidence as sanitized summary notes, with no recording URL or private identity mapping. This closes the current-tree replacement, not the permissions or historical-copy questions below.
+- [x] Compile and inspect the one-page [sanitized Typst preview](submission-preview.pdf). It is a draft and contains no private team mapping or recording URL.
+
 ## Confirmations still needed
 
-- [ ] Complete the genuine team assessment in `ai-usage.md`: what was accepted, changed or rejected, and why, including the October 3 assistance.
-- [ ] Confirm GitHub-username owners and real Week 2 due dates (October 2–8) for both proposed follow-ups: the MVP-0 plan and the CI/linter infrastructure plan. Date each new assignment as a post-kickoff clarification; October 8 was not agreed at the meeting.
-- [ ] Review `GAP-01` and `GAP-02` with evidence of a useful need inadequately served by the alternatives, or explicitly confirm that the submission retains unvalidated hypotheses and conditional `VP-01`/`VP-02`. Source corrections alone do not validate a gap.
+- [ ] Name the proposed architecture owner by GitHub username and agree real Week 2 due dates (October 2–8) for both follow-ups. Date new confirmations as post-kickoff clarifications; October 8 was not agreed at the meeting.
+- [ ] Establish the narrower workflow benefits and competitive shortfall for `GAP-01`/`GAP-02`, or retain the explicitly conditional proposals. The kickoff confirms the broader plugin-host need, not that alternatives serve it poorly.
 - [ ] Resolve three separate kickoff permissions with the Customer: recording, publishing a sanitized transcript, and sharing it privately with instructors if publication is refused. Record when each answer is obtained; the Customer starting the recording does not establish the other permissions or prove the questions were asked beforehand.
 - [ ] Resolve the previously published transcript and the privacy statement with the Customer/instructors. Its historical copy remains accessible; replacing it with notes did not remove it from Git history. If prohibited exposure is confirmed, follow the course's private incident-reporting and authorized cleanup procedure.
 - [ ] Obtain acceptance of the repository-gallery deviation or provide a real view-only board using the existing screenshots, then update its public links.
@@ -23,3 +30,39 @@ Keep the historical preparation, missing question areas/rewrites, attendance/rol
 - [ ] Submit the PDF and matching ZIP once as the team's Moodle submission and retain the receipt. Record the actual submission time rather than claiming an earlier deadline was met.
 
 Requirements: [Assignment 1](https://github.com/inno-itpd/itpd/blob/fe58ba70bbd90b92ffd6942d340f1e8b35b4bbb1/assignments/assignment-1.md), [artifact requirements](https://github.com/inno-itpd/itpd/blob/fe58ba70bbd90b92ffd6942d340f1e8b35b4bbb1/requirements/artifact-requirements.md), and [permalinks and snapshots](https://github.com/inno-itpd/itpd/blob/fe58ba70bbd90b92ffd6942d340f1e8b35b4bbb1/requirements/repository-requirements.md#permalinks-and-snapshots).
+
+## Build the private PDF with Typst
+
+The public [template](submission.typ) and [preview](submission-preview.pdf) contain no private values. The preview links the pre-MR `main` baseline `7dfa6d008fef0131a322aa5b948198000176dda3`; it is not the final submission SHA. Rebuild after the reviewed changes merge.
+
+From the repository root, compile the public preview with [Typst](https://typst.app/docs/):
+
+```sh
+typst compile --input report-sha=7dfa6d008fef0131a322aa5b948198000176dda3 reports/week-01/submission.typ reports/week-01/submission-preview.pdf
+```
+
+For the private wrapper, create `reports/week-01/submission.private.json` locally with this schema. Keep it and the resulting PDF out of Git; both filenames are ignored. Use verified identities and university emails, never guessed mappings. Do not change the tracked template to insert them.
+
+```json
+{
+  "members": [
+    {"username": "azamatbayramov", "name": "", "email": ""},
+    {"username": "ExFuseMe", "name": "", "email": ""},
+    {"username": "DeniBorsh", "name": "", "email": ""},
+    {"username": "iceberkut", "name": "", "email": ""}
+  ],
+  "report_sha": "",
+  "recording_url": "",
+  "privacy_statement": "",
+  "links_verified": false,
+  "privacy_resolved": false
+}
+```
+
+Set `links_verified` only after checking the full-SHA report and instructor recording access. Set `privacy_resolved` only after resolving the historical transcript and permissions; supply the accurate privacy statement rather than copying an unsupported clean-history claim. Then compile:
+
+```sh
+typst compile --input private-data=submission.private.json --input mode=final reports/week-01/submission.typ reports/week-01/submission.private.pdf
+```
+
+Final mode rejects incomplete fields and wrappers longer than two pages. It cannot verify an email's ownership, a commit's membership in `main`, or instructor permissions: the checklist still requires those checks. If publication was actually refused and private transcript sharing permitted, add `transcript`, `publication_refused: true` and `private_sharing_permitted: true` to the private JSON; do not infer either permission. Inspect every page and link in the filled PDF before the authorized Moodle submission.

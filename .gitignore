@@ -36,3 +36,6 @@ __pycache__/
 # AI agents: local settings and log
 .claude/settings.local.json
 .agents-log.md
+
+# Private submission inputs and compiled wrappers (never commit)
+reports/week-*/submission.private.*
