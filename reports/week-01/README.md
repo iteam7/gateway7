@@ -20,8 +20,11 @@ TODO — what we found and what we propose.
 | Gap analysis      | [docs/research/gap-analysis.md](../../docs/research/gap-analysis.md)             |
 | Value proposition | [docs/research/value-proposition.md](../../docs/research/value-proposition.md)   |
 | Research board    | TODO                                                                              |
+| Meeting script    | [meeting-script.md](meeting-script.md)                                            |
 | Customer kickoff  | [meeting-report.md](meeting-report.md), [meeting-transcript.md](meeting-transcript.md) |
 | AI usage          | [ai-usage.md](ai-usage.md)                                                        |
+
+The kickoff produced a transcript, not notes: the Customer permitted recording and publication of a sanitized transcript.
 
 ## Repository evidence
 
@@ -38,7 +41,20 @@ TODO — what we found and what we propose.
 
 ## Deviations
 
-None.
+- **Meeting script written after the meeting.**
+  No script was prepared before the kickoff.
+  [meeting-script.md](meeting-script.md) lists only the questions actually asked, so business goals and current workflow have no questions and `## Key improvements` is `None`.
+  The team had no problem-space sentence yet, so the script's `## Context` works from the proposed direction in the value proposition draft.
+  We did not invent a preparation that did not happen.
+- **One team member attended.**
+  Only azamatbayramov attended, so there was no separate note taker or observer; the Customer's automatic transcript served as the record.
+- **Joint session with another team.**
+  A member of another course team on the same project took part and asked questions 6 to 13 of the script.
+  The Customer's answers to them are part of the record and are used in the [meeting report](meeting-report.md).
+- **Direction not presented.**
+  Our `VP-01`/`VP-02` direction was not shown at the kickoff; the disagreement with `VP-01` comes from the Customer's description of the product, not from a reaction to a presentation.
+- **Permission answers outside the recording.**
+  Consent to record is on the recording; the answers on publishing the transcript and on sharing it privately were given outside the recording.
 
 ## Privacy
 
