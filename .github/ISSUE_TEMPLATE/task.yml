@@ -1,0 +1,21 @@
+name: Task
+description: Track documentation, reports, workflows, or other work that is not a user story.
+labels: ["task"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Explain what needs to change and why.
+    validations:
+      required: true
+  - type: textarea
+    id: checks
+    attributes:
+      label: Completion checks
+      description: Observable checks that show the task is done, with links to applicable requirements or story issues.
+  - type: textarea
+    id: remaining-work
+    attributes:
+      label: Remaining work
+      description: Optional checklist of implementation steps.

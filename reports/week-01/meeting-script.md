@@ -1,5 +1,7 @@
 # Kickoff meeting script
 
+<!-- markdownlint-disable MD029 -- Preserve question IDs across the topic sections. -->
+
 ## Context
 
 No script was written before the meeting.
@@ -14,25 +16,25 @@ The meeting had to settle what the gateway is for, who holds access to the provi
 Questions 1 to 5 were asked by azamatbayramov.
 Questions 6 to 13 were asked by a member of another course team in the same session; the Customer's answers apply to our project too, so they are listed.
 
-**Business goals**
+### Business goals
 
 None.
 
-**End users**
+### End users
 
 1. _(closed)_ Will the gateway hold the provider API keys, or only proxy requests that users make with their own keys?
 2. _(closed)_ Should users also be able to go through the gateway with their own provider tokens?
 
-**Current workflow**
+### Current workflow
 
 None.
 
-**Pain points and constraints**
+### Pain points and constraints
 
 3. _(open)_ Which language do you prefer for the gateway, given that coding agents will write the plugins?
 4. _(closed)_ Is it acceptable that our work is mostly validating and managing what agents produce rather than writing code?
 
-**Scope**
+### Scope
 
 5. _(closed)_ Should we ship instructions for coding agents (a skill, an example) for writing plugins?
 6. _(closed)_ Is the point of the project the simplicity of creating new plugins?

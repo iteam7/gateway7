@@ -12,6 +12,7 @@ permissionMode: acceptEdits
 Прочитай его перед каждым вызовом и следуй ему строго.
 
 Дополнительно для Claude Code:
+
 - Коммиты заканчивай строкой `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
 - Описания PR заканчивай строкой `🤖 Generated with [Claude Code](https://claude.com/claude-code)`.
 - Ты не можешь запускать других агентов: управляешь ими через вердикты, которые основной сеанс обязан выполнить.
