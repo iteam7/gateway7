@@ -9,11 +9,24 @@ body:
         After creating it, apply exactly one priority label:
         `moscow:must`, `moscow:should`, `moscow:could`, or `moscow:won't`.
         This issue is the source of truth; do not create a second story list in the repository.
+        Work on this story through task issues. Never use this story as a pull request's
+        closing issue, create a pull request branch from it, or link it in the pull request's
+        Development sidebar. Close a planned story only after the customer accepts it.
   - type: textarea
     id: statement
     attributes:
       label: Story statement
       description: State the user's need as "As a ..., I want ..., so that ..."; leave the implementation open.
+    validations:
+      required: true
+  - type: input
+    id: value-proposition
+    attributes:
+      label: Value proposition
+      description: |
+        Exactly one Markdown-linked VP-nn that this story supports.
+        Link its section on main: https://github.com/iteam7/gateway7/blob/main/docs/research/value-proposition.md#vp-nn.
+        Use the section's current anchor; merge the file before linking it.
     validations:
       required: true
   - type: textarea
@@ -22,10 +35,23 @@ body:
       label: Traces to
       description: |
         One Markdown-linked entry per line, using full gateway7 URLs on main.
-        Include exactly one VP-nn, any GAP-nn or decision/action point that originated the need,
-        and every ASM-nn assumption the story rests on.
+        List the GAP-nn, DEC-nnn, or action point that originated the need, if any.
+        A GAP-nn must be one that the story's value proposition closes.
+        URL pattern: https://github.com/iteam7/gateway7/blob/main/docs/research/gap-analysis.md#gap-nn.
+        For a decision or action point, use its own file and anchor on main.
+        Keep assumptions in Rests on instead.
     validations:
-      required: true
+      required: false
+  - type: textarea
+    id: rests-on
+    attributes:
+      label: Rests on
+      description: |
+        One Markdown-linked ASM-nn assumption per line, if this story rests on any.
+        URL pattern: https://github.com/iteam7/gateway7/blob/main/docs/assumptions.md#asm-nn.
+        Use the section's current anchor; merge the file before linking it.
+    validations:
+      required: false
   - type: textarea
     id: priority-reason
     attributes:
@@ -52,4 +78,4 @@ body:
     id: remaining-work
     attributes:
       label: Remaining work
-      description: Optional checklist of the work needed to deliver this story.
+      description: Optional bullet list of task issue references that deliver this story; closing the tasks does not close the story.

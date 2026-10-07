@@ -1,5 +1,5 @@
 name: Task
-description: Track documentation, reports, workflows, or other work that is not a user story.
+description: Track one unit of work, including work toward a story, documentation, reports, or workflows.
 labels: ["task"]
 body:
   - type: textarea
@@ -10,10 +10,27 @@ body:
     validations:
       required: true
   - type: textarea
-    id: checks
+    id: story
     attributes:
-      label: Completion checks
-      description: Observable checks that show the task is done, with links to applicable requirements or story issues.
+      label: Story
+      description: |
+        Optional bullet list, one item for each story issue this task works toward.
+        Name the issue alone or add its AC-nn in parentheses, for example: - #42 (AC-01, AC-02).
+        Leave empty for work that does not serve a story, such as a workflow or report.
+    validations:
+      required: false
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance criteria
+      description: |
+        At least one observable pass/fail check, with one checklist item per criterion.
+        Start each item with a stable AC-nn ID, numbered within this task.
+        The reviewer ticks these boxes in the task issue before approving its pull request;
+        merge only when every box is ticked.
+      value: "- [ ] AC-01: "
+    validations:
+      required: true
   - type: textarea
     id: remaining-work
     attributes:
