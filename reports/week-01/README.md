@@ -13,17 +13,17 @@ We researched eleven candidates, compared four alternatives on seven properties,
 
 ## Coverage
 
-| Deliverable       | Artifact                                                                          |
-| ----------------- | --------------------------------------------------------------------------------- |
-| Candidate list    | [candidate-list.md](candidate-list.md) |
-| Alternatives      | [docs/research/alternatives.md](../../docs/research/alternatives.md)             |
-| Comparison        | [docs/research/comparison.md](../../docs/research/comparison.md)                 |
-| Gap analysis      | [docs/research/gap-analysis.md](../../docs/research/gap-analysis.md)             |
-| Value proposition | [docs/research/value-proposition.md](../../docs/research/value-proposition.md)   |
-| Research board    | [Evidence gallery](evidence-gallery.md), nine screenshots; repository-gallery deviation pending acceptance |
-| Meeting script    | [meeting-script.md](meeting-script.md)                                            |
-| Customer kickoff  | [meeting-report.md](meeting-report.md), [meeting-notes.md](meeting-notes.md) |
-| AI usage          | [ai-usage.md](ai-usage.md)                                                        |
+| Deliverable            | Artifact                                                                                                                                                                                  |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Candidate list         | [candidate-list.md](candidate-list.md)                                                                                                                                                    |
+| Alternatives           | [docs/research/alternatives.md](../../docs/research/alternatives.md)                                                                                                                      |
+| Comparison             | [docs/research/comparison.md](../../docs/research/comparison.md)                                                                                                                          |
+| Gap analysis           | [docs/research/gap-analysis.md](../../docs/research/gap-analysis.md)                                                                                                                      |
+| Value proposition      | [docs/research/value-proposition.md](../../docs/research/value-proposition.md)                                                                                                            |
+| Research board         | [Evidence gallery](evidence-gallery.md), nine screenshots; repository-gallery deviation pending acceptance                                                                                |
+| Meeting script         | [meeting-script.md](meeting-script.md)                                                                                                                                                    |
+| Customer kickoff       | [meeting-report.md](meeting-report.md), [meeting-notes.md](meeting-notes.md)                                                                                                              |
+| AI usage               | [ai-usage.md](ai-usage.md)                                                                                                                                                                |
 | Submission preparation | [submission-checklist.md](submission-checklist.md), [Typst wrapper](submission.typ), [sanitized PDF preview](submission-preview.pdf); private fields and final package checks remain open |
 
 Publication permission for the transcript is unconfirmed. This revision uses sanitized summary notes; the previous transcript remains in Git history, which has not been rewritten.

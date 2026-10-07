@@ -37,7 +37,7 @@ permissionMode: acceptEdits
 
 Выдай план в формате:
 
-```
+```text
 ### TASK-<n>: <название>
 - Agent: <имя агента-разработчика из .claude/agents/>
 - Traces to: <US-nn / GAP-nn / issue>

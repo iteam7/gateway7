@@ -1,0 +1,55 @@
+name: User story
+description: Record a user need, its evidence, priority reason, and acceptance criteria.
+labels: ["user-story"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Name the issue `US-nn: story title`, using the next unused story ID.
+        After creating it, apply exactly one priority label:
+        `moscow:must`, `moscow:should`, `moscow:could`, or `moscow:won't`.
+        This issue is the source of truth; do not create a second story list in the repository.
+  - type: textarea
+    id: statement
+    attributes:
+      label: Story statement
+      description: State the user's need as "As a ..., I want ..., so that ..."; leave the implementation open.
+    validations:
+      required: true
+  - type: textarea
+    id: traces
+    attributes:
+      label: Traces to
+      description: |
+        One Markdown-linked entry per line, using full gateway7 URLs on main.
+        Include exactly one VP-nn, any GAP-nn or decision/action point that originated the need,
+        and every ASM-nn assumption the story rests on.
+    validations:
+      required: true
+  - type: textarea
+    id: priority-reason
+    attributes:
+      label: Priority reason
+      description: Name the chosen MoSCoW priority, explain why the adjacent priority is unsuitable, and cite any constraint that drives it.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance criteria
+      description: |
+        Required for every story except Won't Have: at least two observable pass/fail checks.
+        Start each check with a stable AC-nn ID, numbered within this story.
+        Cover the normal path and an edge or failure case where relevant.
+    validations:
+      required: false
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Constraints, assumptions, open questions, or supporting context.
+  - type: textarea
+    id: remaining-work
+    attributes:
+      label: Remaining work
+      description: Optional checklist of the work needed to deliver this story.
