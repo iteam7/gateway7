@@ -1,0 +1,18 @@
+%% System context diagram for gateway7.
+%% Source for docs/architecture/context.svg; update both in the same change.
+%% Rendered by hand as an SVG rather than through mermaid-cli (see docs/product-vision.md#system-context).
+flowchart LR
+    admin["IT / policy administrator<br/>(actor)"]
+    caller["Caller application<br/>(actor)"]
+    gateway7["gateway7<br/>gateway + plugin runtime"]
+    provider["LLM Provider<br/>(external system)"]
+
+    admin -- "configures plugins & policy" --> gateway7
+    caller -- "chat request" --> gateway7
+    gateway7 -- "filtered response" --> caller
+    gateway7 -- "forwarded prompt (if allowed)" --> provider
+    provider -- "completion" --> gateway7
+    provider -. "meters & bills usage (BND-03)" .- provider
+
+    classDef product fill:#2563eb,color:#ffffff,stroke:#1e3a8a,stroke-width:2px;
+    class gateway7 product;

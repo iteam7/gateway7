@@ -1,5 +1,7 @@
 # Documentation
 
+- [Product vision](product-vision.md)
+- [System context diagram source](architecture/context.mmd)
 - [Research](research/)
   - [Alternatives](research/alternatives.md)
   - [Comparison](research/comparison.md)
