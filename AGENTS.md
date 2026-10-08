@@ -9,9 +9,9 @@ The course rules live in [inno-itpd/itpd](https://github.com/inno-itpd/itpd).
 Read the current versions before checking work:
 
 - [rules.md](https://github.com/inno-itpd/itpd/blob/main/course/rules.md)
-- [Artifact Requirements](https://github.com/inno-itpd/itpd/blob/main/requirements/artifact-requirements.md)
+- [General Requirements](https://github.com/inno-itpd/itpd/blob/main/requirements/general-requirements.md)
 - [Repository Requirements](https://github.com/inno-itpd/itpd/blob/main/requirements/repository-requirements.md)
-- [Process Requirements](https://github.com/inno-itpd/itpd/blob/main/requirements/process-requirements.md)
+- [Research Requirements](https://github.com/inno-itpd/itpd/blob/main/requirements/research-requirements.md)
 - The assignment of the current week in [assignments/](https://github.com/inno-itpd/itpd/tree/main/assignments)
 
 Do not rely on memory.

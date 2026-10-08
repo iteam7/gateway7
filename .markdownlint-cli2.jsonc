@@ -5,5 +5,5 @@
     "MD024": { "siblings_only": true },
     "MD041": { "front_matter_title": "^\\s*(?:title|name)\\s*[:=]" }
   },
-  "ignores": [".agents-log.md"]
+  "gitignore": true
 }
