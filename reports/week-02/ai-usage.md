@@ -3,6 +3,7 @@
 ## Tools
 
 OpenAI Codex, with a Formater agent for PRE and POST review.
+Claude Code (Claude Opus 5.5), with its Formater agent for PRE and POST review.
 
 ## What we used them for
 
@@ -30,6 +31,14 @@ to Assignment 1's research-only scope.
 Checked the replacement files and heading against the current course repository;
 the research findings and identifiers are unchanged, and no link-check exclusions
 or accepted status codes were added.
+
+Drafted the Week 2 user stories with Claude Code from the Week 1 value propositions,
+gap analysis, and kickoff decisions, before the product vision existed:
+the story statements, acceptance criteria, MoSCoW priorities with reasons, and the
+minimum usable product candidate with its core task.
+The Formater agent checked the drafts against the course's user story and
+minimum usable product requirements.
+Claude Code also wrote the `## Deviations` section of the Week 02 report.
 
 ## Workflow deviations for issue #22
 
