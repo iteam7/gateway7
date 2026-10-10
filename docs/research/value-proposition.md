@@ -1,6 +1,6 @@
 # Value Proposition
 
-**Update after the 2026-10-02 kickoff:** The Customer confirmed the project need for a corporate plugin host with company-authored request and response plugins and configurable policy actions. The original privacy-focused VP-01/VP-02 proposals below are retained as one use case and an extension workflow within that host; their detailed designs were not presented or endorsed at the meeting. The broader need is Customer-confirmed, while the narrower workflow benefits and competitive differentiation remain [gap hypotheses](gap-analysis.md). No implementation or measured advantage is claimed.
+**Status (2026-10-02):** Update after the kickoff. The Customer confirmed the project need for a corporate plugin host with company-authored request and response plugins and configurable policy actions. The original privacy-focused VP-01/VP-02 proposals below are retained as one use case and an extension workflow within that host; their detailed designs were not presented or endorsed at the meeting. The broader need is Customer-confirmed, while the narrower workflow benefits and competitive differentiation remain [gap hypotheses](gap-analysis.md). No implementation or measured advantage is claimed.
 
 ## VP-01: Predictable local preflight for small teams
 
