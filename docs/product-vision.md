@@ -21,11 +21,14 @@ A corporate IT team can send its applications' chat requests through gateway7 to
 
 ### CON-01
 
-Only one LLM provider is integrated for the initial build (MVP-0).
+The initial build (MVP-0) targets at most one LLM provider; its first usable plugin-validation demonstration may use a deterministic test or static upstream instead.
 
 - **Status:** Active
 - **Source:** Customer-given
-- **What it costs:** no multi-provider routing or failover; the Customer picks the first provider before any other integration is evaluated.
+- **What it costs:** no multi-provider routing or failover; the Customer picks the first provider before any other integration is evaluated. The initial deterministic demo checks plugin behavior but does not establish real-provider integration, credentials, network failures or provider compatibility.
+- **Decision:** [DEC-011](decisions.md#dec-011) permits a deterministic upstream for the initial usable demonstration. This is a staging boundary, not a permanent exclusion of real LLM providers or a claim that real-provider story criteria have passed.
+- **Changed:**
+  - Allowed a deterministic test/static upstream for the first usable plugin demonstration, per [DEC-011](decisions.md#dec-011); retained the one-provider integration goal for the later build.
 
 ### CON-02
 

@@ -56,3 +56,22 @@ the required link check.
 ## What we did with the output
 
 TODO: the team must record which output it accepted, changed, or rejected after review.
+
+## Prototype and customer-validation preparation
+
+OpenAI Codex assisted azamatbayramov with prototype preparation and the validation documentation contribution.
+It checked the current course rules, existing story issues and kickoff report, drafted the architecture-focused follow-up script and factual meeting report, and integrated the artifact links into the Week 02 report.
+The disposable simulator and its tests remain outside this repository change.
+A minimal DOM harness executed its inline JavaScript: 21 functional checks passed on 10 October; browser rendering and screenshots were not verified.
+
+After the user supplied the meeting transcript, Codex read the full evidence and separated gateway7 feedback from two other teams' proposals. It prepared bounded factual paraphrases and three decision records, without publishing the transcript or inferring public-publication permission.
+
+The following assessment records the actual iteration and contributor choices for this contribution; it does not claim a manual line-by-line audit or approval of other team members' work:
+
+- **Retained in the contribution:** the six-field prototype structure, source-linked carry-forward tables, transcript-supported feedback and decisions, and clearly marked missing acceptance evidence after checking the current course requirements and repository.
+- **Changed:** replaced the narrow phone-masking emphasis with core architecture, request/response hooks, plugin registration/configuration and restart tracing in response to contributor-reported feedback; corrected candidate story links to issues 30, 31 and 32; after transcript review, distinguished the originally shown masking screen from the later simulator and recorded the requested deterministic-upstream demonstration.
+- **Rejected:** presenting a private prototype as grader-accessible, claiming simulator tests satisfy real gateway story criteria, treating illustrative Python as a language decision, or inventing customer acceptance, meeting dates, attendance, consent, decision identifiers, or agreed actions; attributing another team's language choice to gateway7, or treating the simulator as delivery of the promised technical/code-structure prototype.
+- **Contributor choices:** azamatbayramov selected the architectural prototype rather than the initial narrow masking screen, requested English and removal of unnecessary explanatory blocks, chose the standalone HTML from the delivered archive as evidence, and requested completion of this contribution as a non-draft PR. He separately reported Customer approval of the candidate, confirmed he will bring both presentation items, and chose to keep the transcript private. These are recorded choices, not a claim that he manually verified every generated sentence. The broader team assessment above is outside this contribution and remains for the team.
+
+The task issue for this contribution was created through the GitHub connector API rather than the task form, as recorded in [task #43](https://github.com/iteam7/gateway7/issues/43) and the [report deviations](README.md#deviations).
+The contributor explicitly chose not to publish the original or sanitized transcript; only bounded factual paraphrases and decision records are included.
