@@ -1,6 +1,6 @@
 # Comparison
 
-Initial documentation comparison: 2026-09-30; additional counterevidence recorded on 2026-10-03. **O** means observed in the cited documentation; **I** means our interpretation for the proposed small-team text gateway. No runtime comparison has been completed. The [October 2 kickoff](../../reports/week-01/meeting-report.md#decisions) confirmed the broader corporate plugin-host need; it did not validate the narrower privacy-focused workflow or establish competitor shortfalls. Observation numbers refer to [alternatives.md](alternatives.md).
+**Status (2026-09-30):** Initial documentation comparison; additional counterevidence recorded on 2026-10-03. **O** means observed in the cited documentation; **I** means our interpretation for the proposed small-team text gateway. No runtime comparison has been completed. The [October 2 kickoff](../../reports/week-01/meeting-report.md#decisions) confirmed the broader corporate plugin-host need; it did not validate the narrower privacy-focused workflow or establish competitor shortfalls. Observation numbers refer to [alternatives.md](alternatives.md).
 
 | Property | ALT-01 Portkey | ALT-02 Presidio + middleware | ALT-03 LiteLLM + Presidio | ALT-04 Kong on-prem + sanitizer |
 | --- | --- | --- | --- | --- |

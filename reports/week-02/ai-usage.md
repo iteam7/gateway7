@@ -53,6 +53,13 @@ These deviations must also be recorded in the Week 02 public report when it is p
 The obsolete course-link repairs are included in the same pull request to restore
 the required link check.
 
+Standardized the opening status/freshness line in [issue #46](https://github.com/iteam7/gateway7/issues/46)
+across `docs/research/alternatives.md`, `comparison.md`, `gap-analysis.md`, and `value-proposition.md`
+to one `**Status (<date>):**` pattern; the four files had each used a different format.
+Claude Code also manually re-verified every relative link and heading anchor in `docs/research/*.md`
+against the current headings in `reports/week-01/meeting-report.md` and `meeting-notes.md`; none were broken,
+so no link content changed, only the status-line formatting.
+
 ## What we did with the output
 
 TODO: the team must record which output it accepted, changed, or rejected after review.
