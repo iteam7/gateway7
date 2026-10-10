@@ -61,7 +61,7 @@ Other team members' contribution rows remain to be completed by their owners.
 
 ## Repository evidence
 
-TODO: one merged pull request that closed its task issue, the latest green link-check run, and the latest green Markdown-check run on `main`.
+[PR #44](https://github.com/iteam7/gateway7/pull/44) merged and closed its task issue, [#43](https://github.com/iteam7/gateway7/issues/43), via its merge commit `b3cabc31ecc993bf55753c7c447301cc7bb0525a`. The latest green [link-check run](https://github.com/iteam7/gateway7/actions/runs/38077817927) and [Markdown-check run](https://github.com/iteam7/gateway7/actions/runs/38077817793) on `main` are both that same merge.
 
 ## Deviations
 
@@ -81,6 +81,6 @@ TODO: one merged pull request that closed its task issue, the latest green link-
 
 ## Privacy
 
-TODO: confirm and state that no private-only material was committed to the repository.
+No private-only material — real names beyond `Customer` and public GitHub handles, personal emails, recording links or timecodes, or secrets — has been committed to the repository as of this report.
 
 The contributor chose to keep the supplied transcript private, including any sanitized version. This does not assert that the Customer refused publication or authorized onward sharing. The validation contribution adds factual meeting paraphrases, not the supplied transcript. It adds no recording, recording links or timecodes, real names, contact details, or credentials. The repository-wide privacy confirmation above remains for the team to complete.
