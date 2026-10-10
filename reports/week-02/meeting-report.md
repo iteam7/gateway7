@@ -2,7 +2,7 @@
 
 ## Metadata
 
-- **Status:** Evidence-backed draft; exact story-candidate acceptance and several submission requirements remain unresolved.
+- **Status:** Meeting report with a separately attributed contributor follow-up on 10 October. Transcript-derived facts and later confirmation are distinguished below.
 - **Date:** 2026-10-09, derived from the supplied transcript's filename; the date was not spoken explicitly.
 - **Duration:** The supplied transcript covers approximately 37 minutes; total recording duration is not independently verified.
 - **Attended:** Evidenced speakers include azamatbayramov, Customer, and participants from two other project teams. Speaking labels do not establish a complete attendance roster; other teams' implementation choices are not gateway7 decisions.
@@ -11,7 +11,7 @@
 - **Transcript:** Supplied privately and used to prepare this factual paraphrase; not committed or linked publicly.
 - **Transcript publication:** azamatbayramov chose to keep both the original and any sanitized transcript out of GitHub. Customer permission for public GitHub publication is not established. The Customer's intention to share it in the course channel does not establish permission for this different destination.
 - **Transcript shared privately:** The user supplied it for this task; further sharing or instructor submission is not claimed.
-- **Script:** [Current planning draft](meeting-script.md) for follow-up validation. It is not evidence that this revised script preceded the meeting.
+- **Script:** [Follow-up planning script](meeting-script.md) for follow-up validation. It is not evidence that this revised script preceded the meeting.
 
 ## Previous action points
 
@@ -36,7 +36,8 @@ These two actions were recorded in Week 1 as post-kickoff assignments, not kicko
 - The masking demonstration showed replacement, repeated-value placeholder consistency, distinct placeholders, and unchanged text when no phone number was present. It did not demonstrate a usable gateway or plugin integration.
 - The Customer requested revision toward an extensible plugin-host architecture: explain plugin inputs and outputs, message flow, ordering, loading/execution, and how a company adds a plugin. Intended users are DevOps staff in medium and large companies; a CLI is acceptable and frontend polish is not the main value.
 - For an initial usable demonstration, the Customer wants to start the system, add simple plugins, send a request and inspect the result. A two-plugin example was suggested. Restart is acceptable; a deterministic static/test upstream is sufficient and preferable for checking plugin text effects. An actual LLM is not required for this initial demonstration.
-- The exact [US-01/US-02/US-03 candidate](README.md#minimum-usable-product-candidate), current detailed boundary and redesigned architecture were not presented for acceptance. The supported verdict is revision requested, with requested MUP characteristics recorded; completed-story acceptance is not established.
+- The supplied transcript does not record an explicit verdict on the exact [US-01/US-02/US-03 candidate](README.md#minimum-usable-product-candidate), current detailed boundary or redesigned architecture. Its supported outcome is revision of the validation approach, with requested MUP characteristics recorded.
+- Separate contributor follow-up on 10 October: when asked specifically about approval of the US-01–03 candidate, azamatbayramov reported that the Customer had approved it. [DEC-012](../../docs/decisions.md#dec-012) records that reported candidate approval; it is not inserted into the transcript or represented as acceptance of completed stories. He also confirmed that he will bring both the architecture and technical prototype.
 
 ## Decisions
 
@@ -44,21 +45,25 @@ These two actions were recorded in Week 1 as post-kickoff assignments, not kicko
 - [DEC-010: Allow the gateway to restart when adding plugins; live hot swapping is not required.](../../docs/decisions.md#dec-010)
 - [DEC-011: Use a deterministic test or static upstream for the initial usable plugin demonstration; an actual LLM connection is not required at this stage.](../../docs/decisions.md#dec-011)
 
-These are directions and boundary clarifications, not acceptance of completed user stories or the exact proposed candidate.
-The required exact candidate verdict remains open.
+These three meeting decisions are directions and boundary clarifications, not acceptance of completed user stories.
+The later contributor-reported candidate verdict is recorded separately:
+
+- [DEC-012: Accept US-01, US-02 and US-03 as the proposed minimum usable product candidate.](../../docs/decisions.md#dec-012)
+
+DEC-012 is based on azamatbayramov's 10 October follow-up, not a statement recovered from the meeting transcript.
 
 ## Action points
 
 The first two rows are the two parts of azamatbayramov's team commitment for the next presentation, accepted by the Customer.
 They are not two separately assigned individual implementation tasks.
-The transcript says "next week"; no calendar due date or individual execution owner was agreed.
-Mapping that relative commitment to the course's Week 3 deadline remains to be confirmed.
+The transcript says "next week"; no exact calendar due date was agreed.
+In his 10 October follow-up, azamatbayramov confirmed that he will bring both items. This assigns accountability for presenting them, without inventing separate implementation assignments or a more precise deadline.
 The full runnable MUP was requested as soon as possible and was explicitly not required the following week.
 
 | Action | Owner | Due |
 | --- | --- | --- |
-| Present the technical architecture, including organization of the core and plugin integration | azamatbayramov, speaking for the team; individual execution owner unassigned in this meeting | Following week relative to the filename-derived 9 October meeting; exact date and course-week mapping unconfirmed. |
-| Present a more technical prototype showing system/code structure beyond masking behavior | azamatbayramov, speaking for the team; individual execution owner unassigned in this meeting | Same next-presentation commitment; exact date and course-week mapping unconfirmed. |
+| Present the technical architecture, including organization of the core and plugin integration | azamatbayramov, confirmed in the 10 October follow-up | Following week, as stated in the meeting; no exact calendar date specified. |
+| Present a more technical prototype showing system/code structure beyond masking behavior | azamatbayramov, confirmed in the 10 October follow-up | Same following-week presentation; no exact calendar date specified. |
 | Confirm completion or remaining scope of the infrastructure action carried from Week 1 | azamatbayramov (existing post-kickoff owner; no renewed commitment recorded) | Pending agreement; do not treat as a newly agreed meeting action. |
 
 ## Open questions
@@ -69,12 +74,12 @@ The full runnable MUP was requested as soon as possible and was explicitly not r
 | Python or Go for the gateway? | Runtime, plugin-authoring contract, implementation tasks | Team decision still required. |
 | Do provider keys live in the gateway's configuration or in an external secret manager? | Deployment and secret-management scope | Validate CON-04; unanswered in this meeting. |
 | What exact plugin contract, ordering and loading rules should gateway7 use? | The technical architecture and integration workflow | Present the team's proposal, rather than infer acceptance of another team's approach. |
-| Does the revised candidate cover the Customer's start/add-plugins/send-request/inspect-result task? | Story bundle, acceptance criteria and build scope | Map the two-plugin, deterministic-upstream demonstration to stories and obtain an explicit candidate verdict. |
-| Who implements each part of the next presentation, and when is it due within the course schedule? | Accountable Week 3 plan | Confirm individual owners and course-week/date mapping with the team. |
+| How should the initial deterministic demo exercise the accepted candidate while keeping real-provider criteria for the later integrated build? | Test plan and implementation stages | Candidate approval is reported in DEC-012; document concrete fixtures and checks without claiming implementation acceptance. |
+| What exact calendar date is the following-week presentation? | Scheduling of the two committed items | azamatbayramov will bring both; the transcript and follow-up specify no exact date. |
 
 ## Disagreements
 
 | Your position | Customer's position | What you changed |
 | --- | --- | --- |
 | A phone-masking behavior screen would validate the proposed solution. | The challenge is an extensible system and a usable plugin integration workflow; specific text replacement is not the main architectural problem. | Redesigned the preparation around core flow, request/response hooks, registration/configuration, restart and trace inspection; see [prototype record](prototypes.md). The redesign itself still awaits customer evaluation. |
-| The current candidate describes obtaining an actual model answer. | The initial usable plugin demo can use a deterministic static/test upstream, which makes plugin effects easier to check. | Recorded the revised initial-demonstration scope in the [candidate](README.md#minimum-usable-product-candidate). The exact story mapping and criteria require follow-up; existing story issues are not silently marked accepted or rewritten. |
+| The current candidate describes obtaining an actual model answer. | The initial usable plugin demo can use a deterministic static/test upstream, which makes plugin effects easier to check. | Recorded the revised initial-demonstration scope in the [candidate](README.md#minimum-usable-product-candidate). The [CON-01 clarification](../../docs/product-vision.md#con-01), citing DEC-011, now permits the deterministic initial demo while preserving later real-provider integration. Candidate approval is recorded separately in DEC-012; existing stories are not marked implemented or complete. |

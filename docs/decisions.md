@@ -47,3 +47,13 @@ Use a deterministic test or static upstream for the initial usable plugin demons
 - **Made by:** Customer
 - **Source:** [Week 02 validation meeting report](../reports/week-02/meeting-report.md#summary).
 - **Why:** deterministic responses make it easier to check what plugins do to text. The Customer wants to start the system, add simple plugins, send a request and inspect the result, with a two-plugin example; this clarifies the initial demonstration rather than permanently excluding real providers or accepting a specific story bundle.
+
+## DEC-012
+
+Accept US-01, US-02 and US-03 as the proposed minimum usable product candidate.
+
+- **Status:** Active
+- **Date:** Customer approval reported by azamatbayramov on 2026-10-10; the approval's original date was not specified.
+- **Made by:** Customer
+- **Source:** [Contributor follow-up recorded with the Week 02 report](../reports/week-02/meeting-report.md#summary), separate from the supplied meeting transcript.
+- **Why:** azamatbayramov confirmed that the Customer approved the candidate when asked specifically about the US-01–03 bundle. This settles the candidate's planning status on that reported evidence; it is not acceptance of implemented stories, proof that their criteria passed, or approval of every hook/architecture detail. The deterministic initial-validation boundary in [DEC-011](#dec-011) still applies.

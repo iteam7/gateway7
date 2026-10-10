@@ -2,7 +2,7 @@
 
 ## Context
 
-**Follow-up planning draft, revised 10 October 2026 after reviewing the supplied meeting transcript; not a reconstruction of the script used in that meeting.**
+**Follow-up planning script, revised 10 October 2026 after reviewing the supplied meeting transcript; not a reconstruction of the script used in that meeting.**
 Initial preparation began on 8 October; the architectural redesign followed contributor-reported feedback on 9 October.
 These are preparation dates, not verified meeting chronology.
 Assign the roles and supply a usable prototype view before running this session.
@@ -10,7 +10,7 @@ Assign the roles and supply a usable prototype view before running this session.
 Problem space: a corporate IT team needs a gateway where company-authored plugins control requests and responses without changing the gateway core.
 The [kickoff report](../week-01/meeting-report.md) establishes the plugin-host direction and restart-based installation.
 The [prototype record](prototypes.md) distinguishes the masking behavior shown in the meeting from the architecture simulator prepared afterwards.
-The [meeting report](meeting-report.md) establishes revision requested, restart allowed and a deterministic upstream acceptable; the detailed interface and exact story bundle remain unaccepted.
+The [meeting report](meeting-report.md) establishes revision requested, restart allowed and a deterministic upstream acceptable; the detailed interface remains to be validated. Candidate approval was reported separately by azamatbayramov and is recorded in [DEC-012](../../docs/decisions.md#dec-012).
 
 Target: determine whether the proposed plugin lifecycle, product boundary, and three-story MUP candidate let a company add a policy plugin and complete one controlled request through a test upstream, and identify what must change.
 
@@ -28,7 +28,7 @@ Target: determine whether the proposed plugin lifecycle, product boundary, and t
 5. Minimum usable product candidate (7 minutes).
    Show: [the candidate](README.md#minimum-usable-product-candidate).
    Proposed revised initial-demo task: start the system, add two simple plugins, restart if needed, send a request to a deterministic test upstream, and inspect the plugins' effects.
-   The current story bundle below is still the team's proposal and needs explicit mapping to this revised task; do not present it as already accepted.
+   The story bundle below has contributor-reported candidate approval in [DEC-012](../../docs/decisions.md#dec-012); use this follow-up to validate implementation details and the mapping to the deterministic initial demonstration, not to claim completed-story acceptance.
    Candidate only: [US-01](https://github.com/iteam7/gateway7/issues/30), [US-02](https://github.com/iteam7/gateway7/issues/31), [US-03](https://github.com/iteam7/gateway7/issues/32).
    Keep [all user stories and their MoSCoW labels](https://github.com/iteam7/gateway7/issues?q=label%3Auser-story) available so the Customer can move stories into or out of the candidate or change priorities; ask questions 8–9.
    Review individual acceptance criteria only if time remains.
@@ -45,7 +45,7 @@ Target: determine whether the proposed plugin lifecycle, product boundary, and t
 6. _(open, priority)_ Looking at the request/response trace and block/error examples, which execution rule would prevent this architecture from working in your setting?
 7. _(open)_ Which excluded responsibility or constraint in the boundary would prevent your team from completing the core task, and what should replace that boundary?
 8. _(open, priority)_ How should US-01, US-02, and US-03 change to cover the requested two-plugin, deterministic-upstream demonstration, and what essential step is still missing?
-9. _(closed)_ Is that candidate acceptable as stated, or acceptable only with the changes you have just named?
+9. _(closed)_ Does this implementation plan preserve the approved candidate while using a deterministic upstream for the initial demonstration?
 10. _(open)_ What is incorrect or missing in our read-back of the decisions, exact candidate verdict, owners, and Week 3 due dates?
 
 ## Roles
