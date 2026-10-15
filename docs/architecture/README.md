@@ -1,8 +1,8 @@
-# Gateway7 architecture proposal
+# Gateway7 architecture
 
-**Status:** Proposed for team review, 2026-10-15; preparation for Assignment 3, not an implemented or customer-accepted design.
+**Status:** Python prototype implemented for review, 2026-10-15; deterministic checks do not constitute customer acceptance or the complete MUP.
 
-Gateway7 is proposed as one service with a small orchestration core, company-authored plugins and interchangeable provider adapters.
+Gateway7 runs as one service with a small orchestration core, company-authored plugins and interchangeable provider adapters.
 The core controls execution; plugins implement company policy; adapters handle provider protocols.
 This gives [US-03](https://github.com/iteam7/gateway7/issues/32) a concrete extension boundary while keeping the first [US-01](https://github.com/iteam7/gateway7/issues/30) integration small.
 
@@ -15,11 +15,12 @@ The [product vision](../product-vision.md) and existing decisions are the source
 - [DEC-011](../decisions.md#dec-011) and [CON-01](../product-vision.md#con-01): use at most one provider initially; a deterministic upstream is allowed for the first plugin demonstration.
 - [DEC-012](../decisions.md#dec-012): US-01, US-02 and US-03 are the approved candidate to build, not accepted implementations.
 - [CON-04](../product-vision.md#con-04): keep the provider key in server configuration.
+- [DEC-013](../decisions.md#dec-013): use Python for the first implementation.
 
-The component split, contracts and failure semantics below are technical proposals for review.
+The component split, contracts and failure semantics below describe the runnable prototype and its explicit limits.
 They support [VP-01](../research/value-proposition.md#vp-01-predictable-local-preflight-for-small-teams) and [VP-02](../research/value-proposition.md#vp-02-testable-domain-filter-extensions); they do not establish the narrower competitive-gap hypotheses as facts.
-Python or Go remains an open team decision.
-This document does not record a stack choice or change a story's acceptance criteria.
+The initial HTTP demonstration is repeatable through [setup](../setup.md) and the [customer demo](../demo.md).
+No story's acceptance criteria are changed by implementing it.
 
 ## Components and dependencies
 
@@ -46,11 +47,11 @@ The lifecycle below shows replies and early exits.
 | HTTP API | Validate the supported chat input, create request context, serialize results and safe errors | No provider protocol or company policy logic |
 | Request core | Request hooks, one upstream call, response hooks and termination | Depends on runner and adapter interfaces, not concrete plugins or provider SDKs |
 | Plugin runner | Ordered invocation, result validation, error conversion and deadline checks | Does not detect phone numbers or choose company policy |
-| Company plugins | Mask, allow or deny supported content; optionally attach safe decision metadata | Depend on the plugin contract, not HTTP handlers or concrete adapters |
+| Company plugins | Mask, allow or deny supported content | Depend on the plugin contract, not HTTP handlers or concrete adapters |
 | Provider adapter | Translate normalized data, attach the server key, call upstream and normalize its response/errors | Receives only the request after request hooks; never returns credentials to callers |
 | Configuration and startup | Load installed modules, validate settings, construct the runner and selected adapter | The composition point is allowed to know concrete implementations |
 
-Proposed contract types belong to a small shared module.
+Contract types belong to `gateway7/models.py` and `gateway7/plugin_api.py`.
 Adding a provider changes its adapter and configuration; adding a company plugin changes its module and configuration.
 The first release needs neither a database nor a separate worker service to perform this flow.
 Compared with separate plugin services, one process reduces deployment and protocol work but shares failures and resources.
@@ -72,7 +73,7 @@ flowchart TB
 
 ## Request lifecycle
 
-This is the proposed end-to-end path for one non-streaming chat request after startup has passed validation.
+This is the end-to-end path for one non-streaming chat request after startup has passed validation.
 The two hook loops use separate configured lists; an empty list proceeds directly to the next stage.
 
 ```mermaid
@@ -111,12 +112,12 @@ flowchart TB
 ```
 
 1. **Validate input.** The HTTP API checks the supported text-chat format, message roles, generation options and configured input-size limit. Invalid or unsupported content returns a safe input error before any plugin or provider call.
-2. **Create context.** The API creates the core-owned request ID, start time, deadline, cancellation signal and isolated plugin state. A request identifier also accompanies input errors; rejected input needs no plugin state.
+2. **Create context.** The API creates a core-owned request ID and monotonic deadline; the runner supplies isolated state for each configured plugin instance. Async task cancellation and deadline checkpoints govern execution. A request identifier also accompanies input errors; rejected input needs no plugin state.
 3. **Run request hooks.** For each configured position, the runner invokes `on_request` and validates its result against the contract. `Continue` passes the unchanged or modified payload to the next hook; each hook sees the preceding hook's output. `Deny` stops with a policy error. Exceptions, invalid results and timeouts stop with a technical error. These exits make **no upstream call**; the core never forwards by bypassing a failed hook.
-4. **Forward once.** Immediately before forwarding, the core rechecks cancellation and deadline. The selected adapter translates only the fully processed request, inserts the server-configured key and calls one upstream. The initial transport demonstration uses the HTTP fake upstream; an actual Claude/Gemini adapter follows the provider choice. No retries or failover occur. Adaptation failures and normalized upstream errors or timeouts take the technical-error exit.
-5. **Capture the upstream outcome.** On success, the adapter produces a normalized response. A malformed or unsupported upstream response that cannot be normalized takes the technical-error exit without running response hooks. Before output filters run, the core captures only validated provider-reported usage in its outcome metadata; absent or invalid usage remains unknown. Response plugins cannot erase or replace this observation by modifying or denying the response. Failed or cancelled calls do not imply zero provider usage. This is per-request metadata, not a usage ledger or billing feature ([BND-03](../product-vision.md#bnd-03)).
-6. **Run response hooks.** The runner invokes and validates `on_response` in the separately configured response order. `Continue`, `Deny` and technical errors have the same stop/continue semantics as request hooks. A denial here prevents delivery of the completion **after the upstream call**; it cannot undo provider work or usage. This chain runs only for a successful upstream result. An initially empty chain does not establish delivered response filtering.
-7. **Return the result.** The API encodes the final allowed response or a safe input, policy or technical error with the request identifier, and sends it only while the client connection is available. Raw upstream bodies, exceptions and credentials never become client errors. HTTP codes and the exact wire schema remain to be settled.
+4. **Forward once.** Immediately before forwarding, the core rechecks cancellation and deadline. The selected adapter translates only the fully processed request, inserts the server-configured key and calls one upstream. The transport demonstration uses the HTTP fake upstream; the Claude adapter is available for a separately configured real-provider check. No retries or failover occur. Adaptation failures and normalized upstream errors or timeouts take the technical-error exit.
+5. **Capture the upstream outcome.** On success, the adapter produces a normalized response. A malformed or unsupported upstream response that cannot be normalized takes the technical-error exit without running response hooks. The core snapshots validated provider-reported usage before response hooks, and preserves it in the final successful response; absent or invalid usage remains unknown. Plugin changes to a response's usage field do not overwrite that snapshot. On denial or cancellation there is no durable usage record, and unknown usage does not mean zero. This is per-request metadata, not a usage ledger or billing feature ([BND-03](../product-vision.md#bnd-03)).
+6. **Run response hooks.** The runner invokes and validates `on_response` in the separately configured response order. `Continue`, `Deny` and technical errors have the same stop/continue semantics as request hooks. A denial here prevents delivery of the completion **after the upstream call**; it cannot undo provider work or usage. This chain runs only for a successful upstream result. The sample marker exercises the hook interface; it is not a production output policy or acceptance of a separate response-filtering story.
+7. **Return the result.** The API encodes the final allowed response or a safe input, policy or technical error with the request identifier, and sends it only while the client connection is available. Raw upstream bodies, exception messages and credentials are excluded from error responses. The [setup page](../setup.md#supported-http-contract) describes the text-chat wire contract.
 8. **Finalize every exit.** Record the request ID, outcome, safe reason/component IDs and durations under the observation rules below, then release request-owned resources and discard plugin state when in-flight work has unwound. Finalization also runs on input rejection and client disconnect; it does not require successful delivery. It creates neither restoration storage nor a guarantee of secure memory erasure.
 
 **Cancellation and deadlines apply throughout the path.** The dotted edge represents lifecycle signals, not another content-processing stage.
@@ -128,24 +129,25 @@ The diagram's terminal path describes controlled completion, not isolation from 
 
 ## Data and plugin contract
 
-These are language-neutral semantics, not a finalized wire schema or SDK.
+These semantics are implemented with strict Pydantic models and a small Python plugin API.
 The initial operation is one non-streaming text chat completion.
 Reject unsupported content, such as attachments or tool payloads, rather than forwarding unexamined fields.
 
-| Contract | Proposed contents and rules |
+| Contract | Contents and rules |
 | --- | --- |
 | Chat request | An ordered conversation of messages with a supported role and plain-text content; a small validated set of generation options. All supported messages are visible to request hooks, including earlier history. Provider selection comes from server configuration. |
 | Chat response | Assistant text and normalized completion metadata. Preserve provider-reported usage if present; absent usage is unknown, not zero. No provider credentials or raw upstream error body. |
-| Request context | Core-owned request ID, start time, deadline and cancellation signal; a separate namespace of temporary state for each plugin. Identity can be added when authentication is implemented. |
-| Plugin result | `Continue(processed_payload, safe_metadata)` or `Deny(reason_code, safe_message)`. Unchanged payload means allow; modified payload includes masking. Exceptions, invalid results and timeouts are technical errors, not policy denials. |
+| Plugin context | Core-owned request ID and deadline; a separate temporary `state` dictionary for each configured plugin instance and request. Identity can be added when authentication is implemented. |
+| Plugin result | `Continue(payload)` or `Deny(code="policy_denied")`. Unchanged payload means allow; modified payload includes masking. Exceptions, invalid results and timeouts are technical errors, not policy denials. Client error text is core-owned. |
 
-A plugin declares a stable ID, supported contract version, implemented hooks and validated settings.
+A module exports `PLUGIN`, declaring a stable type ID, contract version 1, strict settings model and a factory.
+The YAML map key identifies a configured instance; different instances can use the same module with different settings.
 The two hooks are `on_request(request, context)` and `on_response(response, context)`.
-A plugin implements only the hooks it needs; naming a missing hook in a configured chain is a startup error.
+A plugin implements only the hooks it needs; naming a missing hook for an enabled instance in a configured chain is a startup error.
 The runner validates returned payloads before continuing.
 The public contract provides no core-forwarding callback or provider-key field.
 
-**Ordering:** configuration contains separate ordered request and response lists of plugin IDs.
+**Ordering:** configuration contains separate ordered request and response lists of instance names.
 Response order is not implicitly reversed from request order.
 For example, request list A then B yields A's marker before B's; a response list B then A is independently configured.
 Each referenced hook runs once at its listed position; no retries or parallel hooks within one request.
@@ -160,22 +162,23 @@ The contract does not promise secure erasure of transient process memory.
 
 ## Loading, readiness and errors
 
-At startup, read configuration, resolve installed trusted modules, check contract compatibility and settings, and construct both chains and the selected adapter.
+At startup, load YAML with `safe_load`, validate configuration, import declared trusted modules, check contract compatibility and settings, and construct both chains and the selected adapter.
 Validate required credentials, including the test key in the fake-upstream configuration.
 Only report ready and accept chat requests after all checks succeed.
 A missing plugin, invalid chain, failed initialization or missing key aborts startup with a safe message naming the relevant plugin or setting.
-Do not silently skip a configured plugin or print configuration values.
+Never silently skip a missing declared module or print configuration values.
+Even disabled declarations must have an importable module and valid descriptor/settings; explicitly disabled optional instances are then omitted from effective execution.
 
-The operator installs a plugin, lists its ID/module/settings and hook position, then restarts Gateway7.
+The operator installs a Python module, lists its instance/module/settings and hook position, then restarts Gateway7.
 No request may select arbitrary modules or supply an upstream URL.
-Exact module packaging depends on the stack decision; the chosen mechanism must satisfy US-03 without core edits.
+The [one-file sample installation](../plugins.md#smallest-installation) satisfies the extension mechanism without a core edit or package rebuild when running from the checkout.
 Hot loading and an untrusted plugin marketplace remain outside scope ([DEC-010](../decisions.md#dec-010), [BND-04](../product-vision.md#bnd-04)).
 
-| Outcome | Proposed behavior |
+| Outcome | Behavior |
 | --- | --- |
 | Continue | Pass the processed payload to the next hook or next core stage |
 | Policy denial | Stop the chain and return a stable policy error with safe metadata |
-| Plugin exception, invalid result or timeout | Stop the request; never bypass a mandatory filter. Initially every configured hook is required; there is no fail-open mode. |
+| Plugin exception, invalid result or timeout | Stop the request; every active hook fails closed, including optional instances. `required: true` separately prevents disabling or omitting a mandatory filter from an applicable chain. |
 | Upstream failure | Return a normalized technical error; no response hooks, automatic retry or failover |
 | Cancellation or expired deadline | Stop further stages, signal cooperative plugin/upstream work to stop, and discard late results |
 
@@ -183,13 +186,13 @@ The core checks cancellation/deadline before each stage and after a hook returns
 An in-process timeout cannot forcibly terminate arbitrary blocking or uncooperative plugin code, or guarantee that the API remains responsive while it blocks.
 Nor does cancelling a provider call prove that the provider stopped processing it.
 Trusted plugin authors must use cooperative cancellation and bounded work; stronger isolation would require a separate execution boundary.
-Concrete time budgets and HTTP error codes must be fixed with the API contract before implementation.
+The default total deadline is 10 seconds, each hook has 2 seconds, and the request-body cap is 65,536 bytes; YAML may set stricter or larger validated values.
 
 ## Provider and observation boundaries
 
 The adapter exposes one completion operation over normalized request/response types.
-Startup selects a single configured implementation: a deterministic fake-upstream adapter for fixtures, or one real Claude/Gemini adapter after the provider is chosen.
-Use an HTTP fake upstream for US-01 checks so request contents and test-key propagation can actually be observed.
+Startup selects a single configured implementation: a deterministic fake-upstream adapter for fixtures, or the Claude Messages adapter for a separately authorized provider call.
+The demo uses an HTTP fake upstream so request contents and test-key propagation can actually be observed.
 A static in-memory response is useful for a hook demo but cannot establish those transport criteria.
 
 Credentials go from a server secret source to the adapter; callers and ordinary plugin inputs do not receive them.
@@ -206,32 +209,31 @@ Optional usage metadata is not a usage ledger or billing feature ([BND-03](../pr
 
 ## Traceability and first implementation slice
 
-| Source | What this proposal enables | Evidence still required |
+| Source | Implemented mechanism | Acceptance evidence |
 | --- | --- | --- |
-| [US-01](https://github.com/iteam7/gateway7/issues/30), AC-01–04; CON-04 | One configured adapter with a server-held key | Fake-upstream answer, test-key forwarding, no-key startup failure, and absence of that key in client responses/logs |
-| US-01, AC-05; DEC-011 | Replace the fake adapter with one real provider | Actual Claude/Gemini call returning `pong`; deterministic-demo approval does not pass AC-05 |
-| [US-02](https://github.com/iteam7/gateway7/issues/31), AC-01–03; VP-01 | Phone masking before the adapter, over the conversation history | All three specified phone formats replaced with `[PHONE]`, earlier-message coverage, benign order/date text unchanged |
-| [US-03](https://github.com/iteam7/gateway7/issues/32), AC-01–03; VP-02; DEC-009–010 | Configured plugin modules, startup validation and explicit order | Add the sample marker plugin with only its module/config changed, fail startup for a missing module, show A then B marker order |
+| [US-01](https://github.com/iteam7/gateway7/issues/30), AC-01–04; CON-04 | One configured adapter with a server-held key | Repeatable fake HTTP answer/key/startup/log checks; human review and Customer verdict remain |
+| US-01, AC-05; DEC-011 | Claude Messages adapter and separate config | Actual keyed `pong` call remains pending; offline adapter tests do not pass AC-05 |
+| [US-02](https://github.com/iteam7/gateway7/issues/31), AC-01–03; VP-01 | Phone masking before the adapter, over the conversation history | Exact fixture, history and order/date checks; Customer verdict remains |
+| [US-03](https://github.com/iteam7/gateway7/issues/32), AC-01–03; VP-02; DEC-009–010 | Configured Python modules, startup validation and explicit order | File/configuration-only sample installation, missing module and A/B order checks; Customer verdict remains |
 | DEC-012 | Keep the approved three-story candidate traceable | Implementation and customer acceptance against each story's AC; no story is completed by this document |
 
-After settling the stack and API contract, build the smallest runnable slice: HTTP API, core, request runner, phone plugin, sample marker plugin and HTTP fake upstream.
-Check the existing story fixtures above, plus denial/error causing zero upstream calls, invalid-result handling, request-state isolation and metadata-only logs.
-Then integrate the selected real provider and run US-01 AC-05.
-These are proposed checks, not reported test results or a change to the candidate.
+The runnable slice consists of the HTTP API, core, plugin runner, phone plugin, sample marker plugin and HTTP fake upstream.
+Automated tests additionally exercise fail-closed errors, invalid results, request-state isolation and safe errors.
+Run it with the [setup instructions](../setup.md); the actual provider check and Customer story verdicts are still separate gates.
 
-Response hooks are designed here to avoid coupling the core to request-only policy, but US-03 covers request plugins.
-Implementing response plugins is a later capability; an initially empty response chain must not be described as delivered response filtering.
+Response hooks and the sample response marker avoid coupling the core to request-only policy, but US-03 covers request plugins.
+No production response-filtering policy or separate response-story acceptance is claimed.
 Authentication belongs before content handling, future routing before adapter dispatch, and durable usage accounting at the outcome boundary, including response denials and failed calls with unknown usage.
 Those are extension points, not promises in this first slice.
-Streaming, automatic retries/failover, persistent conversations, billing and user-supplied provider keys are not introduced by this proposal.
+Streaming, automatic retries/failover, persistent conversations, billing and user-supplied provider keys are not introduced by this implementation.
 
 ## Review questions and Week 2 follow-up
 
-This prepares the technical architecture, including organization of the core and plugin integration, for the next customer presentation.
-Presentation, customer evaluation and the separately promised technical prototype are still pending evidence.
+The architecture and runnable technical prototype prepare the next customer presentation.
+Presentation and customer evaluation remain pending evidence.
 
-Before implementation, the team must settle Python or Go and its plugin packaging, the first real provider, the exact HTTP/schema contract, and time/input-size limits.
-Record adopted technology choices as `DEC-nnn` entries and significant architectural choices as ADRs when agreed; this proposal creates neither an invented approval nor a new customer decision.
-Bring the proposed hook/loading/error contract to review and confirm the deterministic-demo versus complete-candidate sequence.
+Python and module packaging are settled for this implementation by DEC-013; the schema, limits and Claude integration path are now concrete.
+Review the running hook/loading/error contract, confirm required phone formats and determine the deployment secret source.
+The deterministic-demo versus complete-candidate distinction follows DEC-011 and the unchanged US-01 criteria.
 The plugin capacity question remains open: two plugins are a demonstration, not a capacity ceiling.
 Measure concurrent requests, plugin work and latency before stating a supported limit.

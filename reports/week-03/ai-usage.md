@@ -3,6 +3,8 @@
 ## Tools
 
 OpenAI Codex with the repository's Orchestrator, Formater and TechLead roles, the GitHub connector for repository/issue access, and local shell tools for reading and editing documentation.
+For task #52, TechLead delegated disjoint core, plugin and transport/demo implementation to Codex developer agents as permitted by `AGENTS.md`.
+Python, uv, pytest and real local HTTP subprocesses were used to check the generated code.
 
 ## What we used them for
 
@@ -12,6 +14,10 @@ The proposal develops the contributor's preceding architecture discussion into r
 At the contributor's follow-up request, Codex replaced the short request sequence with a full flowchart and numbered stages covering validation, both hook loops, forwarding, outcome capture, client delivery and cleanup.
 
 Codex also added the requested seven-stage customer diagram while retaining the detailed technical flow.
+Codex discussed a proposed Python implementation of Gateway7 plugin installation, configuration, enable/disable behavior and lifecycle against US-03, without implementing it or recording an adopted stack decision.
+
+After azamatbayramov explicitly selected Python on 15 October, Codex recorded [DEC-013](../../docs/decisions.md#dec-013) and implemented [task #52](https://github.com/iteam7/gateway7/issues/52): the FastAPI gateway, strict configuration/models, plugin lifecycle and chains, phone/sample modules, HTTP adapters, deterministic upstream, locked environment and repeatable demonstration.
+It prepared setup/plugin/demo documentation and the Week 3 meeting script, keeping real-provider validation and the Customer's future verdicts separate.
 
 ## Handling and checks of generated output
 
@@ -19,16 +25,24 @@ The AI review checked traceability and consistency with the existing candidate, 
 It kept Python/Go unresolved, distinguished DEC-011's deterministic demonstration from US-01 AC-05, and excluded restoration storage from request context because of BND-02.
 It separated proposed response hooks from delivered scope, and made the shared-process trust and cancellation limits explicit.
 The flow expansion preserves fail-closed hook errors, zero upstream calls on pre-forward rejection, and provider-reported usage captured before response filtering; it does not treat output denial or cancellation as undoing provider work.
-No product implementation or runtime test result is claimed.
+The preceding architecture-only contribution claimed no product implementation or runtime test result.
 For the initial architecture contribution, Formater checked all 32 Markdown files with Markdownlint CLI2 0.23.2, checked local targets and anchors for 46 links in the five changed files, retrieved the five distinct GitHub destinations through the connector, parsed both diagrams with Mermaid 11.12.1, and ran `git diff --check`.
 That initial Mermaid check found a semicolon interpreted as a statement separator; replacing it with a comma fixed the then-current sequence diagram without changing its meaning.
 For the expanded flowchart, Formater reran Markdownlint on the three edited files, checked their 36 links and local anchors, parsed both diagrams with Mermaid 11.12.1, and ran `git diff --check`; all passed.
 The Week 2 action-point citation lives in the weekly report and task rather than the maintained architecture page, so the documentation site need not navigate to weekly evidence.
 These checks validate documentation; they are not product-runtime tests or human approval.
 
+For the Python increment, TechLead reviewed every generated code area and checked startup error sanitization, async hook signatures, strict settings, exact story fixtures, separate-process key forwarding, fail-closed errors and request-state isolation.
+The review found that a plugin factory's own `StartupError` could otherwise bypass sanitization; the error boundary was corrected and a regression test added before approval.
+Runtime and final publication evidence is recorded in the [Week 3 report](README.md#python-prototype-evidence), without treating offline Claude mocks as US-01 / AC-05.
+The final local run passed 99 tests, compile checks and the exact-fixture two-process demonstration; the documented manual service commands and README curl were checked as well.
+Formater verified literal US-03 installation evidence in a disposable Git copy: only `config/demo.yaml` and `company_plugins/sample.py` changed, and restart produced the sample marker upstream.
+TechLead's APPROVED verdict is an AI code-review result; it does not fill in the human evaluation below.
+Official Claude Messages documentation informed the adapter; current Astral/GitHub documentation confirmed Dependabot's `uv` lockfile ecosystem.
+
 ## Team evaluation
 
-TODO: the team must record what it accepted, changed or rejected after reviewing the generated architecture and report.
+TODO: the team must record what it accepted, changed or rejected after reviewing the generated architecture, Python code, tests and report.
 The contributor's request for this MR is not recorded as approval of every drafted contract or as a completed human review.
 
 ## Workflow deviations

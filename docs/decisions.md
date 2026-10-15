@@ -57,3 +57,13 @@ Accept US-01, US-02 and US-03 as the proposed minimum usable product candidate.
 - **Made by:** Customer
 - **Source:** [Contributor follow-up recorded with the Week 02 report](../reports/week-02/meeting-report.md#summary), separate from the supplied meeting transcript.
 - **Why:** azamatbayramov confirmed that the Customer approved the candidate when asked specifically about the US-01–03 bundle. This settles the candidate's planning status on that reported evidence; it is not acceptance of implemented stories, proof that their criteria passed, or approval of every hook/architecture detail. The deterministic initial-validation boundary in [DEC-011](#dec-011) still applies.
+
+## DEC-013
+
+Use Python for the first Gateway7 implementation.
+
+- **Status:** Active
+- **Date:** 2026-10-15.
+- **Made by:** Team
+- **Source:** azamatbayramov's implementation discussion on 15 October, in which he explicitly selected Python and requested a runnable architecture prototype for the next customer call; the implementation is tracked in [task #52](https://github.com/iteam7/gateway7/issues/52).
+- **Why:** Python makes the agreed extension boundary directly executable as imported, trusted modules with typed request and response contracts, keeping the first demonstration in one service process. FastAPI, Pydantic, PyYAML and HTTPX implement HTTP handling, validation, configuration and provider transport; uv locks the dependencies. This records the contributor's selection within the Team category, not a claim of unanimous review or customer approval. Restart-based installation remains governed by [DEC-010](#dec-010).
