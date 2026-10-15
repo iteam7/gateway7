@@ -4,6 +4,7 @@ A gateway that routes requests to LLM providers through pluggable modules.
 
 > Work in progress for the ITPD course.
 
-- Current week report: [reports/week-01/README.md](reports/week-01/README.md)
+- Current week report: [reports/week-03/README.md](reports/week-03/README.md) (in progress)
 - Documentation: [docs/](docs/)
+- Architecture proposal: [docs/architecture/README.md](docs/architecture/README.md)
 - License: [MIT](LICENSE)
