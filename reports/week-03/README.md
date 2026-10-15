@@ -6,6 +6,7 @@
 
 Prepared an architecture proposal for [task #50](https://github.com/iteam7/gateway7/issues/50): one service, an ordered plugin runner, normalized chat data and a provider-adapter boundary.
 Expanded its [request lifecycle](../../docs/architecture/README.md#request-lifecycle) into a full client-to-upstream-to-client flow, including both hook loops, failure exits, usage observation, cancellation and cleanup.
+Added a simple [customer view](../../docs/architecture/README.md#customer-view) above the detailed lifecycle, showing the seven stages from client request to client response.
 It gives the team a design to review before implementing the approved candidate.
 The stack, working MUP, customer validation and release are not delivered by this contribution.
 `REL-03` and its tag have not been evidenced here; no candidate story is moved out by this update.

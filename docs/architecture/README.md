@@ -56,6 +56,20 @@ The first release needs neither a database nor a separate worker service to perf
 Compared with separate plugin services, one process reduces deployment and protocol work but shares failures and resources.
 Compared with hard-coded masking in the core, the plugin boundary lets the company replace its policy without a fork ([US-02](https://github.com/iteam7/gateway7/issues/31), US-03).
 
+## Customer view
+
+Gateway input, plugins and output are stages of one service; the request goes to the provider and the response returns to the same client.
+
+```mermaid
+flowchart TB
+    requestClient["Client"] --> gatewayInput["Gateway input"]
+    gatewayInput --> requestPlugins["Request plugins"]
+    requestPlugins --> provider["LLM provider"]
+    provider --> responsePlugins["Response plugins"]
+    responsePlugins --> gatewayOutput["Gateway output"]
+    gatewayOutput --> responseClient["Client"]
+```
+
 ## Request lifecycle
 
 This is the proposed end-to-end path for one non-streaming chat request after startup has passed validation.

@@ -11,6 +11,8 @@ Codex read the current course rules and Assignment 3, product vision, research, 
 The proposal develops the contributor's preceding architecture discussion into responsibilities, request/plugin contracts, loading rules and a first implementation slice.
 At the contributor's follow-up request, Codex replaced the short request sequence with a full flowchart and numbered stages covering validation, both hook loops, forwarding, outcome capture, client delivery and cleanup.
 
+Codex also added the requested seven-stage customer diagram while retaining the detailed technical flow.
+
 ## Handling and checks of generated output
 
 The AI review checked traceability and consistency with the existing candidate, including test-key forwarding and missing-key startup failure in US-01, conversation-history masking in US-02, and plugin installation/order in US-03.
