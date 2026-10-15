@@ -5,6 +5,7 @@
 ## Summary
 
 Prepared an architecture proposal for [task #50](https://github.com/iteam7/gateway7/issues/50): one service, an ordered plugin runner, normalized chat data and a provider-adapter boundary.
+Expanded its [request lifecycle](../../docs/architecture/README.md#request-lifecycle) into a full client-to-upstream-to-client flow, including both hook loops, failure exits, usage observation, cancellation and cleanup.
 It gives the team a design to review before implementing the approved candidate.
 The stack, working MUP, customer validation and release are not delivered by this contribution.
 `REL-03` and its tag have not been evidenced here; no candidate story is moved out by this update.
@@ -63,7 +64,8 @@ Task #50 covers this documentation change; no merged Week 3 task PR or current g
 Add the merged PR and latest green link/Markdown runs before submitting the completed weekly report.
 No link-check exclusions are added by this contribution.
 
-Documentation checks passed: Markdownlint CLI2 0.23.2 over all 32 Markdown files, local targets and anchors for the 46 links in the five changed files, Mermaid 11.12.1 parsing of both architecture diagrams, and `git diff --check`.
+The initial architecture checks passed: Markdownlint CLI2 0.23.2 over all 32 Markdown files, local targets and anchors for the 46 links in the five changed files, Mermaid 11.12.1 parsing of both architecture diagrams, and `git diff --check`.
+For the request-flow expansion, the three edited Markdown files, their 36 links and local anchors, both Mermaid diagrams, and `git diff --check` were checked again and passed.
 The five distinct GitHub destinations were also retrieved successfully through the connector; GitHub Actions results are recorded on the PR.
 
 ## Deviations

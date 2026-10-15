@@ -58,37 +58,59 @@ Compared with hard-coded masking in the core, the plugin boundary lets the compa
 
 ## Request lifecycle
 
+This is the proposed end-to-end path for one non-streaming chat request after startup has passed validation.
+The two hook loops use separate configured lists; an empty list proceeds directly to the next stage.
+
 ```mermaid
-sequenceDiagram
-    participant Client
-    participant API
-    participant Core
-    participant Runner
-    participant Upstream as Adapter and upstream
-    Client->>API: Text chat request
-    API->>Core: Validated request and context
-    Core->>Runner: Run request hooks in configured order
-    Runner-->>Core: Continue, Deny, or technical error
-    alt Request denied or hook failed
-        Core-->>API: Safe error, no upstream call
-    else Request allowed
-        Core->>Upstream: Processed request
-        Upstream-->>Core: Normalized response or technical error
-        alt Upstream succeeded
-            Core->>Runner: Run response hooks in configured order
-            Runner-->>Core: Continue, Deny, or technical error
-            Core-->>API: Processed response or safe error
-        else Upstream failed
-            Core-->>API: Safe error
-        end
-    end
-    API-->>Client: Result with request identifier
+flowchart TB
+    client["Client HTTP request"] --> input{"1. Valid format and size?"}
+    input -->|No| invalid["Safe input error"]
+    input -->|Yes| context["2. Request context and deadline"]
+    context --> requestNext{"3. Request hook left?"}
+    requestNext -->|Yes| requestHook["Run and validate on_request"]
+    requestHook -->|Continue: unchanged or modified| requestNext
+    requestHook -->|Deny| denied["Safe policy error"]
+    requestHook -->|Exception, invalid result or timeout| failed["Safe technical error"]
+    requestNext -->|No| active{"4. Still active?"}
+    active -->|Yes| adapt["Adapt request and add server key"]
+    adapt --> upstream["Call configured upstream once"]
+    adapt -->|Adaptation error| failed
+    upstream -->|Error or timeout| upstreamError["Normalize upstream error"]
+    upstreamError --> failed
+    upstream -->|Success| normalize["5. Normalize response, capture usage"]
+    normalize -->|Invalid response| failed
+    normalize --> responseNext{"6. Response hook left?"}
+    responseNext -->|Yes| responseHook["Run and validate on_response"]
+    responseHook -->|Continue: unchanged or modified| responseNext
+    responseHook -->|Deny| denied
+    responseHook -->|Exception, invalid result or timeout| failed
+    responseNext -->|No| encode["7. Encode response or safe error"]
+    invalid --> encode
+    denied --> encode
+    failed --> encode
+    context -.-> cancellation["Cancellation or deadline at any stage"]
+    active -->|No| cancellation
+    cancellation --> stop["Signal cooperative stop, discard late results"]
+    stop --> encode
+    encode --> send["Send to client if connected"]
+    send --> finish["8. Safe outcome and scoped cleanup"]
 ```
 
-Invalid client input stops at the API before any hook or upstream call.
-Every hook sees the output of the preceding hook in its own chain.
-A response denial happens after the upstream call: it prevents delivery to the caller but cannot undo provider work or usage.
-The response chain runs only after a successful upstream result; it is not an error handler.
+1. **Validate input.** The HTTP API checks the supported text-chat format, message roles, generation options and configured input-size limit. Invalid or unsupported content returns a safe input error before any plugin or provider call.
+2. **Create context.** The API creates the core-owned request ID, start time, deadline, cancellation signal and isolated plugin state. A request identifier also accompanies input errors; rejected input needs no plugin state.
+3. **Run request hooks.** For each configured position, the runner invokes `on_request` and validates its result against the contract. `Continue` passes the unchanged or modified payload to the next hook; each hook sees the preceding hook's output. `Deny` stops with a policy error. Exceptions, invalid results and timeouts stop with a technical error. These exits make **no upstream call**; the core never forwards by bypassing a failed hook.
+4. **Forward once.** Immediately before forwarding, the core rechecks cancellation and deadline. The selected adapter translates only the fully processed request, inserts the server-configured key and calls one upstream. The initial transport demonstration uses the HTTP fake upstream; an actual Claude/Gemini adapter follows the provider choice. No retries or failover occur. Adaptation failures and normalized upstream errors or timeouts take the technical-error exit.
+5. **Capture the upstream outcome.** On success, the adapter produces a normalized response. A malformed or unsupported upstream response that cannot be normalized takes the technical-error exit without running response hooks. Before output filters run, the core captures only validated provider-reported usage in its outcome metadata; absent or invalid usage remains unknown. Response plugins cannot erase or replace this observation by modifying or denying the response. Failed or cancelled calls do not imply zero provider usage. This is per-request metadata, not a usage ledger or billing feature ([BND-03](../product-vision.md#bnd-03)).
+6. **Run response hooks.** The runner invokes and validates `on_response` in the separately configured response order. `Continue`, `Deny` and technical errors have the same stop/continue semantics as request hooks. A denial here prevents delivery of the completion **after the upstream call**; it cannot undo provider work or usage. This chain runs only for a successful upstream result. An initially empty chain does not establish delivered response filtering.
+7. **Return the result.** The API encodes the final allowed response or a safe input, policy or technical error with the request identifier, and sends it only while the client connection is available. Raw upstream bodies, exceptions and credentials never become client errors. HTTP codes and the exact wire schema remain to be settled.
+8. **Finalize every exit.** Record the request ID, outcome, safe reason/component IDs and durations under the observation rules below, then release request-owned resources and discard plugin state when in-flight work has unwound. Finalization also runs on input rejection and client disconnect; it does not require successful delivery. It creates neither restoration storage nor a guarantee of secure memory erasure.
+
+**Cancellation and deadlines apply throughout the path.** The dotted edge represents lifecycle signals, not another content-processing stage.
+The core checks before each stage and after each hook returns, stops subsequent content stages, signals cooperative work to stop and ignores late results.
+A connected caller may receive a safe timeout/cancellation error; a disconnected caller cannot receive one.
+In-process code cannot be forcibly stopped: a blocking or uncooperative plugin can delay responsiveness and cleanup until it returns.
+Cancelling an upstream call cannot prove that the provider stopped or reverse usage already incurred.
+The diagram's terminal path describes controlled completion, not isolation from arbitrary plugin code.
 
 ## Data and plugin contract
 
