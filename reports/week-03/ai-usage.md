@@ -2,34 +2,26 @@
 
 ## Tools
 
-OpenAI Codex with the repository's Orchestrator, Formater and TechLead roles, the GitHub connector for repository/issue access, and local shell tools for reading and editing documentation.
+OpenAI Codex in the Orchestrator, Formater and TechLead roles, with the GitHub connector and local documentation tools.
 
 ## What we used them for
 
-Prepared [task #50](https://github.com/iteam7/gateway7/issues/50) and drafted the architecture proposal, documentation navigation and this partial Week 3 report.
-Codex read the current course rules and Assignment 3, product vision, research, decisions, Week 2 meeting report, and the live US-01–03 acceptance criteria.
-The proposal develops the contributor's preceding architecture discussion into responsibilities, request/plugin contracts, loading rules and a first implementation slice.
-At the contributor's follow-up request, Codex replaced the short request sequence with a full flowchart and numbered stages covering validation, both hook loops, forwarding, outcome capture, client delivery and cleanup.
-
-Codex also added the requested seven-stage customer diagram while retaining the detailed technical flow.
+Prepared [task #50](https://github.com/iteam7/gateway7/issues/50), the architecture proposal, navigation and partial Week 3 report from the course rules, product vision, decisions, research and US-01–03.
+At the contributor's requests, Codex expanded the lifecycle, added the seven-stage customer diagram, then shortened the proposal and MR description while preserving the design boundaries and story traceability.
+An earlier discussion explored Python plugin packaging and lifecycle without adopting a stack or implementing code in this architecture contribution.
 
 ## Handling and checks of generated output
 
-The AI review checked traceability and consistency with the existing candidate, including test-key forwarding and missing-key startup failure in US-01, conversation-history masking in US-02, and plugin installation/order in US-03.
-It kept Python/Go unresolved, distinguished DEC-011's deterministic demonstration from US-01 AC-05, and excluded restoration storage from request context because of BND-02.
-It separated proposed response hooks from delivered scope, and made the shared-process trust and cancellation limits explicit.
-The flow expansion preserves fail-closed hook errors, zero upstream calls on pre-forward rejection, and provider-reported usage captured before response filtering; it does not treat output denial or cancellation as undoing provider work.
-No product implementation or runtime test result is claimed.
-For the initial architecture contribution, Formater checked all 32 Markdown files with Markdownlint CLI2 0.23.2, checked local targets and anchors for 46 links in the five changed files, retrieved the five distinct GitHub destinations through the connector, parsed both diagrams with Mermaid 11.12.1, and ran `git diff --check`.
-That initial Mermaid check found a semicolon interpreted as a statement separator; replacing it with a comma fixed the then-current sequence diagram without changing its meaning.
-For the expanded flowchart, Formater reran Markdownlint on the three edited files, checked their 36 links and local anchors, parsed both diagrams with Mermaid 11.12.1, and ran `git diff --check`; all passed.
-The Week 2 action-point citation lives in the weekly report and task rather than the maintained architecture page, so the documentation site need not navigate to weekly evidence.
-These checks validate documentation; they are not product-runtime tests or human approval.
+TechLead reviewed component responsibilities, independent hook order, fail-closed errors, state, keys, usage and shared-process trust/cancellation limits against the existing candidate.
+The proposal preserves DEC-011's deterministic-demo scope, the separate real-provider check in US-01 / AC-05, and BND-02's exclusion of restoration storage.
+Earlier versions passed Markdownlint, local-link/anchor and Mermaid syntax checks; a sequence-label syntax error was corrected.
+This shortening retains the component and customer diagrams and replaces repeated lifecycle detail with compact rules; the current documentation checks are recorded in MR #51.
+These checks and AI reviews do not establish runtime acceptance or human approval.
 
 ## Team evaluation
 
 TODO: the team must record what it accepted, changed or rejected after reviewing the generated architecture and report.
-The contributor's request for this MR is not recorded as approval of every drafted contract or as a completed human review.
+The contributor's request is not a completed human review.
 
 ## Workflow deviations
 

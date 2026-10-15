@@ -4,11 +4,10 @@
 
 ## Summary
 
-Prepared an architecture proposal for [task #50](https://github.com/iteam7/gateway7/issues/50): one service, an ordered plugin runner, normalized chat data and a provider-adapter boundary.
-Expanded its [request lifecycle](../../docs/architecture/README.md#request-lifecycle) into a full client-to-upstream-to-client flow, including both hook loops, failure exits, usage observation, cancellation and cleanup.
-Added a simple [customer view](../../docs/architecture/README.md#customer-view) above the detailed lifecycle, showing the seven stages from client request to client response.
-It gives the team a design to review before implementing the approved candidate.
-The stack, working MUP, customer validation and release are not delivered by this contribution.
+Prepared the [architecture](../../docs/architecture/README.md) for [task #50](https://github.com/iteam7/gateway7/issues/50): component responsibilities, a seven-stage [customer view](../../docs/architecture/README.md#customer-view), contracts and first-version limits.
+The concise [request lifecycle](../../docs/architecture/README.md#request-lifecycle) retains independent hook chains, fail-closed errors, usage and cancellation boundaries.
+Python was selected on 15 October; [implementation PR #53](https://github.com/iteam7/gateway7/pull/53) records DEC-013 and the prototype separately.
+This contribution establishes neither the complete MUP nor Customer acceptance or release.
 `REL-03` and its tag have not been evidenced here; no candidate story is moved out by this update.
 
 ## Coverage
@@ -22,7 +21,7 @@ Missing files and unverified external artifacts are not linked as though they ex
 | Threshold of success | Pending: `docs/threshold-of-success.md` and the product-vision link |
 | Project plan | Pending: `docs/project-plan.md`, including SPRINT-03–09 and release sections |
 | Risk register | Pending: `docs/risks.md` |
-| Stack decision | Pending: no Python/Go choice recorded in [docs/decisions.md](../../docs/decisions.md); stack-specific ignore/dependency configuration follows that choice |
+| Stack decision | Python selected; DEC-013 and stack configuration are in [implementation PR #53](https://github.com/iteam7/gateway7/pull/53), outside this architecture contribution |
 | Definition of Done | Pending: `docs/definition-of-done.md` |
 | Contributing guide | Pending: `CONTRIBUTING.md` |
 | Sprint milestones and issue fields | Pending evidence for SPRINT-03 scheduling, Responsible/Accountable values and matching assignees; task #50 metadata remains unresolved |
@@ -32,7 +31,7 @@ Missing files and unverified external artifacts are not linked as though they ex
 | Documentation site | Publication and site URL not evidenced here |
 | Setup and run instructions | Pending: `docs/setup.md` and sanitized configuration example |
 | Week 2 action points | Preparation for “Present the technical architecture, including organization of the core and plugin integration” from [reports/week-02/meeting-report.md#action-points](../week-02/meeting-report.md#action-points); presentation and remaining actions still need outcomes in `reports/week-03/meeting-report.md#previous-action-points` |
-| Week 2 open questions | Proposed technical answers and remaining choices in [docs/architecture/README.md#review-questions-and-week-2-follow-up](../../docs/architecture/README.md#review-questions-and-week-2-follow-up); meeting outcomes pending |
+| Week 2 open questions | Python selected; [architecture review questions](../../docs/architecture/README.md#review-questions-and-week-2-follow-up) retain capacity, secret source and contract review; meeting outcomes pending |
 | Meeting script | Pending: `reports/week-03/meeting-script.md` |
 | Customer validation | Week 3 meeting report, story verdicts and applicable transcript evidence not supplied for this contribution |
 | AI usage | [reports/week-03/ai-usage.md](ai-usage.md); human evaluation pending |
