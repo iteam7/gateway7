@@ -4,9 +4,8 @@
 
 ## Summary
 
-Prepared an architecture proposal for [task #50](https://github.com/iteam7/gateway7/issues/50): one service, an ordered plugin runner, normalized chat data and a provider-adapter boundary.
-Expanded its [request lifecycle](../../docs/architecture/README.md#request-lifecycle) into a full client-to-upstream-to-client flow, including both hook loops, failure exits, usage observation, cancellation and cleanup.
-Added a simple [customer view](../../docs/architecture/README.md#customer-view) above the detailed lifecycle, showing the seven stages from client request to client response.
+Prepared the [architecture](../../docs/architecture/README.md) for [task #50](https://github.com/iteam7/gateway7/issues/50): component responsibilities, a seven-stage [customer view](../../docs/architecture/README.md#customer-view), contracts and first-version limits.
+The concise [request lifecycle](../../docs/architecture/README.md#request-lifecycle) retains independent hook chains, fail-closed errors, usage and cancellation boundaries.
 Built the first Python slice under [task #52](https://github.com/iteam7/gateway7/issues/52), following the contributor's language selection in [DEC-013](../../docs/decisions.md#dec-013).
 It runs the gateway and fake provider as separate HTTP processes, imports company plugins by configuration and restart, masks the exact synthetic phone fixtures and demonstrates independent request/response order.
 [Setup](../../docs/setup.md), the [customer demo](../../docs/demo.md) and the [meeting script](meeting-script.md) prepare the planned 16 October call.
