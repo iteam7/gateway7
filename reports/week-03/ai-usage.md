@@ -8,6 +8,7 @@ OpenAI Codex in the Orchestrator, Formater and TechLead roles, with the GitHub c
 
 Prepared [task #50](https://github.com/iteam7/gateway7/issues/50), the architecture proposal, navigation and partial Week 3 report from the course rules, product vision, decisions, research and US-01–03.
 At the contributor's requests, Codex expanded the lifecycle, added the seven-stage customer diagram, then shortened the proposal and MR description while preserving the design boundaries and story traceability.
+Codex then arranged the Customer view as a downward request path and upward response path, and checked the rendered geometry in Chromium with Mermaid 11.12.1.
 An earlier discussion explored Python plugin packaging and lifecycle without adopting a stack or implementing code in this architecture contribution.
 
 ## Handling and checks of generated output

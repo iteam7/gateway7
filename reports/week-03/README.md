@@ -4,7 +4,7 @@
 
 ## Summary
 
-Prepared the [architecture](../../docs/architecture/README.md) for [task #50](https://github.com/iteam7/gateway7/issues/50): component responsibilities, a seven-stage [customer view](../../docs/architecture/README.md#customer-view), contracts and first-version limits.
+Prepared the [architecture](../../docs/architecture/README.md) for [task #50](https://github.com/iteam7/gateway7/issues/50): component responsibilities, a [customer view](../../docs/architecture/README.md#customer-view), contracts and first-version limits.
 The concise [request lifecycle](../../docs/architecture/README.md#request-lifecycle) retains independent hook chains, fail-closed errors, usage and cancellation boundaries.
 Python was selected on 15 October; [implementation PR #53](https://github.com/iteam7/gateway7/pull/53) records DEC-013 and the prototype separately.
 This contribution establishes neither the complete MUP nor Customer acceptance or release.
