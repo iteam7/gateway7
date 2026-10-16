@@ -4,7 +4,7 @@
 
 ## Summary
 
-Prepared the [architecture](../../docs/architecture/README.md) for [task #50](https://github.com/iteam7/gateway7/issues/50): component responsibilities, a seven-stage [customer view](../../docs/architecture/README.md#customer-view), contracts and first-version limits.
+Prepared the [architecture](../../docs/architecture/README.md) for [task #50](https://github.com/iteam7/gateway7/issues/50): component responsibilities, a [customer view](../../docs/architecture/README.md#customer-view), contracts and first-version limits.
 The concise [request lifecycle](../../docs/architecture/README.md#request-lifecycle) retains independent hook chains, fail-closed errors, usage and cancellation boundaries.
 Built the first Python slice under [task #52](https://github.com/iteam7/gateway7/issues/52), following the contributor's language selection in [DEC-013](../../docs/decisions.md#dec-013).
 It runs the gateway and fake provider as separate HTTP processes, imports company plugins by configuration and restart, masks the exact synthetic phone fixtures and demonstrates independent request/response order.

@@ -10,6 +10,7 @@ Python, uv, pytest and real local HTTP subprocesses were used to check the gener
 
 Prepared [task #50](https://github.com/iteam7/gateway7/issues/50), the architecture proposal, navigation and partial Week 3 report from the course rules, product vision, decisions, research and US-01–03.
 At the contributor's requests, Codex expanded the lifecycle, added the seven-stage customer diagram, then shortened the proposal and MR description while preserving the design boundaries and story traceability.
+Codex then arranged the Customer view as a downward request path and upward response path, and checked the rendered geometry in Chromium with Mermaid 11.12.1.
 An earlier discussion explored Python plugin packaging and lifecycle without adopting a stack or implementing code in this architecture contribution.
 
 After azamatbayramov explicitly selected Python on 15 October, Codex recorded [DEC-013](../../docs/decisions.md#dec-013) and implemented [task #52](https://github.com/iteam7/gateway7/issues/52): the FastAPI gateway, strict configuration/models, plugin lifecycle and chains, phone/sample modules, HTTP adapters, deterministic upstream, locked environment and repeatable demonstration.

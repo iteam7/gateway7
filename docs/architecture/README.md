@@ -37,16 +37,19 @@ Plugins depend on the contract in `gateway7/models.py` and `gateway7/plugin_api.
 
 ## Customer view
 
-The seven stages below are the request lifecycle; gateway input, plugins and output belong to the same service.
+The request flows down the left to the provider; the response returns up the right to the same Client.
+Gateway input, plugins and output belong to the same service.
 
 ```mermaid
 flowchart TB
-    requestClient["Client"] --> gatewayInput["Gateway input"]
+    client["Client"] --> gatewayInput["Gateway input"]
     gatewayInput --> requestPlugins["Request plugins"]
     requestPlugins --> provider["LLM provider"]
-    provider --> responsePlugins["Response plugins"]
-    responsePlugins --> gatewayOutput["Gateway output"]
-    gatewayOutput --> responseClient["Client"]
+    client <--> gatewayOutput["Gateway output"]
+    gatewayOutput <--> responsePlugins["Response plugins"]
+    responsePlugins <--> provider
+    %% Keep only upward arrowheads on the response path.
+    linkStyle 3,4,5 marker-end:none
 ```
 
 ## Request lifecycle
