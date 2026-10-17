@@ -26,6 +26,10 @@ node_modules/
 __pycache__/
 *.pyc
 .venv/
+.pytest_cache/
+*.egg-info/
+.coverage
+htmlcov/
 
 # Recordings (private-only, never commit)
 *.mp4
