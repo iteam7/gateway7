@@ -112,6 +112,18 @@ The link check here verifies local targets and anchors; external-link and Python
 Task #52 does not satisfy the entire Assignment 3 checklist.
 The threshold, plan, risks, project/sprint fields, docs-site publication, meeting outcomes, release and submission wrapper remain pending as listed above; the Definition of Done and contribution guide are prepared under task #54.
 
+## Clean-checkout run on Windows
+
+On 17 October, a fresh clone of `main` at `b548813` was followed through [docs/setup.md](../../docs/setup.md) on Windows 11, with uv 0.13.1 installing the pinned Python 3.12; the Python workflow pins uv 0.12.23.
+`uv sync --locked` and `compileall` passed.
+The manual two-service run returned HTTP 200 with `pong — deterministic upstream` and `key_accepted: true`, both in Git Bash and in Windows PowerShell 5.1, and neither service log contained the synthetic key.
+Two documented checks failed only on Windows: `pytest` reported 98 passed and 2 errors, and `python -m demo.run` exited 1 at the US-03 installation check.
+[Task #69](https://github.com/iteam7/gateway7/issues/69) fixes the demonstration's path comparison and [task #70](https://github.com/iteam7/gateway7/issues/70) the test IDs.
+With each fix on its own branch, the demonstration exited 0 and `pytest` reported 99 passed on the same machine.
+[Task #71](https://github.com/iteam7/gateway7/issues/71) adds the PowerShell commands to the setup guide.
+The run used public synthetic values only, with no provider account; US-01 AC-05 remains pending.
+A repeat run on `main` after these tasks merge is still required.
+
 ## Documentation workflow evidence
 
 Task #54 prepares only the requested Assignment 3 items 6, 7, 14 and 15.

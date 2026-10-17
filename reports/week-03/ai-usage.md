@@ -6,6 +6,7 @@ OpenAI Codex with the repository's Orchestrator, Formater and TechLead roles, th
 For task #52, TechLead delegated disjoint core, plugin and transport/demo implementation to Codex developer agents as permitted by `AGENTS.md`.
 Python, uv, pytest and real local HTTP subprocesses were used to check the generated code.
 For task #54, TechLead delegated the documentation build to an executing agent and reviewed its output; MkDocs, uv, npm, Markdownlint and Chromium were used for documentation checks.
+Claude Code (Claude Opus 5.5) with the TechLead role, uv 0.13.1, Git Bash and Windows PowerShell 5.1 were used for the clean-checkout run on Windows.
 
 ## What we used them for
 
@@ -19,6 +20,9 @@ It prepared setup/plugin/demo documentation and the Week 3 meeting script, keepi
 
 For [task #54](https://github.com/iteam7/gateway7/issues/54), Codex prepared the Definition of Done, contribution guide, README navigation and documentation build/Pages workflow for the requested Assignment 3 items 6, 7, 14 and 15.
 It retained source report citations while excluding weekly evidence from the published site, bundled Mermaid locally, and recorded the unresolved Pages activation and live-link requirements.
+
+For [task #71](https://github.com/iteam7/gateway7/issues/71), Claude Code cloned `main` into a temporary folder on Windows 11, followed `docs/setup.md`, and wrote the setup guide's PowerShell commands after running them.
+It turned the two Windows-only failures it found into [task #69](https://github.com/iteam7/gateway7/issues/69) and [task #70](https://github.com/iteam7/gateway7/issues/70), and wrote both fixes and the changelog entries.
 
 ## Handling and checks of generated output
 
@@ -41,6 +45,11 @@ Checks passed for all 39 Markdown files, a strict 13-page site build, 821 genera
 The 16 historical report citations remain links in repository source and render as plain text on the site.
 The workflow's action pins, locked dependencies, pull-request build and main-only deployment boundaries were checked.
 GitHub Pages remained disabled; neither the first deployment nor a live site hyperlink was accepted as complete.
+
+For tasks #69 and #70, TechLead reviewed both diffs and approved the demonstration fix.
+It returned the test-ID fix with a required change: the test command is a documented setup step, so its Windows fix needed a changelog entry; it approved the fix once the entry was added.
+TechLead also noted, as future work, that the Python workflow does not run on Windows and that `demo/run.py` decodes child-process logs as UTF-8 while Windows writes them in the locale encoding.
+Both fixes were checked on Windows: the demonstration exited 0 and `pytest` reported 99 passed, with each fix on its own branch.
 
 ## Team evaluation
 
