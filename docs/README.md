@@ -10,9 +10,9 @@ The complete MUP still needs a verified real-provider response and customer verd
 - [Product vision](product-vision.md)
 - [Architecture](architecture/README.md)
 - [Decisions](decisions.md)
+- [Assumptions](assumptions.md)
+- [Definition of Done](definition-of-done.md)
 - [System context diagram source](architecture/context.mmd)
-- [Research](research/)
-  - [Alternatives](research/alternatives.md)
-  - [Comparison](research/comparison.md)
-  - [Gap analysis](research/gap-analysis.md)
-  - [Value proposition](research/value-proposition.md)
+- Research: [alternatives](research/alternatives.md), [comparison](research/comparison.md), [gap analysis](research/gap-analysis.md), and [value proposition](research/value-proposition.md)
+
+Project resources: [source repository](https://github.com/iteam7/gateway7) and [user stories](https://github.com/iteam7/gateway7/issues?q=label%3Auser-story).

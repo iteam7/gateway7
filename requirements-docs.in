@@ -1,0 +1,2 @@
+# Docs tooling is isolated from the Gateway7 runtime environment.
+mkdocs==1.6.1

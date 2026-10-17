@@ -6,9 +6,12 @@ A gateway that routes requests to LLM providers through pluggable modules.
 
 - Current week report: [reports/week-03/README.md](reports/week-03/README.md) (in progress)
 - Documentation: [docs/](docs/)
+- Documentation site: first deployment pending; configured Pages address `https://iteam7.github.io/gateway7/`
 - Setup and run: [docs/setup.md](docs/setup.md)
 - Customer demo: [docs/demo.md](docs/demo.md)
 - Architecture: [docs/architecture/README.md](docs/architecture/README.md)
+- Contributing: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Definition of Done: [docs/definition-of-done.md](docs/definition-of-done.md)
 - License: [MIT](LICENSE)
 
 Run the deterministic HTTP demonstration from a checkout with Python and uv installed:
