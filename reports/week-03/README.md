@@ -1,6 +1,6 @@
 # Week 03 report — Gateway7, Team 7
 
-**Status:** In progress; architecture and a runnable Python demonstration are prepared for review. The complete MUP, customer verdicts, merge and release remain pending.
+**Status:** In progress; architecture, a runnable Python demonstration and the documentation workflow are prepared for review. The complete MUP, customer verdicts, delivery to `main`, live documentation site and release remain pending.
 
 ## Summary
 
@@ -11,6 +11,7 @@ It runs the gateway and fake provider as separate HTTP processes, imports compan
 [Setup](../../docs/setup.md), the [customer demo](../../docs/demo.md) and the [meeting script](meeting-script.md) prepare the planned 16 October call.
 The actual Claude/Gemini call, complete working MUP, customer validation and release are not evidenced by the deterministic demonstration.
 `REL-03` and its tag have not been evidenced here; no candidate story is moved out by this update.
+Prepared the requested Assignment 3 items 6, 7, 14 and 15 under [task #54](https://github.com/iteam7/gateway7/issues/54); documentation publication and its live README link remain pending as detailed below.
 
 ## Coverage
 
@@ -24,14 +25,14 @@ Missing files and unverified external artifacts are not linked as though they ex
 | Project plan | Pending: `docs/project-plan.md`, including SPRINT-03–09 and release sections |
 | Risk register | Pending: `docs/risks.md` |
 | Stack decision | [DEC-013](../../docs/decisions.md#dec-013), Python manifest and `uv.lock`, Python ignore entries and Dependabot's `uv` ecosystem |
-| Definition of Done | Pending: `docs/definition-of-done.md` |
-| Contributing guide | Pending: `CONTRIBUTING.md` |
-| Sprint milestones and issue fields | Pending evidence for SPRINT-03 scheduling, Responsible/Accountable values and matching assignees; task #50/#52 metadata remains unresolved |
+| Definition of Done | [docs/definition-of-done.md](../../docs/definition-of-done.md), prepared for review with separate Story, Task and Pull Request standards |
+| Contributing guide | [CONTRIBUTING.md](../../CONTRIBUTING.md), including commit/branch/PR rules, review procedure and docs setup; public project/table view pending verification |
+| Sprint milestones and issue fields | Pending evidence for SPRINT-03 scheduling, Responsible/Accountable values and matching assignees; task #50/#52/#54 metadata remains unresolved |
 | GitHub project | Public project and required table view not verified in this contribution |
 | Minimum usable product | [US-01](https://github.com/iteam7/gateway7/issues/30), [US-02](https://github.com/iteam7/gateway7/issues/31), [US-03](https://github.com/iteam7/gateway7/issues/32): deterministic implementation/checks prepared; real-provider AC-05, human review, merge and Customer verdicts pending |
 | Changelog and first release | [CHANGELOG.md](../../CHANGELOG.md) records Unreleased changes; tagged release and REL-03 evidence pending |
-| Documentation site | Publication and site URL not evidenced here |
-| Setup and run instructions | [docs/setup.md](../../docs/setup.md), root README entry, `.env.example`, locked dependencies and one-command HTTP demo |
+| Documentation site | [docs/README.md](../../docs/README.md) and [.github/workflows/docs.yml](../../.github/workflows/docs.yml): site/build prepared; Pages activation, public deployment and live URL verification pending |
+| Setup and run instructions | [docs/setup.md](../../docs/setup.md) and [README.md](../../README.md): setup/run link, locked dependencies and HTTP demo present; README's live site hyperlink pending deployment |
 | Week 2 action points | Architecture and runnable prototype prepared for the two presentation commitments in [reports/week-02/meeting-report.md#action-points](../week-02/meeting-report.md#action-points); presentation and infrastructure outcomes still belong in the later meeting report |
 | Week 2 open questions | Python answered by DEC-013; the [architecture review questions](../../docs/architecture/README.md#review-questions-and-week-2-follow-up) carry forward capacity, secret source and contract validation; meeting outcomes pending |
 | Meeting script | [reports/week-03/meeting-script.md](meeting-script.md), prepared for 16 October; facilitation roles remain TODO |
@@ -55,16 +56,17 @@ Both Week 2 presentation commitments now have preparation evidence; neither is c
 
 | Member | Work evidenced by this update |
 | --- | --- |
-| azamatbayramov | Requested the architecture MR, selected Python and requested the runnable customer prototype; [task #50](https://github.com/iteam7/gateway7/issues/50) and [task #52](https://github.com/iteam7/gateway7/issues/52) track AI-assisted preparation |
+| azamatbayramov | Requested the architecture MR, selected Python, requested the runnable customer prototype and the scoped documentation workflow; [task #50](https://github.com/iteam7/gateway7/issues/50), [task #52](https://github.com/iteam7/gateway7/issues/52) and [task #54](https://github.com/iteam7/gateway7/issues/54) track AI-assisted preparation |
 
 Other members' work and human review of this document must be added from their actual evidence before submission.
-This table does not assign Responsible or Accountable roles for task #50 or #52.
+This table does not assign Responsible or Accountable roles for task #50, #52 or #54.
 
 ## Repository evidence
 
-Task #50 covers architecture preparation; task #52 covers the runnable Python increment and its documentation.
-The implementation PR is stacked on architecture PR #51; #51 must merge first, then the implementation PR must be retargeted to `main` before its own merge.
-No merged Week 3 task PR or current green `main` checks are claimed here.
+Task #50 covers architecture preparation; task #52 covers the runnable Python increment and its documentation; task #54 covers the scoped documentation workflow.
+[PR #53](https://github.com/iteam7/gateway7/pull/53) merged into the architecture branch on 17 October; [PR #51](https://github.com/iteam7/gateway7/pull/51) remains open against `main`.
+Task #54 is based on that architecture branch; its PR must target `main` after #51 merges before its own main merge.
+No Week 3 task merge to `main` or current green `main` checks are claimed here.
 Add the merged PR and latest green link/Markdown runs before submitting the completed weekly report.
 No link-check exclusions are added by this contribution.
 
@@ -108,13 +110,29 @@ The link check here verifies local targets and anchors; external-link and Python
 | Human and delivery gates | TODO: human evaluation, distinct accountable reviewer, Customer story verdicts, merge to `main`, clean submitted-state replay and release |
 
 Task #52 does not satisfy the entire Assignment 3 checklist.
-The threshold, plan, risks, Definition of Done, contributing guide, project/sprint fields, docs-site publication, meeting outcomes, release and submission wrapper remain pending as listed above.
+The threshold, plan, risks, project/sprint fields, docs-site publication, meeting outcomes, release and submission wrapper remain pending as listed above; the Definition of Done and contribution guide are prepared under task #54.
+
+## Documentation workflow evidence
+
+Task #54 prepares only the requested Assignment 3 items 6, 7, 14 and 15.
+TechLead approved the Definition of Done, contribution guide, README navigation and documentation build changes after reviewing the full diff.
+Markdownlint passed all **39 Markdown files**; the strict MkDocs build produced **13 pages**, and generated-site validation passed **821 links/assets**.
+Chromium checks covered desktop/mobile navigation, the mobile menu and both architecture diagrams, including the Customer view's upward response arrows, with no failed requests or external runtime assets.
+All **16 historical report citations** remain intact in repository source and render as plain text on the site; the site excludes weekly reports.
+The workflow builds every pull request, including the stacked target, and reserves Pages artifact upload/deployment for `main`; its actions use released full-SHA pins with version comments.
+
+GitHub Pages was still disabled (`has_pages: false`) when checked on 17 October.
+The available connector does not expose Pages settings; administrator activation, the first authorized `main` deployment and public URL verification remain pending.
+The root README therefore records the intended Pages address as pending text rather than a verified live hyperlink; Assignment 3 items 14 and 15 are not complete.
+The activation and verification steps are in [CONTRIBUTING.md](../../CONTRIBUTING.md#build-and-preview-the-site).
+These automated checks and AI approval do not replace the distinct human reviewer, task acceptance checkboxes or Customer decisions.
 
 ## Deviations
 
 - Task #50 was created through the GitHub connector API using the task form's sections, numbered acceptance criteria and `task` label, rather than by submitting the web form. The available writing route is API-based; the issue remains reviewable, but this declaration does not waive the course's form requirement.
 - Task #50 has no evidenced pair of distinct human owners, Responsible/Accountable values, matching assignees or sprint milestone. These remain unresolved; the task is not represented as correctly scheduled. The team must set those values together before treating its scheduling as complete.
 - Task #52 also used the GitHub connector API with the task form's sections and `task` label. Its distinct Responsible/Accountable members, matching assignees and sprint milestone remain unassigned; this does not claim the task is correctly scheduled.
+- Task #54 used the same API route because the available writing capability does not submit the task form. Its sections, numbered criteria and `task` label preserve reviewability but do not waive the form requirement. Responsible/Accountable members, matching assignees and sprint remain unset; the public project/table view is also unverified.
 
 ## Privacy
 

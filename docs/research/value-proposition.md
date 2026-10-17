@@ -44,7 +44,7 @@ This is a proposal for subsequent work. Assignment 1 is research-only; building 
 
 ## Assumptions
 
-The kickoff confirmed the broader plugin-host need and the scope decisions recorded in the [meeting report](../../reports/week-01/meeting-report.md#decisions). The table below contains the narrower assumptions that the recorded meeting did not settle; it does not reopen the confirmed project direction. Confirm an assumption only when supporting evidence is recorded in a subsequent meeting report or research result.
+The kickoff confirmed the broader plugin-host need and the scope decisions recorded in the [meeting report](https://github.com/iteam7/gateway7/blob/main/reports/week-01/meeting-report.md#decisions). The table below contains the narrower assumptions that the recorded meeting did not settle; it does not reopen the confirmed project direction. Confirm an assumption only when supporting evidence is recorded in a subsequent meeting report or research result.
 
 | Assumption | Supports | How we will check it | When |
 | --- | --- | --- | --- |
