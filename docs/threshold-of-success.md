@@ -22,7 +22,7 @@ Every request and response passes through the configured policy pipeline, and th
 A company plugin can be added to the gateway without changing the core's code.
 
 - **Status:** Open
-- **Measure:** a second, previously unwritten plugin is installed and exercised through configuration alone ([VP-02](research/value-proposition.md#vp-02-testable-domain-filter-extensions)), with no edit to any file outside `docs/plugins.md`'s documented plugin and configuration locations, by Week 4.
+- **Measure:** a second, previously unwritten plugin is installed and exercised through configuration alone ([VP-02](research/value-proposition.md#vp-02-testable-domain-filter-extensions)), with no edit to any file outside its own plugin and configuration files, by Week 4.
 
 ## TOS-04
 
@@ -33,10 +33,10 @@ The Customer accepts the minimum usable product candidate against its stories' a
 
 ## Failure And Success Statements
 
-| Goal                  | Success statement                                                                                   | Failure statement                                                                                                         |
+| Goal | Success statement | Failure statement |
 | ---------------------- | ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| [TOS-01](#tos-01)      | A stranger can run the candidate end to end from a clean checkout by following the setup guide.       | Nobody outside the team can run the gateway, so the term ends with code that only its authors can start.                   |
-| [TOS-02](#tos-02)      | The masking policy's allow/mask/block decisions are each proven by an offline fixture, not a demo.    | The masking plugin looks correct in a live demo but has no repeatable check, so a later change could silently break it.    |
-| [TOS-03](#tos-03)      | A second plugin is added through configuration alone, proving the plugin contract generalizes.       | The plugin interface only ever hosts the one plugin it was built for, so the "plugin host" claim rests on a single case.   |
-| [TOS-04](#tos-04)      | The Customer's verdict on the candidate is recorded, win or lose.                                     | The team builds and ships a candidate the Customer never explicitly accepted or rejected, so "done" is the team's opinion. |
-| —                       | The stack and its CI gates are in place before the candidate's logic is built.                        | The team starts writing plugin logic before linters, tests and CI exist, so defects accumulate before anything catches them. |
+| [TOS-01](#tos-01) | A stranger can run the candidate end to end from a clean checkout by following the setup guide. | Nobody outside the team can run the gateway, so the term ends with code that only its authors can start. |
+| [TOS-02](#tos-02) | The masking policy's allow/mask/block decisions are each proven by an offline fixture, not a demo. | The masking plugin looks correct in a live demo but has no repeatable check, so a later change could silently break it. |
+| [TOS-03](#tos-03) | A second plugin is added through configuration alone, proving the plugin contract generalizes. | The plugin interface only ever hosts the one plugin it was built for, so the "plugin host" claim rests on a single case. |
+| [TOS-04](#tos-04) | The Customer's verdict on the candidate is recorded, win or lose. | The team builds and ships a candidate the Customer never explicitly accepted or rejected, so "done" is the team's opinion. |
+| — | The stack and its CI gates are in place before the candidate's logic is built. | The team starts writing plugin logic before linters, tests and CI exist, so defects accumulate before anything catches them. |

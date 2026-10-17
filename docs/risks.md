@@ -1,7 +1,7 @@
 # Risks
 
 | ID                  | Status | Impact | Likelihood | Risk                                                                                                                                                                    |
-| ------------------- | ------ | ------ | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| ------------------- | ------ | ------ | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [RISK-01](#risk-01) | Open   | High   | Medium     | The team is a 3-4 student group splitting attention across a reporting-heavy course and a working gateway, so the Week 3 MUP slice may stay unfinished at the deadline. |
 | [RISK-02](#risk-02) | Open   | High   | Low        | The stack decision (DEC-013) lands on an unmerged branch, so a late or blocked merge would leave `main` without a working gateway at the deadline.                      |
 | [RISK-03](#risk-03) | Open   | Medium | Medium     | The MUP's first demonstration uses a deterministic fake upstream (DEC-011), so a later switch to a real provider may surface integration defects the demo never caught. |
