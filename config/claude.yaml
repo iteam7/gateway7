@@ -1,0 +1,19 @@
+# Text-only adapter. Real-provider acceptance still requires a live authorized run.
+provider:
+  kind: claude
+  base_url: https://api.anthropic.com
+  key_env: ANTHROPIC_API_KEY
+  model: claude-haiku-4-5
+limits:
+  request_timeout_seconds: 30
+  hook_timeout_seconds: 2
+  max_body_bytes: 65536
+plugins:
+  mask:
+    module: gateway7.plugins.phone_mask
+    enabled: true
+    required: true
+    settings: {}
+chains:
+  request: [mask]
+  response: []

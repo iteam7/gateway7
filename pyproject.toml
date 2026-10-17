@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "gateway7"
+version = "0.1.0"
+description = "A minimal ordered-plugin LLM gateway with a deterministic HTTP demo"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+  "fastapi>=0.115,<1",
+  "httpx>=0.28,<0.29",
+  "pydantic>=2.10,<3",
+  "PyYAML>=6.0.2,<7",
+  "uvicorn>=0.34,<1",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3,<10",
+  "pytest-asyncio>=0.25,<2",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["gateway7", "demo"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
