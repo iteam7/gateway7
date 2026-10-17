@@ -1,11 +1,11 @@
 # Risks
 
-| ID                  | Status | Impact | Likelihood | Risk                                                                                                                                                                    |
+| ID | Status | Impact | Likelihood | Risk |
 | ------------------- | ------ | ------ | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [RISK-01](#risk-01) | Open   | High   | Medium     | The team is a 3-4 student group splitting attention across a reporting-heavy course and a working gateway, so the Week 3 MUP slice may stay unfinished at the deadline. |
-| [RISK-02](#risk-02) | Open   | High   | Low        | The stack and the first implementation sit on an unmerged pull request, so a late or blocked merge would leave `main` without a working gateway at the deadline.        |
-| [RISK-03](#risk-03) | Open   | Medium | Medium     | The MUP's first demonstration uses a deterministic fake upstream (DEC-011), so a later switch to a real provider may surface integration defects the demo never caught. |
-| [RISK-04](#risk-04) | Open   | Medium | Low        | Plugin ordering and restart-only loading are agreed but not yet implemented, so a second plugin (TOS-03) may expose an ordering or configuration-validation gap.        |
+| [RISK-01](#risk-01) | Open | High | Medium | The team is a 3-4 student group splitting attention across a reporting-heavy course and a working gateway, so the Week 3 MUP slice may stay unfinished at the deadline. |
+| [RISK-03](#risk-03) | Open | Medium | Medium | The MUP's first demonstration uses a deterministic fake upstream (DEC-011), so a later switch to a real provider may surface integration defects the demo never caught. |
+| [RISK-04](#risk-04) | Open | Medium | Low | Plugin ordering and restart-only loading are agreed but not yet implemented, so a second plugin (TOS-03) may expose an ordering or configuration-validation gap. |
+| [RISK-02](#risk-02) | Mitigated | High | Low | The stack and the first implementation sit on an unmerged pull request, so a late or blocked merge would leave `main` without a working gateway at the deadline. |
 
 ## RISK-01
 
@@ -25,7 +25,7 @@ The team is a 3-4 student group splitting attention across a reporting-heavy cou
 
 The stack and the first implementation sit on an unmerged pull request, so a late or blocked merge would leave `main` without a working gateway at the deadline.
 
-- **Status:** Open
+- **Status:** Mitigated
 - **Impact:** High
   - Without the merge, `main` has no `gateway7/` package, so [TOS-01](threshold-of-success.md#tos-01) cannot be checked from a clean checkout at all.
 - **Likelihood:** Low
@@ -34,6 +34,7 @@ The stack and the first implementation sit on an unmerged pull request, so a lat
 - **Window:** the Week 3 sprint, up to the first release.
 - **Mitigation:** assign a reviewer to tick the linked task's acceptance criteria and approve the pull request as soon as the architecture proposal is confirmed, ahead of the release.
 - **Contingency:** merge only the files the clean-checkout run needs and open a follow-up task for any remaining documentation gap, so the release still ships a working slice.
+- **Outcome:** [PR #51](https://github.com/iteam7/gateway7/pull/51) merged into `main` on 2026-10-17, carrying the stack, `gateway7/` package and `docs/setup.md`, per [`DEC-013`](decisions.md#dec-013); `main` now has a working package, so this risk can no longer materialize.
 
 ## RISK-03
 
