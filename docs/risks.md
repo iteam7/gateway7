@@ -3,7 +3,7 @@
 | ID                  | Status | Impact | Likelihood | Risk                                                                                                                                                                    |
 | ------------------- | ------ | ------ | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [RISK-01](#risk-01) | Open   | High   | Medium     | The team is a 3-4 student group splitting attention across a reporting-heavy course and a working gateway, so the Week 3 MUP slice may stay unfinished at the deadline. |
-| [RISK-02](#risk-02) | Open   | High   | Low        | The stack decision (DEC-013) lands on an unmerged branch, so a late or blocked merge would leave `main` without a working gateway at the deadline.                      |
+| [RISK-02](#risk-02) | Open   | High   | Low        | The stack and the first implementation sit on an unmerged pull request, so a late or blocked merge would leave `main` without a working gateway at the deadline.        |
 | [RISK-03](#risk-03) | Open   | Medium | Medium     | The MUP's first demonstration uses a deterministic fake upstream (DEC-011), so a later switch to a real provider may surface integration defects the demo never caught. |
 | [RISK-04](#risk-04) | Open   | Medium | Low        | Plugin ordering and restart-only loading are agreed but not yet implemented, so a second plugin (TOS-03) may expose an ordering or configuration-validation gap.        |
 
@@ -23,14 +23,14 @@ The team is a 3-4 student group splitting attention across a reporting-heavy cou
 
 ## RISK-02
 
-The stack decision (DEC-013) lands on an unmerged branch, so a late or blocked merge would leave `main` without a working gateway at the deadline.
+The stack and the first implementation sit on an unmerged pull request, so a late or blocked merge would leave `main` without a working gateway at the deadline.
 
 - **Status:** Open
 - **Impact:** High
   - Without the merge, `main` has no `gateway7/` package, so [TOS-01](threshold-of-success.md#tos-01) cannot be checked from a clean checkout at all.
 - **Likelihood:** Low
   - The branch's checks (lychee, markdownlint, Python checks) are already green; only a human review and the `Responsible`/`Accountable` assignment are outstanding.
-- **Trigger:** the pull request carrying the stack and the implementation has no reviewer approval by the day before the release is cut.
+- **Trigger:** [the pull request carrying the stack and the implementation](https://github.com/iteam7/gateway7/pull/51) has no reviewer approval by the day before the release is cut.
 - **Window:** the Week 3 sprint, up to the first release.
 - **Mitigation:** assign a reviewer to tick the linked task's acceptance criteria and approve the pull request as soon as the architecture proposal is confirmed, ahead of the release.
 - **Contingency:** merge only the files the clean-checkout run needs and open a follow-up task for any remaining documentation gap, so the release still ships a working slice.
