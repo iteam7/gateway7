@@ -1,0 +1,56 @@
+site_name: Gateway7
+site_description: A corporate LLM gateway with company-authored request and response plugins.
+site_url: https://iteam7.github.io/gateway7/
+repo_url: https://github.com/iteam7/gateway7
+edit_uri: ""
+docs_dir: docs
+site_dir: site
+strict: true
+
+theme:
+  name: mkdocs
+  color_mode: light
+  highlightjs: false
+  navigation_depth: 3
+
+nav:
+  - Home: README.md
+  - Guides:
+      - Setup and run: setup.md
+      - Customer demonstration: demo.md
+      - Plugin authoring: plugins.md
+  - Product:
+      - Product vision: product-vision.md
+      - Architecture: architecture/README.md
+      - Decisions: decisions.md
+      - Assumptions: assumptions.md
+      - Definition of Done: definition-of-done.md
+  - Research:
+      - Alternatives: research/alternatives.md
+      - Comparison: research/comparison.md
+      - Gap analysis: research/gap-analysis.md
+      - Value propositions: research/value-proposition.md
+
+markdown_extensions:
+  - fenced_code
+  - tables
+  - toc:
+      permalink: true
+
+validation:
+  nav:
+    omitted_files: warn
+    not_found: warn
+    absolute_links: warn
+  links:
+    not_found: warn
+    unrecognized_links: warn
+    anchors: warn
+
+hooks:
+  - docs-build/hooks.py
+extra_javascript:
+  - assets/mermaid.min.js
+  - assets/mermaid-init.js
+extra_css:
+  - assets/diagrams.css
