@@ -14,4 +14,8 @@ Versions will follow Semantic Versioning when a release is published.
 - Definition of Done and contribution guide with task/review standards and setup navigation.
 - Locked documentation build with local Mermaid assets, pull-request validation and a main-only GitHub Pages workflow; first deployment pending.
 
+### Fixed
+
+- The documented test command no longer errors on Windows, where one case's generated test ID exceeded the environment-variable size limit.
+
 No version has been released by this contribution.
