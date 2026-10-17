@@ -3,6 +3,7 @@
 ## Tools
 
 OpenAI Codex with the repository's Orchestrator, Formater and TechLead roles, the GitHub connector for repository/issue access, and local shell tools for reading and editing documentation.
+Claude Code (Claude Opus 5.5) with the TechLead role edited the Python workflow for task #77.
 For task #52, TechLead delegated disjoint core, plugin and transport/demo implementation to Codex developer agents as permitted by `AGENTS.md`.
 Python, uv, pytest and real local HTTP subprocesses were used to check the generated code.
 For task #54, TechLead delegated the documentation build to an executing agent and reviewed its output; MkDocs, uv, npm, Markdownlint and Chromium were used for documentation checks.
