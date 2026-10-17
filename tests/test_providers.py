@@ -99,6 +99,11 @@ async def test_unavailable_or_invalid_usage_is_unknown(kind, usage):
     (500, KEY.encode()), (401, KEY.encode()), (302, b"redirect"),
     (200, b"not-json"), (200, b"[]"), (200, b'{"text": 42}'), (200, b'{"text": ""}'),
     (200, b"x" * (MAX_RESPONSE_BYTES + 1)),
+], ids=[
+    "500-echoes-key", "401-echoes-key", "302-redirect",
+    "200-not-json", "200-array", "200-non-string-text", "200-empty-text",
+    # A derived ID would hold the whole body and exceed Windows' environment-variable limit.
+    "200-oversized",
 ])
 async def test_upstream_failures_are_safe_bounded_and_never_retried(status, body):
     attempts = 0
