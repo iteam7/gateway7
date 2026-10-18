@@ -113,6 +113,7 @@ Do not retain raw prompts or original values in instance fields, globals, restor
 The core discards request-owned state at completion; it does not promise secure memory erasure.
 
 Deadlines use cooperative asyncio cancellation.
+[Task #84](https://github.com/iteam7/gateway7/issues/84) reports that Windows may accept a result after the timer fires when a plugin suppresses cancellation; that open defect limits the current fail-closed guarantee.
 Write bounded async work and propagate cancellation; blocking CPU work or code suppressing cancellation can stall the whole service.
 There is no hard kill, process isolation or guarantee that a cancelled provider call stopped upstream.
 

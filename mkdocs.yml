@@ -22,6 +22,8 @@ nav:
   - Product:
       - Product vision: product-vision.md
       - Threshold of success: threshold-of-success.md
+      - Threshold review proposal: threshold-review.md
+      - Project plan: project-plan.md
       - Risks: risks.md
       - Architecture: architecture/README.md
       - Decisions: decisions.md
