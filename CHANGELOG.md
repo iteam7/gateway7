@@ -17,6 +17,7 @@ Versions will follow Semantic Versioning when a release is published.
 ### Changed
 
 - Python checks also run on Windows.
+
 ### Fixed
 
 - The one-command demonstration's plugin-installation check now passes on Windows, where it compared backslash paths with POSIX paths.
