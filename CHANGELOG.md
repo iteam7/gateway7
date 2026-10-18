@@ -5,6 +5,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- Project plan for SPRINT-03 to SPRINT-09, with the first release and weekly progress monitoring.
+
+### Changed
+
+- Week 3 report links the published documentation, release, merged work and current checks, and identifies the remaining validation and scheduling gaps.
+
 ## [0.1.0] - 2026-10-18
 
 ### Added

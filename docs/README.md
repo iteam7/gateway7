@@ -9,6 +9,7 @@ The complete MUP still needs a verified real-provider response and customer verd
 - [Plugin authoring](plugins.md)
 - [Product vision](product-vision.md)
 - [Threshold of success](threshold-of-success.md)
+- [Project plan](project-plan.md)
 - [Risks](risks.md)
 - [Architecture](architecture/README.md)
 - [Decisions](decisions.md)
