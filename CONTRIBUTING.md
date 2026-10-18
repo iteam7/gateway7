@@ -45,7 +45,7 @@ Its [Sprints table view](https://github.com/orgs/iteam7/projects/1/views/3) is w
 | View | What it shows and why | Current status |
 | --- | --- | --- |
 | [Public project table](https://github.com/orgs/iteam7/projects/1/views/3) | Every open repository issue, with `Responsible`, `Accountable`, `Assignees` and `Milestone` columns, grouped or sorted by `Milestone`, so work and verification responsibility are visible by sprint | The project and its `Sprints` view exist, grouped by `Milestone` |
-| [Repository milestones](https://github.com/iteam7/gateway7/milestones) | The issues in each sprint and their open/closed state; the milestone is the sprint backlog rather than a copied task list | Repository location; individual sprint setup is handled separately |
+| [Repository milestones](https://github.com/iteam7/gateway7/milestones) | The issues in each sprint and their open/closed state; the milestone is the sprint backlog rather than a copied task list | The seven sprint milestones, `SPRINT-03` to `SPRINT-09`, exist with their weeks' hard deadlines as due dates |
 
 When scheduling an issue, set its sprint milestone, two different members as `Responsible` and `Accountable`, and those same two members as its only assignees.
 The responsible member does the work; the accountable member verifies it.
