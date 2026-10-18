@@ -4,6 +4,6 @@
   "description": "Locked browser diagram assets for the documentation site",
   "engines": { "node": ">=24 <25" },
   "dependencies": {
-    "mermaid": "11.12.1"
+    "mermaid": "12.2.0"
   }
 }
