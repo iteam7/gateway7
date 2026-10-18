@@ -8,6 +8,8 @@ A corporate IT team can send its applications' chat requests through gateway7 to
 
 **Supports:** [VP-01](research/value-proposition.md#vp-01-predictable-local-preflight-for-small-teams), [VP-02](research/value-proposition.md#vp-02-testable-domain-filter-extensions).
 
+**Threshold of success:** [docs/threshold-of-success.md](threshold-of-success.md).
+
 ## Stakeholders
 
 - **Customer**: the corporate IT team piloting gateway7. Confirmed the plugin-host direction at the [October 2 kickoff](https://github.com/iteam7/gateway7/blob/main/reports/week-01/meeting-report.md#decisions) and decides the product's scope.

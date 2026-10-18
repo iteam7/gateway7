@@ -35,7 +35,7 @@ def _free_port() -> int:
 
 def _hash_files(root: Path) -> dict[str, str]:
     return {
-        str(path.relative_to(root)): hashlib.sha256(path.read_bytes()).hexdigest()
+        path.relative_to(root).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
         for path in root.rglob("*")
         if path.is_file() and "__pycache__" not in path.parts
     }
