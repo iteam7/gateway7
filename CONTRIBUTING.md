@@ -39,13 +39,12 @@ Dependabot and the course's automatic Done-task cleanup workflow are the excepti
 
 ## Project views and scheduling
 
-The public project and its table-view URL have not yet been verified for this guide.
-Their setup is separate work; the [iteam7 projects directory](https://github.com/orgs/iteam7/projects) is the current discovery link, not evidence that the required view exists.
-Replace it with the verified public project and table-view links when that setup is complete.
+The team's public project is [gateway7](https://github.com/orgs/iteam7/projects/1), which holds every open repository issue; new issues join it through its auto-add workflow.
+Its [Sprints table view](https://github.com/orgs/iteam7/projects/1/views/3) is where the week's schedule is read.
 
 | View | What it shows and why | Current status |
 | --- | --- | --- |
-| Public project table | Every open repository issue, with `Responsible`, `Accountable`, `Assignees` and `Milestone` columns, grouped or sorted by `Milestone`, so work and verification responsibility are visible by sprint | Required; project and view pending verification |
+| [Public project table](https://github.com/orgs/iteam7/projects/1/views/3) | Every open repository issue, with `Responsible`, `Accountable`, `Assignees` and `Milestone` columns, grouped or sorted by `Milestone`, so work and verification responsibility are visible by sprint | The project and its `Sprints` view exist, grouped by `Milestone` |
 | [Repository milestones](https://github.com/iteam7/gateway7/milestones) | The issues in each sprint and their open/closed state; the milestone is the sprint backlog rather than a copied task list | Repository location; individual sprint setup is handled separately |
 
 When scheduling an issue, set its sprint milestone, two different members as `Responsible` and `Accountable`, and those same two members as its only assignees.
