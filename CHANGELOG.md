@@ -11,7 +11,13 @@ Versions will follow Semantic Versioning when a release is published.
 - Trusted modules installed by restart, separate ordered request and response hooks, and fail-closed execution.
 - Phone masking over conversation history and a one-file sample company plugin.
 - Deterministic HTTP upstream and repeatable customer demonstration with locked setup instructions.
+- Windows PowerShell commands for running the two services manually.
 - Definition of Done and contribution guide with task/review standards and setup navigation.
 - Locked documentation build with local Mermaid assets, pull-request validation and a main-only GitHub Pages workflow; first deployment pending.
+
+### Fixed
+
+- The one-command demonstration's plugin-installation check now passes on Windows, where it compared backslash paths with POSIX paths.
+- The documented test command no longer errors on Windows, where one case's generated test ID exceeded the environment-variable size limit.
 
 No version has been released by this contribution.

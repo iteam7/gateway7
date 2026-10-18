@@ -112,6 +112,18 @@ The link check here verifies local targets and anchors; external-link and Python
 Task #52 does not satisfy the entire Assignment 3 checklist.
 The threshold, plan, risks, project/sprint fields, docs-site publication, meeting outcomes, release and submission wrapper remain pending as listed above; the Definition of Done and contribution guide are prepared under task #54.
 
+## Clean-checkout run on Windows
+
+On 17 October, a fresh clone of `main` at `b548813` was followed through [docs/setup.md](../../docs/setup.md) on Windows 11, with uv 0.13.1 installing the pinned Python 3.12; the Python workflow pins uv 0.12.23.
+`uv sync --locked` and `compileall` passed.
+The manual two-service run returned HTTP 200 with `pong — deterministic upstream` and `key_accepted: true`, both in Git Bash and in Windows PowerShell 5.1, and neither service log contained the synthetic key.
+Two documented checks failed only on Windows: `pytest` reported 98 passed and 2 errors, and `python -m demo.run` exited 1 at the US-03 installation check.
+[Task #69](https://github.com/iteam7/gateway7/issues/69) fixes the demonstration's path comparison and [task #70](https://github.com/iteam7/gateway7/issues/70) the test IDs.
+With each fix on its own branch, the demonstration exited 0 and `pytest` reported 99 passed on the same machine.
+[Task #71](https://github.com/iteam7/gateway7/issues/71) adds the PowerShell commands to the setup guide.
+The run used public synthetic values only, with no provider account; US-01 AC-05 remains pending.
+A repeat run on `main` after these tasks merge is still required.
+
 ## Documentation workflow evidence
 
 Task #54 prepares only the requested Assignment 3 items 6, 7, 14 and 15.
@@ -134,6 +146,7 @@ These automated checks and AI approval do not replace the distinct human reviewe
 - Task #52 also used the GitHub connector API with the task form's sections and `task` label. Its distinct Responsible/Accountable members, matching assignees and sprint milestone remain unassigned; this does not claim the task is correctly scheduled.
 - Task #54 used the same API route because the available writing capability does not submit the task form. Its sections, numbered criteria and `task` label preserve reviewability but do not waive the form requirement. Responsible/Accountable members, matching assignees and sprint remain unset; the public project/table view is also unverified.
 - Task issues [#64](https://github.com/iteam7/gateway7/issues/64), [#65](https://github.com/iteam7/gateway7/issues/65), [#66](https://github.com/iteam7/gateway7/issues/66) and [#67](https://github.com/iteam7/gateway7/issues/67) were created through the GitHub CLI rather than the task form, at the contributor's request, because the agent doing the work has no signed-in browser to submit the form. Each body carries every section of the form in its order, a numbered `AC-nn` checklist and the `task` label applied by hand, as the form would.
+- Task [#79](https://github.com/iteam7/gateway7/issues/79) used the GitHub connector API because the available browser was signed out and could not submit the task form. Its body preserves the form's sections and numbered criteria, and carries the `task` label; this declaration does not waive the form requirement. No sprint, role values or assignees were assigned.
 
 ## Privacy
 

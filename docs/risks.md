@@ -4,7 +4,7 @@
 | ------------------- | ------ | ------ | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [RISK-01](#risk-01) | Open | High | Medium | The team is a 3-4 student group splitting attention across a reporting-heavy course and a working gateway, so the Week 3 MUP slice may stay unfinished at the deadline. |
 | [RISK-03](#risk-03) | Open | Medium | Medium | The MUP's first demonstration uses a deterministic fake upstream (DEC-011), so a later switch to a real provider may surface integration defects the demo never caught. |
-| [RISK-04](#risk-04) | Open | Medium | Low | Plugin ordering and restart-only loading are agreed but not yet implemented, so a second plugin (TOS-03) may expose an ordering or configuration-validation gap. |
+| [RISK-04](#risk-04) | Open | Medium | Low | The existing plugin contract and fixtures may not cover a new company plugin's behavior, so integration could reveal a compatibility gap requiring core changes and failing TOS-03. |
 | [RISK-02](#risk-02) | Mitigated | High | Low | The stack and the first implementation sit on an unmerged pull request, so a late or blocked merge would leave `main` without a working gateway at the deadline. |
 
 ## RISK-01
@@ -52,13 +52,15 @@ The MUP's first demonstration uses a deterministic fake upstream (DEC-011), so a
 
 ## RISK-04
 
-Plugin ordering and restart-only loading are agreed but not yet implemented, so a second plugin (TOS-03) may expose an ordering or configuration-validation gap.
+The existing plugin contract and fixtures may not cover a new company plugin's behavior, so integration could reveal a compatibility gap requiring core changes and failing TOS-03.
 
 - **Status:** Open
 - **Impact:** Medium
   - A broken plugin contract would force a core change to add the second plugin, which directly fails [TOS-03](threshold-of-success.md#tos-03).
 - **Likelihood:** Low
-  - The architecture proposal already fixes plugin ordering, request-local state and startup validation before any second plugin is written.
+  - Independent request/response ordering is implemented in [the loader](https://github.com/iteam7/gateway7/blob/main/gateway7/loader.py) and [pipeline](https://github.com/iteam7/gateway7/blob/main/gateway7/pipeline.py).
+    [Application startup](https://github.com/iteam7/gateway7/blob/main/gateway7/app.py) loads configuration and starts plugins before readiness; the [plugin guide](plugins.md) documents installation through a module and configuration followed by restart.
+    The existing [core tests](https://github.com/iteam7/gateway7/blob/main/tests/test_core.py) cover chain order, descriptor/settings/hook validation and startup cleanup, but do not establish compatibility with every new company plugin.
 - **Trigger:** adding the second plugin needs an edit outside its own plugin file or its documented configuration location.
 - **Window:** the sprint in which the second plugin is added, per [TOS-03](threshold-of-success.md#tos-03)'s Week 4 measure.
 - **Mitigation:** write the second plugin against the documented contract alone, with no access to the first plugin's internals, before declaring the contract stable.

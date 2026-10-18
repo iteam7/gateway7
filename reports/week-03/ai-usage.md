@@ -7,6 +7,7 @@ For task #52, TechLead delegated disjoint core, plugin and transport/demo implem
 Python, uv, pytest and real local HTTP subprocesses were used to check the generated code.
 For task #54, TechLead delegated the documentation build to an executing agent and reviewed its output; MkDocs, uv, npm, Markdownlint and Chromium were used for documentation checks.
 Claude Code (Claude Opus 5.5) with its Formater agent, the GitHub CLI and the GitHub API, for tasks #64 to #67.
+Claude Code (Claude Opus 5.5) with the TechLead role, uv 0.13.1, Git Bash and Windows PowerShell 5.1 were used for the clean-checkout run on Windows.
 
 ## What we used them for
 
@@ -25,6 +26,21 @@ For [task #64](https://github.com/iteam7/gateway7/issues/64), Claude Code (Claud
 It created the seven `SPRINT-nn` milestones through the GitHub API, with the sprint focuses the contributor approved and the syllabus hard deadlines as due dates, and updated the milestone row in `CONTRIBUTING.md`.
 
 For [task #57](https://github.com/iteam7/gateway7/issues/57), Claude Code (Claude Opus 5.5) merged `main` into the risk-register branch after PR #59 had landed on a stale base, and added the threshold-of-success and risk pages to the strict documentation navigation so the site build on `main` passes again.
+
+For [task #65](https://github.com/iteam7/gateway7/issues/65), Claude Code checked that only an organization owner can create issue fields, wrote the field specification for the owner, and described the fields in `CONTRIBUTING.md`.
+
+For [task #79](https://github.com/iteam7/gateway7/issues/79), Codex replaced the README's pending site address and the contribution guide's Project placeholders with verified public links.
+It used the GitHub connector for repository changes and a signed-out cloud browser to open the live home and setup pages, the public Project and its exact View 1 table URL on 18 October.
+The guide distinguishes the observed table columns from the still-unverified required role fields, milestone organization and complete issue coverage; Project configuration was not changed.
+Codex also resolved this pull request's conflicts with `main`, preserving the seven-sprint milestone row and the task #64–67 disclosures.
+It added the existing threshold-of-success page to MkDocs navigation to address the strict-build warning introduced by the merged page; the page content was unchanged.
+
+For [task #71](https://github.com/iteam7/gateway7/issues/71), Claude Code cloned `main` into a temporary folder on Windows 11, followed `docs/setup.md`, and wrote the setup guide's PowerShell commands after running them.
+It turned the two Windows-only failures it found into [task #69](https://github.com/iteam7/gateway7/issues/69) and [task #70](https://github.com/iteam7/gateway7/issues/70), and wrote both fixes and the changelog entries.
+
+For the follow-up to [task #57](https://github.com/iteam7/gateway7/issues/57) in [PR #83](https://github.com/iteam7/gateway7/pull/83), Codex resolved the navigation and AI-report conflicts against `main` at `0e291413b39e957b7ac86bc3f2ecd417cedfe7d0`, retaining the existing threshold entry once, the new Risks entry and the other contributors' disclosures.
+It corrected both copies of RISK-04's statement and its supporting explanation against `gateway7/loader.py`, `gateway7/pipeline.py`, `gateway7/app.py`, `docs/plugins.md` and `tests/test_core.py`: ordering, startup validation and restart-based installation already exist; compatibility with a new company plugin remains the risk.
+It updated the PR description without changing risk identifiers, ratings, response decisions or task acceptance checkboxes.
 
 ## Handling and checks of generated output
 
@@ -48,8 +64,18 @@ The 16 historical report citations remain links in repository source and render 
 The workflow's action pins, locked dependencies, pull-request build and main-only deployment boundaries were checked.
 GitHub Pages remained disabled; neither the first deployment nor a live site hyperlink was accepted as complete.
 
+For tasks #69 and #70, TechLead reviewed both diffs and approved the demonstration fix.
+It returned the test-ID fix with a required change: the test command is a documented setup step, so its Windows fix needed a changelog entry; it approved the fix once the entry was added.
+TechLead also noted, as future work, that the Python workflow does not run on Windows and that `demo/run.py` decodes child-process logs as UTF-8 while Windows writes them in the locale encoding.
+Both fixes were checked on Windows: the demonstration exited 0 and `pytest` reported 99 passed, with each fix on its own branch.
+
+For the PR #83 follow-up, Codex Formater ran compileall, all 99 pytest tests and the separate-process demonstration on the refreshed tree; these passed, including the installation, disable/order/restart, startup-validation and redaction checks.
+Markdownlint 0.23.2 passed for 41 Markdown files, and the strict MkDocs build and generated-site check passed for 15 pages and 981 links/assets.
+The live Claude check remains pending; remote check results belong in [PR #83](https://github.com/iteam7/gateway7/pull/83).
+
 ## Team evaluation
 
+TODO: the team must assess the Codex follow-up for task #57 after reviewing the conflict resolution and documentation corrections.
 TODO: the team must record what it accepted, changed or rejected after reviewing the generated architecture, Python code, tests, documentation workflow and report.
 The contributor's request for this MR is not recorded as approval of every drafted contract or as a completed human review.
 

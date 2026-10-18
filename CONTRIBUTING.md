@@ -39,16 +39,16 @@ Dependabot and the course's automatic Done-task cleanup workflow are the excepti
 
 ## Project views and scheduling
 
-The public project and its table-view URL have not yet been verified for this guide.
-Their setup is separate work; the [iteam7 projects directory](https://github.com/orgs/iteam7/projects) is the current discovery link, not evidence that the required view exists.
-Replace it with the verified public project and table-view links when that setup is complete.
+The public [Gateway7 project](https://github.com/orgs/iteam7/projects/1) and its [View 1 table](https://github.com/orgs/iteam7/projects/1/views/1) are available.
+The table currently shows `Assignees`, `Status`, `Linked pull requests` and `Sub-issues progress`; verification of the required role fields, milestone organization and full issue coverage remains separate work.
 
 | View | What it shows and why | Current status |
 | --- | --- | --- |
-| Public project table | Every open repository issue, with `Responsible`, `Accountable`, `Assignees` and `Milestone` columns, grouped or sorted by `Milestone`, so work and verification responsibility are visible by sprint | Required; project and view pending verification |
+| [Public project table (View 1)](https://github.com/orgs/iteam7/projects/1/views/1) | Required layout: every open repository issue, with `Responsible`, `Accountable`, `Assignees` and `Milestone` columns, grouped or sorted by `Milestone`, so work and verification responsibility are visible by sprint | Public table verified; required layout remains unverified |
 | [Repository milestones](https://github.com/iteam7/gateway7/milestones) | The issues in each sprint and their open/closed state; the milestone is the sprint backlog rather than a copied task list | The seven sprint milestones, `SPRINT-03` to `SPRINT-09`, exist with their weeks' hard deadlines as due dates |
 
 When scheduling an issue, set its sprint milestone, two different members as `Responsible` and `Accountable`, and those same two members as its only assignees.
+`Responsible` and `Accountable` are the organization's public single-select issue fields, with one option per member's GitHub username; set them in the issue's sidebar, not in the issue form.
 The responsible member does the work; the accountable member verifies it.
 An unscheduled open issue carries no milestone, role values or assignees.
 Keep these values together when rescheduling or changing responsibility; do not invent values for work that has not been assigned.
