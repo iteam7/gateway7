@@ -25,6 +25,8 @@ It retained source report citations while excluding weekly evidence from the pub
 For [task #64](https://github.com/iteam7/gateway7/issues/64), Claude Code (Claude Opus 5.5) drafted the task issues #64 to #67, which its Formater agent checked against the course rules before they were created through the GitHub CLI.
 It created the seven `SPRINT-nn` milestones through the GitHub API, with the sprint focuses the contributor approved and the syllabus hard deadlines as due dates, and updated the milestone row in `CONTRIBUTING.md`.
 
+For [task #65](https://github.com/iteam7/gateway7/issues/65), Claude Code checked that only an organization owner can create issue fields, wrote the field specification for the owner, and described the fields in `CONTRIBUTING.md`.
+
 For [task #79](https://github.com/iteam7/gateway7/issues/79), Codex replaced the README's pending site address and the contribution guide's Project placeholders with verified public links.
 It used the GitHub connector for repository changes and a signed-out cloud browser to open the live home and setup pages, the public Project and its exact View 1 table URL on 18 October.
 The guide distinguishes the observed table columns from the still-unverified required role fields, milestone organization and complete issue coverage; Project configuration was not changed.
