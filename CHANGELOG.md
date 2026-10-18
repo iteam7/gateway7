@@ -16,6 +16,7 @@ Versions will follow Semantic Versioning when a release is published.
 
 ### Fixed
 
+- The one-command demonstration's plugin-installation check now passes on Windows, where it compared backslash paths with POSIX paths.
 - The documented test command no longer errors on Windows, where one case's generated test ID exceeded the environment-variable size limit.
 
 No version has been released by this contribution.
