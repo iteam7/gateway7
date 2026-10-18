@@ -13,6 +13,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ### Changed
 
 - Week 3 report links the published documentation, release, merged work and current checks, and identifies the remaining validation and scheduling gaps.
+- Assignment 3 follow-up clarifies setup, release and submission steps, plugin timeout limits, and the remaining evidence needed to assess the success threshold.
 
 ## [0.1.0] - 2026-10-18
 

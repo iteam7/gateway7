@@ -1,16 +1,19 @@
 # Set up and run Gateway7
 
 The Python choice is recorded in [DEC-013](decisions.md#dec-013).
-Run all commands from the repository root.
+After cloning, run all remaining commands from the repository root.
 The initial demonstration needs no provider account, database, frontend or container runtime.
 
 ## Prerequisites and installation
 
 - Python 3.12 is the pinned development runtime; the package supports Python 3.11–3.13.
+- Install Git to obtain a clean checkout.
 - Install [uv](https://docs.astral.sh/uv/getting-started/installation/).
 - Allow package-registry access for the first install and local loopback sockets for the two demo processes.
 
 ```sh
+git clone https://github.com/iteam7/gateway7.git
+cd gateway7
 uv sync --locked
 ```
 
@@ -138,6 +141,16 @@ uv run --locked python -m demo.run
 The Python workflow runs the locked setup and checks on pull requests and `main`.
 The existing Markdown and Lychee workflows remain separate documentation gates.
 Neither a green local run nor an AI code review replaces the required human PR review, customer verdict or release.
+
+Record `git rev-parse HEAD`, the OS/runtime versions and the command results with a clean-checkout run.
+The fake demo checks the local plugin path; complete the separate real-provider check before claiming the whole US-01–03 core task passed.
+
+### Known Windows verification limit
+
+[Task #84](https://github.com/iteam7/gateway7/issues/84) reports an intermittent Windows failure when a hook suppresses cancellation and returns after the timer fires.
+The result may reach the provider despite the intended fail-closed rule.
+The earlier successful Windows run does not settle this defect; the proposed Windows CI is tracked separately in [draft PR #78](https://github.com/iteam7/gateway7/pull/78).
+Treat cross-platform deadline enforcement as unverified until that task's repeated-run and no-forwarding criteria pass. Do not infer it from the Ubuntu-only green check.
 
 ## Supported HTTP contract
 

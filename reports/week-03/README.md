@@ -17,22 +17,22 @@ The [meeting report](meeting-report.md) records the architecture/prototype prese
 | Deliverable | Artifact or current status |
 | --- | --- |
 | Architecture preparation | [docs/architecture/README.md](../../docs/architecture/README.md), delivered to `main` through [PR #51](https://github.com/iteam7/gateway7/pull/51); the [meeting report](meeting-report.md#summary) records requested execution/failure detail, not architecture acceptance |
-| Threshold of success | [docs/threshold-of-success.md](../../docs/threshold-of-success.md), linked from [docs/product-vision.md#goal](../../docs/product-vision.md#goal); goals remain Open |
+| Threshold of success | [docs/threshold-of-success.md](../../docs/threshold-of-success.md), linked from [docs/product-vision.md#goal](../../docs/product-vision.md#goal); four goals remain Open; [docs/threshold-review.md](../../docs/threshold-review.md) proposes precise corrections to the TOS-02/TOS-04 measures for Customer review |
 | Project plan | [docs/project-plan.md](../../docs/project-plan.md): MLS-03, SPRINT-03–09, REL-03 and Progress Monitoring; proposed review cadence needs team confirmation |
 | Risk register | [docs/risks.md](../../docs/risks.md) |
 | Stack decision | [docs/decisions.md#dec-013](../../docs/decisions.md#dec-013), with Python dependencies, lockfile, ignore entries and Dependabot configuration |
 | Definition of Done | [docs/definition-of-done.md](../../docs/definition-of-done.md) |
 | Contributing guide | [CONTRIBUTING.md](../../CONTRIBUTING.md), including commit/PR/review rules and project views |
-| Sprint milestones and issue fields | [Sprint milestones](https://github.com/iteam7/gateway7/milestones) exist per [task #64](https://github.com/iteam7/gateway7/issues/64); scheduled task milestones, Responsible/Accountable values and matching assignees remain unset in the checked issue data |
-| GitHub project | [Sprints table view](https://github.com/orgs/iteam7/projects/1/views/3); setup is recorded by [PR #82](https://github.com/iteam7/gateway7/pull/82), with its verification boundary in CONTRIBUTING |
+| Sprint milestones and issue fields | [Sprint milestones](https://github.com/iteam7/gateway7/milestones) are reported complete by checked ACs in [task #64](https://github.com/iteam7/gateway7/issues/64); all 39 checked non-PR issues returned no milestone, no assignees and no issue-field values. Organization field definitions/visibility were not freshly verified |
+| GitHub project | [Sprints table view](https://github.com/orgs/iteam7/projects/1/views/3); setup is reported by [PR #82](https://github.com/iteam7/gateway7/pull/82), with its verification boundary in [CONTRIBUTING.md](../../CONTRIBUTING.md#project-views-and-scheduling); live layout and coverage were not freshly verified |
 | Minimum usable product | [US-01](https://github.com/iteam7/gateway7/issues/30), [US-02](https://github.com/iteam7/gateway7/issues/31), [US-03](https://github.com/iteam7/gateway7/issues/32): implementation on `main`; live-provider AC-05 and Customer verdicts still lack evidence |
 | Changelog and first release | [CHANGELOG.md](../../CHANGELOG.md), [v0.1.0 release](https://github.com/iteam7/gateway7/releases/tag/v0.1.0) and [docs/project-plan.md#rel-03](../../docs/project-plan.md#rel-03); tag protection remains pending |
 | Documentation site | [Published documentation](https://iteam7.github.io/gateway7/), linked from the root README; successful deployment is cited below |
 | Setup and run instructions | [docs/setup.md](../../docs/setup.md), including Windows PowerShell commands, linked from [README.md](../../README.md) |
-| Week 2 action points | [Previous action points](meeting-report.md#previous-action-points): both presentations occurred; infrastructure confirmation is carried forward |
-| Week 2 open questions | [Previous open questions](meeting-report.md#previous-open-questions): all six addressed or carried forward; Python and the retrospective presentation date are established |
+| Week 2 action points | [reports/week-03/meeting-report.md#previous-action-points](meeting-report.md#previous-action-points): both presentations occurred; infrastructure confirmation is carried forward |
+| Week 2 open questions | [reports/week-03/meeting-report.md#previous-open-questions](meeting-report.md#previous-open-questions): all six addressed or carried forward; Python and the retrospective presentation date are established |
 | Meeting script | [reports/week-03/meeting-script.md](meeting-script.md), prepared for 16 October; preparation is not evidence of the meeting outcome |
-| Customer validation | [Meeting report](meeting-report.md), reconstructed from a privately supplied transcript; no per-story verdicts were recorded, and transcript publication/private-submission permission remains to be confirmed |
+| Customer validation | [reports/week-03/meeting-report.md](meeting-report.md), reconstructed from a privately supplied transcript; no per-story verdicts were recorded, and transcript publication/private-submission permission remains to be confirmed |
 | AI usage | [reports/week-03/ai-usage.md](ai-usage.md); the team's assessment remains TODO and must be supplied by a human |
 
 ## Minimum usable product candidate
@@ -75,12 +75,14 @@ These links establish repository contributions, not role assignments or human as
 ## Repository evidence
 
 [PR #51](https://github.com/iteam7/gateway7/pull/51) merged into `main` and closed [task #50](https://github.com/iteam7/gateway7/issues/50).
-The prototype from PR #53 reached `main` through that merge; task #52's issue state is not used as proof of completed story acceptance.
+The prototype from PR #53 reached `main` through that merge on 17 October, after the 16 October meeting.
+[Task #52](https://github.com/iteam7/gateway7/issues/52) still has open state and unchecked criteria; its accountable reviewer must reconcile the merged implementation with those criteria before completing the task. That completion would not accept its stories.
 
 At the checked `main` commit `0dc248f92e3dc35201e8343c1625cb15599aa1fe`, the latest [Markdown check](https://github.com/iteam7/gateway7/actions/runs/39164086111), [link check](https://github.com/iteam7/gateway7/actions/runs/39164085856) and [documentation build/deployment](https://github.com/iteam7/gateway7/actions/runs/39164086109) succeeded.
 The public documentation home page returned HTTP 200 and Gateway7 content on 18 October.
 These runs precede this documentation follow-up; its own checks are attached to its PR, and the final submission must cite the latest successful runs after merging.
 No new link-check exclusions are introduced by this update.
+The existing workflow accepts HTTP 429 and 503 as an availability workaround; a green run is therefore not proof that every external URL returned HTTP 200. Required submission links still need to be opened before submission.
 
 ## Python prototype evidence
 
@@ -103,6 +105,8 @@ Installation, compilation and manual HTTP requests passed in Git Bash and Window
 The run found two Windows-specific problems: generated test IDs caused **98 passed / 2 errors**, and the demo's path comparison failed.
 PR #73 fixed the path comparison, PR #74 fixed test IDs, and PR #75 added PowerShell instructions; branch validation then reported a successful demonstration and **99 passed** on the same machine.
 Those fixes are now on `main` and in v0.1.0; a fresh Windows replay of the final submitted commit is still required.
+[Task #84](https://github.com/iteam7/gateway7/issues/84) subsequently reported an intermittent Windows deadline/cancellation defect that can accept a late plugin result.
+The proposed Windows CI remains in [draft PR #78](https://github.com/iteam7/gateway7/pull/78); the earlier 99-test pass and current Ubuntu checks do not establish that the defect is fixed.
 
 ## Documentation workflow evidence
 
@@ -112,11 +116,18 @@ The earlier Pages-disabled state has been superseded by the successful main depl
 
 ## Remaining submission gates
 
-- A meeting participant reviews the transcript-based report and confirms the proposed Week 4 owners/dates and transcript permissions; Customer must still give explicit story verdicts against the ACs.
-- The team sets actual SPRINT-03 task milestones, Responsible/Accountable values and matching assignees. The checked candidate/task issues still have empty values; a plan file or setup PR does not assign them.
-- A repository administrator protects v0.1.0 against movement and deletion; the checked rulesets cover `main`, with no tag-targeting rule.
-- A human completes the accepted/changed/rejected assessment in `ai-usage.md` and confirms the proposed weekly review cadence in the plan.
-- After review and merge, the team replays the submitted state, updates final main-check evidence and prepares the Moodle permalink/PDF/snapshot from one actual main commit.
+| Who acts | Where | What settles the gate |
+| --- | --- | --- |
+| Customer and meeting participant | [US-01](https://github.com/iteam7/gateway7/issues/30), [US-02](https://github.com/iteam7/gateway7/issues/31), [US-03](https://github.com/iteam7/gateway7/issues/32), [meeting report](meeting-report.md) | Run the existing ACs, including an authorized real-provider call, obtain actual verdict DECs and issue comments, and confirm the report, follow-up owners/dates and transcript permissions |
+| Customer and team | [Threshold clarification proposal](../../docs/threshold-review.md), [Progress Monitoring](../../docs/project-plan.md#progress-monitoring) | Resolve the TOS-02/TOS-04 measure inconsistencies without silently moving the bar; assess expired Week 3 evidence and risk windows, and confirm the proposed team review time |
+| Team members assigning and reviewing work | [Task #52](https://github.com/iteam7/gateway7/issues/52), [task #67](https://github.com/iteam7/gateway7/issues/67), [sprint milestones](https://github.com/iteam7/gateway7/milestones) | Assign actual Responsible/Accountable members, those same two assignees and the proper sprint; reviewer checks task ACs. Reconcile merged task #52 and reschedule unfinished work before closing the released SPRINT-03 milestone |
+| Organization owner and project maintainer | [Task #65](https://github.com/iteam7/gateway7/issues/65), [task #66](https://github.com/iteam7/gateway7/issues/66) | Verify public single-select field definitions/options/pinning, public project access, repository description, every open issue and required table columns/grouping; record review evidence and check the actual task ACs, which remain unticked despite closure |
+| Repository administrator | Repository Settings → Rules → Rulesets | Protect `v0.1.0` against update and deletion with an active tag rule; the inspected ruleset protects only `main` |
+| Human reviewers and submission owner | [AI usage](ai-usage.md), [PR #85](https://github.com/iteam7/gateway7/pull/85) | Supply the team's accepted/changed/rejected assessment, complete independent PR review, merge the reviewed artifacts and prepare the final same-commit submission below |
+
+The private Moodle submission is still a separate deliverable. After merging, select one final `main` commit, repeat the setup/checks at that commit and update the report's final green CI evidence.
+The PDF is at most two pages, identifying Gateway7, Team 7 and Week 3; it contains the private GitHub-username/name/university-email roster, the full-commit report permalink, the instructor-accessible meeting recording or its truthful absence reason, and the privacy confirmation. If public transcript publication was refused, the transcript goes in an appendix outside the two-page limit; the permission outcome must first be established.
+Open the submitted permalink and private links, then create the repository ZIP from that same commit. Keep the PDF, private source material and ZIP outside the public repository; a PR-branch snapshot or the earlier v0.1.0 tag is not the final submission state while the new report and plan are absent from it.
 
 ## Deviations
 
@@ -128,6 +139,7 @@ The earlier Pages-disabled state has been superseded by the successful main depl
 - Task [#79](https://github.com/iteam7/gateway7/issues/79) used the GitHub connector API because the available browser was signed out and could not submit the task form. Its body preserves the form's sections and numbered criteria, and carries the `task` label; this declaration does not waive the form requirement. No sprint, role values or assignees were assigned.
 
 - The project plan and this evidence refresh are prepared on 18 October, after the Week 3 hard deadline and after v0.1.0 was published. They are a separate follow-up change and are not represented as files already included in the release tag.
+- The architecture/prototype reached `main` through PR #51 on 17 October; PR #53 had first merged into its architecture branch that day. The 16 October meeting therefore preceded the main merge, contrary to the required merge-before-meeting sequence. This later documentation update records the sequence and cannot repair it retrospectively.
 - v0.1.0 was published on 18 October. The required protection against moving/deleting the tag is not configured in the checked repository rulesets; an administrator must add it. This declaration does not satisfy tag protection.
 - The supplied transcript establishes that the architecture/prototype meeting occurred before the release, but it contains no explicit acceptance/rejection of the candidate stories. The required release-after-story-validation sequence therefore remains unestablished; the release title does not supply those verdicts.
 - The meeting report is reconstructed retrospectively from the privately supplied transcript. It did not record AC-by-AC verdicts, separate permission answers or agreed Week 4 owners/dates. The report preserves those gaps and labels proposed scheduling; participant confirmation and actual Customer validation are still required. No transcript is published, and private instructor submission is not claimed.

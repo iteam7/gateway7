@@ -7,6 +7,15 @@
 | [RISK-04](#risk-04) | Open | Medium | Low | The existing plugin contract and fixtures may not cover a new company plugin's behavior, so integration could reveal a compatibility gap requiring core changes and failing TOS-03. |
 | [RISK-02](#risk-02) | Mitigated | High | Low | The stack and the first implementation sit on an unmerged pull request, so a late or blocked merge would leave `main` without a working gateway at the deadline. |
 
+The response overview below summarizes the operative fields; each risk section retains their full wording and evidence.
+
+| Risk | Trigger | Window | Mitigation | Contingency |
+| --- | --- | --- | --- | --- |
+| [RISK-01](#risk-01) | Candidate task has no PR the day before the Customer meeting | Week 3, before the meeting | Open small tasks early and merge ready work | Demonstrate merged work; any candidate removal requires Customer DEC |
+| [RISK-02](#risk-02) | Implementation PR has no approval before release | Week 3, before first release; settled by PR #51 | Arrange independent review before release | Deliver the clean-checkout slice; track documentation follow-up |
+| [RISK-03](#risk-03) | First live provider rejects the request or its response cannot be parsed | Before US-01 AC-05 and MLS-03 acceptance | Validate the real adapter with one authorized live smoke call | Keep the deterministic demo usable while fixing the adapter; US-01 remains unfinished |
+| [RISK-04](#risk-04) | Adding another plugin requires a core edit | Week 4 plugin integration | Implement against only the documented contract | Revise the interface version and rerun both plugins' fixtures |
+
 ## RISK-01
 
 The team is a 3-4 student group splitting attention across a reporting-heavy course and a working gateway, so the Week 3 MUP slice may stay unfinished at the deadline.
@@ -46,9 +55,9 @@ The MUP's first demonstration uses a deterministic fake upstream (DEC-011), so a
 - **Likelihood:** Medium
   - The provider adapter has not yet been exercised against a live API; request/response shape mismatches are common on a first integration.
 - **Trigger:** the first real-provider call returns a response the adapter cannot parse, or the provider rejects the request format.
-- **Window:** the sprint that lifts [`CON-01`](product-vision.md#con-01), after the MUP milestone.
+- **Window:** before [US-01 AC-05](https://github.com/iteam7/gateway7/issues/30) can pass and [MLS-03](project-plan.md#mls-03) can be accepted. [CON-01](product-vision.md#con-01) permits a deterministic initial demo; it does not defer the candidate's real-provider criterion until after the MUP.
 - **Mitigation:** keep the provider adapter behind the same interface the fake upstream implements, and add one live smoke call against the real provider before relying on it for a demonstration.
-- **Contingency:** fall back to the deterministic upstream for the meeting and schedule the real-provider fix as the next sprint's first task.
+- **Contingency:** keep the deterministic upstream available for plugin demonstrations while correcting the real-provider integration; US-01 and MLS-03 stay unfinished until AC-05 passes. Removing or rescoping that criterion requires the Customer's recorded decision, not a fallback to mock evidence.
 
 ## RISK-04
 

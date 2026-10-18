@@ -57,6 +57,10 @@ For the meeting-evidence follow-up in [PR #85](https://github.com/iteam7/gateway
 It separated gateway7's discussion from the other team's presentation and distinguished the Customer's actual feedback from unrecorded story verdicts and proposed follow-ups.
 The original transcript, personal names and recording timecodes remain outside the public repository.
 
+For the subsequent Assignment 3 audit, Codex checked the complete current checklist and its planning, risk, delivery, workflow, release and submission requirements against PR #85 and current `main`.
+It refreshed issue metadata, merge dates, tag ancestry, protection rules and check results, then corrected documentation gaps without changing runtime code, GitHub assignments or settings.
+Threshold inconsistencies were kept as explicit proposals for Customer review; no success bar, Customer verdict or human assessment was invented.
+
 ## Handling and checks of generated output
 
 TechLead reviewed component responsibilities, independent hook order, fail-closed errors, state, keys, usage and shared-process trust/cancellation limits against the existing candidate.
@@ -99,11 +103,23 @@ For the meeting-evidence follow-up, Codex checked the required report sections, 
 The strict build and generated-site check passed for 16 maintained pages and 1,098 links/assets; weekly report links remain excluded from the site.
 Participant review of the account and proposed assignments is still required.
 
+For the subsequent Assignment 3 audit, Markdownlint passed for 12 changed Markdown files, and 234 Markdown links passed local target/anchor checks.
+The strict build and generated-site check passed for 17 maintained pages and 1,184 links/assets, including report exclusion.
+The audit checked 11 workflow action pins and the added text for private-source material; runtime tests were not repeated for this documentation-only change.
+
 ## Team evaluation
 
 The pending evaluations below require the team's own account of what it accepted, changed or rejected; automated checks cannot supply that assessment.
+
+Draft observations for human review, not an approved team assessment:
+
+- The audit corrected a missing changelog prompt in the PR template, report-link labels and the real-provider risk's timing against the existing candidate.
+- Conflicting success-goal wording and measures were separated into a Customer-review proposal instead of silently changing the existing success bar.
+- Documentation checks establish formatting, links and site output; they do not establish Customer acceptance, the live-provider result or a fix for the Windows timeout defect.
+
 TODO: the team must assess the project plan and Week 3 status corrections for task #67.
 TODO: meeting participants must check the transcript-based report, decision wording and proposed follow-up owners before accepting the generated account.
+TODO: the team must assess the Assignment 3 audit corrections and agree the proposed threshold clarifications with Customer before changing any Open goal.
 
 TODO: the team must assess the Codex follow-up for task #66 after reviewing the conflict resolution and documentation corrections.
 TODO: the team must assess the Codex follow-up for task #57 after reviewing the conflict resolution and documentation corrections.

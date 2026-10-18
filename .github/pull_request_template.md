@@ -6,6 +6,8 @@
 
 <!-- Work toward user stories through the task issue's Story field. Never use a story as this PR's closing issue, create this PR's branch from a story, or link a story in the Development sidebar. A planned story closes only after customer acceptance; merging its tasks does not close it. -->
 
+- Changelog: <!-- State whether this change is user-visible and updates CHANGELOG.md [Unreleased], or is not user-visible and needs no entry. -->
+
 ## What I checked, and how
 
 <!-- Describe the checks run and their results: links clicked, previews rendered, files reviewed, or tests run. Identify the task's AC-nn together with its task issue. When the task serves a story, identify the story issue and the story AC-nn checked as well. -->

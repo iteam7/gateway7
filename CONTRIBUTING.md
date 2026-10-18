@@ -95,7 +95,7 @@ The `github-pages` environment's deployment policies still apply.
 
 Once the reviewed documentation changes reach `main`, that push can build and publish the site.
 To retry, open **Actions → Documentation site → Run workflow** and select `main`; a manual run becomes available once the workflow exists on the default branch.
-After the **Publish documentation** job succeeds, open its deployment URL and check the home page and navigation before replacing the root README's pending address with the verified site hyperlink.
+After the **Publish documentation** job succeeds, open its deployment URL and check the home page and navigation, then keep the root README's published site link aligned with that verified URL.
 
 ### Update documentation dependencies
 

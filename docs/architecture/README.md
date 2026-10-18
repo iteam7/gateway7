@@ -88,6 +88,7 @@ Only the adapter receives the server key through ordinary interfaces ([CON-04](.
 **In-process plugins are not sandboxed:** installed code can access memory, environment, files and network, so operators must trust it.
 
 Async cancellation/deadline checks stop later stages and discard late results.
+This is the intended contract; [task #84](https://github.com/iteam7/gateway7/issues/84) reports an unresolved Windows timer/cancellation case that can accept a late result. Cross-platform fail-closed deadline behavior is not established by the current Ubuntu checks.
 Blocking/uncooperative plugins cannot be forcibly stopped and can delay responsiveness or cleanup; cancelling a provider call does not prove it stopped upstream.
 Logs contain only request ID, outcome, safe component/reason codes and durations, excluding content, keys, headers, plugin state and raw errors; fixture capture is synthetic-only.
 No original-text restoration/storage, hot loading, streaming, retries/failover, persistent conversations, billing or user-supplied keys; discarding state does not promise secure memory erasure.
