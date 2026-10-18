@@ -4,11 +4,11 @@
 
 **Status (2026-09-30):** Documentation research checked. This is a proposed user segment, not a customer-validated finding. No product was installed or benchmarked. gateway7 capabilities below are proposals, not implemented features. A library is compared as an application-level substitute, not misrepresented as a complete gateway.
 
-**Research-board arrangement:** The [Markdown gallery](../../reports/week-01/evidence-gallery.md) contains nine documentation screenshots (at least two per alternative), with dates, captions and sources. It is proposed as the navigable, read-only evidence overview, with images in the weekly report. The research guide permits repository screenshot storage, but the assignment separately requests a board. This is a declared deviation requiring course/Customer acceptance; public access is available on the PR branch; course acceptance is not yet confirmed. No external board has been created.
+**Research-board arrangement:** The [Markdown gallery](https://github.com/iteam7/gateway7/blob/main/reports/week-01/evidence-gallery.md) contains nine documentation screenshots (at least two per alternative), with dates, captions and sources. It is proposed as the navigable, read-only evidence overview, with images in the weekly report. The research guide permits repository screenshot storage, but the assignment separately requests a board. This is a declared deviation requiring course/Customer acceptance; public access is available on the PR branch; course acceptance is not yet confirmed. No external board has been created.
 
-See the [candidate search](../../reports/week-01/candidate-list.md), [comparison](comparison.md), [gap hypotheses](gap-analysis.md), and [proposed value](value-proposition.md).
+See the [candidate search](https://github.com/iteam7/gateway7/blob/main/reports/week-01/candidate-list.md), [comparison](comparison.md), [gap hypotheses](gap-analysis.md), and [proposed value](value-proposition.md).
 
-**Kickoff update, 2026-10-03:** The [October 2 meeting](../../reports/week-01/meeting-report.md) clarified a corporate plugin host covering requests and responses; privacy filtering is one plugin. The privacy-focused research below is retained as one part of that broader direction, not treated as a complete evaluation of every gateway function.
+**Kickoff update, 2026-10-03:** The [October 2 meeting](https://github.com/iteam7/gateway7/blob/main/reports/week-01/meeting-report.md) clarified a corporate plugin host covering requests and responses; privacy filtering is one plugin. The privacy-focused research below is retained as one part of that broader direction, not treated as a complete evaluation of every gateway function.
 
 ## Properties
 

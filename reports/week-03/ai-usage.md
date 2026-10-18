@@ -5,6 +5,8 @@
 OpenAI Codex with the repository's Orchestrator, Formater and TechLead roles, the GitHub connector for repository/issue access, and local shell tools for reading and editing documentation.
 For task #52, TechLead delegated disjoint core, plugin and transport/demo implementation to Codex developer agents as permitted by `AGENTS.md`.
 Python, uv, pytest and real local HTTP subprocesses were used to check the generated code.
+For task #54, TechLead delegated the documentation build to an executing agent and reviewed its output; MkDocs, uv, npm, Markdownlint and Chromium were used for documentation checks.
+Claude Code (Claude Opus 5.5) with its Formater agent, the GitHub CLI and the GitHub API, for tasks #64 to #67.
 
 ## What we used them for
 
@@ -15,6 +17,12 @@ An earlier discussion explored Python plugin packaging and lifecycle without ado
 
 After azamatbayramov explicitly selected Python on 15 October, Codex recorded [DEC-013](../../docs/decisions.md#dec-013) and implemented [task #52](https://github.com/iteam7/gateway7/issues/52): the FastAPI gateway, strict configuration/models, plugin lifecycle and chains, phone/sample modules, HTTP adapters, deterministic upstream, locked environment and repeatable demonstration.
 It prepared setup/plugin/demo documentation and the Week 3 meeting script, keeping real-provider validation and the Customer's future verdicts separate.
+
+For [task #54](https://github.com/iteam7/gateway7/issues/54), Codex prepared the Definition of Done, contribution guide, README navigation and documentation build/Pages workflow for the requested Assignment 3 items 6, 7, 14 and 15.
+It retained source report citations while excluding weekly evidence from the published site, bundled Mermaid locally, and recorded the unresolved Pages activation and live-link requirements.
+
+For [task #64](https://github.com/iteam7/gateway7/issues/64), Claude Code (Claude Opus 5.5) drafted the task issues #64 to #67, which its Formater agent checked against the course rules before they were created through the GitHub CLI.
+It created the seven `SPRINT-nn` milestones through the GitHub API, with the sprint focuses the contributor approved and the syllabus hard deadlines as due dates, and updated the milestone row in `CONTRIBUTING.md`.
 
 ## Handling and checks of generated output
 
@@ -32,9 +40,15 @@ Formater verified literal US-03 installation evidence in a disposable Git copy: 
 TechLead's APPROVED verdict is an AI code-review result; it does not fill in the human evaluation below.
 Official Claude Messages documentation informed the adapter; current Astral/GitHub documentation confirmed Dependabot's `uv` lockfile ecosystem.
 
+For the documentation workflow, TechLead reviewed the source and full change diff and issued **APPROVED**.
+Checks passed for all 39 Markdown files, a strict 13-page site build, 821 generated links/assets, desktop/mobile navigation and both rendered architecture diagrams, including the Customer view's upward response path.
+The 16 historical report citations remain links in repository source and render as plain text on the site.
+The workflow's action pins, locked dependencies, pull-request build and main-only deployment boundaries were checked.
+GitHub Pages remained disabled; neither the first deployment nor a live site hyperlink was accepted as complete.
+
 ## Team evaluation
 
-TODO: the team must record what it accepted, changed or rejected after reviewing the generated architecture, Python code, tests and report.
+TODO: the team must record what it accepted, changed or rejected after reviewing the generated architecture, Python code, tests, documentation workflow and report.
 The contributor's request for this MR is not recorded as approval of every drafted contract or as a completed human review.
 
 ## Workflow deviations

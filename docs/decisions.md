@@ -1,6 +1,6 @@
 # Decisions
 
-Decisions confirmed at the kickoff meeting. Source: [reports/week-01/meeting-report.md](../reports/week-01/meeting-report.md#decisions).
+Decisions confirmed at the kickoff meeting. Source: [reports/week-01/meeting-report.md](https://github.com/iteam7/gateway7/blob/main/reports/week-01/meeting-report.md#decisions).
 
 | Decision | Made by | Traces to |
 | -------- | ------- | --------- |
@@ -25,7 +25,7 @@ Validate an extensible plugin-host architecture and plugin integration workflow 
 - **Status:** Active
 - **Date:** 2026-10-09, derived from the supplied transcript's filename; not spoken explicitly.
 - **Made by:** Customer
-- **Source:** [Week 02 validation meeting report](../reports/week-02/meeting-report.md#summary).
+- **Source:** [Week 02 validation meeting report](https://github.com/iteam7/gateway7/blob/main/reports/week-02/meeting-report.md#summary).
 - **Why:** the difficult part is making company-authored plugins fit and work together; a masking screen does not establish the plugin interface, message flow or installation lifecycle. This confirms the plugin-host direction and changes what the next prototype must demonstrate.
 
 ## DEC-010
@@ -35,7 +35,7 @@ Allow the gateway to restart when adding plugins; live hot swapping is not requi
 - **Status:** Active
 - **Date:** 2026-10-09, derived from the supplied transcript's filename; not spoken explicitly.
 - **Made by:** Customer
-- **Source:** [Week 02 validation meeting report](../reports/week-02/meeting-report.md#summary).
+- **Source:** [Week 02 validation meeting report](https://github.com/iteam7/gateway7/blob/main/reports/week-02/meeting-report.md#summary).
 - **Why:** confirms the previously agreed restart-based installation boundary; continuously online hot swapping is unnecessary for the initial usable system.
 
 ## DEC-011
@@ -45,7 +45,7 @@ Use a deterministic test or static upstream for the initial usable plugin demons
 - **Status:** Active
 - **Date:** 2026-10-09, derived from the supplied transcript's filename; not spoken explicitly.
 - **Made by:** Customer
-- **Source:** [Week 02 validation meeting report](../reports/week-02/meeting-report.md#summary).
+- **Source:** [Week 02 validation meeting report](https://github.com/iteam7/gateway7/blob/main/reports/week-02/meeting-report.md#summary).
 - **Why:** deterministic responses make it easier to check what plugins do to text. The Customer wants to start the system, add simple plugins, send a request and inspect the result, with a two-plugin example; this clarifies the initial demonstration rather than permanently excluding real providers or accepting a specific story bundle.
 
 ## DEC-012
@@ -55,7 +55,7 @@ Accept US-01, US-02 and US-03 as the proposed minimum usable product candidate.
 - **Status:** Active
 - **Date:** Customer approval reported by azamatbayramov on 2026-10-10; the approval's original date was not specified.
 - **Made by:** Customer
-- **Source:** [Contributor follow-up recorded with the Week 02 report](../reports/week-02/meeting-report.md#summary), separate from the supplied meeting transcript.
+- **Source:** [Contributor follow-up recorded with the Week 02 report](https://github.com/iteam7/gateway7/blob/main/reports/week-02/meeting-report.md#summary), separate from the supplied meeting transcript.
 - **Why:** azamatbayramov confirmed that the Customer approved the candidate when asked specifically about the US-01–03 bundle. This settles the candidate's planning status on that reported evidence; it is not acceptance of implemented stories, proof that their criteria passed, or approval of every hook/architecture detail. The deterministic initial-validation boundary in [DEC-011](#dec-011) still applies.
 
 ## DEC-013

@@ -12,7 +12,7 @@ A corporate IT team can send its applications' chat requests through gateway7 to
 
 ## Stakeholders
 
-- **Customer**: the corporate IT team piloting gateway7. Confirmed the plugin-host direction at the [October 2 kickoff](../reports/week-01/meeting-report.md#decisions) and decides the product's scope.
+- **Customer**: the corporate IT team piloting gateway7. Confirmed the plugin-host direction at the [October 2 kickoff](https://github.com/iteam7/gateway7/blob/main/reports/week-01/meeting-report.md#decisions) and decides the product's scope.
 - **Caller application / its developer**: sends chat requests through gateway7 and receives its filtered response; the primary user of the running system.
 - **IT / policy administrator**: operates gateway7, authors or installs the request and response plugins, and sets each plugin's policy action.
 - **End user of the caller application**: affected without using gateway7 directly — their chat text is what a plugin may mask or block.
@@ -107,4 +107,4 @@ The caller application and the IT/policy administrator are the actors: the calle
 ## Where The Detail Lives
 
 - [User stories](https://github.com/iteam7/gateway7/issues?q=label%3Auser-story)
-- [Week 2 report](../reports/week-02/README.md)
+- [Week 2 report](https://github.com/iteam7/gateway7/blob/main/reports/week-02/README.md)
