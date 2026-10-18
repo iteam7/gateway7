@@ -39,15 +39,19 @@ Dependabot and the course's automatic Done-task cleanup workflow are the excepti
 
 ## Project views and scheduling
 
-The team's public project is [gateway7](https://github.com/orgs/iteam7/projects/1), which holds every open repository issue; new issues join it through its auto-add workflow.
-Its [Sprints table view](https://github.com/orgs/iteam7/projects/1/views/3) is where the week's schedule is read.
+The public [Gateway7 project](https://github.com/orgs/iteam7/projects/1) and its [Sprints table view](https://github.com/orgs/iteam7/projects/1/views/3) are linked for the team's schedule.
+The setup account in [PR #82](https://github.com/iteam7/gateway7/pull/82) records adding every open repository issue and enabling auto-add for new issues.
+The earlier [task #79](https://github.com/iteam7/gateway7/issues/79) check observed `Assignees`, `Status`, `Linked pull requests` and `Sub-issues progress` in [View 1](https://github.com/orgs/iteam7/projects/1/views/1); it did not establish the required role fields, milestone organization or full issue coverage.
+The live Sprints layout, issue coverage and auto-add configuration were not independently rechecked during this documentation update.
 
 | View | What it shows and why | Current status |
 | --- | --- | --- |
-| [Public project table](https://github.com/orgs/iteam7/projects/1/views/3) | Every open repository issue, with `Responsible`, `Accountable`, `Assignees` and `Milestone` columns, grouped or sorted by `Milestone`, so work and verification responsibility are visible by sprint | The project and its `Sprints` view exist, grouped by `Milestone` |
+| [Sprints table (View 3)](https://github.com/orgs/iteam7/projects/1/views/3) | Required layout: every open repository issue, with `Responsible`, `Accountable`, `Assignees` and `Milestone` columns, grouped or sorted by `Milestone`, so work and verification responsibility are visible by sprint | Reported configured for [task #66](https://github.com/iteam7/gateway7/issues/66), grouped by `Milestone`; live configuration not independently rechecked in this update |
+| [Public project table (View 1)](https://github.com/orgs/iteam7/projects/1/views/1) | The public table checked for task #79; its observed columns are listed above | Public access verified in that check; required layout remained unverified |
 | [Repository milestones](https://github.com/iteam7/gateway7/milestones) | The issues in each sprint and their open/closed state; the milestone is the sprint backlog rather than a copied task list | The seven sprint milestones, `SPRINT-03` to `SPRINT-09`, exist with their weeks' hard deadlines as due dates |
 
 When scheduling an issue, set its sprint milestone, two different members as `Responsible` and `Accountable`, and those same two members as its only assignees.
+`Responsible` and `Accountable` are the organization's public single-select issue fields, with one option per member's GitHub username; set them in the issue's sidebar, not in the issue form.
 The responsible member does the work; the accountable member verifies it.
 An unscheduled open issue carries no milestone, role values or assignees.
 Keep these values together when rescheduling or changing responsibility; do not invent values for work that has not been assigned.

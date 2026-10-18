@@ -81,6 +81,35 @@ Stop both processes with Ctrl-C.
 The demo binds loopback by default and has no developer authentication, TLS termination or production secret manager.
 Do not expose this development service or the recorder to an untrusted network.
 
+### Windows PowerShell
+
+The commands above need a POSIX shell, such as Git Bash.
+In PowerShell, set each variable with `$env:` and send the request with `Invoke-RestMethod`.
+
+In terminal 1:
+
+```powershell
+$env:DEMO_PROVIDER_KEY = "gateway7-synthetic-demo-only"
+uv run --locked python -m uvicorn demo.upstream:app --host 127.0.0.1 --port 8001
+```
+
+In terminal 2:
+
+```powershell
+$env:FAKE_LLM_API_KEY = "gateway7-synthetic-demo-only"
+uv run --locked python -m gateway7 --config config/demo.yaml --host 127.0.0.1 --port 8000
+```
+
+In terminal 3:
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:8000/chat -Method Post -ContentType 'application/json' `
+  -Body '{"messages":[{"role":"user","content":"Reply with the word pong"}]}'
+Invoke-RestMethod http://127.0.0.1:8001/requests | ConvertTo-Json -Depth 6
+```
+
+Windows PowerShell 5.1 decodes the JSON as ISO-8859-1, so the dash in `pong — deterministic upstream` may display as `â€”`; PowerShell 7 shows it unchanged.
+
 ## Real Claude check
 
 `config/claude.yaml` selects the Claude Messages adapter.
