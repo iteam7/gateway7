@@ -107,6 +107,9 @@ Authentication, routing and durable usage accounting remain extension points, ou
 
 ## Review questions and Week 2 follow-up
 
-Architecture and prototype prepare the presentation; Customer evaluation, human review and real-provider AC-05 remain pending.
-Review the running hook/loading/error contract, required phone formats and deployment secret source.
-Measure concurrent requests, plugin work and latency before claiming capacity; two plugins are a demonstration, not a limit.
+The 16 October presentation led to [DEC-014](../decisions.md#dec-014): explain the runner's execution, failure handling and diagnosis, with the reasons for the selected design.
+The next review must show how an operator identifies a failed or hanging plugin and follows timing/progress through the chain; the high-level diagrams alone did not establish this.
+Compare relevant middleware and callback/error patterns before justifying the choice; the Customer's Django and Twisted examples did not mandate either framework.
+[DEC-015](../decisions.md#dec-015) requests three interacting plugins with a clear authoring/configuration walkthrough.
+These are outstanding validation targets, not claims that the existing runtime satisfies them; human review, per-story Customer verdicts and real-provider AC-05 remain pending.
+The existing synthetic phone fixtures are unchanged; Customer validation of production formats and the deployment secret source remain open. Measure concurrent requests, plugin work and latency before claiming capacity; three demonstration plugins are not a capacity limit.

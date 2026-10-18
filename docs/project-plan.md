@@ -31,12 +31,13 @@ Released as [v0.1.0](https://github.com/iteam7/gateway7/releases/tag/v0.1.0) on 
 
 ### SPRINT-04
 
-A company engineer can install a second plugin without core edits, while repeatable checks demonstrate the documented ordering, failure behavior and quality requirements of the gateway.
+A company engineer can run three interacting plugins and follow the instructions to add another without core edits, while the team explains and demonstrates the selected execution and failure behavior.
 
 - **Due:** 2026-10-23
 
-The increment advances [TOS-03](threshold-of-success.md#tos-03) and the existing [plugin contract](plugins.md).
-It includes an architecture-to-quality test plan and any rework established by the Customer's recorded verdicts; it does not silently move unfinished candidate stories out of [MLS-03](#mls-03).
+The increment advances [TOS-03](threshold-of-success.md#tos-03) and responds to [DEC-014](decisions.md#dec-014) and [DEC-015](decisions.md#dec-015): justify the runner's design, make plugin failures diagnosable, and demonstrate composition beyond one masking plugin.
+It includes an architecture-to-quality test plan and explicit Customer validation of the existing candidate; no story acceptance was recorded at the 16 October meeting.
+This is proposed Week 4 scheduling of the requested follow-ups, not a Customer-agreed deadline or a silent move of unfinished stories out of [MLS-03](#mls-03).
 
 #### REL-04
 

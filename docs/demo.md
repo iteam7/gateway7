@@ -69,4 +69,13 @@ The recorder is test-only and stores synthetic inputs so the operator can inspec
 - What real-provider evidence remains before US-01 can be accepted, and which next work has priority?
 
 Python and restart-based installation are already recorded decisions; the call should evaluate behavior rather than repeat those choices.
-The meeting script is prepared separately in `reports/week-03/meeting-script.md`; no meeting outcome is recorded before the call.
+The meeting script is preserved separately in `reports/week-03/meeting-script.md` as preparation, not as evidence that each planned check was shown.
+
+## Customer feedback follow-up
+
+At the 16 October meeting, the presenter showed one phone-masking path through a mock upstream and walked through YAML configuration and the Python plugin interface.
+[DEC-015](decisions.md#dec-015) requests three interacting plugins and a clear authoring/configuration walkthrough for the next usable demonstration.
+[DEC-014](decisions.md#dec-014) also requires an explanation of execution, failure diagnosis and the chosen design's trade-offs.
+The next demonstration must make the input/output effects and failures inspectable without exposing real messages or credentials.
+The transcript does not establish that the complete rehearsal above was performed, and no candidate story received an explicit acceptance or rejection.
+Existing automated checks remain separate evidence; US-01 AC-05 and all Customer story verdicts still need to be obtained.

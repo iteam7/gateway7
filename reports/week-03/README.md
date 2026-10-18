@@ -1,6 +1,6 @@
 # Week 03 report — Gateway7, Team 7
 
-**Status:** Updated on 18 October 2026 against `main` at `0dc248f92e3dc35201e8343c1625cb15599aa1fe`; the release and documentation site exist, but customer validation, complete sprint assignments and final human assessment are still open.
+**Status:** Repository baseline checked on 18 October 2026 at `main` commit `0dc248f92e3dc35201e8343c1625cb15599aa1fe`; this update also incorporates the supplied 16 October meeting record. The release and documentation site exist; explicit Customer story verdicts, agreed follow-up assignments, complete sprint assignments and final human assessment remain open.
 
 ## Summary
 
@@ -10,12 +10,13 @@ The threshold of success, risk register, Definition of Done and contribution gui
 The [documentation site](https://iteam7.github.io/gateway7/) is live.
 The release's existence does not establish Customer acceptance or US-01 AC-05: the actual Claude/Gemini response is still outside the recorded evidence.
 No candidate story is moved out by this update.
+The [meeting report](meeting-report.md) records the architecture/prototype presentation, Customer's requests for deeper execution/failure explanation and three interacting plugins ([DEC-014](../../docs/decisions.md#dec-014), [DEC-015](../../docs/decisions.md#dec-015)), and the Week 2 carry-over outcomes.
 
 ## Coverage
 
 | Deliverable | Artifact or current status |
 | --- | --- |
-| Architecture preparation | [docs/architecture/README.md](../../docs/architecture/README.md), delivered to `main` through [PR #51](https://github.com/iteam7/gateway7/pull/51); Customer evaluation not recorded |
+| Architecture preparation | [docs/architecture/README.md](../../docs/architecture/README.md), delivered to `main` through [PR #51](https://github.com/iteam7/gateway7/pull/51); the [meeting report](meeting-report.md#summary) records requested execution/failure detail, not architecture acceptance |
 | Threshold of success | [docs/threshold-of-success.md](../../docs/threshold-of-success.md), linked from [docs/product-vision.md#goal](../../docs/product-vision.md#goal); goals remain Open |
 | Project plan | [docs/project-plan.md](../../docs/project-plan.md): MLS-03, SPRINT-03–09, REL-03 and Progress Monitoring; proposed review cadence needs team confirmation |
 | Risk register | [docs/risks.md](../../docs/risks.md) |
@@ -28,10 +29,10 @@ No candidate story is moved out by this update.
 | Changelog and first release | [CHANGELOG.md](../../CHANGELOG.md), [v0.1.0 release](https://github.com/iteam7/gateway7/releases/tag/v0.1.0) and [docs/project-plan.md#rel-03](../../docs/project-plan.md#rel-03); tag protection remains pending |
 | Documentation site | [Published documentation](https://iteam7.github.io/gateway7/), linked from the root README; successful deployment is cited below |
 | Setup and run instructions | [docs/setup.md](../../docs/setup.md), including Windows PowerShell commands, linked from [README.md](../../README.md) |
-| Week 2 action points | Carry-over source: [reports/week-02/meeting-report.md#action-points](../week-02/meeting-report.md#action-points); the closing `Previous action points` section is still missing from the Week 3 meeting report |
-| Week 2 open questions | Carry-over source: [reports/week-02/meeting-report.md#open-questions](../week-02/meeting-report.md#open-questions); the closing `Previous open questions` section is still missing from the Week 3 meeting report |
+| Week 2 action points | [Previous action points](meeting-report.md#previous-action-points): both presentations occurred; infrastructure confirmation is carried forward |
+| Week 2 open questions | [Previous open questions](meeting-report.md#previous-open-questions): all six addressed or carried forward; Python and the retrospective presentation date are established |
 | Meeting script | [reports/week-03/meeting-script.md](meeting-script.md), prepared for 16 October; preparation is not evidence of the meeting outcome |
-| Customer validation | `reports/week-03/meeting-report.md` and applicable transcript evidence are not present; see the participant handoff below |
+| Customer validation | [Meeting report](meeting-report.md), reconstructed from a privately supplied transcript; no per-story verdicts were recorded, and transcript publication/private-submission permission remains to be confirmed |
 | AI usage | [reports/week-03/ai-usage.md](ai-usage.md); the team's assessment remains TODO and must be supplied by a human |
 
 ## Minimum usable product candidate
@@ -43,8 +44,10 @@ The plan retains this scope in [MLS-03](../../docs/project-plan.md#mls-03), with
 
 ## Customer-meeting outcome
 
-No Week 3 meeting report or source establishing its story verdicts was available for this update.
-The planned 16 October meeting is not treated as proof that any story was shown, accepted, rejected or removed.
+The [16 October meeting report](meeting-report.md) is based on the supplied transcript, with participant review still pending.
+It records a running mock-provider phone-masking example and an explanation of the YAML configuration and Python plugin interface.
+Customer requested clearer execution/failure rationale and a three-plugin demonstration through [DEC-014](../../docs/decisions.md#dec-014) and [DEC-015](../../docs/decisions.md#dec-015).
+The [story evidence table](meeting-report.md#summary) separates what was actually shown from the existing acceptance criteria.
 
 | Candidate story | Recorded Week 3 Customer verdict |
 | --- | --- |
@@ -52,15 +55,11 @@ The planned 16 October meeting is not treated as proof that any story was shown,
 | [US-02](https://github.com/iteam7/gateway7/issues/31) | Not recorded; no story-verdict DEC-nnn is available |
 | [US-03](https://github.com/iteam7/gateway7/issues/32) | Not recorded; no story-verdict DEC-nnn is available |
 
-A participant must write `reports/week-03/meeting-report.md` from the actual meeting record, using the course's eight sections in order: Metadata, Previous action points, Previous open questions, Summary, Decisions, Action points, Open questions and Disagreements.
-The handoff is:
-
-- Establish the actual date, attendees, duration and answers to the recording/publication questions; do not infer them from the script.
-- Close or carry forward the three Week 2 action rows: presenting the architecture, presenting the technical prototype, and confirming infrastructure scope. Architecture, code and CI now provide preparation/implementation evidence; they do not prove the presentations occurred.
-- Answer or carry forward all six Week 2 open questions. Python is grounded in [DEC-013](../../docs/decisions.md#dec-013); plugin capacity, secret storage, contract validation, demo versus real-provider scope and the presentation date still need their actual outcomes recorded.
-- Record each shown story's acceptance or rejection against its AC-nn in `docs/decisions.md`, link the resulting DEC-nnn from the report, and add the outcome to the affected story issue. Any candidate removal needs its own Customer decision.
-- Record at least two actual meeting action points with GitHub owners and due dates inside Week 4. No action or owner is invented to fill this requirement.
-- Supply the transcript when required by the meeting format and permission outcome; keep private-only material in the Moodle submission.
+No genuine acceptance/rejection DEC can be reconstructed from this discussion; the candidate remains US-01–03, and US-04–09 are not represented as accepted.
+The next validation must run each AC and obtain explicit verdicts, then record their DECs and issue comments.
+The report proposes Week 4 dates and presenters for the requested follow-ups, clearly separating these proposals from agreed meeting commitments.
+A participant must review the paraphrase, confirm action ownership/dates and establish the missing permission answers.
+The supplied transcript is kept private; it has not been published or verified as submitted to instructors, and publication has not been described as refused.
 
 ## Contribution
 
@@ -113,7 +112,7 @@ The earlier Pages-disabled state has been superseded by the successful main depl
 
 ## Remaining submission gates
 
-- A meeting participant completes the report, Customer DEC-nnn verdicts, Week 2 carry-over and at least two real Week 4 actions.
+- A meeting participant reviews the transcript-based report and confirms the proposed Week 4 owners/dates and transcript permissions; Customer must still give explicit story verdicts against the ACs.
 - The team sets actual SPRINT-03 task milestones, Responsible/Accountable values and matching assignees. The checked candidate/task issues still have empty values; a plan file or setup PR does not assign them.
 - A repository administrator protects v0.1.0 against movement and deletion; the checked rulesets cover `main`, with no tag-targeting rule.
 - A human completes the accepted/changed/rejected assessment in `ai-usage.md` and confirms the proposed weekly review cadence in the plan.
@@ -130,7 +129,8 @@ The earlier Pages-disabled state has been superseded by the successful main depl
 
 - The project plan and this evidence refresh are prepared on 18 October, after the Week 3 hard deadline and after v0.1.0 was published. They are a separate follow-up change and are not represented as files already included in the release tag.
 - v0.1.0 was published on 18 October. The required protection against moving/deleting the tag is not configured in the checked repository rulesets; an administrator must add it. This declaration does not satisfy tag protection.
-- No Week 3 Customer verdict record was available when the release and report were checked, so the required release-after-validation sequence cannot be established from the repository evidence. No missing verdict is inferred from the release title.
+- The supplied transcript establishes that the architecture/prototype meeting occurred before the release, but it contains no explicit acceptance/rejection of the candidate stories. The required release-after-story-validation sequence therefore remains unestablished; the release title does not supply those verdicts.
+- The meeting report is reconstructed retrospectively from the privately supplied transcript. It did not record AC-by-AC verdicts, separate permission answers or agreed Week 4 owners/dates. The report preserves those gaps and labels proposed scheduling; participant confirmation and actual Customer validation are still required. No transcript is published, and private instructor submission is not claimed.
 - The seven sprint milestones and field setup do not establish issue-level scheduling: the checked candidate/task issues still have no milestone, Responsible/Accountable values or matching assignees. The plan's proposed monitoring cadence also remains subject to team confirmation.
 
 ## Privacy

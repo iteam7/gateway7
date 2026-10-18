@@ -53,6 +53,10 @@ For [task #67](https://github.com/iteam7/gateway7/issues/67), Codex prepared the
 It checked the published release, merged pull requests, issue metadata, green main workflows and live documentation URL; it kept customer verdicts, sprint ownership, tag protection and the team evaluation unresolved where human or administrator input is still required.
 The proposed review cadence is identified as a proposal rather than an existing team agreement.
 
+For the meeting-evidence follow-up in [PR #85](https://github.com/iteam7/gateway7/pull/85), Codex used the privately supplied 16 October transcript to draft the meeting report and new decision entries, carry forward Week 2 actions and questions, and correct the Week 3 report and plan.
+It separated gateway7's discussion from the other team's presentation and distinguished the Customer's actual feedback from unrecorded story verdicts and proposed follow-ups.
+The original transcript, personal names and recording timecodes remain outside the public repository.
+
 ## Handling and checks of generated output
 
 TechLead reviewed component responsibilities, independent hook order, fail-closed errors, state, keys, usage and shared-process trust/cancellation limits against the existing candidate.
@@ -91,10 +95,15 @@ The live Claude check remains pending; remote check results belong in [PR #83](h
 For task #67, the strict documentation build and generated-site checks passed for 16 maintained pages and 1,087 links/assets, including local anchors and report exclusion.
 The Markdown and repository-link checks cover the changed documentation; runtime code is unchanged.
 
+For the meeting-evidence follow-up, Codex checked the required report sections, source attribution, local links and the separation of Customer feedback from story acceptance.
+The strict build and generated-site check passed for 16 maintained pages and 1,098 links/assets; weekly report links remain excluded from the site.
+Participant review of the account and proposed assignments is still required.
+
 ## Team evaluation
 
 The pending evaluations below require the team's own account of what it accepted, changed or rejected; automated checks cannot supply that assessment.
 TODO: the team must assess the project plan and Week 3 status corrections for task #67.
+TODO: meeting participants must check the transcript-based report, decision wording and proposed follow-up owners before accepting the generated account.
 
 TODO: the team must assess the Codex follow-up for task #66 after reviewing the conflict resolution and documentation corrections.
 TODO: the team must assess the Codex follow-up for task #57 after reviewing the conflict resolution and documentation corrections.
