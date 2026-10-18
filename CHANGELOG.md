@@ -1,9 +1,11 @@
 # Changelog
 
 All notable changes to Gateway7 are recorded here.
-Versions will follow Semantic Versioning when a release is published.
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html) with tags prefixed by `v`.
 
 ## [Unreleased]
+
+## [0.1.0] - 2026-10-18
 
 ### Added
 
@@ -20,4 +22,5 @@ Versions will follow Semantic Versioning when a release is published.
 - The one-command demonstration's plugin-installation check now passes on Windows, where it compared backslash paths with POSIX paths.
 - The documented test command no longer errors on Windows, where one case's generated test ID exceeded the environment-variable size limit.
 
-No version has been released by this contribution.
+[Unreleased]: https://github.com/iteam7/gateway7/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/iteam7/gateway7/releases/tag/v0.1.0
