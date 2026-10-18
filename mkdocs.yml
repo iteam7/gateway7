@@ -21,6 +21,7 @@ nav:
       - Plugin authoring: plugins.md
   - Product:
       - Product vision: product-vision.md
+      - Threshold of success: threshold-of-success.md
       - Architecture: architecture/README.md
       - Decisions: decisions.md
       - Assumptions: assumptions.md

@@ -6,6 +6,7 @@ OpenAI Codex with the repository's Orchestrator, Formater and TechLead roles, th
 For task #52, TechLead delegated disjoint core, plugin and transport/demo implementation to Codex developer agents as permitted by `AGENTS.md`.
 Python, uv, pytest and real local HTTP subprocesses were used to check the generated code.
 For task #54, TechLead delegated the documentation build to an executing agent and reviewed its output; MkDocs, uv, npm, Markdownlint and Chromium were used for documentation checks.
+Claude Code (Claude Opus 5.5) with its Formater agent, the GitHub CLI and the GitHub API, for tasks #64 to #67.
 
 ## What we used them for
 
@@ -20,9 +21,14 @@ It prepared setup/plugin/demo documentation and the Week 3 meeting script, keepi
 For [task #54](https://github.com/iteam7/gateway7/issues/54), Codex prepared the Definition of Done, contribution guide, README navigation and documentation build/Pages workflow for the requested Assignment 3 items 6, 7, 14 and 15.
 It retained source report citations while excluding weekly evidence from the published site, bundled Mermaid locally, and recorded the unresolved Pages activation and live-link requirements.
 
+For [task #64](https://github.com/iteam7/gateway7/issues/64), Claude Code (Claude Opus 5.5) drafted the task issues #64 to #67, which its Formater agent checked against the course rules before they were created through the GitHub CLI.
+It created the seven `SPRINT-nn` milestones through the GitHub API, with the sprint focuses the contributor approved and the syllabus hard deadlines as due dates, and updated the milestone row in `CONTRIBUTING.md`.
+
 For [task #79](https://github.com/iteam7/gateway7/issues/79), Codex replaced the README's pending site address and the contribution guide's Project placeholders with verified public links.
 It used the GitHub connector for repository changes and a signed-out cloud browser to open the live home and setup pages, the public Project and its exact View 1 table URL on 18 October.
 The guide distinguishes the observed table columns from the still-unverified required role fields, milestone organization and complete issue coverage; Project configuration was not changed.
+Codex also resolved this pull request's conflicts with `main`, preserving the seven-sprint milestone row and the task #64–67 disclosures.
+It added the existing threshold-of-success page to MkDocs navigation to address the strict-build warning introduced by the merged page; the page content was unchanged.
 
 ## Handling and checks of generated output
 
