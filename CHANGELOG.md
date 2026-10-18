@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Changed
+
+- Python checks also run on Windows.
+
 ## [0.1.0] - 2026-10-18
 
 ### Added
@@ -16,10 +20,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Windows PowerShell commands for running the two services manually.
 - Definition of Done and contribution guide with task/review standards and setup navigation.
 - Locked documentation build with local Mermaid assets, pull-request validation and a main-only GitHub Pages workflow; first deployment pending.
-
-### Changed
-
-- Python checks also run on Windows.
 
 ### Fixed
 
