@@ -18,3 +18,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 [Unreleased]: https://github.com/iteam7/gateway7/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/iteam7/gateway7/releases/tag/v0.1.0
+### Fixed
+
+- The one-command demonstration's plugin-installation check now passes on Windows, where it compared backslash paths with POSIX paths.
+
+No version has been released by this contribution.
