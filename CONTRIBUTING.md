@@ -49,6 +49,7 @@ Replace it with the verified public project and table-view links when that setup
 | [Repository milestones](https://github.com/iteam7/gateway7/milestones) | The issues in each sprint and their open/closed state; the milestone is the sprint backlog rather than a copied task list | Repository location; individual sprint setup is handled separately |
 
 When scheduling an issue, set its sprint milestone, two different members as `Responsible` and `Accountable`, and those same two members as its only assignees.
+`Responsible` and `Accountable` are the organization's public single-select issue fields, with one option per member's GitHub username; set them in the issue's sidebar, not in the issue form.
 The responsible member does the work; the accountable member verifies it.
 An unscheduled open issue carries no milestone, role values or assignees.
 Keep these values together when rescheduling or changing responsibility; do not invent values for work that has not been assigned.

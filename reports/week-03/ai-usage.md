@@ -6,6 +6,7 @@ OpenAI Codex with the repository's Orchestrator, Formater and TechLead roles, th
 For task #52, TechLead delegated disjoint core, plugin and transport/demo implementation to Codex developer agents as permitted by `AGENTS.md`.
 Python, uv, pytest and real local HTTP subprocesses were used to check the generated code.
 For task #54, TechLead delegated the documentation build to an executing agent and reviewed its output; MkDocs, uv, npm, Markdownlint and Chromium were used for documentation checks.
+Claude Code (Claude Opus 5.5) with its Formater agent and the GitHub API, for task #65.
 
 ## What we used them for
 
@@ -19,6 +20,8 @@ It prepared setup/plugin/demo documentation and the Week 3 meeting script, keepi
 
 For [task #54](https://github.com/iteam7/gateway7/issues/54), Codex prepared the Definition of Done, contribution guide, README navigation and documentation build/Pages workflow for the requested Assignment 3 items 6, 7, 14 and 15.
 It retained source report citations while excluding weekly evidence from the published site, bundled Mermaid locally, and recorded the unresolved Pages activation and live-link requirements.
+
+For [task #65](https://github.com/iteam7/gateway7/issues/65), Claude Code checked that only an organization owner can create issue fields, wrote the field specification for the owner, and described the fields in `CONTRIBUTING.md`.
 
 ## Handling and checks of generated output
 
