@@ -20,6 +20,10 @@ It prepared setup/plugin/demo documentation and the Week 3 meeting script, keepi
 For [task #54](https://github.com/iteam7/gateway7/issues/54), Codex prepared the Definition of Done, contribution guide, README navigation and documentation build/Pages workflow for the requested Assignment 3 items 6, 7, 14 and 15.
 It retained source report citations while excluding weekly evidence from the published site, bundled Mermaid locally, and recorded the unresolved Pages activation and live-link requirements.
 
+For [task #79](https://github.com/iteam7/gateway7/issues/79), Codex replaced the README's pending site address and the contribution guide's Project placeholders with verified public links.
+It used the GitHub connector for repository changes and a signed-out cloud browser to open the live home and setup pages, the public Project and its exact View 1 table URL on 18 October.
+The guide distinguishes the observed table columns from the still-unverified required role fields, milestone organization and complete issue coverage; Project configuration was not changed.
+
 ## Handling and checks of generated output
 
 TechLead reviewed component responsibilities, independent hook order, fail-closed errors, state, keys, usage and shared-process trust/cancellation limits against the existing candidate.

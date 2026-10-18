@@ -6,7 +6,7 @@ A gateway that routes requests to LLM providers through pluggable modules.
 
 - Current week report: [reports/week-03/README.md](reports/week-03/README.md) (in progress)
 - Documentation: [docs/](docs/)
-- Documentation site: first deployment pending; configured Pages address `https://iteam7.github.io/gateway7/`
+- Documentation site: [Gateway7 documentation](https://iteam7.github.io/gateway7/)
 - Setup and run: [docs/setup.md](docs/setup.md)
 - Customer demo: [docs/demo.md](docs/demo.md)
 - Architecture: [docs/architecture/README.md](docs/architecture/README.md)

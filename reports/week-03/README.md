@@ -133,6 +133,7 @@ These automated checks and AI approval do not replace the distinct human reviewe
 - Task #50 has no evidenced pair of distinct human owners, Responsible/Accountable values, matching assignees or sprint milestone. These remain unresolved; the task is not represented as correctly scheduled. The team must set those values together before treating its scheduling as complete.
 - Task #52 also used the GitHub connector API with the task form's sections and `task` label. Its distinct Responsible/Accountable members, matching assignees and sprint milestone remain unassigned; this does not claim the task is correctly scheduled.
 - Task #54 used the same API route because the available writing capability does not submit the task form. Its sections, numbered criteria and `task` label preserve reviewability but do not waive the form requirement. Responsible/Accountable members, matching assignees and sprint remain unset; the public project/table view is also unverified.
+- Task [#79](https://github.com/iteam7/gateway7/issues/79) used the GitHub connector API because the available browser was signed out and could not submit the task form. Its body preserves the form's sections and numbered criteria, and carries the `task` label; this declaration does not waive the form requirement. No sprint, role values or assignees were assigned.
 
 ## Privacy
 
