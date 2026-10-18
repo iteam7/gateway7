@@ -75,7 +75,7 @@ Explain plugin execution, failure handling and diagnosis, and justify the chosen
 - **Status:** Active
 - **Date:** 2026-10-16, derived from the supplied meeting record's date; not stated aloud.
 - **Made by:** Customer
-- **Source:** [Week 03 customer meeting report](https://github.com/iteam7/gateway7/blob/67-complete-week3-documentation/reports/week-03/meeting-report.md#summary).
+- **Source:** [Week 03 customer meeting report](https://github.com/iteam7/gateway7/blob/c68ef782af464f22e48f67d7728e429ea619f3b8/reports/week-03/meeting-report.md#summary).
 - **Why:** the high-level diagrams hid the plugin runner's important behavior. An operator needs to identify a failing or hanging plugin and understand progress and timing through the chain. Customer requested a reasoned design, offering Django middleware and Twisted callbacks as examples to examine while leaving the choice to the team. This deepens the architecture validation requested in DEC-009; it does not approve a framework or accept an implemented story.
 
 ## DEC-015
@@ -85,5 +85,5 @@ Use three interacting plugins and a clear authoring/configuration walkthrough fo
 - **Status:** Active
 - **Date:** 2026-10-16, derived from the supplied meeting record's date; not stated aloud.
 - **Made by:** Customer
-- **Source:** [Week 03 customer meeting report](https://github.com/iteam7/gateway7/blob/67-complete-week3-documentation/reports/week-03/meeting-report.md#summary).
+- **Source:** [Week 03 customer meeting report](https://github.com/iteam7/gateway7/blob/c68ef782af464f22e48f67d7728e429ea619f3b8/reports/week-03/meeting-report.md#summary).
 - **Why:** one phone-masking plugin did not demonstrate composition. Customer requested multiple different plugins working together and inspected how their settings, chain names and Python interfaces are supplied. The request strengthens the next demonstration of the existing plugin-host direction; it neither replaces the candidate's ACs nor establishes story acceptance, a capacity limit or a new delivery deadline.
