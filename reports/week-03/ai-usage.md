@@ -24,6 +24,8 @@ It retained source report citations while excluding weekly evidence from the pub
 For [task #64](https://github.com/iteam7/gateway7/issues/64), Claude Code (Claude Opus 5.5) drafted the task issues #64 to #67, which its Formater agent checked against the course rules before they were created through the GitHub CLI.
 It created the seven `SPRINT-nn` milestones through the GitHub API, with the sprint focuses the contributor approved and the syllabus hard deadlines as due dates, and updated the milestone row in `CONTRIBUTING.md`.
 
+For [task #57](https://github.com/iteam7/gateway7/issues/57), Claude Code (Claude Opus 5.5) merged `main` into the risk-register branch after PR #59 had landed on a stale base, and added the threshold-of-success and risk pages to the strict documentation navigation so the site build on `main` passes again.
+
 ## Handling and checks of generated output
 
 TechLead reviewed component responsibilities, independent hook order, fail-closed errors, state, keys, usage and shared-process trust/cancellation limits against the existing candidate.
