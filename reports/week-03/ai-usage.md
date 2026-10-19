@@ -63,6 +63,7 @@ Threshold inconsistencies were kept as explicit proposals for Customer review; n
 
 For [task #86](https://github.com/iteam7/gateway7/issues/86), Codex formatted the team's feedback supplied by azamatbayramov on 19 October into the evaluation below.
 The assessment comes from that human feedback; Codex did not supply the team's opinion.
+For the same task's Customer-feedback follow-up, Codex recorded the presenter's clarification in the maintained architecture document, preserving the distinction between positive demo feedback, unverified AC-by-AC acceptance and outstanding technical work.
 
 ## Handling and checks of generated output
 
