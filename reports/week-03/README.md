@@ -98,6 +98,18 @@ These are recorded automated checks, not a real-provider call or Customer verdic
 | US-02 / AC-01–03 | Exact synthetic phone formats, prior conversation history and unchanged order/date fixture |
 | US-03 / AC-01–03 | Module/config-only installation with restart, two-path Git-status check, missing configured modules and A/B order |
 
+### US-03 (issue #32) re-verification on 19 October 2026
+
+A disposable clone of `main` at commit `7ccbafd` (macOS, Darwin arm64, Python 3.12.15 via `uv 0.13.0`) re-ran `uv sync --locked`, `python -m compileall`, `pytest -q` and `python -m demo.run` end to end, to check whether AC-01–03 still hold on the exact checked commit. All three automated gates passed:
+
+- `pytest -q`: **99 passed**, 0 failed.
+- `python -m demo.run` exit code 0; its own US-03 checks printed:
+  - `PASS US-03 install: only company_plugins/sample.py and gateway.yaml changed; core unchanged` / `upstream saw: ping[checked-by-sample]` — AC-01.
+  - `PASS startup: a missing plugin fails even when its configuration is disabled`, run for both `enabled: true` and `enabled: false`, with the failing output naming the missing module in each case — AC-02.
+  - `PASS US-03 order: two configured instances changed request and response order after restart` (`ping[A][B] -> ping[B][A]`) — AC-03.
+
+This is an automated re-run of the existing fake-upstream demonstration, not a new capability, not a Customer-facing demonstration, and not an acceptance/rejection verdict: per the [meeting report](meeting-report.md#summary), no Customer verdict exists for US-03, and this entry does not supply one. It only confirms that the ACs the code and tests claim to satisfy still pass on the currently checked `main` commit.
+
 ## Clean-checkout run on Windows
 
 The Windows 11 clean-checkout run on 17 October used `main` at `b548813`, uv 0.13.1 and pinned Python 3.12.
