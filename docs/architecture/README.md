@@ -112,5 +112,15 @@ The 16 October presentation led to [DEC-014](../decisions.md#dec-014): explain t
 The next review must show how an operator identifies a failed or hanging plugin and follows timing/progress through the chain; the high-level diagrams alone did not establish this.
 Compare relevant middleware and callback/error patterns before justifying the choice; the Customer's Django and Twisted examples did not mandate either framework.
 [DEC-015](../decisions.md#dec-015) requests three interacting plugins with a clear authoring/configuration walkthrough.
-These are outstanding validation targets, not claims that the existing runtime satisfies them; human review, per-story Customer verdicts and real-provider AC-05 remain pending.
+These are outstanding validation targets, not claims that the existing runtime satisfies them; AC-by-AC Customer acceptance and real-provider AC-05 remain pending.
 The existing synthetic phone fixtures are unchanged; Customer validation of production formats and the deployment secret source remain open. Measure concurrent requests, plugin work and latency before claiming capacity; three demonstration plugins are not a capacity limit.
+
+### Team clarification — 19 October 2026
+
+azamatbayramov reported on behalf of the team that each of US-01–03 was demonstrated and received positive Customer feedback, while technical questions showed that the architecture needs further improvement.
+This is the presenter's paraphrased account; 19 October dates this clarification, not a new Customer meeting or a confirmed date of the feedback.
+AC-by-AC acceptance was not established, and testing used a mock provider, so US-01 / AC-05 remains unverified.
+
+The team intends to address the execution, timing, failure and diagnostic questions in DEC-014 and demonstrate three interacting plugins as requested in DEC-015.
+This clarification did not specify owners or deadlines.
+The team requested a transcript summary for publication; this does not confirm the Customer's separate permissions for recording, publishing a transcript or sharing it privately with instructors.
