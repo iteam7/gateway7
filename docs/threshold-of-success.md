@@ -2,6 +2,7 @@
 
 The threshold of success is the minimal set of goals that must all be achieved for gateway7 to count as a success this term.
 Each goal below answers a failure statement listed in [Failure And Success Statements](#failure-and-success-statements).
+The [Customer review proposal](threshold-review.md) identifies measure/goal inconsistencies in TOS-02 and TOS-04 and offers concrete clarifications; those proposals are not part of the current threshold.
 
 ## TOS-01
 

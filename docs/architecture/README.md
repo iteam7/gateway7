@@ -88,6 +88,7 @@ Only the adapter receives the server key through ordinary interfaces ([CON-04](.
 **In-process plugins are not sandboxed:** installed code can access memory, environment, files and network, so operators must trust it.
 
 Async cancellation/deadline checks stop later stages and discard late results.
+This is the intended contract; [task #84](https://github.com/iteam7/gateway7/issues/84) reports an unresolved Windows timer/cancellation case that can accept a late result. Cross-platform fail-closed deadline behavior is not established by the current Ubuntu checks.
 Blocking/uncooperative plugins cannot be forcibly stopped and can delay responsiveness or cleanup; cancelling a provider call does not prove it stopped upstream.
 Logs contain only request ID, outcome, safe component/reason codes and durations, excluding content, keys, headers, plugin state and raw errors; fixture capture is synthetic-only.
 No original-text restoration/storage, hot loading, streaming, retries/failover, persistent conversations, billing or user-supplied keys; discarding state does not promise secure memory erasure.
@@ -107,6 +108,9 @@ Authentication, routing and durable usage accounting remain extension points, ou
 
 ## Review questions and Week 2 follow-up
 
-Architecture and prototype prepare the presentation; Customer evaluation, human review and real-provider AC-05 remain pending.
-Review the running hook/loading/error contract, required phone formats and deployment secret source.
-Measure concurrent requests, plugin work and latency before claiming capacity; two plugins are a demonstration, not a limit.
+The 16 October presentation led to [DEC-014](../decisions.md#dec-014): explain the runner's execution, failure handling and diagnosis, with the reasons for the selected design.
+The next review must show how an operator identifies a failed or hanging plugin and follows timing/progress through the chain; the high-level diagrams alone did not establish this.
+Compare relevant middleware and callback/error patterns before justifying the choice; the Customer's Django and Twisted examples did not mandate either framework.
+[DEC-015](../decisions.md#dec-015) requests three interacting plugins with a clear authoring/configuration walkthrough.
+These are outstanding validation targets, not claims that the existing runtime satisfies them; human review, per-story Customer verdicts and real-provider AC-05 remain pending.
+The existing synthetic phone fixtures are unchanged; Customer validation of production formats and the deployment secret source remain open. Measure concurrent requests, plugin work and latency before claiming capacity; three demonstration plugins are not a capacity limit.
