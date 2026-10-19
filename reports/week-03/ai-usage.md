@@ -3,6 +3,7 @@
 ## Tools
 
 OpenAI Codex with the repository's Orchestrator, Formater and TechLead roles, the GitHub connector for repository/issue access, and local shell tools for reading and editing documentation.
+Claude Code (Claude Opus 5.5) with the TechLead role edited the Python workflow for task #77.
 For task #52, TechLead delegated disjoint core, plugin and transport/demo implementation to Codex developer agents as permitted by `AGENTS.md`.
 Python, uv, pytest and real local HTTP subprocesses were used to check the generated code.
 For task #54, TechLead delegated the documentation build to an executing agent and reviewed its output; MkDocs, uv, npm, Markdownlint and Chromium were used for documentation checks.
@@ -18,6 +19,7 @@ An earlier discussion explored Python plugin packaging and lifecycle without ado
 
 After azamatbayramov explicitly selected Python on 15 October, Codex recorded [DEC-013](../../docs/decisions.md#dec-013) and implemented [task #52](https://github.com/iteam7/gateway7/issues/52): the FastAPI gateway, strict configuration/models, plugin lifecycle and chains, phone/sample modules, HTTP adapters, deterministic upstream, locked environment and repeatable demonstration.
 It prepared setup/plugin/demo documentation and the Week 3 meeting script, keeping real-provider validation and the Customer's future verdicts separate.
+For [task #77](https://github.com/iteam7/gateway7/issues/77), Claude Code added `windows-latest` to the Python workflow after the Windows run found failures that the Ubuntu-only job had missed.
 
 For [task #54](https://github.com/iteam7/gateway7/issues/54), Codex prepared the Definition of Done, contribution guide, README navigation and documentation build/Pages workflow for the requested Assignment 3 items 6, 7, 14 and 15.
 It retained source report citations while excluding weekly evidence from the published site, bundled Mermaid locally, and recorded the unresolved Pages activation and live-link requirements.

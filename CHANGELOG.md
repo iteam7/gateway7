@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Changed
+
+- Python checks also run on Windows.
 ### Added
 
 - Project plan for SPRINT-03 to SPRINT-09, with the first release and weekly progress monitoring.
