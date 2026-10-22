@@ -47,16 +47,11 @@ class PluginConfig(StrictConfig):
     settings: dict[str, Any] = Field(default_factory=dict)
 
 
-class ChainsConfig(StrictConfig):
-    request: list[InstanceName] = Field(default_factory=list)
-    response: list[InstanceName] = Field(default_factory=list)
-
-
 class GatewayConfig(StrictConfig):
     provider: ProviderConfig = Field(default_factory=ProviderConfig)
     limits: LimitsConfig = Field(default_factory=LimitsConfig)
     plugins: dict[InstanceName, PluginConfig] = Field(default_factory=dict)
-    chains: ChainsConfig = Field(default_factory=ChainsConfig)
+    middleware: list[InstanceName] = Field(default_factory=list)
 
 
 def _reject_duplicate_keys(node: yaml.Node | None, ancestors: frozenset[int] = frozenset()) -> None:
@@ -90,6 +85,11 @@ def load_config(path: str | Path) -> GatewayConfig:
         # duplicate map keys, aliases that recurse, and non-string keys.
         data = yaml.safe_load(text)
         _reject_duplicate_keys(yaml.compose(text, Loader=yaml.SafeLoader))
+        if isinstance(data, dict) and "chains" in data:
+            raise StartupError(
+                "Legacy chains configuration: replace chains.request/response "
+                "with middleware: [instance names]"
+            )
         return GatewayConfig.model_validate(data, strict=True)
     except StartupError:
         raise

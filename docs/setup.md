@@ -43,13 +43,16 @@ The server config path is `--config PATH`, or `GATEWAY_CONFIG` when starting the
 | `provider.base_url` | Server-controlled endpoint, never supplied by the client |
 | `provider.key_env` | Name of the required environment variable; the YAML does not hold its value |
 | `provider.model` | Server-selected model; ignored by the deterministic fake provider |
-| `limits` | Total request deadline, per-hook deadline and request-body size cap |
+| `limits` | Total request deadline, each middleware's own-work budget and request-body size cap |
 | `plugins` | Instance names mapped to module, enabled/required flags and validated settings |
-| `chains` | Separate ordered `request` and `response` instance lists |
+| `middleware` | One ordered instance list; responses return through it in reverse |
 
 Unknown configuration fields and invalid plugin settings fail startup.
 A missing key fails startup with the setting's name and no secret value.
 See [plugin authoring](plugins.md) for installation, disable and required-filter behavior.
+API version 2 replaces `chains.request` / `chains.response` and the old hooks; follow the [migration steps](plugins.md#migration-from-api-version-1) for existing plugins.
+`limits.hook_timeout_seconds` now budgets a middleware's combined preprocessing and postprocessing, excluding its wait for the next handler.
+The overall request deadline still includes all middleware and provider work.
 
 ## Run the two services manually
 
@@ -147,10 +150,9 @@ The fake demo checks the local plugin path; complete the separate real-provider 
 
 ### Known Windows verification limit
 
-[Task #84](https://github.com/iteam7/gateway7/issues/84) reports an intermittent Windows failure when a hook suppresses cancellation and returns after the timer fires.
-The result may reach the provider despite the intended fail-closed rule.
-The earlier successful Windows run does not settle this defect; the proposed Windows CI is tracked separately in [draft PR #78](https://github.com/iteam7/gateway7/pull/78).
-Treat cross-platform deadline enforcement as unverified until that task's repeated-run and no-forwarding criteria pass. Do not infer it from the Ubuntu-only green check.
+[Task #84](https://github.com/iteam7/gateway7/issues/84) describes an early Windows timer firing that a cancellation-suppressing plugin could previously bypass.
+The middleware runner checks whether the timer expired before accepting a result or entering the next handler.
+Linux regression coverage does not replace that task's repeated Windows verification; the proposed Windows CI remains in [PR #78](https://github.com/iteam7/gateway7/pull/78).
 
 ## Supported HTTP contract
 
