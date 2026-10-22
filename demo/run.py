@@ -205,7 +205,7 @@ def run() -> None:
                 "module": "company_plugins.sample", "enabled": True,
                 "required": False, "settings": {},
             }
-            installed["chains"]["request"] = ["mask", "sample"]
+            installed["middleware"] = ["mask", "sample"]
             ping = {"messages": [{"role": "user", "content": "ping"}]}
             _, record = exercise(installed, ping)
             assert record["body"]["messages"][0]["content"] == "ping[checked-by-sample]"
@@ -231,16 +231,72 @@ def run() -> None:
                     "module": "company_plugins.sample", "enabled": True,
                     "required": False, "settings": {"marker": marker},
                 }
-            ordered["chains"] = {"request": ["mask", "alpha", "beta"], "response": ["beta", "alpha"]}
+            ordered["middleware"] = ["mask", "alpha", "beta"]
             result, record = exercise(ordered, ping)
             assert record["body"]["messages"][0]["content"] == "ping[A][B]"
             assert result["text"] == ANSWER + "[B][A]"
-            ordered["chains"] = {"request": ["mask", "beta", "alpha"], "response": ["alpha", "beta"]}
+            ordered["middleware"] = ["mask", "beta", "alpha"]
             result, record = exercise(ordered, ping)
             assert record["body"]["messages"][0]["content"] == "ping[B][A]"
             assert result["text"] == ANSWER + "[A][B]"
-            print("PASS US-03 order: two configured instances changed request and response order after restart")
+            print("PASS middleware order: requests follow configuration; responses unwind in reverse")
             print("  request: ping[A][B] -> ping[B][A]; response suffix: [B][A] -> [A][B]")
+
+            shutil.copyfile(repository / "examples" / "guard_plugin.py", plugin_path.with_name("guard.py"))
+            composed = deepcopy(installed)
+            composed["plugins"]["guard"] = {
+                "module": "company_plugins.guard", "enabled": True,
+                "required": True, "settings": {},
+            }
+            composed["middleware"] = ["mask", "guard", "sample"]
+            result, record = exercise(composed, {"messages": [
+                {"role": "user", "content": "ping " + PHONE_EXAMPLES[0]},
+            ]})
+            assert record["body"]["messages"][0]["content"] == "ping [PHONE][checked-by-sample]"
+            assert result["text"] == ANSWER + "[checked-by-sample]"
+            print("PASS composition: phone mask -> policy guard -> sample -> provider -> sample -> guard -> mask")
+            print("  upstream: ping [PHONE][checked-by-sample]; answer suffix: [checked-by-sample]")
+            for line in logs[-1].splitlines():
+                if f"request_id={result['request_id']} " in line:
+                    print("  trace: " + line)
+
+            def failure(config: dict, text: str, status: int, code: str, calls: int = 0) -> None:
+                _write_config(config_path, config)
+                port = _free_port()
+                url = f"http://127.0.0.1:{port}"
+                with _server(_gateway_command(config_path, port), url, env, sandbox, logs):
+                    with httpx.Client(trust_env=False, timeout=12) as client:
+                        before = len(client.get(upstream_url + "/requests").json()["requests"])
+                        response = client.post(url + "/chat", json={"messages": [
+                            {"role": "user", "content": text},
+                        ]})
+                        client_outputs.append(response.text)
+                        assert response.status_code == status
+                        result = response.json()
+                        assert result["error"]["code"] == code
+                        assert result["request_id"] == response.headers["x-request-id"]
+                        after = len(client.get(upstream_url + "/requests").json()["requests"])
+                        assert after - before == calls
+                        assert "synthetic-demo-exception" not in response.text
+                        assert "checked-by-sample" not in response.text
+                print(f"PASS failure: {code}; HTTP {status}; upstream calls={calls}")
+                for line in logs[-1].splitlines():
+                    if f"request_id={result['request_id']} " in line:
+                        print("  trace: " + line)
+
+            failure(composed, "BLOCK-ME-TEST " + PHONE_EXAMPLES[0], 403, "policy_denied")
+            faulty = deepcopy(installed)
+            faulty["plugins"]["fault"] = {
+                "module": "demo.fault_plugin", "enabled": True,
+                "required": True, "settings": {"mode": "error", "phase": "request"},
+            }
+            faulty["middleware"] = ["mask", "fault", "sample"]
+            failure(faulty, "synthetic failure", 500, "plugin_error")
+            faulty["plugins"]["fault"]["settings"]["mode"] = "timeout"
+            faulty["limits"]["hook_timeout_seconds"] = 0.05
+            failure(faulty, "synthetic timeout", 504, "timeout")
+            faulty["plugins"]["fault"]["settings"] = {"mode": "error", "phase": "response"}
+            failure(faulty, "synthetic response failure", 500, "plugin_error", calls=1)
 
             _write_config(config_path, baseline)
             missing_key_env = env.copy()

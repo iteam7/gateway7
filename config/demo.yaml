@@ -13,6 +13,4 @@ plugins:
     enabled: true
     required: true
     settings: {}
-chains:
-  request: [mask]
-  response: []
+middleware: [mask]

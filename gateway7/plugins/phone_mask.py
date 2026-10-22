@@ -11,8 +11,8 @@ import re
 
 from pydantic import BaseModel, ConfigDict
 
-from gateway7.models import ChatRequest
-from gateway7.plugin_api import Continue, PluginContext, PluginDescriptor
+from gateway7.models import ChatRequest, ChatResponse
+from gateway7.plugin_api import NextHandler, PluginContext, PluginDescriptor
 
 
 _PHONE_NUMBER = re.compile(
@@ -29,16 +29,16 @@ class Settings(BaseModel):
 
 
 class PhoneMaskPlugin:
-    async def on_request(
-        self, request: ChatRequest, context: PluginContext
-    ) -> Continue:
+    async def handle(
+        self, request: ChatRequest, context: PluginContext, call_next: NextHandler
+    ) -> ChatResponse:
         messages = [
             message.model_copy(
                 update={"content": _PHONE_NUMBER.sub("[PHONE]", message.content)}
             )
             for message in request.messages
         ]
-        return Continue(payload=request.model_copy(update={"messages": messages}))
+        return await call_next(request.model_copy(update={"messages": messages}))
 
 
 def create(settings: Settings) -> PhoneMaskPlugin:
@@ -46,5 +46,5 @@ def create(settings: Settings) -> PhoneMaskPlugin:
 
 
 PLUGIN = PluginDescriptor(
-    id="phone-mask", api_version=1, settings_model=Settings, create=create
+    id="phone-mask", api_version=2, settings_model=Settings, create=create
 )

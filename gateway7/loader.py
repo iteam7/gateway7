@@ -1,4 +1,4 @@
-"""Validate every configured module and assemble explicit ordered hook chains."""
+"""Validate every configured module and assemble one ordered middleware chain."""
 
 import asyncio
 import importlib
@@ -25,8 +25,7 @@ class LoadedPlugin:
     name: str
     descriptor: PluginDescriptor
     instance: object
-    on_request: AsyncHook | None
-    on_response: AsyncHook | None
+    handle: AsyncHook
     startup: AsyncHook | None
     shutdown: AsyncHook | None
 
@@ -34,8 +33,7 @@ class LoadedPlugin:
 @dataclass(frozen=True)
 class LoadedPlugins:
     instances: dict[str, LoadedPlugin]
-    request_chain: tuple[LoadedPlugin, ...]
-    response_chain: tuple[LoadedPlugin, ...]
+    middleware_chain: tuple[LoadedPlugin, ...]
 
 
 def _hook(instance: object, name: str, instance_name: str) -> AsyncHook | None:
@@ -45,7 +43,7 @@ def _hook(instance: object, name: str, instance_name: str) -> AsyncHook | None:
             return None
         if not callable(value) or not inspect.iscoroutinefunction(value):
             raise ValueError
-        arguments = (None, None) if name in ("on_request", "on_response") else ()
+        arguments = (None, None, None) if name == "handle" else ()
         inspect.signature(value).bind(*arguments)
     except Exception:
         raise StartupError(f"Plugin instance {instance_name} has invalid async hook {name}") from None
@@ -53,13 +51,12 @@ def _hook(instance: object, name: str, instance_name: str) -> AsyncHook | None:
 
 
 def load_plugins(config: GatewayConfig) -> LoadedPlugins:
-    for stage in ("request", "response"):
-        chain = getattr(config.chains, stage)
-        if len(chain) != len(set(chain)):
-            raise StartupError(f"Duplicate plugin instance in {stage} chain")
-        for name in chain:
-            if name not in config.plugins:
-                raise StartupError(f"Unknown plugin instance {name} in {stage} chain")
+    chain = config.middleware
+    if len(chain) != len(set(chain)):
+        raise StartupError("Duplicate plugin instance in middleware chain")
+    for name in chain:
+        if name not in config.plugins:
+            raise StartupError(f"Unknown plugin instance {name} in middleware chain")
 
     # Validate all descriptors/settings first, including disabled modules. No
     # factory runs until all configuration-level checks have passed.
@@ -71,10 +68,23 @@ def load_plugins(config: GatewayConfig) -> LoadedPlugins:
             module = importlib.import_module(specification.module)
         except Exception:
             raise StartupError(
-                f"Cannot load module {specification.module} for plugin instance {name}"
+                f"Cannot load module {specification.module} for plugin instance {name}; "
+                "check module imports and migrate API v1 hooks/Continue to API v2 handle"
             ) from None
         try:
             descriptor = getattr(module, "PLUGIN", None)
+        except Exception:
+            raise StartupError(f"Invalid PLUGIN descriptor for plugin instance {name}") from None
+        if (
+            type(descriptor) is PluginDescriptor
+            and type(descriptor.api_version) is int
+            and descriptor.api_version == 1
+        ):
+            raise StartupError(
+                f"Plugin instance {name} uses legacy API v1; "
+                "migrate to API v2 handle(request, context, call_next)"
+            )
+        try:
             if (
                 type(descriptor) is not PluginDescriptor
                 or not isinstance(descriptor.id, str)
@@ -111,39 +121,27 @@ def load_plugins(config: GatewayConfig) -> LoadedPlugins:
             if inspect.iscoroutine(instance):
                 instance.close()
             raise StartupError(f"Plugin instance {name} requires a synchronous factory")
+        handle = _hook(instance, "handle", name)
+        if handle is None:
+            raise StartupError(
+                f"Plugin instance {name} requires API v2 async handle(request, context, call_next); "
+                "migrate legacy on_request/on_response hooks"
+            )
         plugin = LoadedPlugin(
             name=name,
             descriptor=descriptor,
             instance=instance,
-            on_request=_hook(instance, "on_request", name),
-            on_response=_hook(instance, "on_response", name),
+            handle=handle,
             startup=_hook(instance, "startup", name),
             shutdown=_hook(instance, "shutdown", name),
         )
-        if plugin.on_request is None and plugin.on_response is None:
-            raise StartupError(f"Plugin instance {name} implements no hooks")
         instances[name] = plugin
 
-    chains: dict[str, tuple[LoadedPlugin, ...]] = {}
-    for stage in ("request", "response"):
-        active: list[LoadedPlugin] = []
-        for name in getattr(config.chains, stage):
-            if not config.plugins[name].enabled:
-                continue
-            plugin = instances[name]
-            if getattr(plugin, f"on_{stage}") is None:
-                raise StartupError(f"Plugin instance {name} has no {stage} hook")
-            active.append(plugin)
-        chains[stage] = tuple(active)
-        for name, plugin in instances.items():
-            if (
-                config.plugins[name].required
-                and getattr(plugin, f"on_{stage}") is not None
-                and name not in getattr(config.chains, stage)
-            ):
-                raise StartupError(f"Required plugin instance {name} is missing from {stage} chain")
-
-    return LoadedPlugins(instances, chains["request"], chains["response"])
+    for name, specification in config.plugins.items():
+        if specification.required and name not in chain:
+            raise StartupError(f"Required plugin instance {name} is missing from middleware chain")
+    active = tuple(instances[name] for name in chain if config.plugins[name].enabled)
+    return LoadedPlugins(instances, active)
 
 
 async def start_plugins(plugins: LoadedPlugins, timeout_seconds: float) -> None:
@@ -154,9 +152,10 @@ async def start_plugins(plugins: LoadedPlugins, timeout_seconds: float) -> None:
             started.append(plugin)
             if plugin.startup is not None:
                 deadline = time.monotonic() + timeout_seconds
-                async with asyncio.timeout(timeout_seconds):
+                timer = asyncio.timeout(timeout_seconds)
+                async with timer:
                     await plugin.startup()
-                if time.monotonic() >= deadline:
+                if timer.expired() or time.monotonic() >= deadline:
                     raise TimeoutError
     except BaseException as error:
         await _stop_instances(reversed(started), timeout_seconds)

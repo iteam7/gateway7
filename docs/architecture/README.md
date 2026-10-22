@@ -1,8 +1,9 @@
 # Gateway7 architecture
 
-**Status:** Python prototype implemented for review, 2026-10-15; deterministic checks do not establish Customer acceptance or the complete MUP.
+**Status:** Python middleware prototype for review, updated 2026-10-22; deterministic checks do not establish Customer acceptance or the complete MUP.
 
 Gateway7 runs as one service: the core orchestrates company plugins and a single configured provider adapter.
+Plugins now use the async middleware contract in [DEC-016](../decisions.md#dec-016): a single list is nested around the provider, and response work unwinds in reverse order.
 The [product vision](../product-vision.md), [DEC-009](../decisions.md#dec-009)–[DEC-012](../decisions.md#dec-012) require a demonstrable plugin boundary, permit restart-based installation and a deterministic first demo, and retain US-01–03 as the candidate.
 [DEC-013](../decisions.md#dec-013) selects Python; [setup](../setup.md), the [customer demo](../demo.md) and the [plugin guide](../plugins.md) describe the runnable implementation.
 No story criteria change.
@@ -26,11 +27,11 @@ flowchart TB
 | Component | Responsibility |
 | --- | --- |
 | HTTP API | Validate input, create context, serialize allowed results and safe errors |
-| Request core | Sequence request hooks, one provider call, response hooks and cleanup through interfaces |
-| Plugin runner | Invoke ordered hooks, validate results and check deadlines; no company policy |
+| Request core | Nest middleware around one provider call, preserve usage and clean up request-owned state |
+| Plugin runner | Validate requests/responses, guard the next handler and enforce own-work budgets plus the overall deadline; no company policy |
 | Company plugins | Allow, modify or deny content through the shared contract |
 | Provider adapter | Translate normalized data, attach the server key and normalize responses/errors |
-| Configuration and startup | Load trusted modules, validate settings and construct chains and adapter |
+| Configuration and startup | Load trusted modules, validate settings and construct the middleware order and adapter |
 
 One process avoids separate plugin services and a database, but shares resources and failures.
 Plugins depend on the contract in `gateway7/models.py` and `gateway7/plugin_api.py`, not HTTP handlers or provider SDKs; installation changes a module and configuration, not the core.
@@ -55,12 +56,12 @@ flowchart TB
 ## Request lifecycle
 
 1. Assign a request ID and validate the text-chat format and size before plugins or forwarding. Reject unsupported fields; create a monotonic deadline and isolated instance state for valid input.
-2. Run the request chain. Each hook sees its predecessor's output. `Continue` advances; `Deny` returns a policy error. Exceptions, invalid results and timeouts fail closed with a technical error and **zero upstream calls**.
-3. Recheck cancellation/deadline, then call the configured provider once with the processed request and server key. Adaptation, upstream or normalization failures return technical errors without response hooks.
-4. Run the independent response chain only after upstream success. A denial blocks delivery but cannot undo provider work or usage.
+2. Enter middleware in configured order. Each `handle` preprocesses its input and awaits `call_next(request)`, or returns `Deny()`. Request-side exceptions, invalid results and timeouts prevent later work and cause **zero upstream calls**.
+3. At the innermost handler, recheck cancellation/deadline and call the provider once with the processed request and server key. Snapshot the validated usage before returning to middleware.
+4. Return through the same middleware in reverse order for postprocessing. A denial or technical failure blocks delivery but cannot undo provider work or usage; an outer middleware cannot swallow a downstream failure and return success.
 5. Return the allowed response or core-owned safe error with its request ID while connected. Record a safe outcome and release request-owned state on every exit, including disconnect, once in-flight work unwinds.
 
-The core snapshots validated provider usage before response hooks and preserves it in the successful response; plugin edits cannot replace it.
+The core snapshots validated provider usage before middleware unwinding and preserves it in the successful response; plugin edits cannot replace it.
 Absent/invalid usage means **unknown, not zero**; failed/cancelled calls do not imply zero usage. Denied/cancelled calls create no durable usage record; this is request metadata, not billing.
 
 ## Data and plugin contract
@@ -70,25 +71,26 @@ Absent/invalid usage means **unknown, not zero**; failed/cancelled calls do not 
 | Request | Strictly validated ordered plain-text messages, including history, and generation options; provider selection is server configuration. |
 | Response | Assistant text and normalized usage when known; no credentials or raw upstream errors. |
 | Context | Core-owned request ID and monotonic deadline, with temporary `state` scoped to each request and configured instance. |
-| Result | `Continue(payload)` or `Deny(code="policy_denied")`; unchanged payload allows, modified payload transforms. Technical failures are not policy denials. |
+| Result | A valid `ChatResponse` after one awaited `call_next`, or `Deny()`; technical failures are not policy denials. |
 
-Hooks are `on_request(request, context)` and `on_response(response, context)`.
-Their configured instance lists are independent: response order is never implicitly reversed; an empty list passes through.
-Each listed hook runs once, sequentially; the runner revalidates payloads.
+Each instance implements `handle(request, context, call_next)` under API version 2.
+For `[A, B, C]`, the request enters A, B, C and the answer returns C, B, A; an empty list directly calls the provider.
+The next handler accepts a validated request, is usable once in the same task during the invocation, and cannot escape the middleware's lifetime.
+The retained `hook_timeout_seconds` is a cumulative own-work budget, paused while awaiting the next handler; the overall deadline includes downstream and provider waiting.
 Shared instances keep immutable configuration/concurrency-safe resources; mutable request state belongs in the context.
 The [plugin guide](../plugins.md#descriptor-and-hooks) defines descriptors, settings and lifecycle methods; [setup](../setup.md#supported-http-contract) defines the wire schema and limits.
 
 ## Loading, trust and limits
 
 Install trusted Python modules, configure instances/settings/order, then restart ([DEC-010](../decisions.md#dec-010)); the [sample installation](../plugins.md#smallest-installation) needs no core edit or package rebuild.
-Startup validates YAML, module descriptors/settings, chain references/hooks, initialization and credentials before readiness; failures abort safely.
+Startup validates YAML, version-2 module descriptors/settings, middleware references/handle signatures, initialization and credentials before readiness; failures abort safely.
 Even disabled declarations require valid modules/settings; disabled optional instances are omitted from execution.
-`required: true` prevents disabling or omitting mandatory filters; **every active hook fails closed**, including optional instances.
+`required: true` prevents disabling or omitting mandatory filters; **every active middleware fails closed**, including optional instances.
 Only the adapter receives the server key through ordinary interfaces ([CON-04](../product-vision.md#con-04)); callers cannot select modules or upstream URLs.
 **In-process plugins are not sandboxed:** installed code can access memory, environment, files and network, so operators must trust it.
 
 Async cancellation/deadline checks stop later stages and discard late results.
-This is the intended contract; [task #84](https://github.com/iteam7/gateway7/issues/84) reports an unresolved Windows timer/cancellation case that can accept a late result. Cross-platform fail-closed deadline behavior is not established by the current Ubuntu checks.
+The runner checks the timer's expired state as well as monotonic deadlines, addressing the early-timer mechanism in [task #84](https://github.com/iteam7/gateway7/issues/84). That task's repeated Windows run remains required; Linux regression checks do not establish cross-platform verification.
 Blocking/uncooperative plugins cannot be forcibly stopped and can delay responsiveness or cleanup; cancelling a provider call does not prove it stopped upstream.
 Logs contain only request ID, outcome, safe component/reason codes and durations, excluding content, keys, headers, plugin state and raw errors; fixture capture is synthetic-only.
 No original-text restoration/storage, hot loading, streaming, retries/failover, persistent conversations, billing or user-supplied keys; discarding state does not promise secure memory erasure.
@@ -102,7 +104,7 @@ No original-text restoration/storage, hot loading, streaming, retries/failover, 
 | [US-02](https://github.com/iteam7/gateway7/issues/31), AC-01–03; [VP-01](../research/value-proposition.md#vp-01-predictable-local-preflight-for-small-teams) | Exact phone fixtures, history and unchanged order/date text checked |
 | [US-03](https://github.com/iteam7/gateway7/issues/32), AC-01–03; [VP-02](../research/value-proposition.md#vp-02-testable-domain-filter-extensions); DEC-009–010 | Module/config-only installation with restart, missing-module failure and A/B order checked |
 
-Tests also cover fail-closed exits, invalid results, independent response order and isolated state.
+Tests also cover fail-closed exits, invalid results, reverse response order, next-handler misuse and isolated state.
 The response marker demonstrates the interface; US-03 covers request plugins, and no production output policy or separate response-story acceptance is claimed.
 Authentication, routing and durable usage accounting remain extension points, outside this slice.
 

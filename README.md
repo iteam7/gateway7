@@ -2,6 +2,9 @@
 
 A gateway that routes requests to LLM providers through pluggable modules.
 
+Plugins are async middleware: they process a request, await the next handler, and process the returning answer.
+One YAML order defines the path in both directions; see [plugin authoring and API v2 migration](docs/plugins.md).
+
 > Work in progress for the ITPD course.
 
 - Current week report: [reports/week-03/README.md](reports/week-03/README.md) (in progress)

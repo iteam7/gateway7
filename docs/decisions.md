@@ -87,3 +87,13 @@ Use three interacting plugins and a clear authoring/configuration walkthrough fo
 - **Made by:** Customer
 - **Source:** [Week 03 customer meeting report](https://github.com/iteam7/gateway7/blob/c68ef782af464f22e48f67d7728e429ea619f3b8/reports/week-03/meeting-report.md#summary).
 - **Why:** one phone-masking plugin did not demonstrate composition. Customer requested multiple different plugins working together and inspected how their settings, chain names and Python interfaces are supplied. The request strengthens the next demonstration of the existing plugin-host direction; it neither replaces the candidate's ACs nor establishes story acceptance, a capacity limit or a new delivery deadline.
+
+## DEC-016
+
+Run plugins as async middleware around the next handler, with one configured order and reverse response unwinding.
+
+- **Status:** Active
+- **Date:** 2026-10-22.
+- **Made by:** Team, through azamatbayramov's explicit implementation request.
+- **Source:** [Task #89](https://github.com/iteam7/gateway7/issues/89), recording the contributor's request to migrate plugins to middleware.
+- **Why:** middleware places each plugin's request and response work in one method and makes the execution path inspectable for DEC-014/015. API version 2 deliberately replaces the earlier independent hook lists; the migration is documented in the [plugin guide](plugins.md#migration-from-api-version-1). Python, trusted in-process modules, server-held credentials and restart-based installation remain. This is a team design decision and does not claim Customer acceptance or completion of the outstanding story criteria.
