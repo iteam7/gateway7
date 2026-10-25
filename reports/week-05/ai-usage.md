@@ -128,3 +128,21 @@ No new runtime behavior or live-provider verification is claimed by this plannin
 
 TODO: Team members must record what they accepted, changed or rejected after reviewing the corrected plan and the future-work estimates.
 The task criteria remain unchecked until verified by its Accountable reviewer; the tracker migration's remaining type and pinning work stays with task #94.
+
+## Tracker migration for task #94
+
+On 25 and 26 October, iceberkut asked Claude Code (Claude Opus 5.5) to do the part of task #94 that a repository maintainer can do.
+The Formater agent ran PRE and POST and kept the work in a separate worktree, so the uncommitted project-plan changes in the main checkout stayed untouched.
+
+- The task form now applies the native `Task` type and requires a `Requirements` field; the story form gains an optional `Specified by` field and prefills the acceptance criteria with an unticked `AC-01` checkbox; both stop applying the `task` and `user-story` labels.
+- Stories US-01 to US-09 (#30 to #38) got checkbox criteria with their `AC-nn` unchanged and a `### Specified by` list taken from the `Traces to` lines of FR-001 to FR-008 and the ADRs those records name. US-10 and US-11 are Won't Have and were left out.
+- Open tasks #77 and #84 got `### Requirements`; #84 names ADR-002 for its deadline rule, and #77 says it is repository upkeep.
+- The native `Task` type was set on all 38 task issues, including the four blank pre-form issues.
+
+The AI ticked no acceptance criterion, including on the closed stories #32, #35 and #38, because no issue held a verified tick to carry over.
+US-06 (#35) names only ADR-002, because no FR on `main` traces to it; whether it needs its own FR is for the team.
+The AI did not create the missing `User Story` type or `MoSCoW` field, change the existing `Story Points` and `Priority` fields (`Priority` is still visible to organization members only and has an extra `Urgent` option), set any Priority, Responsible or Accountable value, or delete labels: an organization member cannot create or change types and fields, and the values are team decisions.
+
+### Team evaluation for the tracker migration
+
+TODO: The Accountable member records whether the `Specified by` mapping and the form changes were accepted, changed or rejected.

@@ -1,6 +1,6 @@
 name: Task
 description: Track one unit of work, including work toward a story, documentation, reports, or workflows.
-labels: ["task"]
+type: Task
 body:
   - type: textarea
     id: description
@@ -19,6 +19,17 @@ body:
         Leave empty for work that does not serve a story, such as a workflow or report.
     validations:
       required: false
+  - type: textarea
+    id: requirements
+    attributes:
+      label: Requirements
+      description: |
+        One item per line, each a link on main to an FR-nnn or ADR-nnn this task works on, for example:
+        - [FR-001](https://github.com/iteam7/gateway7/blob/main/docs/functional-requirements/fr/FR-001.md)
+        - [ADR-001](https://github.com/iteam7/gateway7/blob/main/docs/architecture/adr/ADR-001.md)
+        A task that serves no requirement says so in one line, such as: - None: repository upkeep.
+    validations:
+      required: true
   - type: textarea
     id: acceptance-criteria
     attributes:
