@@ -20,6 +20,10 @@ The review also required interrupted offline checks to return a failure after cl
 On 25 October, for [task #93](https://github.com/iteam7/gateway7/issues/93), Claude Code drafted `docs/glossary.md` and rewrote the root `AGENTS.md` with layout, checks, conventions and do-not-edit sections while keeping the team's agent roles and PRE/POST workflow.
 Its Formater agent checked the draft against the course glossary and agent-instruction requirements, compared every path and command in `AGENTS.md` with the repository and the CI workflows, and traced each glossary definition to the linked artifact and the gateway code.
 
+On 25 October, for [task #96](https://github.com/iteam7/gateway7/issues/96), Claude Code drafted the [next Customer Review script](meeting-script.md) and extended the [demo evidence matrix](../../docs/demo.md#acceptance-checklist) to US-01–US-09.
+It mapped each acceptance criterion to the existing demo runner, tests and smoke scripts by name, and marked criteria without an exact check as needing a dry-run instead of treating related tests as evidence.
+It did not run the demonstration; the Accountable reviewer's dry-run, the meeting date and the role assignments remain with the team.
+
 ## Handling and checks
 
 The adapters are checked with synthetic HTTP transports against the documented provider protocols.
@@ -37,7 +41,7 @@ No live-provider call, Customer acceptance, story closure, release or deployment
 
 ## Team evaluation
 
-TODO: Team members must record what they accepted, changed or rejected after reviewing the providers, middleware, CLI, deployment/observability, compatible API, access control and plugin-authoring workflow, and after reviewing the glossary and `AGENTS.md` for task #93.
+TODO: Team members must record what they accepted, changed or rejected after reviewing the providers, middleware, CLI, deployment/observability, compatible API, access control and plugin-authoring workflow, and after reviewing the glossary and `AGENTS.md` for task #93 and the review script and evidence matrix for task #96.
 
 ## Deviations to carry into the weekly report
 
