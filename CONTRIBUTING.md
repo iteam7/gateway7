@@ -37,6 +37,38 @@ Preserve pull requests, reviews and branches used as assignment evidence.
 Do not rewrite shared history; the course's exception is removing accidentally committed sensitive data.
 Dependabot and the course's automatic Done-task cleanup workflow are the exceptions to the task-issue requirement.
 
+## Release and submission handoff
+
+The [course release sequence](https://github.com/inno-itpd/itpd/blob/main/requirements/planning-requirements.md#releases) requires the real Customer Review and ensuing rework before a sprint release.
+A green build, merged implementation or declared deviation does not replace that prerequisite.
+For [task #98](https://github.com/iteam7/gateway7/issues/98), azamatbayramov prepares the release/package and DeniBorsh verifies it; the missing Week 4 review currently blocks REL-04.
+
+1. Record the actual review, story-by-story verdicts and genuine decisions, finish the resulting rework, and merge the reviewed sprint changes into `main` with green checks.
+   Resolve or explicitly carry forward the [Week 4 report's gaps](reports/week-04/README.md#deviations); do not backdate a meeting or mark unverified criteria complete.
+2. Select the next version under Semantic Versioning from the actual user-visible changes and existing tags.
+   Verify that the release commit is on `main` and that the `v*` tag protection prevents movement and deletion before publishing.
+   Create the tag at that verified commit and title the GitHub release exactly with the tag; an agent must have the user's authorization for those publication actions.
+3. Once the tag exists, merge the dated linked changelog section, the plan's one-line `REL-04` entry, and the updated weekly report, in that order.
+   Keep the plan's REL-04 heading empty until publication; neither a proposed version nor a URL to an uncreated tag belongs there.
+   Reschedule each still-open sprint issue with its real planning decision before closing the sprint milestone, and record any unavailable velocity evidence honestly.
+4. After all report-linked files reach `main`, select the final submission commit independently of the earlier release tag.
+   In a normal checkout freshly fetched from the remote, obtain its full hash with `git rev-parse origin/main`; do not use an unpushed working-branch or local snapshot hash.
+   Verify that this commit contains `reports/week-04/README.md` and every linked repository artifact, and inspect its successful main CI runs.
+   Open the report through GitHub's permalink at that full hash, then download the repository archive for the same hash; do not archive the current working directory with its secrets or caches.
+5. Prepare the private PDF using the [Assignment 4 contents](https://github.com/inno-itpd/itpd/blob/main/assignments/assignment-4.md#assignment-report-on-moodle), at most two pages: project/team/week, the verified username/name/university-email roster, that full-SHA report permalink, the instructor-accessible recording link or truthful absence reason, and the privacy confirmation.
+   Include a transcript appendix only when an actual transcript exists and public publication was refused; keep private-only material and the PDF/ZIP outside git.
+   No Week 4 meeting occurred, so do not invent recording refusal or a written review to fit the usual absence cases; disclose the missing event and seek instructor guidance if submitting with that requirement unmet.
+6. The Accountable reviewer opens the exact permalink and every private link, compares the ZIP's repository contents with the selected commit, checks PDF page count/rendering and roster accuracy, and reviews both files for secrets, unsupported verdicts and accidental local files.
+   The PDF's commit, rendered report and ZIP must agree on the same full SHA before the authorized submission owner uploads them to Moodle.
+   Record the actual submission outcome privately; file creation alone is not evidence of upload or instructor access.
+
+The [snapshot rule](https://github.com/inno-itpd/itpd/blob/main/requirements/repository-requirements.md#permalinks-and-snapshots) requires these URL shapes, with the same verified 40-character hash in each:
+
+```text
+https://github.com/iteam7/gateway7/blob/<full-main-sha>/reports/week-04/README.md
+https://github.com/iteam7/gateway7/archive/<full-main-sha>.zip
+```
+
 ## Project views and scheduling
 
 The public [Gateway7 project](https://github.com/orgs/iteam7/projects/1) and its [Sprints table view](https://github.com/orgs/iteam7/projects/1/views/3) are linked for the team's schedule.

@@ -158,3 +158,27 @@ The six legacy labels were deleted only after every issue carried its type and e
 ### Team evaluation for the label retirement
 
 TODO: The Accountable member records whether the story typing, the `MoSCoW` values and the label retirement were accepted.
+
+## Release and submission preparation for task #98
+
+On 25 October, azamatbayramov asked Codex to prepare a pull request for [task #98](https://github.com/iteam7/gateway7/issues/98).
+Formater read the current assignment and release/report rules, verified the remote main snapshot and prepared a separate branch without changing previously merged work.
+The TechLead checked the 19 required coverage rows against the repository, fresh issue types/field values, merged PR authorship/reviews and successful workflows on `main`, then refreshed the report to `0ee5f57f9b4cf01d4a1ac46b5bb34d15048b9686` after PR #107 merged during preparation.
+A documentation agent independently read the requirement, architecture, retrospective and meeting-preparation artifacts to identify factual limits and stale statements.
+
+Codex wrote the late Week 4 README as an evidence index and added the release/submission handoff to `CONTRIBUTING.md`.
+The report distinguishes the four quality scenarios and three Accepted implementation decisions from proof that every scenario or Customer criterion passed, and separates the late 25 October carryover from work completed before the deadline.
+The readback also distinguishes completed tracker configuration and story migration from remaining native role/Priority values and assignee consistency.
+The follow-up preserves PR #107's changes and removes the now-resolved story-form type gap from the report.
+Earlier AI-report entries and the Week 4 retrospective were preserved as their dated evidence rather than rewritten to match the newer state.
+
+No Week 4 Customer Review occurred, so Codex did not create a meeting report, transcript, verdict decision, release or final submission snapshot.
+The current baseline lacks the new README; it is identified as the inspected source, not falsely used as the final report permalink or PDF/ZIP commit.
+The existing REL-04 heading and released changelog sections are unchanged, and the PR refers to task #98 without closing its incomplete release/package criteria.
+The private roster and previous private reports were unnecessary for this public preparation and were not copied into the repository.
+The pull request records the Markdown, documentation and link-check results; no runtime tests or live-provider calls are claimed for this documentation-only change.
+
+### Team evaluation for the release preparation
+
+TODO: Team members must record what they accepted, changed or rejected after reviewing the Week 4 report and release/submission handoff.
+The Accountable reviewer still verifies the task criteria and the final private package after its real prerequisites are met.

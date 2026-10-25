@@ -7,6 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- Late Week 4 report linking the delivered artifacts and remaining evidence, with the release and submission sequence documented for the team.
 - OpenAI-compatible chat completions and model discovery with an explicitly supported non-streaming API subset.
 - Gateway client Bearer tokens and per-client access to configured models, enforced before company middleware or provider calls.
 - Middleware starter generation and offline fixture checks with expected/actual results and automation-friendly exit codes.
