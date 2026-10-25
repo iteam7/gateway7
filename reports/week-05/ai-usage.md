@@ -54,5 +54,47 @@ TODO: Team members must record what they accepted, changed or rejected after rev
 
 - The user explicitly requested the provider, middleware, CLI, deployment and observability work in one MR; task #89 and PR #90 therefore cover the whole pilot and retain the earlier middleware migration.
 - Task #89 was originally created through the GitHub API. Its Task type, human Responsible/Accountable pair, matching assignees, milestone and Priority remain for the team to set; no role or schedule was inferred.
-- The existing `main` has no `FR-nnn` or `ADR-nnn` records for this work. The task retains this missing specification trace as a declared gap, rather than inventing accepted course requirements.
+- At the source check for task #89, `main` had no `FR-nnn` or `ADR-nnn` records for this work. The task retained this missing specification trace as a declared gap rather than inventing accepted course requirements; the later task #92 work below records the requirements integration.
 - At the source check on 25 October, Assignment 4 was the latest published assignment. This file records the implementation assistance only and does not claim completion of the Week 5 report or any unpublished assignment.
+
+## Architecture documentation for task #92
+
+On 25 October, azamatbayramov asked Codex to carry out [task #92](https://github.com/iteam7/gateway7/issues/92).
+Formater read the current course requirements, checked the issues and remote repository, and prepared a separate working copy whose tracked files matched the merged implementation.
+The AI TechLead wrote the container architecture and three ADR drafts; a diagram agent produced an SVG and a Python standard-library generator, then the TechLead reviewed the image and implementation claims.
+The work adds the product-vision backlink and documentation navigation without changing the gateway runtime.
+
+The review kept the three deployed applications distinct from Python modules, described the synthetic upstream as a demo-only child process, and retained the existing incoming report anchors and dated team clarification.
+The ADRs compare options against the implemented system without inventing a historical options meeting.
+In the initial draft, they remained Proposed because [task #91](https://github.com/iteam7/gateway7/issues/91) had not yet supplied the required FR/QR records; the Drivers and ADR fields identified that dependency instead of linking nonexistent specifications.
+At that point, the missing requirement mapping and human acceptance left task #92 AC-03 and part of AC-04 unfinished.
+No Week 4 meeting, Customer verdict or team acceptance of the new ADR text is claimed.
+
+The committed SVG matched its generator, and regeneration was byte-identical when invoked outside the repository.
+The image was visually inspected; XML parsing, Python compilation and Ruff checks passed for the generator.
+Markdown lint passed all 56 files; strict MkDocs and the site checker passed 27 maintained pages and 2076 links/assets, including local anchors and report exclusion.
+Formater checked the diff and the real remote base before publication; external link checking and the other PR workflow results belong to the pull request evidence.
+The source checkout and the remote-only binary report artifacts are preserved; the local snapshot history is not pushed.
+The initial pull request was a draft referring to #92, with no closing keyword while its dependency and acceptance criteria were incomplete.
+
+### Completion after the requirements merged
+
+Later on 25 October, after the requirements and glossary pull requests reached `main`, azamatbayramov asked Codex to finish task #92 in the existing [PR #99](https://github.com/iteam7/gateway7/pull/99).
+Formater verified the remote heads, imported the reviewed main snapshot and preserved the other contributors' documentation and AI-report entries during the merge.
+The TechLead connected the four Drivers holders, replaced the pending ADR fields with real FR/QR links, checked each consequence against its quality scenario and added only ADR backlinks to the eight affected FR records.
+The requirement behaviors, acceptance criteria and priorities were not changed.
+The navigation keeps both the new requirements/glossary pages and the architecture pages, and the documentation index links the new artifacts.
+
+The records now describe Accepted choices already in force through [PR #90](https://github.com/iteam7/gateway7/pull/90), whose final implementation [DeniBorsh approved](https://github.com/iteam7/gateway7/pull/90#pullrequestreview-5643522171) before merging it.
+The course defines Accepted as the choice in force; this retrospective record does not claim that the earlier implementation review approved the later ADR wording.
+The ADRs keep explicit limits for trusted in-process plugins, the public synthetic demo token, local monitoring access, Windows repetition and the quality scenarios' separate response measures.
+Linking a QR does not establish that its measured checks passed, and no new live-provider run or Customer acceptance was supplied by this documentation work.
+
+Markdown lint passed all 75 files; strict MkDocs and the site checker passed 44 maintained pages and 4133 links/assets, including local anchors and report exclusion.
+The updated pull request records the new-head workflow results separately from the initial draft's checks.
+The remaining human step is the Accountable member's review of these records and verification of task #92's acceptance criteria; the AI leaves the issue checkboxes and team assessment unchanged.
+
+### Team evaluation for the architecture work
+
+TODO: Team members must record what they accepted, changed or rejected after reviewing the architecture, diagram and ADR records.
+The AI review and automated checks do not replace that assessment or the Accountable member's approval.

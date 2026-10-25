@@ -20,6 +20,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Project plan for SPRINT-03 to SPRINT-09, with the first release and weekly progress monitoring.
 - Week 3 customer meeting report and decisions reconstructed from the privately supplied transcript, with unresolved story verdicts and Week 4 follow-ups.
 - Quality requirements priority matrix with four scenarios, and ten functional requirements with their containers and acceptance criteria.
+- Container architecture diagram with a reproducible source, responsibilities and state ownership, and three architectural decision records linked to the functional and quality requirements.
 - Project glossary of request-flow, plugin and demonstration terms, linked from the documentation site.
 - Week 5 Customer Review script covering the missing Week 4 review, Week 3 carry-over and story verdicts for US-01 to US-09.
 

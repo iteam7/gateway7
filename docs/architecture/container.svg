@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1060" viewBox="0 0 1600 1060" role="img" aria-labelledby="title description">
+<title id="title">Gateway7 C4 container view</title>
+<desc id="description">The Gateway7 system contains gateway, prometheus and grafana. The gateway calls one configured external LLM provider over HTTPS in live mode. Prometheus scrapes gateway metrics over HTTP. Grafana queries Prometheus over HTTP using PromQL. In demo mode a synthetic upstream child process runs inside the gateway Docker container over loopback HTTP, instead of calling the external provider. Arrows point from initiator to dependency.</desc>
+<defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#52657c"/></marker></defs>
+<g font-family="DejaVu Sans, Arial, sans-serif">
+<rect x="0" y="0" width="1600" height="1060" rx="0" fill="#ffffff" stroke="none" stroke-width="2"/>
+<rect x="48" y="48" width="48" height="5" rx="2" fill="#215baf" stroke="none" stroke-width="2"/>
+<text x="48" y="99" font-size="36" fill="#14253d" font-weight="700" text-anchor="start">Gateway7 — container view</text>
+<text x="48" y="136" font-size="19" fill="#52657c" font-weight="400" text-anchor="start">C4 • Running applications and their operational dependencies</text>
+<rect x="48" y="184" width="1120" height="768" rx="18" fill="#fafcff" stroke="#93a6bd" stroke-width="2" stroke-dasharray="9 7"/>
+<text x="78" y="224" font-size="25" fill="#14253d" font-weight="700" text-anchor="start">Gateway7</text>
+<text x="78" y="252" font-size="16" fill="#52657c" font-weight="400" text-anchor="start">System boundary · Compose deployment</text>
+<rect x="96" y="286" width="520" height="314" rx="12" fill="#eff6ff" stroke="#215baf" stroke-width="2"/>
+<text x="120" y="326" font-size="27" fill="#215baf" font-weight="700" text-anchor="start">gateway</text>
+<text x="120" y="352" font-size="15" fill="#52657c" font-weight="400" text-anchor="start">Container · Python / FastAPI / Uvicorn</text>
+<path d="M 120 372 H 592" stroke="#c7d9f1"/>
+<text x="120" y="400" font-size="16" fill="#14253d" font-weight="400" text-anchor="start">Authenticates callers; checks model permissions.</text>
+<text x="120" y="424" font-size="16" fill="#14253d" font-weight="400" text-anchor="start">Runs request and response middleware.</text>
+<text x="120" y="448" font-size="16" fill="#14253d" font-weight="400" text-anchor="start">Uses one configured LLM provider.</text>
+<rect x="120" y="472" width="472" height="104" rx="6" fill="#fff5d8" stroke="#e6bf62" stroke-width="2"/>
+<text x="136" y="493" font-size="12" fill="#81570c" font-weight="700" text-anchor="start">DEMO ONLY</text>
+<text x="136" y="515" font-size="14" fill="#634c1d" font-weight="400" text-anchor="start">Private synthetic upstream child process</text>
+<text x="136" y="536" font-size="14" fill="#634c1d" font-weight="400" text-anchor="start">inside this Docker container · loopback HTTP.</text>
+<text x="136" y="557" font-size="14" fill="#634c1d" font-weight="400" text-anchor="start">No external provider call in demo mode.</text>
+<rect x="96" y="732" width="520" height="184" rx="12" fill="#eff6ff" stroke="#215baf" stroke-width="2"/>
+<text x="120" y="772" font-size="27" fill="#215baf" font-weight="700" text-anchor="start">prometheus</text>
+<text x="120" y="798" font-size="15" fill="#52657c" font-weight="400" text-anchor="start">Container · Prometheus + local TSDB</text>
+<path d="M 120 818 H 592" stroke="#c7d9f1"/>
+<text x="120" y="850" font-size="16" fill="#14253d" font-weight="400" text-anchor="start">Scrapes and stores gateway metric samples.</text>
+<text x="120" y="880" font-size="15" fill="#52657c" font-weight="400" text-anchor="start">Time-series volume: prometheus-data</text>
+<rect x="700" y="732" width="420" height="184" rx="12" fill="#eff6ff" stroke="#215baf" stroke-width="2"/>
+<text x="724" y="772" font-size="27" fill="#215baf" font-weight="700" text-anchor="start">grafana</text>
+<text x="724" y="798" font-size="15" fill="#52657c" font-weight="400" text-anchor="start">Container · Grafana</text>
+<path d="M 724 818 H 1096" stroke="#c7d9f1"/>
+<text x="724" y="850" font-size="16" fill="#14253d" font-weight="400" text-anchor="start">Queries metrics for provisioned dashboards.</text>
+<text x="724" y="880" font-size="15" fill="#52657c" font-weight="400" text-anchor="start">State volume: grafana-data</text>
+<rect x="1258" y="320" width="294" height="222" rx="12" fill="#f1f3f6" stroke="#677487" stroke-width="2"/>
+<text x="1282" y="360" font-size="25" fill="#14253d" font-weight="700" text-anchor="start">LLM provider</text>
+<text x="1282" y="387" font-size="14" fill="#52657c" font-weight="400" text-anchor="start">External software system</text>
+<path d="M 1282 407 H 1528" stroke="#c9d0da"/>
+<text x="1282" y="437" font-size="15" fill="#14253d" font-weight="400" text-anchor="start">OpenAI / Anthropic Claude /</text>
+<text x="1282" y="462" font-size="15" fill="#14253d" font-weight="400" text-anchor="start">Google Gemini</text>
+<text x="1282" y="505" font-size="14" fill="#52657c" font-weight="400" text-anchor="start">One selected provider at runtime</text>
+<path d="M 616 400 H 1258" fill="none" stroke="#52657c" stroke-width="2.5" marker-end="url(#arrow)"/>
+<text x="936" y="351" font-size="17" fill="#14253d" font-weight="700" text-anchor="middle">HTTPS · live mode</text>
+<text x="936" y="376" font-size="16" fill="#52657c" font-weight="400" text-anchor="middle">text messages / answer + usage</text>
+<path d="M 356 732 V 600" fill="none" stroke="#52657c" stroke-width="2.5" marker-end="url(#arrow)"/>
+<text x="96" y="651" font-size="17" fill="#14253d" font-weight="700" text-anchor="start">HTTP GET /metrics</text>
+<text x="96" y="677" font-size="16" fill="#52657c" font-weight="400" text-anchor="start">Prometheus samples</text>
+<path d="M 910 732 V 684 H 500 V 732" fill="none" stroke="#52657c" stroke-width="2.5" marker-end="url(#arrow)"/>
+<text x="705" y="638" font-size="17" fill="#14253d" font-weight="700" text-anchor="middle">HTTP · PromQL</text>
+<text x="705" y="664" font-size="16" fill="#52657c" font-weight="400" text-anchor="middle">queries / metric results</text>
+<rect x="48" y="990" width="22" height="17" rx="4" fill="#eff6ff" stroke="#215baf" stroke-width="2"/>
+<text x="82" y="1004" font-size="14" fill="#52657c" font-weight="400" text-anchor="start">Application container</text>
+<rect x="348" y="990" width="22" height="17" rx="4" fill="#f1f3f6" stroke="#677487" stroke-width="2"/>
+<text x="382" y="1004" font-size="14" fill="#52657c" font-weight="400" text-anchor="start">External system</text>
+<rect x="614" y="990" width="22" height="17" rx="4" fill="#fafcff" stroke="#93a6bd" stroke-width="2" stroke-dasharray="4 3"/>
+<text x="648" y="1004" font-size="14" fill="#52657c" font-weight="400" text-anchor="start">System boundary</text>
+<rect x="898" y="990" width="22" height="17" rx="3" fill="#fff5d8" stroke="#e6bf62" stroke-width="2"/>
+<text x="932" y="1004" font-size="14" fill="#52657c" font-weight="400" text-anchor="start">Demo-only note</text>
+<path d="M 1200 998 H 1240" stroke="#52657c" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="1254" y="1004" font-size="14" fill="#52657c" font-weight="400" text-anchor="start">Initiator → dependency</text>
+<text x="48" y="1042" font-size="14" fill="#52657c" font-weight="400" text-anchor="start">Arrows name the protocol and exchanged data; response data returns along the same connection.</text>
+</g></svg>
