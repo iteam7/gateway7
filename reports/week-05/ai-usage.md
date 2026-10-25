@@ -21,6 +21,9 @@ Review kept authorized model selection outside plugin-visible payloads and prese
 The generated-package installation check uses the reviewed Gateway7 wheel and installs the plugin with `--no-deps`, so it cannot substitute an unrelated package resolution for the reviewed runtime.
 The review also required interrupted offline checks to return a failure after cleaning up their worker, instead of being treated as an orderly successful server shutdown.
 
+On 25 October, for [task #93](https://github.com/iteam7/gateway7/issues/93), Claude Code drafted `docs/glossary.md` and rewrote the root `AGENTS.md` with layout, checks, conventions and do-not-edit sections while keeping the team's agent roles and PRE/POST workflow.
+Its Formater agent checked the draft against the course glossary and agent-instruction requirements, compared every path and command in `AGENTS.md` with the repository and the CI workflows, and traced each glossary definition to the linked artifact and the gateway code.
+
 ## Handling and checks
 
 The adapters are checked with synthetic HTTP transports against the documented provider protocols.
@@ -38,7 +41,7 @@ No live-provider call, Customer acceptance, story closure, release or deployment
 
 ## Team evaluation
 
-TODO: Team members must record what they accepted, changed or rejected after reviewing the providers, middleware, CLI, deployment/observability, compatible API, access control and plugin-authoring workflow.
+TODO: Team members must record what they accepted, changed or rejected after reviewing the providers, middleware, CLI, deployment/observability, compatible API, access control and plugin-authoring workflow, and after reviewing the glossary and `AGENTS.md` for task #93.
 
 ## Deviations to carry into the weekly report
 
