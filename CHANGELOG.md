@@ -19,6 +19,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Synthetic demonstration of phone masking, a policy guard and response transformation together, plus request-side error/timeout and response-side failure cases.
 - Project plan for SPRINT-03 to SPRINT-09, with the first release and weekly progress monitoring.
 - Week 3 customer meeting report and decisions reconstructed from the privately supplied transcript, with unresolved story verdicts and Week 4 follow-ups.
+- Quality requirements priority matrix with four scenarios, and ten functional requirements with their containers and acceptance criteria.
 - Project glossary of request-flow, plugin and demonstration terms, linked from the documentation site.
 - Week 5 Customer Review script covering the missing Week 4 review, Week 3 carry-over and story verdicts for US-01 to US-09.
 

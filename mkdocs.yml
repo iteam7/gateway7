@@ -32,6 +32,24 @@ nav:
       - Project plan: project-plan.md
       - Risks: risks.md
       - Architecture: architecture/README.md
+      - Quality requirements:
+          - Priority matrix: quality-requirements/README.md
+          - QR-01 Refuse forwarding after a request-side failure: quality-requirements/qr/QR-01.md
+          - QR-02 Catch a broken gateway change offline: quality-requirements/qr/QR-02.md
+          - QR-03 Keep credentials and text out of output: quality-requirements/qr/QR-03.md
+          - QR-04 Serve an unmodified OpenAI SDK client: quality-requirements/qr/QR-04.md
+      - Functional requirements:
+          - Index: functional-requirements/README.md
+          - FR-001 Answer with the server-held key: functional-requirements/fr/FR-001.md
+          - FR-002 Mask phone numbers: functional-requirements/fr/FR-002.md
+          - FR-003 Run company middleware: functional-requirements/fr/FR-003.md
+          - FR-004 Block or log a flagged request: functional-requirements/fr/FR-004.md
+          - FR-005 Check the answer before delivery: functional-requirements/fr/FR-005.md
+          - FR-006 Restrict clients to allowed models: functional-requirements/fr/FR-006.md
+          - FR-007 Check middleware offline: functional-requirements/fr/FR-007.md
+          - FR-008 Generate a middleware starter: functional-requirements/fr/FR-008.md
+          - FR-009 Expose metrics: functional-requirements/fr/FR-009.md
+          - FR-010 Show the overview dashboard: functional-requirements/fr/FR-010.md
       - Decisions: decisions.md
       - Assumptions: assumptions.md
       - Definition of Done: definition-of-done.md
