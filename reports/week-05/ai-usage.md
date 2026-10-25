@@ -16,7 +16,9 @@ The adapters are checked with synthetic HTTP transports against the documented p
 These tests can establish payload conversion, usage handling and failure behavior; they do not establish access to a live model or successful provider billing/account setup.
 Reference policy tests cover transformations, benign messages, request history, configuration failures and whether blocked requests reach the provider.
 CLI and metric checks exercise installed commands, startup errors, readiness and bounded metric labels without prompt text or credentials.
-The final automated results and container validation are recorded in the pull request, including any environment limits.
+The [Ubuntu Compose CI check](https://github.com/iteam7/gateway7/actions/runs/40192076568/job/121165000016) built the non-root image, started the actual gateway/Prometheus/Grafana stack, validated Prometheus configuration and passed the HTTP policy, metric, scrape, dashboard and datasource-query smoke.
+The local environment had no Docker or Podman; container verification therefore ran in CI rather than being inferred from YAML parsing.
+The final automated results are recorded in the pull request, including 359 passing tests and the separate installed-wheel check.
 No live-provider call, Customer acceptance, story closure, release or deployment to a shared environment is claimed.
 
 ## Team evaluation

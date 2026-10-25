@@ -2,7 +2,7 @@
 
 These modules use the same API v2 contract as company-authored middleware.
 They are deterministic reference implementations with synthetic regression fixtures, not a universal personal-data detector or a semantic safety classifier.
-Start from [config/reference.yaml](https://github.com/iteam7/gateway7/blob/main/config/reference.yaml), or copy its plugin declarations into a real-provider configuration.
+Start from `config/reference.yaml` in the [configuration directory](https://github.com/iteam7/gateway7/tree/main/config), or copy its plugin declarations into a real-provider configuration.
 The [plugin guide](plugins.md) explains installation and the runner's failure and timeout behavior.
 
 ## Catalog
