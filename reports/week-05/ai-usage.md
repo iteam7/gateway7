@@ -98,3 +98,33 @@ The remaining human step is the Accountable member's review of these records and
 
 TODO: Team members must record what they accepted, changed or rejected after reviewing the architecture, diagram and ADR records.
 The AI review and automated checks do not replace that assessment or the Accountable member's approval.
+
+## Sprint-plan reconciliation for task #95
+
+On 25 October, azamatbayramov asked Codex to carry out [task #95](https://github.com/iteam7/gateway7/issues/95).
+Formater read the current course planning, estimation and issue-tracking rules, checked the current main snapshot and prepared a separate working copy without changing the existing task's Responsible/Accountable assignment.
+The TechLead and a documentation agent reconciled the plan with the milestone assignments, issue field values and the team's recorded [SPRINT-04 retrospective](../week-04/sprint-retrospective.md).
+The plan now gives the required Saturday dates and milestone backlog links, explicitly labels empty future milestones as awaiting selection, distinguishes the eight current carryover tasks from unfinished work still in earlier milestones, and labels missing planning or velocity evidence without inventing zero totals.
+The current Week 5 meeting-script draft receives only the corresponding 30-to-31-October deadline correction.
+
+The initial issue API read returned no assigned native Story Points value for any of US-01–US-09; that observation alone did not establish whether the organization had defined the field.
+At the user's request to work on refinement, the TechLead appended proposals to [US-07](https://github.com/iteam7/gateway7/issues/36) and [US-08](https://github.com/iteam7/gateway7/issues/37), preserving the existing story text and metadata.
+Azamatbayramov then explicitly confirmed 3 SP and 5 SP on 25 October for remaining future verification, resulting fixes and demonstration, not the already completed implementation, historical estimates or a velocity calculation.
+This is the user's confirmation in the task conversation, not a claim that every team member voted or that the Customer accepted either story.
+
+The connected GitHub tools did not provide milestone-date or native-field updates, so Formater used the signed-in browser interface for those necessary operations.
+All six SPRINT-04–09 milestone dates were corrected and read back; the two future stories were left open with no milestone, Responsible/Accountable values or assignees.
+After two reads of the organization settings confirmed that Story Points did not exist, Formater created one Public single-select field with options `1`, `2`, `3`, `5`, `8`, `13`, then assigned US-07 `3` and US-08 `5`.
+The field is pinned to issues without a type because these two stories currently have no native type; [task #94](https://github.com/iteam7/gateway7/issues/94) still needs to add its pin to User Story when that type is created, preserving the assigned estimates.
+The browser and issue API confirmed both values and the cleared assignments, while all eight Assignment 4 carryover tasks retained their SPRINT-05 milestone and existing assignees.
+The TechLead recorded the dated confirmation on the two story bodies without changing their acceptance criteria; refinement evidence stays on the issues rather than in a second backlog document.
+The missing historical planning records, the unavailable estimate totals and the absent Week 4 Customer review remain declared gaps rather than reconstructed ceremonies or verdicts.
+
+Markdown lint passed all 75 files; strict MkDocs and the site checker passed 44 maintained pages and 4148 links/assets, including local anchors and report exclusion.
+Formater checked the final diff and preserved the full remote tree's existing binary report artifacts during publication.
+No new runtime behavior or live-provider verification is claimed by this planning change.
+
+### Team evaluation for the planning correction
+
+TODO: Team members must record what they accepted, changed or rejected after reviewing the corrected plan and the future-work estimates.
+The task criteria remain unchecked until verified by its Accountable reviewer; the tracker migration's remaining type and pinning work stays with task #94.
