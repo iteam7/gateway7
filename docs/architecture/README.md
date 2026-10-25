@@ -6,12 +6,12 @@ This architecture serves the scope in the [product vision](../product-vision.md)
 
 - **Business goals:** the [threshold of success](../threshold-of-success.md) holds the outcomes the architecture serves.
 - **Constraints:** the product vision's [constraints](../product-vision.md#constraints) hold the conditions the architecture lives inside.
-- **Functional requirements:** the requirements index at `docs/functional-requirements/README.md` is pending [task #91](https://github.com/iteam7/gateway7/issues/91); no requirement identifiers are assigned here.
-- **Quality requirements:** the priority matrix at `docs/quality-requirements/README.md` is pending [task #91](https://github.com/iteam7/gateway7/issues/91); no quality targets or achieved thresholds are inferred from the implementation.
+- **Functional requirements:** the [functional requirements index](../functional-requirements/README.md) holds the behavior the architecture must deliver.
+- **Quality requirements:** the [quality requirements index](../quality-requirements/README.md) holds the quality the architecture must meet and its priority matrix.
 
 ## Container View
 
-The deployed applications below and their stack are documented in [ADR-001](adr/ADR-001.md), whose requirement links and acceptance remain pending.
+The product runs as the containers below, and [ADR-001](adr/ADR-001.md) records their split and stack.
 
 ![Gateway7 container view: gateway, prometheus, grafana and the configured external LLM provider](container.svg)
 
@@ -38,7 +38,7 @@ The amber fixture annotation is this development-only variant, not a fourth prod
 Its trusted plugins share the process, so this describes the core's behavior rather than a sandbox guarantee about installed code.
 `prometheus` uses `prometheus-data`, with the configured seven-day and 512 MB retention bounds; `grafana` uses `grafana-data` and reads provisioned dashboard/data-source files from the repository.
 These are operational observations and display state, not a billing ledger.
-The missing functional requirements must cover behavior in all three containers before the table can claim the complete course trace from behavior to deployment.
+The functional requirements assign gateway behavior to `gateway`, including [FR-001](../functional-requirements/fr/FR-001.md) and [FR-009](../functional-requirements/fr/FR-009.md), and collection and dashboard behavior to `prometheus` and `grafana` in [FR-010](../functional-requirements/fr/FR-010.md).
 
 ### Runtime boundaries
 
@@ -96,13 +96,13 @@ No external actors appear in this view; the product vision retains their [system
 
 | ADR | Status | Addresses | Decision |
 | --- | --- | --- | --- |
-| [ADR-001](adr/ADR-001.md) | Proposed | Pending [#91](https://github.com/iteam7/gateway7/issues/91): gateway execution, operational monitoring and testability requirements | Keep one Python gateway with separately deployed monitoring applications |
-| [ADR-002](adr/ADR-002.md) | Proposed | Pending [#91](https://github.com/iteam7/gateway7/issues/91): middleware composition, denial, failure and offline-test requirements | Run trusted plugins as guarded middleware inside the gateway |
-| [ADR-003](adr/ADR-003.md) | Proposed | Pending [#91](https://github.com/iteam7/gateway7/issues/91): client/model authorization, provider credentials and confidentiality requirements | Authorize clients separately and pin permitted models outside plugin payloads |
+| [ADR-001](adr/ADR-001.md) | Accepted | [FR-001](../functional-requirements/fr/FR-001.md), [FR-003](../functional-requirements/fr/FR-003.md), [FR-009](../functional-requirements/fr/FR-009.md), [FR-010](../functional-requirements/fr/FR-010.md), [QR-02](../quality-requirements/qr/QR-02.md), [QR-03](../quality-requirements/qr/QR-03.md) | Keep one Python gateway with separately deployed monitoring applications |
+| [ADR-002](adr/ADR-002.md) | Accepted | [FR-003](../functional-requirements/fr/FR-003.md), [FR-004](../functional-requirements/fr/FR-004.md), [FR-005](../functional-requirements/fr/FR-005.md), [FR-007](../functional-requirements/fr/FR-007.md), [QR-01](../quality-requirements/qr/QR-01.md), [QR-02](../quality-requirements/qr/QR-02.md) | Run trusted plugins as guarded middleware inside the gateway |
+| [ADR-003](adr/ADR-003.md) | Accepted | [FR-001](../functional-requirements/fr/FR-001.md), [FR-006](../functional-requirements/fr/FR-006.md), [QR-03](../quality-requirements/qr/QR-03.md), [QR-04](../quality-requirements/qr/QR-04.md) | Authorize clients separately and pin permitted models outside plugin payloads |
 
-These records document the implementation already merged in PR #90 and its recorded human review.
+These Accepted records describe choices already in force through [PR #90](https://github.com/iteam7/gateway7/pull/90), approved in [DeniBorsh's implementation review](https://github.com/iteam7/gateway7/pull/90#pullrequestreview-5643522171) and merged on 25 October 2026.
 They are dated when written, not when an undocumented earlier discussion might have happened.
-They remain Proposed because the required FR/QR records do not exist and the ADR-to-requirement mapping has not been reviewed.
-Each record identifies the exact missing behavior and quality scenario; none invents a requirement identifier or an additional Customer decision.
-After #91 merges, replace the two pending Drivers entries with the real index links, link each ADR's Addresses and quality consequences to the resulting records, update this index, and have the Accountable reviewer confirm the records before marking them Accepted.
+That implementation review is evidence for the existing choices, not a review of these ADR texts or a new Customer acceptance.
+The records now address the requirements merged in [PR #101](https://github.com/iteam7/gateway7/pull/101); their quality consequences explain the design's support and limits without claiming that every response measure has been verified.
+The document changes still go through the Accountable review of [PR #99](https://github.com/iteam7/gateway7/pull/99).
 The [ADR template](adr/TEMPLATE.md) provides the unfilled shape for later decisions.

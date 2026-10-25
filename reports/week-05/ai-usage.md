@@ -10,12 +10,23 @@ The review required explicit process cleanup when SIGTERM arrives during startup
 The Compose smoke was strengthened to verify phone/email masking, response redaction, provider-call counts and the Grafana datasource query path.
 The AI review does not supply the required approval from another team member or a Customer verdict.
 
+For [task #91](https://github.com/iteam7/gateway7/issues/91) on 25 October 2026, Claude Code (Claude Opus 5.5) drafted the four quality requirements, their priority matrix and ten functional requirements at DeniBorsh's request.
+It took each behavior from the documentation and tests already on `main`, checked the error codes and statuses against `gateway7/errors.py`, and used the container names `gateway`, `prometheus` and `grafana` from the architecture proposal in [task #92](https://github.com/iteam7/gateway7/issues/92).
+The priorities are the drafter's proposal for the Accountable reviewer; no Customer ranking, measured performance result or new requirement origin is claimed.
+
 Later on 25 October, azamatbayramov selected the compatible inbound API, gateway client tokens with model access, middleware generation and offline fixture testing as the next implementation work.
 Codex extended the same task and pull request, preserving the earlier pilot and its verification evidence.
 The extension adds SDK-facing protocol checks, authentication/authorization boundaries and the generated-plugin workflow to the review scope.
 Review kept authorized model selection outside plugin-visible payloads and preserved provider usage/finish metadata, rejected undeclared plugin fields and unsupported API options, and disabled implicit trailing-slash redirects.
 The generated-package installation check uses the reviewed Gateway7 wheel and installs the plugin with `--no-deps`, so it cannot substitute an unrelated package resolution for the reviewed runtime.
 The review also required interrupted offline checks to return a failure after cleaning up their worker, instead of being treated as an orderly successful server shutdown.
+
+On 25 October, for [task #93](https://github.com/iteam7/gateway7/issues/93), Claude Code drafted `docs/glossary.md` and rewrote the root `AGENTS.md` with layout, checks, conventions and do-not-edit sections while keeping the team's agent roles and PRE/POST workflow.
+Its Formater agent checked the draft against the course glossary and agent-instruction requirements, compared every path and command in `AGENTS.md` with the repository and the CI workflows, and traced each glossary definition to the linked artifact and the gateway code.
+
+On 25 October, for [task #96](https://github.com/iteam7/gateway7/issues/96), Claude Code drafted the [next Customer Review script](meeting-script.md) and extended the [demo evidence matrix](../../docs/demo.md#acceptance-checklist) to US-01–US-09.
+It mapped each acceptance criterion to the existing demo runner, tests and smoke scripts by name, and marked criteria without an exact check as needing a dry-run instead of treating related tests as evidence.
+It did not run the demonstration; the Accountable reviewer's dry-run, the meeting date and the role assignments remain with the team.
 
 ## Handling and checks
 
@@ -32,15 +43,18 @@ The check exposed inherited proxy settings affecting local SDK requests; the exa
 The final results for the compatible API, access control and developer workflow extension are recorded in the same pull request.
 No live-provider call, Customer acceptance, story closure, release or deployment to a shared environment is claimed.
 
+For [task #97](https://github.com/iteam7/gateway7/issues/97) on 25 October 2026, Claude Code (Claude Opus 5.5) asked DeniBorsh closed questions about `SPRINT-04` and wrote the retrospective from his answers and the repository's record.
+It declined to write a retrospective for a discussion that had not happened; every row, the 25 October chat discussion and each action owner come from DeniBorsh's answers.
+
 ## Team evaluation
 
-TODO: Team members must record what they accepted, changed or rejected after reviewing the providers, middleware, CLI, deployment/observability, compatible API, access control and plugin-authoring workflow.
+TODO: Team members must record what they accepted, changed or rejected after reviewing the providers, middleware, CLI, deployment/observability, compatible API, access control and plugin-authoring workflow, and after reviewing the glossary and `AGENTS.md` for task #93 and the review script and evidence matrix for task #96.
 
 ## Deviations to carry into the weekly report
 
 - The user explicitly requested the provider, middleware, CLI, deployment and observability work in one MR; task #89 and PR #90 therefore cover the whole pilot and retain the earlier middleware migration.
 - Task #89 was originally created through the GitHub API. Its Task type, human Responsible/Accountable pair, matching assignees, milestone and Priority remain for the team to set; no role or schedule was inferred.
-- The existing `main` has no `FR-nnn` or `ADR-nnn` records for this work. The task retains this missing specification trace as a declared gap, rather than inventing accepted course requirements.
+- At the source check for task #89, `main` had no `FR-nnn` or `ADR-nnn` records for this work. The task retained this missing specification trace as a declared gap rather than inventing accepted course requirements; the later task #92 work below records the requirements integration.
 - At the source check on 25 October, Assignment 4 was the latest published assignment. This file records the implementation assistance only and does not claim completion of the Week 5 report or any unpublished assignment.
 
 ## Architecture documentation for task #92
@@ -52,8 +66,8 @@ The work adds the product-vision backlink and documentation navigation without c
 
 The review kept the three deployed applications distinct from Python modules, described the synthetic upstream as a demo-only child process, and retained the existing incoming report anchors and dated team clarification.
 The ADRs compare options against the implemented system without inventing a historical options meeting.
-They remain Proposed: [task #91](https://github.com/iteam7/gateway7/issues/91) has not supplied the required FR/QR records, so the Drivers and ADR fields identify that dependency instead of linking nonexistent specifications.
-The missing requirement mapping and human acceptance leave task #92 AC-03 and part of AC-04 unfinished.
+In the initial draft, they remained Proposed because [task #91](https://github.com/iteam7/gateway7/issues/91) had not yet supplied the required FR/QR records; the Drivers and ADR fields identified that dependency instead of linking nonexistent specifications.
+At that point, the missing requirement mapping and human acceptance left task #92 AC-03 and part of AC-04 unfinished.
 No Week 4 meeting, Customer verdict or team acceptance of the new ADR text is claimed.
 
 The committed SVG matched its generator, and regeneration was byte-identical when invoked outside the repository.
@@ -61,9 +75,26 @@ The image was visually inspected; XML parsing, Python compilation and Ruff check
 Markdown lint passed all 56 files; strict MkDocs and the site checker passed 27 maintained pages and 2076 links/assets, including local anchors and report exclusion.
 Formater checked the diff and the real remote base before publication; external link checking and the other PR workflow results belong to the pull request evidence.
 The source checkout and the remote-only binary report artifacts are preserved; the local snapshot history is not pushed.
-The pull request is a draft referring to #92, with no closing keyword while its dependency and acceptance criteria remain incomplete.
+The initial pull request was a draft referring to #92, with no closing keyword while its dependency and acceptance criteria were incomplete.
 
-### Team evaluation for the architecture draft
+### Completion after the requirements merged
 
-TODO: Team members must record what they accepted, changed or rejected after reviewing the architecture, diagram and ADR drafts.
+Later on 25 October, after the requirements and glossary pull requests reached `main`, azamatbayramov asked Codex to finish task #92 in the existing [PR #99](https://github.com/iteam7/gateway7/pull/99).
+Formater verified the remote heads, imported the reviewed main snapshot and preserved the other contributors' documentation and AI-report entries during the merge.
+The TechLead connected the four Drivers holders, replaced the pending ADR fields with real FR/QR links, checked each consequence against its quality scenario and added only ADR backlinks to the eight affected FR records.
+The requirement behaviors, acceptance criteria and priorities were not changed.
+The navigation keeps both the new requirements/glossary pages and the architecture pages, and the documentation index links the new artifacts.
+
+The records now describe Accepted choices already in force through [PR #90](https://github.com/iteam7/gateway7/pull/90), whose final implementation [DeniBorsh approved](https://github.com/iteam7/gateway7/pull/90#pullrequestreview-5643522171) before merging it.
+The course defines Accepted as the choice in force; this retrospective record does not claim that the earlier implementation review approved the later ADR wording.
+The ADRs keep explicit limits for trusted in-process plugins, the public synthetic demo token, local monitoring access, Windows repetition and the quality scenarios' separate response measures.
+Linking a QR does not establish that its measured checks passed, and no new live-provider run or Customer acceptance was supplied by this documentation work.
+
+Markdown lint passed all 75 files; strict MkDocs and the site checker passed 44 maintained pages and 4133 links/assets, including local anchors and report exclusion.
+The updated pull request records the new-head workflow results separately from the initial draft's checks.
+The remaining human step is the Accountable member's review of these records and verification of task #92's acceptance criteria; the AI leaves the issue checkboxes and team assessment unchanged.
+
+### Team evaluation for the architecture work
+
+TODO: Team members must record what they accepted, changed or rejected after reviewing the architecture, diagram and ADR records.
 The AI review and automated checks do not replace that assessment or the Accountable member's approval.

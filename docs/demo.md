@@ -57,19 +57,41 @@ The automated runner additionally checks its disposable file changes so normal r
 
 These are implementation checks, not prewritten customer acceptance.
 Dated evidence and outstanding submission work are recorded in the repository's `reports/week-03/README.md`.
+The matrix was compiled from `main` on 25 October 2026 for the next Customer Review.
+"Automated (mock)" means a synthetic fake upstream or HTTP transport in `demo/run.py`, `tests/`, `scripts/smoke_compose.py` or `scripts/smoke_authoring.py`; it never stands for a live provider call or a Customer verdict.
+"No exact check found" means the repository has related checks but none with the criterion's exact fixture; the dry-run must produce the observation before the criterion is shown as met.
+"Known gap" means the current code or documentation contradicts the criterion, so it cannot be shown as met until the code or the criterion changes.
+No story has a recorded Customer verdict: US-03, US-06 and US-09 were closed on GitHub without a verdict comment or `DEC-nnn`.
 
-| Story / criterion | Demonstration or automated evidence | Remaining gate |
-| --- | --- | --- |
-| [US-01](https://github.com/iteam7/gateway7/issues/30) / AC-01 | README request has no provider key and receives the fake answer over HTTP | Human review and Customer verdict |
-| US-01 / AC-02 | Fake upstream rejects wrong/missing keys and accepts the configured synthetic key | Human review and Customer verdict |
-| US-01 / AC-03–04 | Missing key prevents readiness; client responses and captured gateway output omit the synthetic key | Human review and Customer verdict |
-| US-01 / AC-05 | Claude/Gemini adapters prepared and checked offline | **Pending actual keyed Claude/Gemini HTTP 200 response containing `pong`** |
-| [US-02](https://github.com/iteam7/gateway7/issues/31) / AC-01 | Exact three-format synthetic fixture becomes three `[PHONE]` tokens | Customer verdict; production format policy remains open |
-| US-02 / AC-02 | First message of a three-message conversation is masked | Customer verdict |
-| US-02 / AC-03 | Order/date fixture reaches the recorder unchanged | Customer verdict |
-| [US-03](https://github.com/iteam7/gateway7/issues/32) / AC-01 | File/configuration-only installation, restart and sample marker | Human inspection of exact two-path status and Customer verdict |
-| US-03 / AC-02 | Named missing module fails startup, including a disabled declaration | Customer verdict |
-| US-03 / AC-03 | Two sample instances preserve configured A-before-B request order | Customer verdict |
+| Story / criterion | Demonstration and expected observation | Evidence on `main` | Still needed |
+| --- | --- | --- | --- |
+| [US-01](https://github.com/iteam7/gateway7/issues/30) / AC-01 | `python -m demo.run`: a request without a provider key receives `pong — deterministic upstream` with HTTP 200 | Automated (mock): `demo/run.py` sends `Reply with the word pong`, not the README request | Dry-run of the README `curl` request; Customer verdict |
+| US-01 / AC-02 | Same run: the fake upstream accepts the configured synthetic key and rejects wrong or missing keys | Automated (mock): `demo/run.py` | Customer verdict |
+| US-01 / AC-03 | Same run: startup without a key exits and names the missing setting | Automated (mock): `demo/run.py` | Customer verdict |
+| US-01 / AC-04 | Same run: client responses and captured logs contain no key | Automated (mock): `demo/run.py` | Customer verdict |
+| US-01 / AC-05 | [Real provider setup](setup.md#real-providers), then `gateway7 chat --message 'Reply with the word pong'`: HTTP 200 with `pong` | Adapters checked only against synthetic HTTP transports in `tests/test_providers.py` | **Live run with an authorized Claude or Gemini key, then Customer verdict** |
+| [US-02](https://github.com/iteam7/gateway7/issues/31) / AC-01 | `python -m demo.run`: the three phone formats arrive upstream as three `[PHONE]` tokens | Automated (mock): `demo/run.py` | Customer verdict; production format policy remains open |
+| US-02 / AC-02 | Same run: the first message of a three-message conversation is masked | Automated (mock): `demo/run.py` | Customer verdict |
+| US-02 / AC-03 | Same run: `Order ORDER-2026-1001 shipped on 2026-10-08` arrives unchanged | Automated (mock): `demo/run.py` | Customer verdict |
+| [US-03](https://github.com/iteam7/gateway7/issues/32) / AC-01 | Same run plus `git status --short`: after restart the message ends with `[checked-by-sample]`; only the plugin file and configuration changed | Automated (mock): `demo/run.py` | Human inspection of the two-path status and Customer verdict |
+| US-03 / AC-02 | Same run: a listed missing plugin stops startup and is named | Automated (mock): `demo/run.py` | Customer verdict |
+| US-03 / AC-03 | Same run: two instances produce A's marker before B's upstream | Automated (mock): `demo/run.py` | Customer verdict |
+| [US-04](https://github.com/iteam7/gateway7/issues/33) / AC-01 | [Interactive pilot](#interactive-pilot-and-monitoring): `BLOCK-ME-TEST` returns HTTP 403 and the provider receives no call | Automated (mock) for HTTP 403 and zero provider calls: `tests/test_reference_middleware.py`, `scripts/smoke_compose.py`; **known gap**: the client error is always `Request denied by policy` and never names the plugin | Code change or Customer decision on the criterion; Customer verdict |
+| US-04 / AC-02 | Policy configured with `action: log`: the message arrives unchanged; one log entry names the plugin and action without the text | Related automated (mock): `tests/test_reference_middleware.py` uses a different term; no exact check found | Dry-run with the exact fixture; Customer verdict |
+| US-04 / AC-03 | Configuration with `action: explode`: startup exits naming the plugin and `explode` | **Known gap**: startup fails with `Invalid settings for plugin instance <name>` and, by design, never echoes `explode`; `tests/test_reference_middleware.py` checks that text | Code change or Customer decision on the criterion; Customer verdict |
+| [US-05](https://github.com/iteam7/gateway7/issues/34) / AC-01 | Upstream answer `The code is SECRET-TEST` reaches the client as `The code is [removed]` | Related automated (mock): `tests/test_reference_middleware.py`, `scripts/smoke_compose.py`; no exact check found | Dry-run with the exact fixture; Customer verdict |
+| US-05 / AC-02 | Upstream answer `Nothing to remove` reaches the client unchanged | Related automated (mock): `tests/test_reference_middleware.py`; no exact check found | Dry-run with the exact fixture; Customer verdict |
+| [US-06](https://github.com/iteam7/gateway7/issues/35) / AC-01 | `python -m demo.run`: a raising plugin returns an error naming it, with zero upstream calls | Automated (mock) for the error and zero upstream calls: `demo/run.py`; **known gap**: the client error is always `Plugin processing failed`, and the plugin is named only in the log trace | Code change or Customer decision on the criterion; Customer verdict |
+| US-06 / AC-02 | Same run: a slow plugin returns a time-limit error with zero upstream calls | Automated (mock) with the demo's own limits; no exact check found for 1 s limit, 3 s plugin and a 2 s bound | Dry-run with the criterion's timings; Customer verdict |
+| US-06 / AC-03 | Same run: each failure trace names the plugin and request ID without the message text | Partial: `demo/run.py` prints the trace without asserting it; related checks in `tests/test_core.py` | Dry-run inspection of the log; Customer verdict |
+| US-06 / AC-04 | A 0.5 s plugin under a 1 s limit: the request is forwarded and answered with HTTP 200 | No exact check found | Dry-run with the criterion's timings; Customer verdict |
+| [US-07](https://github.com/iteam7/gateway7/issues/36) / AC-01 | Client token allowed `model-a`: `model-a` is answered; `model-b` gets HTTP 403 with no upstream request | Automated (mock): `tests/test_access.py` | Customer verdict |
+| US-07 / AC-02 | Missing and unregistered tokens each get HTTP 401 with no upstream request | Automated (mock): `tests/test_access.py` | Customer verdict |
+| [US-08](https://github.com/iteam7/gateway7/issues/37) / AC-01 | [`gateway7 plugin test`](authoring.md) offline: both fixtures listed with expected and actual text, passed, exit 0 | Automated (mock) for a generated plugin: `tests/test_tooling.py`, `scripts/smoke_authoring.py`; no exact check found for the phone-number plugin | Dry-run with the phone-number plugin; Customer verdict |
+| US-08 / AC-02 | A mismatching fixture is marked failed with expected and actual text, nonzero exit | Automated (mock): `tests/test_tooling.py` | Customer verdict |
+| [US-09](https://github.com/iteam7/gateway7/issues/38) / AC-01 | Example plugin copied from the instructions: after restart the message ends with `[example-plugin]` | **Known gap**: neither [the authoring guide](authoring.md) nor `examples/` contains a plugin that appends `[example-plugin]` | Add the example to the instructions; Customer verdict |
+| US-09 / AC-02 | A copy missing a required entry point stops startup with the error the instructions give | No exact check found | Dry-run; Customer verdict |
+| US-09 / AC-03 | A non-author asks Claude Code or Codex for an e-mail-masking plugin; it loads after one restart and `user@example.com` does not reach upstream | None: needs a recorded run by a team member who did not write the instructions | Non-author run; Customer verdict |
 
 ## What this prototype establishes
 
