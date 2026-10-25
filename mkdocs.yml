@@ -35,6 +35,7 @@ nav:
       - Decisions: decisions.md
       - Assumptions: assumptions.md
       - Definition of Done: definition-of-done.md
+      - Glossary: glossary.md
   - Research:
       - Alternatives: research/alternatives.md
       - Comparison: research/comparison.md
