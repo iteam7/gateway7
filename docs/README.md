@@ -22,6 +22,7 @@ The complete MUP still needs a verified real-provider response and customer verd
 - [Decisions](decisions.md)
 - [Assumptions](assumptions.md)
 - [Definition of Done](definition-of-done.md)
+- [Glossary](glossary.md)
 - [System context diagram source](architecture/context.mmd)
 - Research: [alternatives](research/alternatives.md), [comparison](research/comparison.md), [gap analysis](research/gap-analysis.md), and [value proposition](research/value-proposition.md)
 

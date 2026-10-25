@@ -19,6 +19,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Synthetic demonstration of phone masking, a policy guard and response transformation together, plus request-side error/timeout and response-side failure cases.
 - Project plan for SPRINT-03 to SPRINT-09, with the first release and weekly progress monitoring.
 - Week 3 customer meeting report and decisions reconstructed from the privately supplied transcript, with unresolved story verdicts and Week 4 follow-ups.
+- Project glossary of request-flow, plugin and demonstration terms, linked from the documentation site.
 
 ### Changed
 
@@ -26,6 +27,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Middleware time budgets cover their own preprocessing and postprocessing, excluding downstream waits, while the complete request remains under one deadline.
 - Week 3 report links the published documentation, release, merged work and current checks, and identifies the remaining validation and scheduling gaps.
 - Assignment 3 follow-up clarifies setup, release and submission steps, plugin timeout limits, and the remaining evidence needed to assess the success threshold.
+- Agent instructions in `AGENTS.md` describe the repository layout, checks, conventions and files agents must not edit.
 
 ## [0.1.0] - 2026-10-18
 
