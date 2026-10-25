@@ -10,6 +10,10 @@ The review required explicit process cleanup when SIGTERM arrives during startup
 The Compose smoke was strengthened to verify phone/email masking, response redaction, provider-call counts and the Grafana datasource query path.
 The AI review does not supply the required approval from another team member or a Customer verdict.
 
+For [task #91](https://github.com/iteam7/gateway7/issues/91) on 25 October 2026, Claude Code (Claude Opus 5.5) drafted the four quality requirements, their priority matrix and ten functional requirements at DeniBorsh's request.
+It took each behavior from the documentation and tests already on `main`, checked the error codes and statuses against `gateway7/errors.py`, and used the container names `gateway`, `prometheus` and `grafana` from the architecture proposal in [task #92](https://github.com/iteam7/gateway7/issues/92).
+The priorities are the drafter's proposal for the Accountable reviewer; no Customer ranking, measured performance result or new requirement origin is claimed.
+
 Later on 25 October, azamatbayramov selected the compatible inbound API, gateway client tokens with model access, middleware generation and offline fixture testing as the next implementation work.
 Codex extended the same task and pull request, preserving the earlier pilot and its verification evidence.
 The extension adds SDK-facing protocol checks, authentication/authorization boundaries and the generated-plugin workflow to the review scope.
