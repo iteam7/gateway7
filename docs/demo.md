@@ -5,6 +5,23 @@ It includes three distinct middleware types, reverse response order and inspecta
 It follows [DEC-009](decisions.md#dec-009) and [DEC-011](decisions.md#dec-011); the actual model call in US-01 / AC-05 remains pending.
 The [architecture customer view](architecture/README.md#customer-view) is the opening slide, and [setup](setup.md) contains the installation and manual curl commands.
 
+## Interactive pilot and monitoring
+
+Start `uv run --locked gateway7 demo`, or `docker compose up --build --detach --wait` for the complete monitoring stack.
+Send these public synthetic fixtures through the CLI:
+
+```sh
+uv run --locked gateway7 chat --message 'Contact synthetic@example.com or +7 999 123-45-67; SECRET-TEST'
+uv run --locked gateway7 chat --message 'BLOCK-ME-TEST'
+```
+
+The first answer contains `[EMAIL]`, `[PHONE]` and `[removed]`; the second returns a nonzero CLI exit with HTTP 403 and makes no provider call.
+With Compose, show `http://127.0.0.1:3000/d/gateway7-overview` after several scrapes and relate HTTP outcomes, provider calls and middleware timings.
+`python scripts/smoke_compose.py` verifies these behaviors and the monitoring connections automatically.
+This interactive fixture echoes transformed input and retains no conversation history.
+The original regression walkthrough below uses a separate synthetic recording fixture to verify the exact upstream boundary.
+For an actual model, follow [real provider setup](setup.md#real-providers); do not describe a synthetic run as AC-05 evidence.
+
 ## Rehearsal and live demonstration
 
 After `uv sync --locked`, run this from the repository root before the call:
@@ -43,7 +60,7 @@ Dated evidence and outstanding submission work are recorded in the repository's 
 | [US-01](https://github.com/iteam7/gateway7/issues/30) / AC-01 | README request has no provider key and receives the fake answer over HTTP | Human review and Customer verdict |
 | US-01 / AC-02 | Fake upstream rejects wrong/missing keys and accepts the configured synthetic key | Human review and Customer verdict |
 | US-01 / AC-03–04 | Missing key prevents readiness; client responses and captured gateway output omit the synthetic key | Human review and Customer verdict |
-| US-01 / AC-05 | Claude adapter prepared and checked offline | **Pending actual keyed Claude/Gemini HTTP 200 response containing `pong`** |
+| US-01 / AC-05 | Claude/Gemini adapters prepared and checked offline | **Pending actual keyed Claude/Gemini HTTP 200 response containing `pong`** |
 | [US-02](https://github.com/iteam7/gateway7/issues/31) / AC-01 | Exact three-format synthetic fixture becomes three `[PHONE]` tokens | Customer verdict; production format policy remains open |
 | US-02 / AC-02 | First message of a three-message conversation is masked | Customer verdict |
 | US-02 / AC-03 | Order/date fixture reaches the recorder unchanged | Customer verdict |

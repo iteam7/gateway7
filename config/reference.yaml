@@ -1,0 +1,37 @@
+# Synthetic reference policy suite. Change provider settings for a real service.
+provider:
+  kind: fake
+  base_url: http://127.0.0.1:8001
+  key_env: FAKE_LLM_API_KEY
+  model: fake
+limits:
+  request_timeout_seconds: 30
+  hook_timeout_seconds: 2
+  max_body_bytes: 65536
+plugins:
+  guard:
+    module: gateway7.plugins.content_policy
+    required: true
+    settings:
+      terms: [BLOCK-ME-TEST]
+      phase: request
+      action: block
+  phone:
+    module: gateway7.plugins.phone_mask
+    required: true
+    settings:
+      phase: both
+  email:
+    module: gateway7.plugins.email_mask
+    required: true
+    settings:
+      phase: both
+  redact:
+    module: gateway7.plugins.content_policy
+    required: true
+    settings:
+      terms: [SECRET-TEST]
+      phase: response
+      action: redact
+      replacement: "[removed]"
+middleware: [guard, phone, email, redact]

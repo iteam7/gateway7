@@ -1,0 +1,11 @@
+# Select a server-owned configuration and inject only environment values.
+# The fake upstream is not started in this mode.
+services:
+  gateway:
+    command: ["serve", "--config", "/etc/gateway7/gateway.yaml", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    volumes:
+      - ${GATEWAY_CONFIG_FILE:-./config/claude.yaml}:/etc/gateway7/gateway.yaml:ro

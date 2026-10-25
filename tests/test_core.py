@@ -17,7 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from gateway7.app import create_app
 from gateway7.config import GatewayConfig, LimitsConfig, load_config, provider_key
 from gateway7.errors import GatewayError, StartupError
-from gateway7.loader import load_plugins, start_plugins, stop_plugins
+from gateway7.loader import load_plugins, start_plugins
 from gateway7.models import ChatRequest, ChatResponse, Message
 from gateway7.pipeline import Pipeline
 from gateway7.plugin_api import API_VERSION, Deny, PluginDescriptor

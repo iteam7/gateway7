@@ -46,7 +46,9 @@ def _hook(instance: object, name: str, instance_name: str) -> AsyncHook | None:
         arguments = (None, None, None) if name == "handle" else ()
         inspect.signature(value).bind(*arguments)
     except Exception:
-        raise StartupError(f"Plugin instance {instance_name} has invalid async hook {name}") from None
+        raise StartupError(
+            f"Plugin instance {instance_name} has invalid async hook {name}"
+        ) from None
     return value
 
 

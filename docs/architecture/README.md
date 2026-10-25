@@ -1,10 +1,10 @@
 # Gateway7 architecture
 
-**Status:** Python middleware prototype for review, updated 2026-10-22; deterministic checks do not establish Customer acceptance or the complete MUP.
+**Status:** Python middleware pilot candidate for review, updated 2026-10-25; deterministic checks do not establish Customer acceptance or live-provider verification.
 
 Gateway7 runs as one service: the core orchestrates company plugins and a single configured provider adapter.
 Plugins now use the async middleware contract in [DEC-016](../decisions.md#dec-016): a single list is nested around the provider, and response work unwinds in reverse order.
-The [product vision](../product-vision.md), [DEC-009](../decisions.md#dec-009)–[DEC-012](../decisions.md#dec-012) require a demonstrable plugin boundary, permit restart-based installation and a deterministic first demo, and retain US-01–03 as the candidate.
+The [product vision](../product-vision.md), [DEC-009](../decisions.md#dec-009)–[DEC-012](../decisions.md#dec-012) require a demonstrable plugin boundary and permit restart-based installation and a deterministic first demo.
 [DEC-013](../decisions.md#dec-013) selects Python; [setup](../setup.md), the [customer demo](../demo.md) and the [plugin guide](../plugins.md) describe the runnable implementation.
 No story criteria change.
 
@@ -36,6 +36,34 @@ flowchart TB
 One process avoids separate plugin services and a database, but shares resources and failures.
 Plugins depend on the contract in `gateway7/models.py` and `gateway7/plugin_api.py`, not HTTP handlers or provider SDKs; installation changes a module and configuration, not the core.
 
+## Running and observing the pilot
+
+The installed CLI is the common entry point for local development and the container.
+`serve` starts a configured gateway, `validate` checks configuration and installed middleware without contacting a provider, and `chat` sends a text request to a running gateway.
+`demo` supplies a synthetic loopback provider and a reference policy chain, so a clean installation can be exercised without a real API key.
+The demo provider is not an alternative production backend; it is a deterministic fixture.
+
+Docker Compose adds two optional operational responsibilities to the gateway: Prometheus scrapes numeric telemetry and Grafana reads those series through a provisioned data source and dashboard.
+The gateway remains the only application service in the request path.
+
+```mermaid
+flowchart TB
+    client["Client or CLI"] --> gateway["Gateway7"]
+    gateway --> provider["One configured provider"]
+    prometheus["Prometheus"] -->|"scrape /metrics"| gateway
+    grafana["Grafana"] -->|"query metrics"| prometheus
+    operator["Operator"] --> grafana
+```
+
+The no-key Compose configuration uses the synthetic provider on loopback inside the gateway container.
+A real-provider configuration selects OpenAI, Claude or Gemini at startup; keys come from the server environment, and origins are restricted to the corresponding official endpoint.
+There is no per-request provider selection, fallback or automatic retry.
+The provider adapters use HTTP directly, so normalization and key handling can be tested against controlled transports without a provider SDK or paid request.
+
+`/health` describes process liveness, while `/ready` describes completion of configuration, plugin and adapter initialization; readiness performs no paid upstream probe.
+The [setup guide](../setup.md) documents local and Compose commands, and [observability](../observability.md) defines metrics, dashboard panels and their limitations.
+Published Compose ports bind to loopback; exposing the gateway beyond a trusted local environment requires the caller-authentication work tracked in US-07.
+
 ## Customer view
 
 The request flows down the left to the provider; the response returns up the right to the same Client.
@@ -62,7 +90,9 @@ flowchart TB
 5. Return the allowed response or core-owned safe error with its request ID while connected. Record a safe outcome and release request-owned state on every exit, including disconnect, once in-flight work unwinds.
 
 The core snapshots validated provider usage before middleware unwinding and preserves it in the successful response; plugin edits cannot replace it.
-Absent/invalid usage means **unknown, not zero**; failed/cancelled calls do not imply zero usage. Denied/cancelled calls create no durable usage record; this is request metadata, not billing.
+Absent/invalid usage means **unknown, not zero**; failed/cancelled calls do not imply zero usage.
+Metrics record known provider usage before response middleware runs, including when a later policy blocks delivery; an unknown-usage counter records attempts with unavailable counts, including failed and cancelled attempts.
+Prometheus counters are operational observations, not a durable per-request usage ledger or billing record.
 
 ## Data and plugin contract
 
@@ -78,7 +108,7 @@ For `[A, B, C]`, the request enters A, B, C and the answer returns C, B, A; an e
 The next handler accepts a validated request, is usable once in the same task during the invocation, and cannot escape the middleware's lifetime.
 The retained `hook_timeout_seconds` is a cumulative own-work budget, paused while awaiting the next handler; the overall deadline includes downstream and provider waiting.
 Shared instances keep immutable configuration/concurrency-safe resources; mutable request state belongs in the context.
-The [plugin guide](../plugins.md#descriptor-and-hooks) defines descriptors, settings and lifecycle methods; [setup](../setup.md#supported-http-contract) defines the wire schema and limits.
+The [plugin guide](../plugins.md#descriptor-and-hooks) defines descriptors, settings and lifecycle methods; [setup](../setup.md#configuration-and-http-contract) defines the wire schema and limits.
 
 ## Loading, trust and limits
 
@@ -93,6 +123,8 @@ Async cancellation/deadline checks stop later stages and discard late results.
 The runner checks the timer's expired state as well as monotonic deadlines, addressing the early-timer mechanism in [task #84](https://github.com/iteam7/gateway7/issues/84). That task's repeated Windows run remains required; Linux regression checks do not establish cross-platform verification.
 Blocking/uncooperative plugins cannot be forcibly stopped and can delay responsiveness or cleanup; cancelling a provider call does not prove it stopped upstream.
 Logs contain only request ID, outcome, safe component/reason codes and durations, excluding content, keys, headers, plugin state and raw errors; fixture capture is synthetic-only.
+Metrics use bounded routes, status codes, configured middleware names, provider kinds, phases and outcomes.
+Request IDs, prompts, answers, keys and user-controlled URL paths are not metric labels.
 No original-text restoration/storage, hot loading, streaming, retries/failover, persistent conversations, billing or user-supplied keys; discarding state does not promise secure memory erasure.
 
 ## Traceability and first implementation slice
@@ -100,13 +132,14 @@ No original-text restoration/storage, hot loading, streaming, retries/failover, 
 | Source | Implementation and evidence boundary |
 | --- | --- |
 | [US-01](https://github.com/iteam7/gateway7/issues/30), AC-01–04; CON-04 | Separate HTTP fake-upstream answer/key checks, missing-key startup failure and safe logs/client errors |
-| US-01, AC-05; [DEC-011](../decisions.md#dec-011) | Claude Messages adapter has offline tests; actual keyed `pong` remains pending |
+| US-01, AC-05; [DEC-011](../decisions.md#dec-011) | OpenAI, Claude and Gemini adapters have offline protocol tests; actual keyed `pong` remains pending |
 | [US-02](https://github.com/iteam7/gateway7/issues/31), AC-01–03; [VP-01](../research/value-proposition.md#vp-01-predictable-local-preflight-for-small-teams) | Exact phone fixtures, history and unchanged order/date text checked |
 | [US-03](https://github.com/iteam7/gateway7/issues/32), AC-01–03; [VP-02](../research/value-proposition.md#vp-02-testable-domain-filter-extensions); DEC-009–010 | Module/config-only installation with restart, missing-module failure and A/B order checked |
 
 Tests also cover fail-closed exits, invalid results, reverse response order, next-handler misuse and isolated state.
-The response marker demonstrates the interface; US-03 covers request plugins, and no production output policy or separate response-story acceptance is claimed.
-Authentication, routing and durable usage accounting remain extension points, outside this slice.
+The [middleware catalog](../middleware-catalog.md) describes reference phone/email masking and literal block, log and redaction policies with request/history/response fixtures.
+These deterministic detectors have documented coverage limits; their presence does not establish Customer acceptance of US-04–06 or general personal-data detection.
+Caller authentication, dynamic routing and durable usage accounting remain outside this slice.
 
 ## Review questions and Week 2 follow-up
 

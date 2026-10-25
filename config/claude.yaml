@@ -1,17 +1,39 @@
-# Text-only adapter. Real-provider acceptance still requires a live authorized run.
+# Set ANTHROPIC_API_KEY in the server environment; never put credentials here.
+# Model availability depends on the provider account. Change this explicit ID
+# to an available text model; the gateway does not discover or switch models.
 provider:
   kind: claude
-  base_url: https://api.anthropic.com
   key_env: ANTHROPIC_API_KEY
-  model: claude-haiku-4-5
+  model: claude-haiku-5-5
+  timeout_seconds: 30
 limits:
-  request_timeout_seconds: 30
+  request_timeout_seconds: 60
   hook_timeout_seconds: 2
   max_body_bytes: 65536
 plugins:
-  mask:
-    module: gateway7.plugins.phone_mask
-    enabled: true
+  guard:
+    module: gateway7.plugins.content_policy
     required: true
-    settings: {}
-middleware: [mask]
+    settings:
+      terms: [BLOCK-ME-TEST]
+      phase: request
+      action: block
+  phone:
+    module: gateway7.plugins.phone_mask
+    required: true
+    settings:
+      phase: both
+  email:
+    module: gateway7.plugins.email_mask
+    required: true
+    settings:
+      phase: both
+  redact:
+    module: gateway7.plugins.content_policy
+    required: true
+    settings:
+      terms: [SECRET-TEST]
+      phase: response
+      action: redact
+      replacement: "[removed]"
+middleware: [guard, phone, email, redact]

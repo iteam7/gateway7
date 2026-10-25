@@ -11,13 +11,15 @@ from uuid import uuid4
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from starlette.responses import JSONResponse, Response
 from starlette.types import ASGIApp, Message as ASGIMessage, Receive, Scope, Send
 
-from gateway7.config import load_config, provider_key
+from gateway7.config import GatewayConfig, load_config, provider_key
 from gateway7.errors import GatewayError, StartupError
 from gateway7.loader import load_plugins, start_plugins, stop_plugins
 from gateway7.models import ChatRequest
+from gateway7.metrics import Metrics
 from gateway7.pipeline import Pipeline
 from gateway7.providers import build_provider
 
@@ -45,6 +47,14 @@ class GatewayBoundaryMiddleware:
         scope.setdefault("state", {})["request_id"] = request_id
         response_started = False
         status_code = 500
+        metrics = self.owner.state.metrics
+        route = {
+            "/chat": "chat",
+            "/health": "health",
+            "/ready": "ready",
+            "/metrics": "metrics",
+        }.get(scope.get("path", ""), "other")
+        metrics.http_in_flight.inc()
 
         async def safe_send(message: ASGIMessage) -> None:
             nonlocal response_started, status_code
@@ -53,7 +63,10 @@ class GatewayBoundaryMiddleware:
                 status_code = message["status"]
                 message = {
                     **message,
-                    "headers": [*message.get("headers", []), (b"x-request-id", request_id.encode())],
+                    "headers": [
+                        *message.get("headers", []),
+                        (b"x-request-id", request_id.encode()),
+                    ],
                 }
             await send(message)
 
@@ -61,6 +74,9 @@ class GatewayBoundaryMiddleware:
             await _error_response(code, request_id)(scope, receive, safe_send)
 
         try:
+            if scope.get("method") == "GET" and route in ("health", "ready", "metrics"):
+                await self.app(scope, receive, safe_send)
+                return
             if not getattr(self.owner.state, "ready", False):
                 await fail("unavailable")
                 return
@@ -118,6 +134,9 @@ class GatewayBoundaryMiddleware:
             if not response_started:
                 await fail("internal_error")
         finally:
+            metrics.http_in_flight.dec()
+            metrics.http_requests.labels(route, str(status_code)).inc()
+            metrics.http_duration.labels(route).observe(max(0, time.monotonic() - started))
             logger.info(
                 "request_id=%s outcome=http_%d component=http duration_ms=%.3f",
                 request_id,
@@ -154,40 +173,57 @@ async def _run_connected(request: Request, payload: ChatRequest) -> Any:
         await asyncio.gather(job, disconnected, return_exceptions=True)
 
 
-def create_app(config_path: str | Path | None = None) -> FastAPI:
-    path = config_path if config_path is not None else os.environ.get("GATEWAY_CONFIG", "config/demo.yaml")
+def create_app(
+    config_path: str | Path | None = None,
+    *,
+    config: GatewayConfig | None = None,
+) -> FastAPI:
+    path = (
+        config_path
+        if config_path is not None
+        else os.environ.get("GATEWAY_CONFIG", "config/demo.yaml")
+    )
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         app.state.ready = False
-        config = load_config(path)
-        key = provider_key(config.provider)
-        plugins = load_plugins(config)
+        active_config = config if config is not None else load_config(path)
+        key = provider_key(active_config.provider)
+        plugins = load_plugins(active_config)
         try:
-            provider = build_provider(config.provider, key)
+            provider = build_provider(active_config.provider, key)
         except Exception:
             raise StartupError("Provider initialization failed") from None
         started = False
         try:
-            await start_plugins(plugins, config.limits.hook_timeout_seconds)
+            await start_plugins(plugins, active_config.limits.hook_timeout_seconds)
             started = True
-            app.state.config = config
-            app.state.pipeline = Pipeline(plugins, provider, config.limits)
+            app.state.config = active_config
+            app.state.pipeline = Pipeline(
+                plugins,
+                provider,
+                active_config.limits,
+                metrics=app.state.metrics,
+                provider_name=active_config.provider.kind,
+            )
             app.state.ready = True
             yield
         finally:
             app.state.ready = False
             app.state.pipeline = None
             if started:
-                await stop_plugins(plugins, config.limits.hook_timeout_seconds)
+                await stop_plugins(plugins, active_config.limits.hook_timeout_seconds)
             try:
-                async with asyncio.timeout(config.limits.hook_timeout_seconds):
+                async with asyncio.timeout(active_config.limits.hook_timeout_seconds):
                     await provider.aclose()
             except Exception:
-                logger.warning("request_id=- outcome=shutdown_error component=provider duration_ms=0")
+                logger.warning(
+                    "request_id=- outcome=shutdown_error component=provider duration_ms=0"
+                )
 
     app = FastAPI(title="Gateway7", version="0.1.0", lifespan=lifespan)
     app.state.ready = False
+    app.state.metrics = Metrics()
     app.add_middleware(GatewayBoundaryMiddleware, owner=app)
 
     @app.exception_handler(RequestValidationError)
@@ -201,6 +237,20 @@ def create_app(config_path: str | Path | None = None) -> FastAPI:
     @app.get("/health")
     async def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.get("/ready")
+    async def ready() -> Response:
+        available = app.state.ready
+        return JSONResponse(
+            {"status": "ready" if available else "not_ready"}, status_code=200 if available else 503
+        )
+
+    @app.get("/metrics", include_in_schema=False)
+    async def metrics() -> Response:
+        return Response(
+            generate_latest(app.state.metrics.registry),
+            headers={"Content-Type": CONTENT_TYPE_LATEST},
+        )
 
     @app.post("/chat")
     async def chat(payload: ChatRequest, request: Request) -> Response:

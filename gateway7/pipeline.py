@@ -8,6 +8,7 @@ from typing import Any, TypeVar
 from gateway7.config import LimitsConfig
 from gateway7.errors import GatewayError
 from gateway7.loader import LoadedPlugins
+from gateway7.metrics import Metrics
 from gateway7.models import ChatRequest, ChatResponse
 from gateway7.plugin_api import Deny, PluginContext
 
@@ -33,22 +34,41 @@ def _validated(payload: object, expected: type[Payload]) -> Payload:
 def _log(request_id: str, outcome: str, component: str, phase: str, duration: float) -> None:
     logger.info(
         "request_id=%s outcome=%s component=%s phase=%s duration_ms=%.3f",
-        request_id, outcome, component, phase, max(duration, 0) * 1000,
+        request_id,
+        outcome,
+        component,
+        phase,
+        max(duration, 0) * 1000,
     )
 
 
 class Pipeline:
-    def __init__(self, plugins: LoadedPlugins, provider: Any, limits: LimitsConfig) -> None:
+    def __init__(
+        self,
+        plugins: LoadedPlugins,
+        provider: Any,
+        limits: LimitsConfig,
+        *,
+        metrics: Metrics | None = None,
+        provider_name: str = "fake",
+    ) -> None:
         self.plugins = plugins
         self.provider = provider
         self.limits = limits
+        self.metrics = metrics
+        self.provider_name = provider_name
 
     async def run(
         self, request: ChatRequest, request_id: str, *, deadline: float | None = None
     ) -> ChatResponse:
-        deadline = deadline if deadline is not None else time.monotonic() + self.limits.request_timeout_seconds
+        deadline = (
+            deadline
+            if deadline is not None
+            else time.monotonic() + self.limits.request_timeout_seconds
+        )
         contexts = {
-            name: PluginContext(request_id, deadline, {}) for name in self.plugins.instances
+            name: PluginContext(request_id, deadline, {}, instance_name=name)
+            for name in self.plugins.instances
         }
         provider_called = False
         provider_usage = None
@@ -65,14 +85,34 @@ class Pipeline:
                 try:
                     result = _validated(await self.provider.complete(incoming), ChatResponse)
                 except asyncio.CancelledError:
-                    _log(request_id, "cancelled", "provider", "provider", time.monotonic() - started)
+                    if self.metrics is not None:
+                        self.metrics.observe_provider(
+                            self.provider_name, "cancelled", time.monotonic() - started
+                        )
+                    _log(
+                        request_id, "cancelled", "provider", "provider", time.monotonic() - started
+                    )
                     raise
                 except Exception:
-                    _log(request_id, "provider_error", "provider", "provider", time.monotonic() - started)
+                    if self.metrics is not None:
+                        self.metrics.observe_provider(
+                            self.provider_name, "provider_error", time.monotonic() - started
+                        )
+                    _log(
+                        request_id,
+                        "provider_error",
+                        "provider",
+                        "provider",
+                        time.monotonic() - started,
+                    )
                     raise GatewayError("provider_error") from None
-                _checkpoint(deadline)
                 # Snapshot before any middleware can mutate the returned object.
                 provider_usage = None if result.usage is None else dict(result.usage)
+                if self.metrics is not None:
+                    self.metrics.observe_provider(
+                        self.provider_name, "complete", time.monotonic() - started, provider_usage
+                    )
+                _checkpoint(deadline)
                 _log(request_id, "complete", "provider", "provider", time.monotonic() - started)
                 return result
 
@@ -103,8 +143,11 @@ class Pipeline:
                 nonlocal called, completed, violation, downstream_failure
                 nonlocal remaining, segment_started, phase
                 if (
-                    not active or asyncio.current_task() is not owner or called
-                    or violation or downstream_failure is not None
+                    not active
+                    or asyncio.current_task() is not owner
+                    or called
+                    or violation
+                    or downstream_failure is not None
                 ):
                     violation = True
                     raise GatewayError("plugin_error")
@@ -114,7 +157,11 @@ class Pipeline:
                     validated = _validated(next_request, ChatRequest)
                     budget_checkpoint()
                 except BaseException as error:
-                    downstream_failure = error if isinstance(error, (GatewayError, asyncio.CancelledError)) else GatewayError("plugin_error")
+                    downstream_failure = (
+                        error
+                        if isinstance(error, (GatewayError, asyncio.CancelledError))
+                        else GatewayError("plugin_error")
+                    )
                     raise downstream_failure from None
                 elapsed = time.monotonic() - segment_started
                 remaining -= elapsed
@@ -122,6 +169,8 @@ class Pipeline:
                     downstream_failure = GatewayError("timeout")
                     raise downstream_failure
                 _log(request_id, "continue", plugin.name, "request", elapsed)
+                if self.metrics is not None:
+                    self.metrics.observe_middleware(plugin.name, "request", "continue", elapsed)
                 timer.reschedule(None)
                 try:
                     result = await dispatch(index + 1, validated)
@@ -133,6 +182,7 @@ class Pipeline:
                     # An outer plugin cannot turn a failed inner policy/plugin
                     # or provider into success by catching its exception.
                     downstream_failure = error
+                    phase = "response"
                     raise
                 finally:
                     segment_started = time.monotonic()
@@ -164,11 +214,30 @@ class Pipeline:
                     raise GatewayError("plugin_error") from None
                 budget_checkpoint()
                 _log(request_id, "complete", plugin.name, phase, time.monotonic() - segment_started)
+                if self.metrics is not None:
+                    self.metrics.observe_middleware(
+                        plugin.name, phase, "complete", time.monotonic() - segment_started
+                    )
                 return response
             except asyncio.CancelledError:
-                _log(request_id, "cancelled", plugin.name, phase, time.monotonic() - segment_started)
+                if self.metrics is not None:
+                    self.metrics.observe_middleware(
+                        plugin.name, phase, "cancelled", time.monotonic() - segment_started
+                    )
+                _log(
+                    request_id, "cancelled", plugin.name, phase, time.monotonic() - segment_started
+                )
                 raise
             except GatewayError as error:
+                if self.metrics is not None:
+                    outcome = (
+                        "downstream_error"
+                        if downstream_failure is not None and phase == "response"
+                        else error.code
+                    )
+                    self.metrics.observe_middleware(
+                        plugin.name, phase, outcome, time.monotonic() - segment_started
+                    )
                 _log(request_id, error.code, plugin.name, phase, time.monotonic() - segment_started)
                 raise
             finally:

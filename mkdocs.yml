@@ -17,6 +17,9 @@ nav:
   - Home: README.md
   - Guides:
       - Setup and run: setup.md
+      - CLI reference: cli.md
+      - Reference middleware: middleware-catalog.md
+      - Metrics and Grafana: observability.md
       - Customer demonstration: demo.md
       - Plugin authoring: plugins.md
   - Product:

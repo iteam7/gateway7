@@ -7,6 +7,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- Server-held OpenAI Chat Completions and Gemini generateContent adapters alongside Claude, with bounded non-streaming calls, normalized token usage and safe provider errors.
+- Reference middleware for email masking, configurable block/log content policy and response redaction, with synthetic fixtures and strict settings.
+- An installed `gateway7` CLI for configuration validation, serving, a key-free demo and model requests.
+- A non-root Docker image and Docker Compose pilot stack with readiness checks, Prometheus and provisioned Grafana dashboards.
+- Bounded-label request, provider and middleware metrics, including latency, policy outcomes, errors and reported token usage without prompt or response text.
 - Async middleware execution traces with instance, direction, request identifier, outcome and timing.
 - Synthetic demonstration of phone masking, a policy guard and response transformation together, plus request-side error/timeout and response-side failure cases.
 - Project plan for SPRINT-03 to SPRINT-09, with the first release and weekly progress monitoring.

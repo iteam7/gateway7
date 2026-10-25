@@ -5,13 +5,18 @@ from pathlib import Path
 from typing import Annotated, Any, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, ValidationError
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    ValidationError,
+    model_validator,
+)
 
 from gateway7.errors import StartupError
 
-InstanceName = Annotated[
-    str, StringConstraints(pattern=r"^[A-Za-z][A-Za-z0-9_.-]{0,63}$")
-]
+InstanceName = Annotated[str, StringConstraints(pattern=r"^[A-Za-z][A-Za-z0-9_.-]{0,63}$")]
 ModuleName = Annotated[
     str,
     StringConstraints(
@@ -26,12 +31,33 @@ class StrictConfig(BaseModel):
 
 
 class ProviderConfig(StrictConfig):
-    kind: Literal["fake", "claude"] = "fake"
+    kind: Literal["fake", "claude", "openai", "gemini"] = "fake"
     base_url: str = Field(default="http://127.0.0.1:8001", min_length=1)
     key_env: str = Field(
         default="FAKE_LLM_API_KEY", pattern=r"^[A-Za-z_][A-Za-z0-9_]*$", max_length=128
     )
-    model: str = Field(default="fake", min_length=1)
+    # Real adapters require an explicit model. Restrict IDs to a path-safe
+    # alphabet because Gemini puts this server-controlled value in its URL.
+    model: str = Field(default="fake", pattern=r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
+    timeout_seconds: float = Field(default=30.0, gt=0, le=300, allow_inf_nan=False)
+
+    @model_validator(mode="before")
+    @classmethod
+    def provider_defaults(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+        defaults = {
+            "claude": ("https://api.anthropic.com", "ANTHROPIC_API_KEY"),
+            "openai": ("https://api.openai.com", "OPENAI_API_KEY"),
+            "gemini": ("https://generativelanguage.googleapis.com", "GEMINI_API_KEY"),
+        }
+        kind = value.get("kind", "fake")
+        if isinstance(kind, str) and kind in defaults:
+            value = dict(value)
+            origin, environment = defaults[kind]
+            value.setdefault("base_url", origin)
+            value.setdefault("key_env", environment)
+        return value
 
 
 class LimitsConfig(StrictConfig):

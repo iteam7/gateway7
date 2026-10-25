@@ -1,0 +1,15 @@
+**
+!pyproject.toml
+!uv.lock
+!README.md
+!LICENSE
+!gateway7/
+!gateway7/**
+!demo/
+!demo/**
+**/__pycache__/
+**/*.pyc
+**/.env
+**/.env.*
+**/*.pem
+**/*.key

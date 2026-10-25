@@ -1,4 +1,9 @@
-"""One-attempt, text-only HTTP adapters with bounded, sanitized failures."""
+"""One-attempt, text-only HTTP adapters with bounded, sanitized failures.
+
+The adapters implement provider wire formats directly; plugins only see the
+provider-neutral models. No provider SDK, retries, redirects or proxy discovery
+can send a second copy of a request or leak the server key to another origin.
+"""
 
 from __future__ import annotations
 
@@ -18,11 +23,24 @@ if TYPE_CHECKING:
 
 
 MAX_RESPONSE_BYTES = 1_048_576
+MAX_USAGE_TOKENS = 2**63 - 1
+_REAL_HOSTS = {
+    "claude": "api.anthropic.com",
+    "openai": "api.openai.com",
+    "gemini": "generativelanguage.googleapis.com",
+}
 
 
 def _validated_origin(kind: str, value: str) -> str:
     """Never allow credentials, redirects, arbitrary origins or URL key fields."""
     try:
+        # urlsplit strips certain control characters. Reject them before parsing.
+        if (
+            "?" in value
+            or "#" in value
+            or any(ord(character) <= 32 or ord(character) == 127 for character in value)
+        ):
+            raise ValueError
         url = urlsplit(value)
         if (
             url.username is not None
@@ -33,52 +51,177 @@ def _validated_origin(kind: str, value: str) -> str:
         ):
             raise ValueError
         if kind == "fake":
-            if url.scheme != "http" or not ipaddress.ip_address(url.hostname).is_loopback:
+            if (
+                url.scheme != "http"
+                or url.hostname is None
+                or not ipaddress.ip_address(url.hostname).is_loopback
+            ):
                 raise ValueError
             # Accessing port validates malformed and out-of-range values.
             if url.port == 0:
                 raise ValueError
-        elif kind == "claude":
+        elif kind in _REAL_HOSTS:
             if (
                 url.scheme != "https"
-                or url.hostname != "api.anthropic.com"
+                or url.hostname != _REAL_HOSTS[kind]
                 or url.port not in (None, 443)
             ):
                 raise ValueError
         else:
             raise ValueError
-    except (TypeError, ValueError):
+    except (AttributeError, TypeError, ValueError):
         raise ValueError("Invalid provider origin") from None
     return value.rstrip("/")
+
+
+def validate_provider_config(config: ProviderConfig) -> None:
+    """Validate without reading credentials, creating a client or using network."""
+    _validated_origin(config.kind, config.base_url)
+    if config.kind != "fake" and config.model == "fake":
+        raise ValueError("Real provider requires an explicit model")
 
 
 def _usage(value: Any) -> dict[str, int] | None:
     if value is None:
         return None
     if not isinstance(value, dict) or any(
-        not isinstance(name, str) or type(count) is not int or count < 0
+        not isinstance(name, str) or type(count) is not int or not 0 <= count <= MAX_USAGE_TOKENS
         for name, count in value.items()
     ):
         return None
     return value
 
 
+def _normalized_usage(value: Any, input_name: str, output_name: str) -> dict[str, int] | None:
+    if not isinstance(value, dict):
+        return None
+    return _usage({"input_tokens": value.get(input_name), "output_tokens": value.get(output_name)})
+
+
+def _claude_response(data: dict[str, Any]) -> tuple[str, dict[str, int] | None]:
+    if data.get("stop_reason") not in (None, "end_turn", "max_tokens", "stop_sequence"):
+        raise ProviderError()
+    content = data.get("content")
+    if not isinstance(content, list) or not content:
+        raise ProviderError()
+    text_parts = []
+    for block in content:
+        if not isinstance(block, dict):
+            raise ProviderError()
+        kind = block.get("type")
+        if kind == "text" and isinstance(block.get("text"), str):
+            text_parts.append(block["text"])
+        elif kind == "thinking" and isinstance(block.get("thinking"), str):
+            # Newer Claude models may think by default. Never expose reasoning
+            # or its signature through the plain-text answer contract.
+            continue
+        elif kind == "redacted_thinking" and isinstance(block.get("data"), str):
+            continue
+        else:
+            raise ProviderError()
+    usage = _normalized_usage(data.get("usage"), "input_tokens", "output_tokens")
+    return "".join(text_parts), usage
+
+
+def _openai_response(data: dict[str, Any]) -> tuple[str, dict[str, int] | None]:
+    choices = data.get("choices")
+    if not isinstance(choices, list) or len(choices) != 1 or not isinstance(choices[0], dict):
+        raise ProviderError()
+    choice = choices[0]
+    if choice.get("finish_reason") not in ("stop", "length"):
+        raise ProviderError()
+    message = choice.get("message")
+    if (
+        not isinstance(message, dict)
+        or message.get("role") != "assistant"
+        or message.get("refusal") is not None
+        or message.get("tool_calls")
+        or message.get("function_call") is not None
+        or message.get("audio") is not None
+    ):
+        raise ProviderError()
+    text = message.get("content")
+    if not isinstance(text, str):
+        raise ProviderError()
+    return text, _normalized_usage(data.get("usage"), "prompt_tokens", "completion_tokens")
+
+
+def _gemini_response(data: dict[str, Any]) -> tuple[str, dict[str, int] | None]:
+    feedback = data.get("promptFeedback")
+    if feedback is not None and (not isinstance(feedback, dict) or feedback.get("blockReason")):
+        raise ProviderError()
+    candidates = data.get("candidates")
+    if (
+        not isinstance(candidates, list)
+        or len(candidates) != 1
+        or not isinstance(candidates[0], dict)
+    ):
+        raise ProviderError()
+    candidate = candidates[0]
+    if candidate.get("finishReason") not in ("STOP", "MAX_TOKENS"):
+        raise ProviderError()
+    content = candidate.get("content")
+    if not isinstance(content, dict) or content.get("role") != "model":
+        raise ProviderError()
+    parts = content.get("parts")
+    if not isinstance(parts, list) or not parts:
+        raise ProviderError()
+    text_parts = []
+    for part in parts:
+        if (
+            not isinstance(part, dict)
+            or not isinstance(part.get("text"), str)
+            or any(
+                name in part
+                for name in (
+                    "inlineData",
+                    "fileData",
+                    "functionCall",
+                    "functionResponse",
+                    "executableCode",
+                    "codeExecutionResult",
+                    "toolCall",
+                    "toolResponse",
+                )
+            )
+            or ("thought" in part and type(part["thought"]) is not bool)
+        ):
+            raise ProviderError()
+        if not part.get("thought", False):
+            text_parts.append(part["text"])
+    raw_usage = data.get("usageMetadata")
+    usage = _normalized_usage(raw_usage, "promptTokenCount", "candidatesTokenCount")
+    if usage is not None and isinstance(raw_usage, dict) and "thoughtsTokenCount" in raw_usage:
+        thoughts = raw_usage["thoughtsTokenCount"]
+        if (
+            type(thoughts) is not int
+            or not 0 <= thoughts <= MAX_USAGE_TOKENS - usage["output_tokens"]
+        ):
+            usage = None
+        else:
+            # Gemini reports reasoning separately from candidate text tokens.
+            usage["output_tokens"] += thoughts
+    return "".join(text_parts), usage
+
+
 class HTTPProvider:
     """Adapters own their HTTP session; the gateway owns its lifetime."""
 
     def __init__(self, config: ProviderConfig, key: str) -> None:
+        validate_provider_config(config)
         self._kind = config.kind
         self._origin = _validated_origin(config.kind, config.base_url)
         self._model = config.model
         if not key or not key.isascii() or any(ord(c) < 33 or ord(c) > 126 for c in key):
             raise ValueError("Invalid provider key")
-        self._headers = (
-            {"authorization": f"Bearer {key}"}
-            if config.kind == "fake"
-            else {"x-api-key": key, "anthropic-version": "2023-06-01"}
-        )
+        if config.kind in ("fake", "openai"):
+            self._headers = {"authorization": f"Bearer {key}"}
+        elif config.kind == "claude":
+            self._headers = {"x-api-key": key, "anthropic-version": "2023-06-01"}
+        else:
+            self._headers = {"x-goog-api-key": key}
         self._client = httpx.AsyncClient(
-            timeout=10.0,
+            timeout=config.timeout_seconds,
             follow_redirects=False,
             trust_env=False,
         )
@@ -86,25 +229,54 @@ class HTTPProvider:
     async def aclose(self) -> None:
         await self._client.aclose()
 
-    async def complete(self, request: ChatRequest) -> ChatResponse:
+    def _request(self, request: ChatRequest) -> tuple[str, dict[str, Any]]:
         if self._kind == "fake":
-            path = "/chat"
-            payload = request.model_dump(mode="json")
-        else:
-            path = "/v1/messages"
-            payload = {
+            return "/chat", request.model_dump(mode="json")
+        messages = [
+            {"role": message.role, "content": message.content} for message in request.messages
+        ]
+        if self._kind == "openai":
+            return "/v1/chat/completions", {
+                "model": self._model,
+                "messages": messages,
+                "max_completion_tokens": request.max_tokens,
+                "stream": False,
+                "store": False,
+            }
+        system = [message["content"] for message in messages if message["role"] == "system"]
+        conversation = [message for message in messages if message["role"] != "system"]
+        if not conversation:
+            raise ProviderError()
+        if self._kind == "claude":
+            payload: dict[str, Any] = {
                 "model": self._model,
                 "max_tokens": request.max_tokens,
-                "messages": [
-                    {"role": message.role, "content": message.content}
-                    for message in request.messages
-                    if message.role != "system"
-                ],
+                "messages": conversation,
             }
-            system = [message.content for message in request.messages if message.role == "system"]
             if system:
                 payload["system"] = "\n\n".join(system)
+            return "/v1/messages", payload
+        # Gemini calls assistant turns "model". Combine adjacent same-role
+        # messages so normalized histories remain a valid conversation.
+        contents: list[dict[str, Any]] = []
+        for message in conversation:
+            role = "model" if message["role"] == "assistant" else "user"
+            part = {"text": message["content"]}
+            if contents and contents[-1]["role"] == role:
+                contents[-1]["parts"].append(part)
+            else:
+                contents.append({"role": role, "parts": [part]})
+        payload = {
+            "contents": contents,
+            "generationConfig": {"maxOutputTokens": request.max_tokens, "candidateCount": 1},
+        }
+        if system:
+            payload["systemInstruction"] = {"parts": [{"text": "\n\n".join(system)}]}
+        return f"/v1beta/models/{self._model}:generateContent", payload
+
+    async def complete(self, request: ChatRequest) -> ChatResponse:
         try:
+            path, payload = self._request(request)
             # A single request: retries and redirects are intentionally absent.
             async with self._client.stream(
                 "POST", self._origin + path, json=payload, headers=self._headers
@@ -120,31 +292,19 @@ class HTTPProvider:
             if not isinstance(data, dict):
                 raise ProviderError()
             if self._kind == "fake":
-                text = data.get("text")
-                usage = _usage(data.get("usage"))
+                text, usage = data.get("text"), _usage(data.get("usage"))
+            elif self._kind == "claude":
+                text, usage = _claude_response(data)
+            elif self._kind == "openai":
+                text, usage = _openai_response(data)
             else:
-                content = data.get("content")
-                if not isinstance(content, list) or not content:
-                    raise ProviderError()
-                if any(
-                    not isinstance(block, dict)
-                    or block.get("type") != "text"
-                    or not isinstance(block.get("text"), str)
-                    for block in content
-                ):
-                    raise ProviderError()
-                text = "".join(block["text"] for block in content)
-                raw_usage = data.get("usage")
-                usage = (
-                    _usage({name: raw_usage.get(name) for name in ("input_tokens", "output_tokens")})
-                    if isinstance(raw_usage, dict)
-                    else None
-                )
+                text, usage = _gemini_response(data)
             if not isinstance(text, str) or not text:
                 raise ProviderError()
             return ChatResponse(text=text, usage=usage)
         except Exception:
-            # Never include provider bodies, URLs, headers or raw exceptions.
+            # Includes network timeouts and provider authentication/rate-limit
+            # errors. Never include bodies, URLs, headers or raw exceptions.
             raise ProviderError() from None
 
 

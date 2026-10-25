@@ -67,9 +67,9 @@ The existing plugin contract and fixtures may not cover a new company plugin's b
 - **Impact:** Medium
   - A broken plugin contract would force a core change to add the second plugin, which directly fails [TOS-03](threshold-of-success.md#tos-03).
 - **Likelihood:** Low
-  - Independent request/response ordering is implemented in [the loader](https://github.com/iteam7/gateway7/blob/main/gateway7/loader.py) and [pipeline](https://github.com/iteam7/gateway7/blob/main/gateway7/pipeline.py).
+  - One configured middleware order with reverse response unwinding is implemented in [the loader](https://github.com/iteam7/gateway7/blob/main/gateway7/loader.py) and [pipeline](https://github.com/iteam7/gateway7/blob/main/gateway7/pipeline.py).
     [Application startup](https://github.com/iteam7/gateway7/blob/main/gateway7/app.py) loads configuration and starts plugins before readiness; the [plugin guide](plugins.md) documents installation through a module and configuration followed by restart.
-    The existing [core tests](https://github.com/iteam7/gateway7/blob/main/tests/test_core.py) cover chain order, descriptor/settings/hook validation and startup cleanup, but do not establish compatibility with every new company plugin.
+    The existing [core tests](https://github.com/iteam7/gateway7/blob/main/tests/test_core.py) cover middleware order, descriptor/settings/handle validation and startup cleanup, but do not establish compatibility with every new company plugin.
 - **Trigger:** adding the second plugin needs an edit outside its own plugin file or its documented configuration location.
 - **Window:** the sprint in which the second plugin is added, per [TOS-03](threshold-of-success.md#tos-03)'s Week 4 measure.
 - **Mitigation:** write the second plugin against the documented contract alone, with no access to the first plugin's internals, before declaring the contract stable.
