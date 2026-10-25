@@ -146,3 +146,15 @@ The AI did not create the missing `User Story` type or `MoSCoW` field, change th
 ### Team evaluation for the tracker migration
 
 TODO: The Accountable member records whether the `Specified by` mapping and the form changes were accepted, changed or rejected.
+
+## Legacy label retirement for task #106
+
+On 26 October, after azamatbayramov created the `User Story` type and the `MoSCoW` field, iceberkut asked Claude Code (Claude Opus 5.5) to finish the migration left open by #94.
+Claude Code set the `User Story` type on #30 to #40 and copied each story's `moscow:*` label into the `MoSCoW` field, then read every value back; the existing `Responsible`, `Accountable` and `Story Points` values stayed unchanged.
+At the user's request Claude Code opened #106 with `gh issue create` rather than from the form, using the form's sections and setting the `Task` type by hand.
+The story form now applies the `User Story` type, and `docs/README.md` and `docs/product-vision.md` find stories by type instead of by label; the Week 2 and Week 3 reports keep their original label links because finished weeks are not edited.
+The six legacy labels were deleted only after every issue carried its type and every story its `MoSCoW` value.
+
+### Team evaluation for the label retirement
+
+TODO: The Accountable member records whether the story typing, the `MoSCoW` values and the label retirement were accepted.

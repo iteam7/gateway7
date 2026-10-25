@@ -30,4 +30,4 @@ The complete MUP still needs a verified real-provider response and customer verd
 - [System context diagram source](architecture/context.mmd)
 - Research: [alternatives](research/alternatives.md), [comparison](research/comparison.md), [gap analysis](research/gap-analysis.md), and [value proposition](research/value-proposition.md)
 
-Project resources: [source repository](https://github.com/iteam7/gateway7) and [user stories](https://github.com/iteam7/gateway7/issues?q=label%3Auser-story).
+Project resources: [source repository](https://github.com/iteam7/gateway7) and [user stories](https://github.com/iteam7/gateway7/issues?q=type%3A%22User+Story%22).

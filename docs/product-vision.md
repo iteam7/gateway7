@@ -107,5 +107,5 @@ The caller application and the IT/policy administrator are the actors: the calle
 ## Where The Detail Lives
 
 - [Architecture](architecture/README.md)
-- [User stories](https://github.com/iteam7/gateway7/issues?q=label%3Auser-story)
+- [User stories](https://github.com/iteam7/gateway7/issues?q=type%3A%22User+Story%22)
 - [Week 2 report](https://github.com/iteam7/gateway7/blob/main/reports/week-02/README.md)

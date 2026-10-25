@@ -1,5 +1,6 @@
 name: User story
 description: Record a user need, its evidence, priority reason, and acceptance criteria.
+type: User Story
 body:
   - type: markdown
     attributes:
