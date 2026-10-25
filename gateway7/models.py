@@ -24,3 +24,5 @@ class ChatResponse(BaseModel):
 
     text: str
     usage: dict[str, int] | None = None
+    # Provider metadata is snapshotted by the runner before response middleware.
+    finish_reason: Literal["stop", "length"] = "stop"

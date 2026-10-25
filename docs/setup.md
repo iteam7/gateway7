@@ -1,161 +1,162 @@
 # Set up and run Gateway7
 
+Gateway7 can run as an installed CLI or as a Docker Compose stack with Prometheus and Grafana.
 The Python choice is recorded in [DEC-013](decisions.md#dec-013).
-After cloning, run all remaining commands from the repository root.
-The initial demonstration needs no provider account, database, frontend or container runtime.
+Start in synthetic mode to exercise the complete middleware and monitoring path without an account.
 
-## Prerequisites and installation
+## Install from a checkout
 
-- Python 3.12 is the pinned development runtime; the package supports Python 3.11–3.13.
-- Install Git to obtain a clean checkout.
-- Install [uv](https://docs.astral.sh/uv/getting-started/installation/).
-- Allow package-registry access for the first install and local loopback sockets for the two demo processes.
+Use Git, Python 3.12 and [uv](https://docs.astral.sh/uv/getting-started/installation/).
+The package supports Python 3.11–3.13; development uses 3.12.
 
 ```sh
 git clone https://github.com/iteam7/gateway7.git
 cd gateway7
 uv sync --locked
+uv run --locked gateway7 demo
 ```
 
-`pyproject.toml` declares direct dependencies; `uv.lock` pins the complete resolution.
-Do not remove `--locked` to work around an unexpected manifest/lock mismatch.
+`pyproject.toml` declares dependencies and `uv.lock` fixes their resolution.
+Do not remove `--locked` to hide an unexpected lock mismatch.
+In another terminal, set `GATEWAY7_TOKEN=gateway7-synthetic-client-token` in the environment, then `uv run --locked gateway7 chat --message 'Contact synthetic@example.com'` returns an answer containing `[EMAIL]`.
+The demo uses packaged defaults, creates a private loopback fixture and stops it on shutdown; it works outside the repository after wheel installation.
+See the [CLI reference](cli.md) for serving, validation, stdin and exit codes.
 
-## One-command demonstration
+## Docker Compose
+
+Install Docker Engine with Compose v2, or Docker Desktop with Compose v2, then run from the checkout:
 
 ```sh
-uv run --locked python -m demo.run
+docker compose config --quiet
+docker compose up --build --detach --wait
 ```
 
-The command starts a recording fake provider and the actual gateway as separate HTTP processes on local ports, uses only public synthetic fixtures, exercises restart and plugin installation, then stops its processes.
-It exits nonzero if a check fails.
-See the [demo walkthrough](demo.md) for the expected observations and criterion mapping.
+| Service | Local address | Purpose |
+| --- | --- | --- |
+| Gateway | `http://127.0.0.1:8000` | `POST /chat`, `/v1/chat/completions`, `/v1/models` and operational endpoints |
+| Prometheus | `http://127.0.0.1:9090` | Scrapes gateway metrics every 5 seconds |
+| Grafana | `http://127.0.0.1:3000/d/gateway7-overview` | Provisioned dashboard and Prometheus datasource |
 
-## Configuration
+The default command is `gateway7 demo`; it calls a synthetic upstream inside the gateway container, listening only on loopback.
+No provider account, provider API key or fixture-recorder port is needed.
+The demo protects chat/model endpoints with the public synthetic token `gateway7-synthetic-client-token`.
+The gateway image runs as UID/GID 10001, installs locked runtime dependencies without development tools, and copies a non-editable installation into the final image.
+Compose gives the gateway a read-only filesystem and temporary `/tmp`, drops Linux capabilities and publishes ports only on localhost.
+The build context includes only the required source and packaging files; credentials and local environments are excluded.
 
-The committed `.env.example` contains the environment-variable names and a public synthetic key for the local fake provider.
-Gateway7 reads variables from the process environment; it does **not** automatically load `.env` files.
-Never replace public examples with a real credential or commit `.env`.
-The server config path is `--config PATH`, or `GATEWAY_CONFIG` when starting the app without the CLI; the default is `config/demo.yaml`.
+The Dockerfile pins Python and uv versions; Compose pins Prometheus and Grafana versions.
+Tags can be republished upstream; these are version pins, not immutable image digests.
+Grafana uses anonymous Viewer access, disables the initial administrator account and login form, and treats dashboards/datasources as repository-owned configuration.
+Client authentication and model allowlists protect chat access. A shared deployment still needs TLS termination and a trusted boundary around monitoring endpoints.
 
-| YAML field | Purpose |
+```sh
+python scripts/smoke_compose.py
+docker compose logs --tail=50 gateway
+docker compose down
+```
+
+The smoke check verifies missing/wrong client tokens, model permissions, native and OpenAI-compatible requests, masking/redaction, and zero provider calls for denied requests, then exercises Prometheus and Grafana provisioning.
+Named volumes retain metrics and Grafana state across restarts.
+To intentionally delete that history, run `docker compose down --volumes`.
+If ports 8000, 9090 or 3000 are occupied, stop the conflicting local service or edit the corresponding host-side port mapping; update the smoke URLs accordingly.
+
+## Real providers
+
+Choose one server configuration per gateway instance.
+The gateway has thin, nonstreaming HTTP adapters for the following APIs:
+
+| Configuration | Provider API | Server credential variable |
+| --- | --- | --- |
+| `config/openai.yaml` | OpenAI Chat Completions | `OPENAI_API_KEY` |
+| `config/claude.yaml` | Anthropic Claude Messages | `ANTHROPIC_API_KEY` |
+| `config/gemini.yaml` | Google Gemini `generateContent` | `GEMINI_API_KEY` |
+
+Each sample enables request blocking, phone/email masking in both directions and response redaction.
+Replace the explicit example model ID with one your account can access when necessary.
+The origin defaults to the provider's official HTTPS origin; custom origins, redirects, proxy-environment settings and key-in-URL authentication are rejected or disabled.
+Only the server adapter attaches the key to an outbound header.
+There is no automatic retry, provider routing or failover.
+
+Set the selected provider credential and a distinct `GATEWAY7_CLIENT_TOKEN` privately in the server environment or secret injection, then:
+
+```sh
+uv run --locked gateway7 validate --config config/openai.yaml
+uv run --locked gateway7 serve --config config/openai.yaml
+```
+
+In the client terminal, put the gateway client token value in `GATEWAY7_TOKEN`, then:
+
+```sh
+uv run --locked gateway7 chat --message 'Reply with the word pong' --max-tokens 1024
+```
+
+For Compose, set the selected provider key and `GATEWAY7_CLIENT_TOKEN` in your shell, then select the configuration and provider variable name:
+
+```sh
+export GATEWAY_CONFIG_FILE=./config/openai.yaml
+export GATEWAY_KEY_ENV=OPENAI_API_KEY
+docker compose -f compose.yaml -f compose.live.yaml up --build --detach --wait
+```
+
+Use the same two `-f` arguments for subsequent `logs` or `down` commands.
+The override switches the gateway to `serve`, mounts the selected YAML read-only and passes only the selected provider variable and `GATEWAY7_CLIENT_TOKEN` from the host environment; it does not start the synthetic upstream.
+For Claude or Gemini, change the config path and `GATEWAY_KEY_ENV` to the corresponding credential-variable name in the table.
+The YAML `provider.key_env` and `GATEWAY_KEY_ENV` must select the same provider variable.
+See [client authentication](authentication.md) for token rules, model permissions and restart-based rotation.
+The application does not read `.env` files itself; Docker Compose's own environment-file behavior is separate.
+Never put credentials in YAML, command-line arguments or committed files, and avoid printing an expanded live Compose configuration because it contains injected environment values.
+
+The examples allow a 60-second overall request deadline and a 30-second provider transport timeout.
+A provider transport error, rate limit, rejected credential or unsupported answer becomes a safe HTTP 502; the overall gateway deadline becomes HTTP 504.
+A model can consume tokens without producing a supported final text answer, particularly with too-small generation budgets.
+The response exposes normalized provider-reported `input_tokens`/`output_tokens` when valid; absent or invalid usage remains `null`.
+
+Adapter payloads are checked against the [OpenAI Chat Completions reference](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create), [Claude Messages reference](https://platform.claude.com/docs/en/api/messages/create), and [Gemini generateContent reference](https://ai.google.dev/api/generate-content).
+Offline HTTP fixtures exercise these adapters; they do not establish real account access.
+The actual keyed Claude/Gemini `pong` response in [US-01 AC-05](https://github.com/iteam7/gateway7/issues/30) and Customer verdicts remain separate verification.
+
+## Configuration and HTTP contract
+
+| Field | Purpose |
 | --- | --- |
-| `provider.kind` | One selected adapter: `fake` or `claude` |
-| `provider.base_url` | Server-controlled endpoint, never supplied by the client |
-| `provider.key_env` | Name of the required environment variable; the YAML does not hold its value |
-| `provider.model` | Server-selected model; ignored by the deterministic fake provider |
-| `limits` | Total request deadline, per-hook deadline and request-body size cap |
-| `plugins` | Instance names mapped to module, enabled/required flags and validated settings |
-| `chains` | Separate ordered `request` and `response` instance lists |
+| `provider.kind` | One of `fake`, `openai`, `claude`, `gemini` |
+| `provider.base_url` | Optional official origin for real providers; fake requires literal loopback HTTP |
+| `provider.key_env` | Server environment-variable name; no credential value in YAML |
+| `provider.model` | Default model; each request must select a model permitted for its authenticated client |
+| `provider.timeout_seconds` | Transport timeout, default 30 seconds |
+| `limits.request_timeout_seconds` | Deadline covering reading, middleware, provider and response work |
+| `limits.hook_timeout_seconds` | Each middleware's cumulative own-work budget, excluding downstream waiting |
+| `limits.max_body_bytes` | HTTP request body cap |
+| `auth` | Client token environment-variable names and model allowlists; real providers require authentication |
+| `plugins` | Named module instances with strict validated settings and enabled/required flags |
+| `middleware` | Request order; response processing reverses this order |
 
-Unknown configuration fields and invalid plugin settings fail startup.
-A missing key fails startup with the setting's name and no secret value.
-See [plugin authoring](plugins.md) for installation, disable and required-filter behavior.
+Unknown fields, invalid plugin settings, missing required filters and unavailable credentials fail startup safely.
+`gateway7 validate` checks the configuration without requiring a credential; `serve` additionally starts plugin lifecycles and resolves the key before readiness.
+See the [middleware catalog](middleware-catalog.md) and [API v2 migration](plugins.md#migration-from-api-version-1).
 
-## Run the two services manually
-
-In terminal 1, start the **synthetic-data-only** fake upstream:
-
-```sh
-export DEMO_PROVIDER_KEY=gateway7-synthetic-demo-only
-uv run --locked python -m uvicorn demo.upstream:app --host 127.0.0.1 --port 8001
-```
-
-In terminal 2, start Gateway7:
-
-```sh
-export FAKE_LLM_API_KEY=gateway7-synthetic-demo-only
-uv run --locked python -m gateway7 --config config/demo.yaml --host 127.0.0.1 --port 8000
-```
-
-In terminal 3, send the same request as the root README, with no client provider credential:
-
-```sh
-curl --fail-with-body http://127.0.0.1:8000/chat \
-  -H 'Content-Type: application/json' \
-  -d '{"messages":[{"role":"user","content":"Reply with the word pong"}]}'
-curl --fail-with-body http://127.0.0.1:8001/requests
-```
-
-The first call returns HTTP 200 with `text` equal to `pong — deterministic upstream`, a request identifier and usage metadata.
-The fake provider accepts the request only when the server sent the expected key; its record exposes accepted-key status and request content, never the header value.
-Its `/requests` endpoint is a local test recorder and must only receive synthetic fixtures.
-Stop both processes with Ctrl-C.
-
-The demo binds loopback by default and has no developer authentication, TLS termination or production secret manager.
-Do not expose this development service or the recorder to an untrusted network.
-
-### Windows PowerShell
-
-The commands above need a POSIX shell, such as Git Bash.
-In PowerShell, set each variable with `$env:` and send the request with `Invoke-RestMethod`.
-
-In terminal 1:
-
-```powershell
-$env:DEMO_PROVIDER_KEY = "gateway7-synthetic-demo-only"
-uv run --locked python -m uvicorn demo.upstream:app --host 127.0.0.1 --port 8001
-```
-
-In terminal 2:
-
-```powershell
-$env:FAKE_LLM_API_KEY = "gateway7-synthetic-demo-only"
-uv run --locked python -m gateway7 --config config/demo.yaml --host 127.0.0.1 --port 8000
-```
-
-In terminal 3:
-
-```powershell
-Invoke-RestMethod http://127.0.0.1:8000/chat -Method Post -ContentType 'application/json' `
-  -Body '{"messages":[{"role":"user","content":"Reply with the word pong"}]}'
-Invoke-RestMethod http://127.0.0.1:8001/requests | ConvertTo-Json -Depth 6
-```
-
-Windows PowerShell 5.1 decodes the JSON as ISO-8859-1, so the dash in `pong — deterministic upstream` may display as `â€”`; PowerShell 7 shows it unchanged.
-
-## Real Claude check
-
-`config/claude.yaml` selects the Claude Messages adapter.
-Supply `ANTHROPIC_API_KEY` privately in the shell or through your server's secret injection, then run:
-
-```sh
-uv run --locked python -m gateway7 --config config/claude.yaml --host 127.0.0.1 --port 8000
-```
-
-Send the README request and record whether it returns HTTP 200 with `pong`, ignoring case.
-That actual provider call, with a valid account and model access, is [US-01](https://github.com/iteam7/gateway7/issues/30) / AC-05.
-No such call was available during this implementation; offline adapter tests do not pass AC-05.
-The config's model is an example and may need an authorized model available to your account.
-
-The adapter uses `POST /v1/messages`, `x-api-key` and `anthropic-version` headers, and top-level system content as described in the [official Claude Messages reference](https://platform.claude.com/docs/en/api/messages/create), checked on 15 October 2026.
-It performs one call, with no retries or failover.
+`POST /chat` accepts `messages`, optional authorized `model`, and optional `max_tokens` from 1 to 4096.
+`POST /v1/chat/completions` and `GET /v1/models` support the documented [OpenAI SDK subset](api.md).
+Messages use roles `system`, `user` or `assistant` with plain-text `content`; unsupported fields, tools, attachments and streaming are rejected.
+`GET /health` is process liveness; `GET /ready` is startup/shutdown readiness, without a billable provider probe.
+`GET /metrics` exports Prometheus text. These operational endpoints are unauthenticated; chat and model endpoints require the client bearer token.
+Errors contain a stable code and request ID, without raw input, token values or provider details.
+The configured limits bound cooperative async work; trusted Python plugins are not a process sandbox.
 
 ## Checks and tests
 
 ```sh
-uv run --locked python -m compileall -q gateway7 demo
+uv run --locked ruff format --check gateway7
+uv run --locked ruff check gateway7
+uv run --locked mypy gateway7
 uv run --locked pytest -q
 uv run --locked python -m demo.run
+uv build --wheel
 ```
 
-The Python workflow runs the locked setup and checks on pull requests and `main`.
-The existing Markdown and Lychee workflows remain separate documentation gates.
-Neither a green local run nor an AI code review replaces the required human PR review, customer verdict or release.
+The Python workflow additionally installs the gateway wheel outside the checkout, generates/tests/normally installs a plugin package, makes authorized SDK calls to that installed server, and builds/runs the full Compose stack on Ubuntu.
+Markdown and link checks remain separate documentation gates.
+Neither an automated check nor AI review replaces human PR approval, live-provider verification or Customer acceptance.
 
-Record `git rev-parse HEAD`, the OS/runtime versions and the command results with a clean-checkout run.
-The fake demo checks the local plugin path; complete the separate real-provider check before claiming the whole US-01–03 core task passed.
-
-### Known Windows verification limit
-
-[Task #84](https://github.com/iteam7/gateway7/issues/84) reports an intermittent Windows failure when a hook suppresses cancellation and returns after the timer fires.
-The result may reach the provider despite the intended fail-closed rule.
-The earlier successful Windows run does not settle this defect; the proposed Windows CI is tracked separately in [draft PR #78](https://github.com/iteam7/gateway7/pull/78).
-Treat cross-platform deadline enforcement as unverified until that task's repeated-run and no-forwarding criteria pass. Do not infer it from the Ubuntu-only green check.
-
-## Supported HTTP contract
-
-`POST /chat` accepts a JSON object with `messages` and optional `max_tokens` from 1 to 4096.
-Every message has a supported role (`system`, `user`, `assistant`) and plain-text `content`; unknown fields, tool calls, attachments and streaming are rejected.
-`GET /health` is available once startup validation succeeds.
-Safe errors include a request identifier and stable error code; they omit submitted input and arbitrary exception text.
-The configured body and time limits bound normal cooperative work, not arbitrary trusted Python code.
+[Task #84](https://github.com/iteam7/gateway7/issues/84) still requires repeated Windows timeout verification; Linux checks do not establish that result.
+The proposed Windows CI change remains in [PR #78](https://github.com/iteam7/gateway7/pull/78).

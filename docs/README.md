@@ -1,10 +1,16 @@
 # Documentation
 
 Gateway7 is a corporate LLM gateway with company-authored request and response policies.
-The Python demonstration runs a request through trusted plugins and a deterministic HTTP upstream.
+It supports OpenAI, Claude and Gemini through trusted middleware, with a key-free demo, CLI and local monitoring stack.
 The complete MUP still needs a verified real-provider response and customer verdicts.
 
-- [Setup and run](setup.md)
+- [Setup, Docker and real providers](setup.md)
+- [CLI reference](cli.md)
+- [HTTP API and OpenAI SDK](api.md)
+- [Authentication and model permissions](authentication.md)
+- [Plugin generator and offline tests](authoring.md)
+- [Reference middleware](middleware-catalog.md)
+- [Metrics and Grafana](observability.md)
 - [Customer demonstration](demo.md)
 - [Plugin authoring](plugins.md)
 - [Product vision](product-vision.md)

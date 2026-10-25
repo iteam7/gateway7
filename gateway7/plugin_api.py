@@ -1,29 +1,26 @@
-"""Version 1 plugin contract. Plugins are trusted in-process Python code."""
+"""Version 2 middleware contract. Plugins are trusted in-process Python code."""
 
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel
 
 from gateway7.models import ChatRequest, ChatResponse
 
-API_VERSION = 1
+API_VERSION = 2
+SettingsT = TypeVar("SettingsT", bound=BaseModel)
+NextHandler = Callable[[ChatRequest], Awaitable[ChatResponse]]
 
 
 @dataclass(frozen=True)
-class PluginDescriptor:
+class PluginDescriptor(Generic[SettingsT]):
     """A module's PLUGIN export describes its type, settings, and factory."""
 
     id: str
     api_version: int
-    settings_model: type[BaseModel]
-    create: Callable[[BaseModel], object]
-
-
-@dataclass(frozen=True)
-class Continue:
-    payload: ChatRequest | ChatResponse
+    settings_model: type[SettingsT]
+    create: Callable[[SettingsT], object]
 
 
 @dataclass(frozen=True)
@@ -36,5 +33,7 @@ class Deny:
 class PluginContext:
     request_id: str
     deadline: float
-    # One fresh dict for each request and plugin instance, shared by its hooks.
+    # One fresh dict per request and configured instance, across next().
     state: dict[str, Any]
+    # Configured instance name, supplied by the core for safe policy diagnostics.
+    instance_name: str = ""

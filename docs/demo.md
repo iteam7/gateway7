@@ -1,8 +1,29 @@
 # Customer demonstration
 
-The demonstration shows one running Python service, imported company plugins and a separate deterministic HTTP upstream.
+The demonstration shows one running Python service, async middleware plugins and a separate deterministic HTTP upstream.
+It includes three distinct middleware types, reverse response order and inspectable failure traces under [DEC-016](decisions.md#dec-016).
 It follows [DEC-009](decisions.md#dec-009) and [DEC-011](decisions.md#dec-011); the actual model call in US-01 / AC-05 remains pending.
 The [architecture customer view](architecture/README.md#customer-view) is the opening slide, and [setup](setup.md) contains the installation and manual curl commands.
+
+## Interactive pilot and monitoring
+
+Start `uv run --locked gateway7 demo`, or `docker compose up --build --detach --wait` for the complete monitoring stack.
+Send these public synthetic fixtures through the CLI:
+
+```sh
+export GATEWAY7_TOKEN=gateway7-synthetic-client-token
+uv run --locked gateway7 chat --message 'Contact synthetic@example.com or +7 999 123-45-67; SECRET-TEST'
+uv run --locked gateway7 chat --message 'BLOCK-ME-TEST'
+```
+
+The first answer contains `[EMAIL]`, `[PHONE]` and `[removed]`; the second returns a nonzero CLI exit with HTTP 403 and makes no provider call.
+A missing/wrong gateway token returns 401; a model outside the client allowlist returns 403 before forwarding.
+The [API guide](api.md) demonstrates the same middleware path through the official OpenAI SDK.
+With Compose, show `http://127.0.0.1:3000/d/gateway7-overview` after several scrapes and relate HTTP outcomes, provider calls and middleware timings.
+`python scripts/smoke_compose.py` verifies these behaviors and the monitoring connections automatically.
+This interactive fixture echoes transformed input and retains no conversation history.
+The original regression walkthrough below uses a separate synthetic recording fixture to verify the exact upstream boundary.
+For an actual model, follow [real provider setup](setup.md#real-providers); do not describe a synthetic run as AC-05 evidence.
 
 ## Rehearsal and live demonstration
 
@@ -19,13 +40,14 @@ The runner uses disposable files, restarts the gateway for configuration changes
 
 | Time | Show | Expected observation |
 | --- | --- | --- |
-| 0–2 min | Seven-stage customer view and `config/demo.yaml` | Core orchestration, policy plugins and provider adapter are separate; request and response lists are explicit |
+| 0–2 min | Customer view and `config/demo.yaml` | Core orchestration, policy middleware and provider adapter are separate; one list defines both directions |
 | 2–4 min | Start `uv run --locked python -m demo.run` | Real HTTP request gets `pong — deterministic upstream`; fake upstream verifies the configured key while client/log checks find no key |
 | 4–6 min | Masking checks and recorder output | Three specified phone strings become `[PHONE]`; earlier history is processed; `Order ORDER-2026-1001 shipped on 2026-10-08` is unchanged |
 | 6–9 min | Sample module and its instance configuration | Only the new plugin file and YAML change; after restart the upstream user message ends with `[checked-by-sample]` |
-| 9–11 min | Two instances and restart checks | A then B appears upstream; independent response order is visible; disabling the optional instance takes effect after restart |
-| 11–13 min | Negative startup checks and core test results | Missing key or configured module names the setting/instance and never becomes ready; the tests additionally verify a failed request hook causes zero upstream calls |
-| 13–15 min | Checklist below and questions | Distinguish demonstrated behavior, actual-provider evidence still needed, and Customer verdicts still needed |
+| 9–11 min | Two marker instances and restart checks | A then B appears upstream and B then A returns; changing one list changes both directions |
+| 11–13 min | Three middleware types and safe trace | Phone mask, policy guard and sample transformation run together; the response trace unwinds in reverse |
+| 13–15 min | Policy denial, request exception, timeout and response failure | The first three produce zero provider calls; a response-side failure produces one provider call and no delivered answer |
+| 15–17 min | Checklist below and questions | Distinguish demonstrated behavior, actual-provider evidence still needed, and Customer verdicts still needed |
 
 For an interactive manual installation, follow [Writing a plugin](plugins.md#smallest-installation), restart the manual gateway, send a user message and open the fake upstream `/requests` endpoint.
 Use `git status --short --untracked-files=all` to inspect the literal US-03 / AC-01 two-file change constraint in a clean checkout.
@@ -41,7 +63,7 @@ Dated evidence and outstanding submission work are recorded in the repository's 
 | [US-01](https://github.com/iteam7/gateway7/issues/30) / AC-01 | README request has no provider key and receives the fake answer over HTTP | Human review and Customer verdict |
 | US-01 / AC-02 | Fake upstream rejects wrong/missing keys and accepts the configured synthetic key | Human review and Customer verdict |
 | US-01 / AC-03–04 | Missing key prevents readiness; client responses and captured gateway output omit the synthetic key | Human review and Customer verdict |
-| US-01 / AC-05 | Claude adapter prepared and checked offline | **Pending actual keyed Claude/Gemini HTTP 200 response containing `pong`** |
+| US-01 / AC-05 | Claude/Gemini adapters prepared and checked offline | **Pending actual keyed Claude/Gemini HTTP 200 response containing `pong`** |
 | [US-02](https://github.com/iteam7/gateway7/issues/31) / AC-01 | Exact three-format synthetic fixture becomes three `[PHONE]` tokens | Customer verdict; production format policy remains open |
 | US-02 / AC-02 | First message of a three-message conversation is masked | Customer verdict |
 | US-02 / AC-03 | Order/date fixture reaches the recorder unchanged | Customer verdict |
@@ -51,14 +73,18 @@ Dated evidence and outstanding submission work are recorded in the repository's 
 
 ## What this prototype establishes
 
-The core calls async hooks in declared order, revalidates results and fails closed on errors.
-The provider sees only the request after all request hooks.
-The sample also exercises an independently ordered response chain; this is extension-contract evidence, not acceptance of a separate response-filtering story.
+The core nests async middleware in declared order, revalidates boundary values and stops on failures.
+The provider sees only the request passed through each middleware's preprocessing.
+The response unwinds in reverse: `[mask, alpha, beta]` forwards `ping[A][B]` and returns an answer ending `[B][A]`.
+The next example composes three distinct types: phone masking, a synthetic marker guard and request/response transformation.
+The demo prints safe request-correlated execution traces, and verifies zero provider calls for request-side denial, exception and timeout.
+It separately verifies that response-side failure occurs after one provider call and prevents delivery.
+These checks establish extension-contract behavior, not Customer acceptance of a separate response-filtering story.
 No test claims a supported maximum plugin count or production throughput.
 
 Modules are trusted code sharing one process and its environment; hiding the key from hook arguments does not sandbox a malicious plugin.
 Async timeouts are cooperative and cannot forcibly kill CPU-blocking code or reverse an upstream request already sent.
-There is no restoration map, hot loading, streaming, retry/failover, developer authentication, persistent chat storage or billing ledger in this slice.
+There is no restoration map, hot loading, streaming, retry/failover, persistent chat storage or billing ledger in this slice.
 The recorder is test-only and stores synthetic inputs so the operator can inspect what crossed the provider boundary.
 
 ## Questions to settle in the call

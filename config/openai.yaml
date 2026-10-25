@@ -1,0 +1,45 @@
+# Set OPENAI_API_KEY in the server environment; never put credentials here.
+# Model availability depends on the provider account. Change this explicit ID
+# to an available text model; the gateway does not discover or switch models.
+provider:
+  kind: openai
+  key_env: OPENAI_API_KEY
+  model: gpt-4.1-mini
+  timeout_seconds: 30
+auth:
+  enabled: true
+  clients:
+    developer:
+      token_env: GATEWAY7_CLIENT_TOKEN
+      models: [gpt-4.1-mini]
+limits:
+  request_timeout_seconds: 60
+  hook_timeout_seconds: 2
+  max_body_bytes: 65536
+plugins:
+  guard:
+    module: gateway7.plugins.content_policy
+    required: true
+    settings:
+      terms: [BLOCK-ME-TEST]
+      phase: request
+      action: block
+  phone:
+    module: gateway7.plugins.phone_mask
+    required: true
+    settings:
+      phase: both
+  email:
+    module: gateway7.plugins.email_mask
+    required: true
+    settings:
+      phase: both
+  redact:
+    module: gateway7.plugins.content_policy
+    required: true
+    settings:
+      terms: [SECRET-TEST]
+      phase: response
+      action: redact
+      replacement: "[removed]"
+middleware: [guard, phone, email, redact]

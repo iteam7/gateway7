@@ -12,6 +12,10 @@ class ProviderError(Exception):
 
 class GatewayError(Exception):
     _ERRORS = {
+        "unauthorized": (401, "Missing or invalid gateway bearer token"),
+        "model_forbidden": (403, "Requested model is not allowed for this client"),
+        "not_found": (404, "Requested endpoint does not exist"),
+        "method_not_allowed": (405, "HTTP method is not allowed for this endpoint"),
         "policy_denied": (403, "Request denied by policy"),
         "plugin_error": (500, "Plugin processing failed"),
         "timeout": (504, "Request deadline exceeded"),

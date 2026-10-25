@@ -22,7 +22,60 @@ jobs:
         run: uv sync --locked
       - name: Check Python syntax
         run: uv run --locked python -m compileall -q gateway7 demo examples tests
+      - name: Check formatting and lint
+        run: |
+          uv run --locked ruff format --check gateway7
+          uv run --locked ruff check gateway7
+      - name: Type-check the gateway
+        run: uv run --locked mypy gateway7
       - name: Run tests
         run: uv run --locked pytest
       - name: Exercise separate HTTP processes
         run: uv run --locked python -m demo.run
+      - name: Build distribution
+        run: uv build --wheel
+      - name: Check installed wheel outside the checkout
+        run: |
+          uv venv /tmp/gateway7-wheel
+          uv export --locked --no-dev --no-emit-project --format requirements-txt --output-file /tmp/gateway7-runtime-requirements.txt
+          uv pip install --python /tmp/gateway7-wheel/bin/python --require-hashes -r /tmp/gateway7-runtime-requirements.txt
+          uv pip install --python /tmp/gateway7-wheel/bin/python --no-deps dist/*.whl
+          cd /tmp
+          /tmp/gateway7-wheel/bin/gateway7 --help
+          /tmp/gateway7-wheel/bin/gateway7 validate --config "$GITHUB_WORKSPACE/config/openai.yaml"
+          "$GITHUB_WORKSPACE/.venv/bin/python" "$GITHUB_WORKSPACE/scripts/smoke_authoring.py" --python /tmp/gateway7-wheel/bin/python
+          /tmp/gateway7-wheel/bin/gateway7 demo > /tmp/gateway7-wheel.log 2>&1 &
+          gateway_pid=$!
+          trap 'kill "$gateway_pid"; wait "$gateway_pid" || true' EXIT
+          python "$GITHUB_WORKSPACE/scripts/smoke_compose.py" --gateway-only
+
+  compose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Validate Compose definitions
+        run: |
+          docker compose config --quiet
+          for provider in openai claude gemini; do
+            case "$provider" in
+              openai) provider_key_env=OPENAI_API_KEY ;;
+              claude) provider_key_env=ANTHROPIC_API_KEY ;;
+              gemini) provider_key_env=GEMINI_API_KEY ;;
+            esac
+            GATEWAY_CONFIG_FILE="./config/$provider.yaml" GATEWAY_KEY_ENV="$provider_key_env" docker compose -f compose.yaml -f compose.live.yaml config --quiet
+          done
+      - name: Build and start the synthetic stack
+        run: docker compose up --build --detach --wait --wait-timeout 120
+      - name: Validate Prometheus configuration
+        run: docker compose run --rm --no-deps --entrypoint promtool prometheus check config /etc/prometheus/prometheus.yml
+      - name: Check non-root image and complete monitoring path
+        run: |
+          test "$(docker image inspect --format '{{.Config.User}}' gateway7:local)" = "10001:10001"
+          python scripts/smoke_compose.py
+      - name: Show synthetic stack logs on failure
+        if: failure()
+        run: docker compose logs --no-color --tail=150
+      - name: Stop and remove the disposable stack
+        if: always()
+        run: docker compose down --volumes --remove-orphans

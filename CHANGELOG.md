@@ -7,11 +7,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- OpenAI-compatible chat completions and model discovery with an explicitly supported non-streaming API subset.
+- Gateway client Bearer tokens and per-client access to configured models, enforced before company middleware or provider calls.
+- Middleware starter generation and offline fixture checks with expected/actual results and automation-friendly exit codes.
+- Server-held OpenAI Chat Completions and Gemini generateContent adapters alongside Claude, with bounded non-streaming calls, normalized token usage and safe provider errors.
+- Reference middleware for email masking, configurable block/log content policy and response redaction, with synthetic fixtures and strict settings.
+- An installed `gateway7` CLI for configuration validation, serving, a key-free demo and model requests.
+- A non-root Docker image and Docker Compose pilot stack with readiness checks, Prometheus and provisioned Grafana dashboards.
+- Bounded-label request, provider and middleware metrics, including latency, policy outcomes, errors and reported token usage without prompt or response text.
+- Async middleware execution traces with instance, direction, request identifier, outcome and timing.
+- Synthetic demonstration of phone masking, a policy guard and response transformation together, plus request-side error/timeout and response-side failure cases.
 - Project plan for SPRINT-03 to SPRINT-09, with the first release and weekly progress monitoring.
 - Week 3 customer meeting report and decisions reconstructed from the privately supplied transcript, with unresolved story verdicts and Week 4 follow-ups.
 
 ### Changed
 
+- Breaking plugin API version 2: replace independent request/response hooks with `handle(request, context, call_next)` and one YAML `middleware` list; responses unwind in reverse order.
+- Middleware time budgets cover their own preprocessing and postprocessing, excluding downstream waits, while the complete request remains under one deadline.
 - Week 3 report links the published documentation, release, merged work and current checks, and identifies the remaining validation and scheduling gaps.
 - Assignment 3 follow-up clarifies setup, release and submission steps, plugin timeout limits, and the remaining evidence needed to assess the success threshold.
 

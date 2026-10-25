@@ -1,21 +1,24 @@
 # Writing a Gateway7 plugin
 
-Gateway7 loads trusted Python modules at startup through `importlib`.
-Installation changes a module file and YAML configuration; restart the process to apply it.
-This is the concrete extension mechanism selected with [DEC-013](decisions.md#dec-013) and the restart boundary in [DEC-010](decisions.md#dec-010).
-The core contains no phone-number policy.
+Gateway7 runs trusted Python plugins as async middleware.
+Each middleware can change the request, await the next handler, and change the returning response.
+One ordered list defines both directions: `A -> B -> provider -> B -> A`.
+[DEC-016](decisions.md#dec-016) records this API migration; restart-based installation remains [DEC-010](decisions.md#dec-010).
+
+Start with the [plugin generator and offline test runner](authoring.md) for an installable company package with synthetic fixtures.
+The two-file checkout example below remains available for the original course demonstration.
 
 ## Smallest installation
 
-Run these commands from the repository root after [setup](setup.md):
+From the repository root after [setup](setup.md):
 
 ```sh
 mkdir -p company_plugins
 cp examples/sample_plugin.py company_plugins/sample.py
 ```
 
-Python discovers `company_plugins` as a namespace package from the working directory; no `__init__.py` or core edit is needed.
-Keep the existing provider, limits and phone plugin in `config/demo.yaml`, then add this instance under `plugins` and append its name to `chains.request`:
+Python discovers `company_plugins` as a namespace package from the working directory.
+Keep the provider and limits in `config/demo.yaml`, and use these instances and middleware list:
 
 ```yaml
 plugins:
@@ -30,94 +33,100 @@ plugins:
     required: false
     settings:
       marker: "[checked-by-sample]"
-chains:
-  request: [mask, sample]
-  response: []
+middleware: [mask, sample]
 ```
 
-Stop and restart Gateway7 with the same config path.
-Send a user message to `/chat` and inspect the fake upstream's `/requests` record: the user message ends with `[checked-by-sample]`.
-For [US-03](https://github.com/iteam7/gateway7/issues/32) / AC-01, `git status --short` should show only `company_plugins/sample.py` (or its untracked parent directory) and `config/demo.yaml`.
-Use `git status --short --untracked-files=all` to show the file itself.
-The repeatable [demo](demo.md) uses a disposable directory and checks the changed file set without modifying your checkout.
+Restart with the same config path, send a user message to `/chat`, and inspect the fake provider's `/requests` record.
+The forwarded user message and the returned answer both end with `[checked-by-sample]`.
+No core edit or package rebuild is needed.
+For [US-03](https://github.com/iteam7/gateway7/issues/32) / AC-01, inspect `git status --short --untracked-files=all`: only the new module and configuration should change.
+The [demo](demo.md) checks that two-file installation in a disposable directory.
 
 ## Descriptor and hooks
 
-Each module exports one `PLUGIN`, defined with `gateway7.plugin_api.PluginDescriptor`:
+Each module exports `PLUGIN`, with `api_version=2`, a strict frozen Pydantic settings model, and a synchronous factory returning the middleware instance.
+The descriptor `id` names the plugin type; YAML keys name configured instances.
+Several instances can share one module with different settings.
+The complete runnable example is [examples/sample_plugin.py](https://github.com/iteam7/gateway7/blob/main/examples/sample_plugin.py).
+
+The instance implements one async method:
 
 ```python
-PLUGIN = PluginDescriptor(
-    id="sample",
-    api_version=1,
-    settings_model=Settings,
-    create=create,
-)
-```
-
-`id` is the module's stable **plugin type**, such as `sample`.
-The YAML map key is a configured **instance**, such as `sample_a`; chains refer to instance names.
-Several instances may use the same type/module with different validated settings.
-`Settings` is a Pydantic model with `strict=True`, `extra="forbid"` and `frozen=True`; `create(settings)` constructs an instance.
-
-An instance may implement either or both async hooks:
-
-```python
-async def on_request(self, request, context):
-    return Continue(payload=request)
-
-async def on_response(self, response, context):
-    return Continue(payload=response)
+async def handle(
+    self, request: ChatRequest, context: PluginContext, call_next: NextHandler
+) -> ChatResponse | Deny:
+    response = await call_next(request)
+    return response
 ```
 
 | Value | Contract |
 | --- | --- |
-| `ChatRequest` | `messages`: ordered plain-text `Message` objects with role `system`, `user` or `assistant`; `max_tokens`: integer, default 256, from 1 to 4096 |
-| `ChatResponse` | `text`: assistant text; `usage`: normalized integer counts when known, otherwise `None` |
-| `PluginContext` | Core-owned `request_id`, monotonic `deadline`, and a mutable `state` dictionary scoped to this request and this configured instance |
-| `Continue(payload)` | Pass a valid request/response of the correct phase to the next hook |
-| `Deny(code="policy_denied")` | Stop with a safe policy error; never use exception or denial text to send input back to callers |
+| `ChatRequest` | Ordered plain-text messages and validated generation settings |
+| `ChatResponse` | Assistant text, normalized provider usage when known, and a normalized finish reason |
+| `PluginContext` | Core-owned request identifier, overall monotonic deadline, and mutable state isolated to this request and instance |
+| `NextHandler` | Awaitable call accepting the next validated request and returning the downstream response |
+| `Deny()` | Short-circuit with the core's safe `policy_denied` error |
 
-The runner validates hook results again: Pydantic's `model_copy(update=...)` alone does not validate an update.
-An exception, malformed result or expired deadline stops the operation; request-hook failures cause zero upstream calls.
-Response-hook rejection happens after provider work and cannot undo its cost.
-Optional async `startup()` and `shutdown()` methods manage instance resources, not per-request data.
+To succeed, middleware must await `call_next(request)` exactly once and return a valid `ChatResponse`.
+A request-side policy may return `Deny()` without forwarding; a response-side policy may also return `Deny()`, after provider work has occurred.
+The next handler is valid only during its middleware invocation and in the same asyncio task.
+Repeated, escaped or concurrent next calls are errors; a swallowed downstream failure cannot be turned into success.
+The gateway validates payloads at boundaries, including values produced through Pydantic's unchecked `model_copy`.
+The core preserves the provider's original usage and finish reason independently of middleware edits.
+The authenticated model selection is pinned outside the plugin request contract and cannot be changed by middleware.
+
+Optional async `startup()` and `shutdown()` manage instance resources.
+Instances are shared across requests; immutable settings and concurrency-safe resources belong on the instance, and temporary mutable data belongs in `context.state`.
 
 ## Order, enable and required
 
-Request and response order are independent.
-For the same sample module configured as instances A and B, request order `[A, B]` appends `[A][B]`; response order `[B, A]` appends `[B][A]` to the deterministic answer.
-There is no implicit reverse order, retry or parallel hook execution within a request.
+With `middleware: [mask, alpha, beta]`, request work runs mask, alpha, beta; response work returns beta, alpha, mask.
+Changing the one list changes both directions.
+The sample's markers make this visible: upstream sees `ping[A][B]`, and the answer ends with `[B][A]`.
 
 | Configuration | Startup and execution |
 | --- | --- |
-| Unknown instance or duplicate entry in a chain | Startup fails |
-| Missing module, incompatible descriptor or invalid settings | Startup fails and names the instance, including when it is disabled |
-| Enabled instance referenced in a phase without that hook | Startup fails |
-| Optional instance with `enabled: false` | Its declared module/descriptor/settings are still checked; it is not created or run and is filtered from the effective chains |
-| `required: true` | Cannot be disabled; must appear in each chain for which it implements a hook |
-| Failure of any active hook | Fail closed, whether or not `required` was set |
+| Unknown or duplicate middleware instance | Startup fails |
+| Missing module, incompatible API, invalid settings or invalid `handle` | Startup fails with a safe instance diagnostic |
+| Optional disabled instance | Descriptor/settings are still validated; no instance is created or invoked |
+| Required instance | Must be enabled and present in the middleware list |
+| Error in any active middleware | Stops processing, including optional middleware |
 
-`required` protects configuration against accidentally removing a mandatory filter.
-It does not introduce a fail-open error mode for optional plugins.
-A missing disabled module is still an error because [US-03](https://github.com/iteam7/gateway7/issues/32) / AC-02 requires a named configured plugin to exist.
+Request-side denial, exception or timeout prevents all later middleware and provider calls.
+Response-side failure prevents delivery of the answer but cannot undo the provider call or its cost.
+`required` protects configuration; it does not enable a fail-open error mode.
+
+## Deadlines and diagnosis
+
+`limits.request_timeout_seconds` bounds the complete request.
+The retained setting `limits.hook_timeout_seconds` is each middleware's cumulative own-work budget: request preprocessing plus response postprocessing.
+Time spent awaiting `call_next` is excluded from that budget, including the provider's time, but remains inside the overall deadline.
+An expired timer invalidates a result even if middleware catches cancellation.
+
+Execution events identify the request, middleware instance, direction, outcome and duration.
+A start event without completion locates an in-flight step; the same request identifier connects the client response to the trace.
+Gateway logs contain no prompt, answer, provider credential or arbitrary exception message.
+The demonstration separately prints only its synthetic fixture transformations.
+
+Deadlines are cooperative asyncio cancellation, not a hard kill of blocking Python code.
+Installed modules remain trusted code sharing process memory, environment, files and network.
+The public plugin arguments exclude provider credentials, but the process is not a sandbox.
+[Task #84](https://github.com/iteam7/gateway7/issues/84) retains its Windows-specific repeated-run verification requirement.
+
+## Migration from API version 1
+
+Replace `api_version=1` with `api_version=2`, combine `on_request` and `on_response` into `handle`, and replace `Continue` with passing the request to `call_next` or returning the response.
+Replace `chains.request` and `chains.response` with `middleware`.
+Old descriptors and the old YAML shape fail startup rather than silently changing execution.
+Independent response ordering is removed: review an existing response-only policy's position in the combined list.
+Restart is required; this is a breaking plugin/configuration change within the pre-1.0 project.
 
 ## Trust, state and detector limits
 
-Installed plugins execute inside the gateway process.
-The ordinary hook contract does not contain the provider key, but this is **not a sandbox**: Python code can read the environment, memory, files and network.
-Only deploy reviewed company code and configuration; there is no plugin-upload HTTP endpoint.
+Do not retain prompts or original values in instance fields, globals, restoration maps or logs.
+The core discards request-owned state on completion without promising secure memory erasure.
+There is no plugin-upload HTTP endpoint, hot loading, retry or plugin process isolation.
 
-Instances are shared across requests.
-Keep settings immutable and shared service resources concurrency-safe; put temporary counters and similar values in `context.state`.
-Do not retain raw prompts or original values in instance fields, globals, restoration maps or logs.
-The core discards request-owned state at completion; it does not promise secure memory erasure.
-
-Deadlines use cooperative asyncio cancellation.
-[Task #84](https://github.com/iteam7/gateway7/issues/84) reports that Windows may accept a result after the timer fires when a plugin suppresses cancellation; that open defect limits the current fail-closed guarantee.
-Write bounded async work and propagate cancellation; blocking CPU work or code suppressing cancellation can stall the whole service.
-There is no hard kill, process isolation or guarantee that a cancelled provider call stopped upstream.
-
-The bundled phone plugin masks ASCII-digit numbers in exactly these shapes throughout all message roles and history: `+7 NNN NNN-NN-NN`, `8 (NNN) NNN-NN-NN`, and `+7NNNNNNNNNN`.
-The replacement is always `[PHONE]`; there is no restoration feature.
-Word boundaries reduce matches inside identifiers, and the order/date fixture is preserved.
-This narrow detector demonstrates the existing acceptance fixtures; it does not establish general PII coverage or an agreed production phone-format policy.
+The phone middleware masks ASCII-digit numbers in the three fixture shapes throughout all roles and history: `+7 NNN NNN-NN-NN`, `8 (NNN) NNN-NN-NN`, and `+7NNNNNNNNNN`.
+The replacement is `[PHONE]`, with no restoration.
+The order/date fixture remains unchanged; this detector does not establish general PII coverage or an agreed production phone-format policy.

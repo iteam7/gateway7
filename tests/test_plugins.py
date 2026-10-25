@@ -12,7 +12,7 @@ from pydantic import ValidationError
 
 from examples import sample_plugin
 from gateway7.models import ChatRequest, ChatResponse, Message
-from gateway7.plugin_api import Continue, PluginContext
+from gateway7.plugin_api import PluginContext
 from gateway7.plugins import phone_mask
 
 
@@ -21,12 +21,17 @@ def context() -> PluginContext:
 
 
 def apply_request(plugin, request: ChatRequest, plugin_context=None) -> ChatRequest:
-    result = asyncio.run(plugin.on_request(request, plugin_context or context()))
-    assert isinstance(result, Continue)
-    assert isinstance(result.payload, ChatRequest)
-    # The result remains a validated model tree, not a list of raw dicts.
-    assert all(isinstance(message, Message) for message in result.payload.messages)
-    return ChatRequest.model_validate(result.payload.model_dump())
+    observed = []
+
+    async def next_handler(processed):
+        observed.append(processed)
+        return ChatResponse(text="Synthetic answer")
+
+    result = asyncio.run(plugin.handle(request, plugin_context or context(), next_handler))
+    assert isinstance(result, ChatResponse)
+    assert len(observed) == 1 and isinstance(observed[0], ChatRequest)
+    assert all(isinstance(message, Message) for message in observed[0].messages)
+    return ChatRequest.model_validate(observed[0].model_dump())
 
 
 def test_phone_mask_covers_entire_history_without_changing_roles_or_other_text(caplog):
@@ -56,7 +61,7 @@ def test_phone_mask_covers_entire_history_without_changing_roles_or_other_text(c
     }
     assert original.model_dump() == before
     assert plugin_context.state == {}
-    assert vars(plugin) == {}
+    assert vars(plugin) == {"settings": phone_mask.Settings()}
     assert caplog.text == ""
 
 
@@ -128,19 +133,23 @@ def test_sample_instances_show_request_order_and_preserve_non_user_messages():
     assert request.messages[-1].content == "Latest"
 
 
-def test_sample_response_chain_can_use_a_different_order():
+def test_sample_response_unwinds_in_reverse_middleware_order():
     first = sample_plugin.PLUGIN.create(sample_plugin.Settings(marker="[A]"))
     second = sample_plugin.PLUGIN.create(sample_plugin.Settings(marker="[B]"))
     response = ChatResponse(text="Synthetic answer", usage={"total_tokens": 3})
+    request = ChatRequest(messages=[Message(role="user", content="Hello")])
+    captured = []
 
-    async def respond():
-        second_result = await second.on_response(response, context())
-        return await first.on_response(second_result.payload, context())
+    async def provider(processed):
+        captured.append(processed)
+        return response
 
-    result = asyncio.run(respond())
-    assert result.payload == ChatResponse(
-        text="Synthetic answer[B][A]", usage={"total_tokens": 3}
-    )
+    async def next_handler(processed):
+        return await second.handle(processed, context(), provider)
+
+    result = asyncio.run(first.handle(request, context(), next_handler))
+    assert result == ChatResponse(text="Synthetic answer[B][A]", usage={"total_tokens": 3})
+    assert captured[0].messages[0].content == "Hello[A][B]"
     assert response.text == "Synthetic answer"
 
 

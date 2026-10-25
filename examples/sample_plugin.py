@@ -1,14 +1,14 @@
 """Copy this one file to company_plugins/sample.py and configure its module.
 
 Separate configured instances can use markers such as [A] and [B]. Each
-request hook appends its marker only to user messages; each response hook
-appends it to response text. Chain order is therefore visible in both phases.
+middleware appends its marker before awaiting the next handler and after it
+returns. Request order is forward; the returning response unwinds in reverse.
 """
 
 from pydantic import BaseModel, ConfigDict
 
 from gateway7.models import ChatRequest, ChatResponse
-from gateway7.plugin_api import Continue, PluginContext, PluginDescriptor
+from gateway7.plugin_api import NextHandler, PluginContext, PluginDescriptor
 
 
 class Settings(BaseModel):
@@ -20,25 +20,17 @@ class SamplePlugin:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
 
-    async def on_request(
-        self, request: ChatRequest, context: PluginContext
-    ) -> Continue:
+    async def handle(
+        self, request: ChatRequest, context: PluginContext, call_next: NextHandler
+    ) -> ChatResponse:
         messages = [
             message.model_copy(update={"content": message.content + self.settings.marker})
             if message.role == "user"
             else message
             for message in request.messages
         ]
-        return Continue(payload=request.model_copy(update={"messages": messages}))
-
-    async def on_response(
-        self, response: ChatResponse, context: PluginContext
-    ) -> Continue:
-        return Continue(
-            payload=response.model_copy(
-                update={"text": response.text + self.settings.marker}
-            )
-        )
+        response = await call_next(request.model_copy(update={"messages": messages}))
+        return response.model_copy(update={"text": response.text + self.settings.marker})
 
 
 def create(settings: Settings) -> SamplePlugin:
@@ -46,5 +38,5 @@ def create(settings: Settings) -> SamplePlugin:
 
 
 PLUGIN = PluginDescriptor(
-    id="sample", api_version=1, settings_model=Settings, create=create
+    id="sample", api_version=2, settings_model=Settings, create=create
 )
