@@ -42,3 +42,28 @@ TODO: Team members must record what they accepted, changed or rejected after rev
 - Task #89 was originally created through the GitHub API. Its Task type, human Responsible/Accountable pair, matching assignees, milestone and Priority remain for the team to set; no role or schedule was inferred.
 - The existing `main` has no `FR-nnn` or `ADR-nnn` records for this work. The task retains this missing specification trace as a declared gap, rather than inventing accepted course requirements.
 - At the source check on 25 October, Assignment 4 was the latest published assignment. This file records the implementation assistance only and does not claim completion of the Week 5 report or any unpublished assignment.
+
+## Architecture documentation for task #92
+
+On 25 October, azamatbayramov asked Codex to carry out [task #92](https://github.com/iteam7/gateway7/issues/92).
+Formater read the current course requirements, checked the issues and remote repository, and prepared a separate working copy whose tracked files matched the merged implementation.
+The AI TechLead wrote the container architecture and three ADR drafts; a diagram agent produced an SVG and a Python standard-library generator, then the TechLead reviewed the image and implementation claims.
+The work adds the product-vision backlink and documentation navigation without changing the gateway runtime.
+
+The review kept the three deployed applications distinct from Python modules, described the synthetic upstream as a demo-only child process, and retained the existing incoming report anchors and dated team clarification.
+The ADRs compare options against the implemented system without inventing a historical options meeting.
+They remain Proposed: [task #91](https://github.com/iteam7/gateway7/issues/91) has not supplied the required FR/QR records, so the Drivers and ADR fields identify that dependency instead of linking nonexistent specifications.
+The missing requirement mapping and human acceptance leave task #92 AC-03 and part of AC-04 unfinished.
+No Week 4 meeting, Customer verdict or team acceptance of the new ADR text is claimed.
+
+The committed SVG matched its generator, and regeneration was byte-identical when invoked outside the repository.
+The image was visually inspected; XML parsing, Python compilation and Ruff checks passed for the generator.
+Markdown lint passed all 56 files; strict MkDocs and the site checker passed 27 maintained pages and 2076 links/assets, including local anchors and report exclusion.
+Formater checked the diff and the real remote base before publication; external link checking and the other PR workflow results belong to the pull request evidence.
+The source checkout and the remote-only binary report artifacts are preserved; the local snapshot history is not pushed.
+The pull request is a draft referring to #92, with no closing keyword while its dependency and acceptance criteria remain incomplete.
+
+### Team evaluation for the architecture draft
+
+TODO: Team members must record what they accepted, changed or rejected after reviewing the architecture, diagram and ADR drafts.
+The AI review and automated checks do not replace that assessment or the Accountable member's approval.

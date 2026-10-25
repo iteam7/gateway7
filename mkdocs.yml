@@ -31,7 +31,12 @@ nav:
       - Threshold review proposal: threshold-review.md
       - Project plan: project-plan.md
       - Risks: risks.md
-      - Architecture: architecture/README.md
+      - Architecture:
+          - Overview and containers: architecture/README.md
+          - Gateway and monitoring stack: architecture/adr/ADR-001.md
+          - Trusted middleware: architecture/adr/ADR-002.md
+          - Credentials and model access: architecture/adr/ADR-003.md
+          - ADR template: architecture/adr/TEMPLATE.md
       - Decisions: decisions.md
       - Assumptions: assumptions.md
       - Definition of Done: definition-of-done.md
