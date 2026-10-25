@@ -26,6 +26,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- Sprint plan dates and backlog links reconciled with the Assignment 4 calendar, with missing planning, estimation and review evidence stated explicitly.
 - Breaking plugin API version 2: replace independent request/response hooks with `handle(request, context, call_next)` and one YAML `middleware` list; responses unwind in reverse order.
 - Middleware time budgets cover their own preprocessing and postprocessing, excluding downstream waits, while the complete request remains under one deadline.
 - Task and user story issue forms follow the Week 4 shape: the task form applies the `Task` type and requires `Requirements`, the story form adds `Specified by` and checkbox criteria, and neither applies labels.
