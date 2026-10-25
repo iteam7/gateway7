@@ -7,6 +7,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import secrets
 import socket
 import signal
@@ -27,6 +28,8 @@ from gateway7.errors import StartupError
 from gateway7.loader import load_plugins
 from gateway7.models import ChatRequest, ChatResponse, Message
 from gateway7.providers import validate_provider_config
+from gateway7.offline import print_report, run_offline
+from gateway7.scaffold import create_plugin_project
 
 
 class _ManagedServer(uvicorn.Server):
@@ -102,6 +105,12 @@ def _demo_config(port: int) -> GatewayConfig:
                 "key_env": "GATEWAY7_DEMO_KEY",
                 "model": "fake",
             },
+            "auth": {
+                "enabled": True,
+                "clients": {
+                    "demo": {"token_env": "GATEWAY7_DEMO_CLIENT_TOKEN", "models": ["fake"]}
+                },
+            },
             "plugins": {
                 "guard": {
                     "module": "gateway7.plugins.content_policy",
@@ -137,6 +146,7 @@ async def _demo(host: str, port: int) -> None:
         upstream_port = sock.getsockname()[1]
     key = "gateway7-synthetic-" + secrets.token_hex(24)
     previous_key = os.environ.get("GATEWAY7_DEMO_KEY")
+    previous_client_token = os.environ.get("GATEWAY7_DEMO_CLIENT_TOKEN")
     env = {**os.environ, "GATEWAY7_DEMO_KEY": key}
     creation = asyncio.create_task(
         asyncio.create_subprocess_exec(
@@ -176,9 +186,17 @@ async def _demo(host: str, port: int) -> None:
             else:
                 raise StartupError("Synthetic demo upstream did not become ready")
         os.environ["GATEWAY7_DEMO_KEY"] = key
-        print("Starting synthetic demo; no real provider is contacted.", file=sys.stderr)
+        os.environ["GATEWAY7_DEMO_CLIENT_TOKEN"] = "gateway7-synthetic-client-token"
+        print(
+            "Starting synthetic demo; no real provider is contacted. Client token: gateway7-synthetic-client-token",
+            file=sys.stderr,
+        )
         await _serve(None, host, port, config=_demo_config(upstream_port))
     finally:
+        if previous_client_token is None:
+            os.environ.pop("GATEWAY7_DEMO_CLIENT_TOKEN", None)
+        else:
+            os.environ["GATEWAY7_DEMO_CLIENT_TOKEN"] = previous_client_token
         if previous_key is None:
             os.environ.pop("GATEWAY7_DEMO_KEY", None)
         else:
@@ -194,7 +212,14 @@ async def _demo(host: str, port: int) -> None:
             await process.wait()
 
 
-async def _chat(url: str, message: str, max_tokens: int) -> int:
+async def _chat(
+    url: str,
+    message: str,
+    max_tokens: int,
+    *,
+    token_env: str = "GATEWAY7_TOKEN",
+    model: str | None = None,
+) -> int:
     parsed = urlsplit(url)
     if (
         parsed.scheme not in ("http", "https")
@@ -206,10 +231,26 @@ async def _chat(url: str, message: str, max_tokens: int) -> int:
         or parsed.path not in ("", "/")
     ):
         raise StartupError("--url must be an HTTP(S) origin without credentials, path or query")
+    if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]{0,127}", token_env) is None:
+        raise StartupError("--token-env must be an environment variable name")
+    token = os.environ.get(token_env)
+    if token is not None and (
+        not token
+        or not token.isascii()
+        or any(ord(char) < 33 or ord(char) > 126 for char in token)
+        or len(token) > 512
+    ):
+        raise StartupError("Gateway token environment variable has an invalid value")
+    if model is not None and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", model) is None:
+        raise StartupError("--model must be a valid model identifier")
     request = ChatRequest(messages=[Message(role="user", content=message)], max_tokens=max_tokens)
+    payload = request.model_dump()
+    if model is not None:
+        payload["model"] = model
+    headers = {} if token is None else {"authorization": "Bearer " + token}
     async with httpx.AsyncClient(trust_env=False, follow_redirects=False, timeout=310) as client:
         async with client.stream(
-            "POST", url.rstrip("/") + "/chat", json=request.model_dump()
+            "POST", url.rstrip("/") + "/chat", json=payload, headers=headers
         ) as response:
             if response.status_code != 200:
                 print(f"Gateway request failed (HTTP {response.status_code})", file=sys.stderr)
@@ -222,8 +263,14 @@ async def _chat(url: str, message: str, max_tokens: int) -> int:
     data = json.loads(body)
     if not isinstance(data, dict):
         raise StartupError("Invalid gateway response")
-    answer = ChatResponse.model_validate({"text": data.get("text"), "usage": data.get("usage")})
-    print(json.dumps(answer.model_dump(), ensure_ascii=False))
+    answer = ChatResponse.model_validate(
+        {
+            "text": data.get("text"),
+            "usage": data.get("usage"),
+            "finish_reason": data.get("finish_reason", "stop"),
+        }
+    )
+    print(json.dumps({"text": answer.text, "usage": answer.usage}, ensure_ascii=False))
     return 0
 
 
@@ -244,11 +291,35 @@ def _parser() -> argparse.ArgumentParser:
     chat.add_argument("--url", default="http://127.0.0.1:8000")
     chat.add_argument("--message")
     chat.add_argument("--max-tokens", type=int, default=256)
+    chat.add_argument("--model", help="An allowed model ID; omitted uses the server default")
+    chat.add_argument(
+        "--token-env",
+        default="GATEWAY7_TOKEN",
+        help="Environment variable holding the gateway bearer token",
+    )
     demo = subcommands.add_parser(
         "demo", help="Run a synthetic provider and reference middleware without keys"
     )
     demo.add_argument("--host", default="127.0.0.1")
     demo.add_argument("--port", type=int, default=8000)
+    plugin = subcommands.add_parser("plugin", help="Create and test company middleware")
+    plugin_commands = plugin.add_subparsers(dest="plugin_command", required=True)
+    initialize = plugin_commands.add_parser(
+        "init", help="Create an installable plugin project without overwriting"
+    )
+    initialize.add_argument("name")
+    initialize.add_argument(
+        "--directory", default=".", help="Existing parent directory for the new project"
+    )
+    test = plugin_commands.add_parser(
+        "test", help="Run synthetic fixtures in a network-disabled worker"
+    )
+    test.add_argument("--config", required=True)
+    test.add_argument("--fixtures", required=True)
+    test.add_argument("--json", action="store_true", dest="as_json")
+    test.add_argument(
+        "--timeout", type=float, default=30, help="Whole-suite wall-clock limit in seconds (1–300)"
+    )
     return parser
 
 
@@ -263,6 +334,8 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--port must be between 1 and 65535")
     if args.command == "chat" and not 1 <= args.max_tokens <= 4096:
         parser.error("--max-tokens must be between 1 and 4096")
+    if args.command == "plugin" and args.plugin_command == "test" and not 1 <= args.timeout <= 300:
+        parser.error("--timeout must be between 1 and 300 seconds")
     handler = logging.StreamHandler(sys.stderr)
     handler.setFormatter(logging.Formatter("%(message)s"))
     gateway_logger = logging.getLogger("gateway7")
@@ -270,6 +343,17 @@ def main(argv: list[str] | None = None) -> int:
     gateway_logger.setLevel(logging.INFO)
     gateway_logger.propagate = False
     try:
+        if args.command == "plugin":
+            if args.plugin_command == "init":
+                project = create_plugin_project(args.name, args.directory)
+                print(f"Created plugin project: {project}")
+                print(
+                    "Run inside the project: gateway7 plugin test --config gateway.yaml --fixtures fixtures.json"
+                )
+                return 0
+            code, report = run_offline(args.config, args.fixtures, args.timeout)
+            print_report(report, as_json=args.as_json)
+            return code
         if args.command == "validate":
             config = load_config(args.config)
             validate_provider_config(config.provider)
@@ -290,11 +374,28 @@ def main(argv: list[str] | None = None) -> int:
             message = args.message if args.message is not None else sys.stdin.read(65537)
             if not message.strip() or len(message.encode("utf-8")) > 65536:
                 raise StartupError("Chat input must be nonempty and at most 65536 UTF-8 bytes")
-            return asyncio.run(_chat(args.url, message, args.max_tokens))
+            return asyncio.run(
+                _chat(
+                    args.url, message, args.max_tokens, token_env=args.token_env, model=args.model
+                )
+            )
     except StartupError as error:
         print(f"Gateway startup failed: {error}", file=sys.stderr)
         return 1
     except KeyboardInterrupt:
+        if args.command == "plugin" and args.plugin_command == "test":
+            print_report(
+                {
+                    "schema_version": 1,
+                    "passed": False,
+                    "total": 0,
+                    "failed": 0,
+                    "cases": [],
+                    "error": "Offline fixture execution interrupted",
+                },
+                as_json=args.as_json,
+            )
+            return 2
         return 0
     except Exception:
         print(

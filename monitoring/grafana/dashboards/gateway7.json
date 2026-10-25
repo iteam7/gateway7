@@ -217,7 +217,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (status) (rate(gateway7_http_requests_total{route=\"chat\"}[$__rate_interval]))",
+          "expr": "sum by (status) (rate(gateway7_http_requests_total{route=~\"chat|openai_chat\"}[$__rate_interval]))",
           "legendFormat": "HTTP {{status}}",
           "range": true,
           "instant": false
@@ -260,7 +260,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(gateway7_http_request_duration_seconds_bucket{route=\"chat\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(gateway7_http_request_duration_seconds_bucket{route=~\"chat|openai_chat\"}[$__rate_interval])))",
           "legendFormat": "p95",
           "range": true,
           "instant": false
@@ -287,9 +287,9 @@
     },
     {
       "id": 7,
-      "title": "Policy denials and server failures",
+      "title": "Access denials, policy denials and server failures",
       "type": "timeseries",
-      "description": "",
+      "description": "401 is authentication failure. 403 is model-access or content-policy denial. 5xx are server/upstream failures.",
       "datasource": {
         "type": "prometheus",
         "uid": "gateway7-prometheus"
@@ -303,7 +303,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (status) (rate(gateway7_http_requests_total{route=\"chat\",status=~\"403|5..\"}[$__rate_interval]))",
+          "expr": "sum by (status) (rate(gateway7_http_requests_total{route=~\"chat|openai_chat\",status=~\"401|403|5..\"}[$__rate_interval]))",
           "legendFormat": "HTTP {{status}}",
           "range": true,
           "instant": false

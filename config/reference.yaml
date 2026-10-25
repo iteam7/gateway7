@@ -1,3 +1,6 @@
+# Explicitly unauthenticated synthetic fixture; real providers forbid this.
+auth:
+  enabled: false
 # Synthetic reference policy suite. Change provider settings for a real service.
 provider:
   kind: fake

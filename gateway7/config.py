@@ -17,6 +17,7 @@ from pydantic import (
 from gateway7.errors import StartupError
 
 InstanceName = Annotated[str, StringConstraints(pattern=r"^[A-Za-z][A-Za-z0-9_.-]{0,63}$")]
+ModelId = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")]
 ModuleName = Annotated[
     str,
     StringConstraints(
@@ -73,11 +74,42 @@ class PluginConfig(StrictConfig):
     settings: dict[str, Any] = Field(default_factory=dict)
 
 
+class ClientConfig(StrictConfig):
+    token_env: str = Field(pattern=r"^[A-Za-z_][A-Za-z0-9_]*$", max_length=128)
+    models: list[ModelId] = Field(min_length=1, max_length=64)
+
+    @model_validator(mode="after")
+    def unique_models(self) -> "ClientConfig":
+        if len(self.models) != len(set(self.models)):
+            raise ValueError("Client models must be unique")
+        return self
+
+
+class AuthConfig(StrictConfig):
+    enabled: bool = False
+    clients: dict[InstanceName, ClientConfig] = Field(default_factory=dict, max_length=128)
+
+    @model_validator(mode="after")
+    def consistent_clients(self) -> "AuthConfig":
+        if self.enabled != bool(self.clients):
+            raise ValueError(
+                "Enabled authentication requires clients; disabled authentication requires none"
+            )
+        return self
+
+
 class GatewayConfig(StrictConfig):
     provider: ProviderConfig = Field(default_factory=ProviderConfig)
     limits: LimitsConfig = Field(default_factory=LimitsConfig)
     plugins: dict[InstanceName, PluginConfig] = Field(default_factory=dict)
     middleware: list[InstanceName] = Field(default_factory=list)
+    auth: AuthConfig = Field(default_factory=AuthConfig)
+
+    @model_validator(mode="after")
+    def real_providers_require_authentication(self) -> "GatewayConfig":
+        if self.provider.kind != "fake" and not self.auth.enabled:
+            raise ValueError("Real providers require gateway client authentication")
+        return self
 
 
 def _reject_duplicate_keys(node: yaml.Node | None, ancestors: frozenset[int] = frozenset()) -> None:

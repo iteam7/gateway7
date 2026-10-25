@@ -43,6 +43,7 @@ jobs:
           cd /tmp
           /tmp/gateway7-wheel/bin/gateway7 --help
           /tmp/gateway7-wheel/bin/gateway7 validate --config "$GITHUB_WORKSPACE/config/openai.yaml"
+          "$GITHUB_WORKSPACE/.venv/bin/python" "$GITHUB_WORKSPACE/scripts/smoke_authoring.py" --python /tmp/gateway7-wheel/bin/python
           /tmp/gateway7-wheel/bin/gateway7 demo > /tmp/gateway7-wheel.log 2>&1 &
           gateway_pid=$!
           trap 'kill "$gateway_pid"; wait "$gateway_pid" || true' EXIT
@@ -57,9 +58,14 @@ jobs:
         run: |
           docker compose config --quiet
           for provider in openai claude gemini; do
-            GATEWAY_CONFIG_FILE="./config/$provider.yaml" docker compose -f compose.yaml -f compose.live.yaml config --quiet
+            case "$provider" in
+              openai) provider_key_env=OPENAI_API_KEY ;;
+              claude) provider_key_env=ANTHROPIC_API_KEY ;;
+              gemini) provider_key_env=GEMINI_API_KEY ;;
+            esac
+            GATEWAY_CONFIG_FILE="./config/$provider.yaml" GATEWAY_KEY_ENV="$provider_key_env" docker compose -f compose.yaml -f compose.live.yaml config --quiet
           done
-      - name: Build and start the no-key stack
+      - name: Build and start the synthetic stack
         run: docker compose up --build --detach --wait --wait-timeout 120
       - name: Validate Prometheus configuration
         run: docker compose run --rm --no-deps --entrypoint promtool prometheus check config /etc/prometheus/prometheus.yml

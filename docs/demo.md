@@ -11,11 +11,14 @@ Start `uv run --locked gateway7 demo`, or `docker compose up --build --detach --
 Send these public synthetic fixtures through the CLI:
 
 ```sh
+export GATEWAY7_TOKEN=gateway7-synthetic-client-token
 uv run --locked gateway7 chat --message 'Contact synthetic@example.com or +7 999 123-45-67; SECRET-TEST'
 uv run --locked gateway7 chat --message 'BLOCK-ME-TEST'
 ```
 
 The first answer contains `[EMAIL]`, `[PHONE]` and `[removed]`; the second returns a nonzero CLI exit with HTTP 403 and makes no provider call.
+A missing/wrong gateway token returns 401; a model outside the client allowlist returns 403 before forwarding.
+The [API guide](api.md) demonstrates the same middleware path through the official OpenAI SDK.
 With Compose, show `http://127.0.0.1:3000/d/gateway7-overview` after several scrapes and relate HTTP outcomes, provider calls and middleware timings.
 `python scripts/smoke_compose.py` verifies these behaviors and the monitoring connections automatically.
 This interactive fixture echoes transformed input and retains no conversation history.
@@ -81,7 +84,7 @@ No test claims a supported maximum plugin count or production throughput.
 
 Modules are trusted code sharing one process and its environment; hiding the key from hook arguments does not sandbox a malicious plugin.
 Async timeouts are cooperative and cannot forcibly kill CPU-blocking code or reverse an upstream request already sent.
-There is no restoration map, hot loading, streaming, retry/failover, developer authentication, persistent chat storage or billing ledger in this slice.
+There is no restoration map, hot loading, streaming, retry/failover, persistent chat storage or billing ledger in this slice.
 The recorder is test-only and stores synthetic inputs so the operator can inspect what crossed the provider boundary.
 
 ## Questions to settle in the call

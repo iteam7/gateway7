@@ -27,6 +27,7 @@ dev = [
   "mypy>=1.15,<2",
   "types-PyYAML>=6.0,<7",
   "build>=1.2,<2",
+  "openai>=3.37.0,<4.0.0",
 ]
 
 [tool.hatch.build.targets.wheel]

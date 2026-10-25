@@ -3,7 +3,7 @@
 import asyncio
 import logging
 import time
-from typing import Any, TypeVar
+from typing import Any, Literal, TypeVar
 
 from gateway7.config import LimitsConfig
 from gateway7.errors import GatewayError
@@ -27,6 +27,11 @@ def _checkpoint(deadline: float) -> None:
 def _validated(payload: object, expected: type[Payload]) -> Payload:
     if not isinstance(payload, expected):
         raise ValueError("Invalid payload type")
+    # model_copy(update=...) can add undeclared attributes even with extra=forbid;
+    # model_dump omits them. Reject such edits instead of silently discarding a
+    # plugin's attempted model/control-field injection.
+    if set(vars(payload)) - expected.model_fields.keys():
+        raise ValueError("Unexpected payload fields")
     # model_copy/model_construct can bypass validation, including mutable children.
     return expected.model_validate(payload.model_dump(mode="python", warnings=False), strict=True)
 
@@ -59,7 +64,12 @@ class Pipeline:
         self.provider_name = provider_name
 
     async def run(
-        self, request: ChatRequest, request_id: str, *, deadline: float | None = None
+        self,
+        request: ChatRequest,
+        request_id: str,
+        *,
+        deadline: float | None = None,
+        provider_model: str | None = None,
     ) -> ChatResponse:
         deadline = (
             deadline
@@ -72,9 +82,10 @@ class Pipeline:
         }
         provider_called = False
         provider_usage = None
+        provider_finish_reason: Literal["stop", "length"] = "stop"
 
         async def dispatch(index: int, incoming: ChatRequest) -> ChatResponse:
-            nonlocal provider_called, provider_usage
+            nonlocal provider_called, provider_usage, provider_finish_reason
             _checkpoint(deadline)
             if index == len(self.plugins.middleware_chain):
                 if provider_called:
@@ -83,7 +94,14 @@ class Pipeline:
                 started = time.monotonic()
                 _log(request_id, "start", "provider", "provider", 0)
                 try:
-                    result = _validated(await self.provider.complete(incoming), ChatResponse)
+                    # Authenticated routing is pinned outside plugin-visible
+                    # payloads; concurrent requests never mutate the adapter.
+                    response = (
+                        await self.provider.complete(incoming)
+                        if provider_model is None
+                        else await self.provider.complete(incoming, model=provider_model)
+                    )
+                    result = _validated(response, ChatResponse)
                 except asyncio.CancelledError:
                     if self.metrics is not None:
                         self.metrics.observe_provider(
@@ -108,6 +126,7 @@ class Pipeline:
                     raise GatewayError("provider_error") from None
                 # Snapshot before any middleware can mutate the returned object.
                 provider_usage = None if result.usage is None else dict(result.usage)
+                provider_finish_reason = result.finish_reason
                 if self.metrics is not None:
                     self.metrics.observe_provider(
                         self.provider_name, "complete", time.monotonic() - started, provider_usage
@@ -254,7 +273,9 @@ class Pipeline:
             if total_timer.expired():
                 raise GatewayError("timeout")
             _checkpoint(deadline)
-            return ChatResponse(text=response.text, usage=provider_usage)
+            return ChatResponse(
+                text=response.text, usage=provider_usage, finish_reason=provider_finish_reason
+            )
         except TimeoutError:
             raise GatewayError("timeout") from None
         finally:

@@ -10,20 +10,31 @@ The review required explicit process cleanup when SIGTERM arrives during startup
 The Compose smoke was strengthened to verify phone/email masking, response redaction, provider-call counts and the Grafana datasource query path.
 The AI review does not supply the required approval from another team member or a Customer verdict.
 
+Later on 25 October, azamatbayramov selected the compatible inbound API, gateway client tokens with model access, middleware generation and offline fixture testing as the next implementation work.
+Codex extended the same task and pull request, preserving the earlier pilot and its verification evidence.
+The extension adds SDK-facing protocol checks, authentication/authorization boundaries and the generated-plugin workflow to the review scope.
+Review kept authorized model selection outside plugin-visible payloads and preserved provider usage/finish metadata, rejected undeclared plugin fields and unsupported API options, and disabled implicit trailing-slash redirects.
+The generated-package installation check uses the reviewed Gateway7 wheel and installs the plugin with `--no-deps`, so it cannot substitute an unrelated package resolution for the reviewed runtime.
+The review also required interrupted offline checks to return a failure after cleaning up their worker, instead of being treated as an orderly successful server shutdown.
+
 ## Handling and checks
 
 The adapters are checked with synthetic HTTP transports against the documented provider protocols.
 These tests can establish payload conversion, usage handling and failure behavior; they do not establish access to a live model or successful provider billing/account setup.
 Reference policy tests cover transformations, benign messages, request history, configuration failures and whether blocked requests reach the provider.
 CLI and metric checks exercise installed commands, startup errors, readiness and bounded metric labels without prompt text or credentials.
-The [Ubuntu Compose CI check](https://github.com/iteam7/gateway7/actions/runs/40192076568/job/121165000016) built the non-root image, started the actual gateway/Prometheus/Grafana stack, validated Prometheus configuration and passed the HTTP policy, metric, scrape, dashboard and datasource-query smoke.
+For the initial pilot, the [Ubuntu Compose CI check](https://github.com/iteam7/gateway7/actions/runs/40192076568/job/121165000016) built the non-root image, started the actual gateway/Prometheus/Grafana stack, validated Prometheus configuration and passed the HTTP policy, metric, scrape, dashboard and datasource-query smoke.
 The local environment had no Docker or Podman; container verification therefore ran in CI rather than being inferred from YAML parsing.
-The final automated results are recorded in the pull request, including 359 passing tests and the separate installed-wheel check.
+The initial pilot had 359 passing tests and a separate installed-wheel check.
+The extension's fresh-wheel check generated a plugin, installed it as a normal package outside the checkout and exercised it through authenticated SDK HTTP calls.
+It checked the offline pass, mismatch and invalid-setup exit codes, and verified that a forbidden model caused no additional provider call.
+The check exposed inherited proxy settings affecting local SDK requests; the example client and smoke use an explicit HTTP client that ignores those settings.
+The final results for the compatible API, access control and developer workflow extension are recorded in the same pull request.
 No live-provider call, Customer acceptance, story closure, release or deployment to a shared environment is claimed.
 
 ## Team evaluation
 
-TODO: Team members must record what they accepted, changed or rejected after reviewing the providers, middleware, CLI and deployment/observability bundle.
+TODO: Team members must record what they accepted, changed or rejected after reviewing the providers, middleware, CLI, deployment/observability, compatible API, access control and plugin-authoring workflow.
 
 ## Deviations to carry into the weekly report
 

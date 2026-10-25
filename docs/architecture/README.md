@@ -26,8 +26,8 @@ flowchart TB
 
 | Component | Responsibility |
 | --- | --- |
-| HTTP API | Validate input, create context, serialize allowed results and safe errors |
-| Request core | Nest middleware around one provider call, preserve usage and clean up request-owned state |
+| HTTP API | Authenticate gateway callers, authorize the requested model, normalize native/OpenAI text requests and serialize safe results/errors |
+| Request core | Nest middleware around one provider call, pin the authorized model outside plugin payloads, preserve provider metadata and clean up request-owned state |
 | Plugin runner | Validate requests/responses, guard the next handler and enforce own-work budgets plus the overall deadline; no company policy |
 | Company plugins | Allow, modify or deny content through the shared contract |
 | Provider adapter | Translate normalized data, attach the server key and normalize responses/errors |
@@ -39,8 +39,8 @@ Plugins depend on the contract in `gateway7/models.py` and `gateway7/plugin_api.
 ## Running and observing the pilot
 
 The installed CLI is the common entry point for local development and the container.
-`serve` starts a configured gateway, `validate` checks configuration and installed middleware without contacting a provider, and `chat` sends a text request to a running gateway.
-`demo` supplies a synthetic loopback provider and a reference policy chain, so a clean installation can be exercised without a real API key.
+`serve` starts a configured gateway, `validate` checks configuration and installed middleware without contacting a provider, and `chat` sends a text request with the caller's gateway token.
+`demo` supplies a synthetic loopback provider, a synthetic caller credential and a reference policy chain, so a clean installation can be exercised without a real provider account.
 The demo provider is not an alternative production backend; it is a deterministic fixture.
 
 Docker Compose adds two optional operational responsibilities to the gateway: Prometheus scrapes numeric telemetry and Grafana reads those series through a provisioned data source and dashboard.
@@ -57,12 +57,33 @@ flowchart TB
 
 The no-key Compose configuration uses the synthetic provider on loopback inside the gateway container.
 A real-provider configuration selects OpenAI, Claude or Gemini at startup; keys come from the server environment, and origins are restricted to the corresponding official endpoint.
-There is no per-request provider selection, fallback or automatic retry.
+Each caller can select only models in its configured allowlist within that provider; there is no per-request provider selection, fallback or automatic retry.
 The provider adapters use HTTP directly, so normalization and key handling can be tested against controlled transports without a provider SDK or paid request.
 
 `/health` describes process liveness, while `/ready` describes completion of configuration, plugin and adapter initialization; readiness performs no paid upstream probe.
 The [setup guide](../setup.md) documents local and Compose commands, and [observability](../observability.md) defines metrics, dashboard panels and their limitations.
-Published Compose ports bind to loopback; exposing the gateway beyond a trusted local environment requires the caller-authentication work tracked in US-07.
+Published Compose ports bind to loopback.
+Bearer authentication covers both chat APIs and model discovery; health, readiness and metrics remain infrastructure endpoints without caller authentication.
+TLS termination and restricting access to those infrastructure endpoints remain deployment responsibilities.
+
+## Caller access and HTTP compatibility
+
+Real-provider configurations require enabled authentication and at least one configured client.
+Each client declares a token environment-variable reference and a model allowlist; provider credentials and gateway caller credentials must differ.
+Startup resolves the credentials, rejects missing/invalid/duplicate tokens and retains token digests with immutable permissions.
+Credential rotation and removal take effect on restart; no account database or management service is introduced.
+Anonymous operation is permitted only for the explicitly synthetic provider.
+
+`POST /chat` retains its native response shape and accepts an optional model, defaulting to the configured provider model when the caller may use it.
+`POST /v1/chat/completions` implements the documented non-streaming text subset, and `GET /v1/models` lists only the caller's permitted models.
+Both chat entry points use the same authentication, model authorization, middleware chain and provider adapter.
+Unsupported controls, tools, multimodal messages and streaming are rejected rather than ignored; this is not compatibility with every OpenAI endpoint or feature.
+The [HTTP contract](../api.md) defines the supported subset; [authentication](../authentication.md) describes token setup, model permissions and restart-based rotation.
+
+The HTTP layer removes the model from the plugin-visible request and passes the selected model to the runner separately.
+The adapter uses a request-local value rather than changing shared adapter configuration.
+This keeps concurrent callers' model selection isolated and prevents middleware payload changes from escalating model access.
+The runner snapshots provider usage and completion reason before response middleware; modified text cannot turn a truncated provider answer into a claimed normal completion.
 
 ## Customer view
 
@@ -83,13 +104,13 @@ flowchart TB
 
 ## Request lifecycle
 
-1. Assign a request ID and validate the text-chat format and size before plugins or forwarding. Reject unsupported fields; create a monotonic deadline and isolated instance state for valid input.
+1. Assign a request ID and authenticate the caller before reading a protected request body. Create the overall deadline, bound and validate the text-chat input, authorize its selected model, and allocate isolated instance state. Authentication and model-access failures cause zero middleware/provider calls.
 2. Enter middleware in configured order. Each `handle` preprocesses its input and awaits `call_next(request)`, or returns `Deny()`. Request-side exceptions, invalid results and timeouts prevent later work and cause **zero upstream calls**.
 3. At the innermost handler, recheck cancellation/deadline and call the provider once with the processed request and server key. Snapshot the validated usage before returning to middleware.
 4. Return through the same middleware in reverse order for postprocessing. A denial or technical failure blocks delivery but cannot undo provider work or usage; an outer middleware cannot swallow a downstream failure and return success.
 5. Return the allowed response or core-owned safe error with its request ID while connected. Record a safe outcome and release request-owned state on every exit, including disconnect, once in-flight work unwinds.
 
-The core snapshots validated provider usage before middleware unwinding and preserves it in the successful response; plugin edits cannot replace it.
+The core snapshots validated provider usage and completion reason before middleware unwinding; plugin edits cannot replace that metadata.
 Absent/invalid usage means **unknown, not zero**; failed/cancelled calls do not imply zero usage.
 Metrics record known provider usage before response middleware runs, including when a later policy blocks delivery; an unknown-usage counter records attempts with unavailable counts, including failed and cancelled attempts.
 Prometheus counters are operational observations, not a durable per-request usage ledger or billing record.
@@ -98,8 +119,8 @@ Prometheus counters are operational observations, not a durable per-request usag
 
 | Contract | Contents |
 | --- | --- |
-| Request | Strictly validated ordered plain-text messages, including history, and generation options; provider selection is server configuration. |
-| Response | Assistant text and normalized usage when known; no credentials or raw upstream errors. |
+| Request | Strictly validated ordered plain-text messages, including history, and generation options; provider selection and the authorized model stay outside the plugin payload. |
+| Response | Assistant text, normalized usage when known and provider completion reason; no credentials or raw upstream errors. |
 | Context | Core-owned request ID and monotonic deadline, with temporary `state` scoped to each request and configured instance. |
 | Result | A valid `ChatResponse` after one awaited `call_next`, or `Deny()`; technical failures are not policy denials. |
 
@@ -125,7 +146,7 @@ Blocking/uncooperative plugins cannot be forcibly stopped and can delay responsi
 Logs contain only request ID, outcome, safe component/reason codes and durations, excluding content, keys, headers, plugin state and raw errors; fixture capture is synthetic-only.
 Metrics use bounded routes, status codes, configured middleware names, provider kinds, phases and outcomes.
 Request IDs, prompts, answers, keys and user-controlled URL paths are not metric labels.
-No original-text restoration/storage, hot loading, streaming, retries/failover, persistent conversations, billing or user-supplied keys; discarding state does not promise secure memory erasure.
+No original-text restoration/storage, hot loading, streaming, retries/failover, persistent conversations, billing or caller-supplied provider keys; discarding state does not promise secure memory erasure.
 
 ## Traceability and first implementation slice
 
@@ -139,7 +160,23 @@ No original-text restoration/storage, hot loading, streaming, retries/failover, 
 Tests also cover fail-closed exits, invalid results, reverse response order, next-handler misuse and isolated state.
 The [middleware catalog](../middleware-catalog.md) describes reference phone/email masking and literal block, log and redaction policies with request/history/response fixtures.
 These deterministic detectors have documented coverage limits; their presence does not establish Customer acceptance of US-04–06 or general personal-data detection.
-Caller authentication, dynamic routing and durable usage accounting remain outside this slice.
+Caller tokens and model allowlists implement the access path in [US-07](https://github.com/iteam7/gateway7/issues/36); human acceptance remains separate.
+Cross-provider routing and durable usage accounting remain outside this slice.
+
+## Authoring and offline verification
+
+The middleware generator creates a new installable plugin project with a strict settings model, fixture examples, gateway configuration and usage instructions.
+It refuses an existing target instead of overwriting company work.
+Generated projects are exercised from a regular installed gateway wheel, independently of the gateway source checkout.
+
+The offline fixture command runs the actual loader, middleware lifecycle and pipeline against an in-process synthetic provider.
+It does not initialize an HTTP provider or resolve gateway/provider credentials.
+Fixtures specify request history, provider responses, expected transformed values or safe errors, and expected provider-call counts; the report exposes expected/actual synthetic data and a CI exit status.
+
+Fixture execution uses a separate worker with a wall-clock bound and Python-level network restrictions applied before loading company modules.
+The worker's import path is scoped to that process, so authoring checks do not alter a running gateway's import state.
+This supports disconnected regression checks for [US-08](https://github.com/iteam7/gateway7/issues/37); it does not sandbox malicious native code or make untrusted plugins safe to install.
+The [authoring workflow](../authoring.md) specifies the fixture schema, exit codes, package installation and interruption behavior.
 
 ## Review questions and Week 2 follow-up
 

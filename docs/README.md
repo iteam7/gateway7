@@ -6,6 +6,9 @@ The complete MUP still needs a verified real-provider response and customer verd
 
 - [Setup, Docker and real providers](setup.md)
 - [CLI reference](cli.md)
+- [HTTP API and OpenAI SDK](api.md)
+- [Authentication and model permissions](authentication.md)
+- [Plugin generator and offline tests](authoring.md)
 - [Reference middleware](middleware-catalog.md)
 - [Metrics and Grafana](observability.md)
 - [Customer demonstration](demo.md)

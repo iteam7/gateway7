@@ -7,6 +7,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- OpenAI-compatible chat completions and model discovery with an explicitly supported non-streaming API subset.
+- Gateway client Bearer tokens and per-client access to configured models, enforced before company middleware or provider calls.
+- Middleware starter generation and offline fixture checks with expected/actual results and automation-friendly exit codes.
 - Server-held OpenAI Chat Completions and Gemini generateContent adapters alongside Claude, with bounded non-streaming calls, normalized token usage and safe provider errors.
 - Reference middleware for email masking, configurable block/log content policy and response redaction, with synthetic fixtures and strict settings.
 - An installed `gateway7` CLI for configuration validation, serving, a key-free demo and model requests.

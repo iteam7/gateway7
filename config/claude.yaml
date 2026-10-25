@@ -6,6 +6,12 @@ provider:
   key_env: ANTHROPIC_API_KEY
   model: claude-haiku-5-5
   timeout_seconds: 30
+auth:
+  enabled: true
+  clients:
+    developer:
+      token_env: GATEWAY7_CLIENT_TOKEN
+      models: [claude-haiku-5-5]
 limits:
   request_timeout_seconds: 60
   hook_timeout_seconds: 2

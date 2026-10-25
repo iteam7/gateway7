@@ -5,6 +5,9 @@ Each middleware can change the request, await the next handler, and change the r
 One ordered list defines both directions: `A -> B -> provider -> B -> A`.
 [DEC-016](decisions.md#dec-016) records this API migration; restart-based installation remains [DEC-010](decisions.md#dec-010).
 
+Start with the [plugin generator and offline test runner](authoring.md) for an installable company package with synthetic fixtures.
+The two-file checkout example below remains available for the original course demonstration.
+
 ## Smallest installation
 
 From the repository root after [setup](setup.md):
@@ -59,7 +62,7 @@ async def handle(
 | Value | Contract |
 | --- | --- |
 | `ChatRequest` | Ordered plain-text messages and validated generation settings |
-| `ChatResponse` | Assistant text and normalized provider usage when known |
+| `ChatResponse` | Assistant text, normalized provider usage when known, and a normalized finish reason |
 | `PluginContext` | Core-owned request identifier, overall monotonic deadline, and mutable state isolated to this request and instance |
 | `NextHandler` | Awaitable call accepting the next validated request and returning the downstream response |
 | `Deny()` | Short-circuit with the core's safe `policy_denied` error |
@@ -69,7 +72,8 @@ A request-side policy may return `Deny()` without forwarding; a response-side po
 The next handler is valid only during its middleware invocation and in the same asyncio task.
 Repeated, escaped or concurrent next calls are errors; a swallowed downstream failure cannot be turned into success.
 The gateway validates payloads at boundaries, including values produced through Pydantic's unchecked `model_copy`.
-The core preserves the provider's original usage independently of middleware edits.
+The core preserves the provider's original usage and finish reason independently of middleware edits.
+The authenticated model selection is pinned outside the plugin request contract and cannot be changed by middleware.
 
 Optional async `startup()` and `shutdown()` manage instance resources.
 Instances are shared across requests; immutable settings and concurrency-safe resources belong on the instance, and temporary mutable data belongs in `context.state`.

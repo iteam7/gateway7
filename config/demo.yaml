@@ -1,3 +1,6 @@
+# Explicitly unauthenticated synthetic fixture; real providers forbid this.
+auth:
+  enabled: false
 provider:
   kind: fake
   base_url: http://127.0.0.1:8001

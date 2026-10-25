@@ -70,6 +70,7 @@ async def test_claude_messages_headers_system_and_response_normalization():
         }
         return httpx.Response(200, json={
             "content": [{"type": "text", "text": "hello "}, {"type": "text", "text": "world"}],
+            "stop_reason": "end_turn",
             "usage": {"input_tokens": 12, "output_tokens": 4, "service_tier": "standard"},
         })
 
@@ -89,7 +90,7 @@ async def test_claude_messages_headers_system_and_response_normalization():
 @pytest.mark.parametrize("usage", [None, "unknown", {"input_tokens": True}, {"output_tokens": -1}, {"input_tokens": "12"}])
 @pytest.mark.parametrize("kind", ["fake", "claude"])
 async def test_unavailable_or_invalid_usage_is_unknown(kind, usage):
-    body = {"text": "pong", "content": [{"type": "text", "text": "pong"}], "usage": usage}
+    body = {"text": "pong", "content": [{"type": "text", "text": "pong"}], "stop_reason": "end_turn", "usage": usage}
     async with mocked_provider(lambda _: httpx.Response(200, json=body), kind=kind) as provider:
         assert (await provider.complete(REQUEST)).usage is None
 
@@ -125,6 +126,7 @@ async def test_upstream_failures_are_safe_bounded_and_never_retried(status, body
     {"content": [{"type": "tool_use", "name": "unknown"}]},
 ])
 async def test_claude_invalid_content_is_a_safe_error(body):
+    body = {**body, "stop_reason": "end_turn"}
     async with mocked_provider(lambda _: httpx.Response(200, json=body), kind="claude") as provider:
         with pytest.raises(ProviderError, match="^Provider request failed$"):
             await provider.complete(REQUEST)
@@ -362,9 +364,9 @@ async def test_gemini_unsupported_or_invalid_output_fails_closed(body):
 
 @pytest.mark.parametrize("body", [
     {"content": [{"type": "text", "text": "blocked"}], "stop_reason": "refusal"},
-    {"content": [{"type": "thinking", "thinking": "no final answer"}]},
-    {"content": [{"type": "thinking", "thinking": 42}, {"type": "text", "text": "answer"}]},
-    {"content": [{"type": "redacted_thinking", "data": 42}, {"type": "text", "text": "answer"}]},
+    {"content": [{"type": "thinking", "thinking": "no final answer"}], "stop_reason": "end_turn"},
+    {"content": [{"type": "thinking", "thinking": 42}, {"type": "text", "text": "answer"}], "stop_reason": "end_turn"},
+    {"content": [{"type": "redacted_thinking", "data": 42}, {"type": "text", "text": "answer"}], "stop_reason": "end_turn"},
 ])
 async def test_claude_refusal_or_invalid_thinking_fails_closed(body):
     async with mocked_provider(lambda _: httpx.Response(200, json=body), kind="claude") as provider:
@@ -479,7 +481,7 @@ async def test_configured_timeout_is_used_by_http_client():
 
 @pytest.mark.parametrize("kind,body", [
     ("fake", {"text": "pong", "usage": {"input_tokens": 2**1024, "output_tokens": 1}}),
-    ("claude", {"content": [{"type": "text", "text": "pong"}], "usage": {"input_tokens": 1, "output_tokens": 2**1024}}),
+    ("claude", {"content": [{"type": "text", "text": "pong"}], "stop_reason": "end_turn", "usage": {"input_tokens": 1, "output_tokens": 2**1024}}),
     ("openai", openai_reply(usage={"prompt_tokens": 2**63, "completion_tokens": 1})),
     ("gemini", gemini_reply(usageMetadata={"promptTokenCount": 1, "candidatesTokenCount": 2**63})),
     ("gemini", gemini_reply(usageMetadata={"promptTokenCount": 1, "candidatesTokenCount": 1, "thoughtsTokenCount": 2**63 - 1})),
@@ -487,3 +489,37 @@ async def test_configured_timeout_is_used_by_http_client():
 async def test_extreme_usage_and_gemini_sum_overflow_stay_unknown(kind, body):
     async with mocked_provider(lambda _: httpx.Response(200, json=body), kind=kind) as provider:
         assert (await provider.complete(REQUEST)).usage is None
+
+
+@pytest.mark.parametrize("kind,body,expected", [
+    ("fake", {"text": "pong"}, "stop"),
+    ("fake", {"text": "partial", "finish_reason": "length"}, "length"),
+    ("claude", {"content": [{"type": "text", "text": "pong"}], "stop_reason": "end_turn"}, "stop"),
+    ("claude", {"content": [{"type": "text", "text": "pong"}], "stop_reason": "stop_sequence"}, "stop"),
+    ("claude", {"content": [{"type": "text", "text": "partial"}], "stop_reason": "max_tokens"}, "length"),
+    ("openai", openai_reply(), "stop"),
+    ("openai", openai_reply(choices=[{"finish_reason": "length", "message": {"role": "assistant", "content": "partial"}}]), "length"),
+    ("gemini", gemini_reply(), "stop"),
+    ("gemini", gemini_reply(candidates=[{"finishReason": "MAX_TOKENS", "content": {"role": "model", "parts": [{"text": "partial"}]}}]), "length"),
+])
+async def test_provider_finish_reasons_are_normalized_without_changing_usage(kind, body, expected):
+    async with mocked_provider(lambda _: httpx.Response(200, json=body), kind=kind) as provider:
+        answer = await provider.complete(REQUEST)
+    assert answer.finish_reason == expected
+    if kind in ("fake", "claude"):
+        assert answer.usage is None
+
+
+@pytest.mark.parametrize("kind,body", [
+    ("fake", {"text": "pong", "finish_reason": None}),
+    ("fake", {"text": "pong", "finish_reason": "unknown"}),
+    ("claude", {"content": [{"type": "text", "text": "pong"}]}),
+    ("claude", {"content": [{"type": "text", "text": "pong"}], "stop_reason": None}),
+    ("claude", {"content": [{"type": "text", "text": "pong"}], "stop_reason": "unknown"}),
+    ("openai", openai_reply(choices=[{"message": {"role": "assistant", "content": "pong"}}])),
+    ("gemini", gemini_reply(candidates=[{"content": {"role": "model", "parts": [{"text": "pong"}]}}])),
+])
+async def test_missing_real_or_invalid_finish_reason_is_not_fabricated(kind, body):
+    async with mocked_provider(lambda _: httpx.Response(200, json=body), kind=kind) as provider:
+        with pytest.raises(ProviderError, match="^Provider request failed$"):
+            await provider.complete(REQUEST)

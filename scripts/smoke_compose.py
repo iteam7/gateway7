@@ -1,4 +1,4 @@
-"""Exercise the running no-key Compose stack, including monitoring provisioning."""
+"""Exercise the synthetic authenticated stack and its monitoring provisioning."""
 
 from __future__ import annotations
 
@@ -15,11 +15,17 @@ from typing import Any
 GATEWAY = "http://127.0.0.1:8000"
 PROMETHEUS = "http://127.0.0.1:9090"
 GRAFANA = "http://127.0.0.1:3000"
+DEMO_TOKEN = "gateway7-synthetic-client-token"
 
 
-def request(url: str, payload: object | None = None) -> tuple[int, bytes]:
+def request(
+    url: str, payload: object | None = None, *, token: str | None = None
+) -> tuple[int, bytes]:
     data = None if payload is None else json.dumps(payload).encode()
-    req = urllib.request.Request(url, data, {"Content-Type": "application/json"})
+    headers = {"Content-Type": "application/json"}
+    if token is not None:
+        headers["Authorization"] = "Bearer " + token
+    req = urllib.request.Request(url, data, headers)
     try:
         with urllib.request.urlopen(req, timeout=5) as response:
             return response.status, response.read(2_000_000)
@@ -72,6 +78,8 @@ def assert_scraping() -> None:
     assert result and all(float(item["value"][1]) == 1 for item in result)
     result = query(PROMETHEUS, 'gateway7_http_requests_total{route="chat",status="200"}')
     assert result and sum(float(item["value"][1]) for item in result) >= 1
+    result = query(PROMETHEUS, 'gateway7_http_requests_total{route="openai_chat",status="200"}')
+    assert result and sum(float(item["value"][1]) for item in result) >= 1
 
 
 def assert_dashboard() -> None:
@@ -89,6 +97,28 @@ def assert_dashboard() -> None:
 def check_gateway() -> None:
     wait_for("gateway readiness", lambda: get_json(GATEWAY + "/ready"))
     before = counter_total(metrics(), "gateway7_provider_calls_total")
+    for token in (None, "wrong-synthetic-client-token"):
+        for path, payload in (
+            ("/chat", {"messages": [{"role": "user", "content": "ping"}]}),
+            ("/v1/models", None),
+            (
+                "/v1/chat/completions",
+                {"model": "fake", "messages": [{"role": "user", "content": "ping"}]},
+            ),
+        ):
+            status, body = request(GATEWAY + path, payload, token=token)
+            assert status == 401 and isinstance(json.loads(body)["error"], dict)
+    status, body = request(GATEWAY + "/v1/models", token=DEMO_TOKEN)
+    assert status == 200
+    models = json.loads(body)
+    assert models["object"] == "list" and [item["id"] for item in models["data"]] == ["fake"]
+    status, body = request(
+        GATEWAY + "/v1/chat/completions",
+        {"model": "forbidden-model", "messages": [{"role": "user", "content": "ping"}]},
+        token=DEMO_TOKEN,
+    )
+    assert status == 403
+    assert counter_total(metrics(), "gateway7_provider_calls_total") == before
     email, phone = "synthetic@example.com", "+7 999 123-45-67"
     status, body = request(
         GATEWAY + "/chat",
@@ -100,6 +130,7 @@ def check_gateway() -> None:
                 }
             ]
         },
+        token=DEMO_TOKEN,
     )
     assert status == 200, f"Chat failed with HTTP {status}"
     answer = json.loads(body)
@@ -121,12 +152,34 @@ def check_gateway() -> None:
                 }
             ]
         },
+        token=DEMO_TOKEN,
     )
     assert status == 200
     assert "SECRET-TEST" not in json.loads(body)["text"]
     assert "[removed]" in json.loads(body)["text"]
     after = counter_total(metrics(), "gateway7_provider_calls_total")
     assert after == before + 2, "Response redaction must retain the one provider attempt"
+
+    status, body = request(
+        GATEWAY + "/v1/chat/completions",
+        {
+            "model": "fake",
+            "messages": [{"role": "user", "content": "SECRET-TEST"}],
+            "max_completion_tokens": 64,
+            "stream": False,
+        },
+        token=DEMO_TOKEN,
+    )
+    assert status == 200
+    completion = json.loads(body)
+    assert completion["object"] == "chat.completion" and completion["model"] == "fake"
+    assert completion["choices"][0]["message"]["role"] == "assistant"
+    assert "[removed]" in completion["choices"][0]["message"]["content"]
+    assert "SECRET-TEST" not in completion["choices"][0]["message"]["content"]
+    assert completion["choices"][0]["finish_reason"] == "stop"
+    assert completion["usage"] == {"prompt_tokens": 12, "completion_tokens": 4, "total_tokens": 16}
+    after = counter_total(metrics(), "gateway7_provider_calls_total")
+    assert after == before + 3
 
     status, body = request(
         GATEWAY + "/chat",
@@ -138,6 +191,7 @@ def check_gateway() -> None:
                 }
             ]
         },
+        token=DEMO_TOKEN,
     )
     assert status == 403 and json.loads(body)["error"]["code"] == "policy_denied"
     observed = metrics()
@@ -151,9 +205,22 @@ def check_gateway() -> None:
     ):
         assert name in observed, f"Missing metric family: {name}"
     assert counter_total(observed, "gateway7_provider_tokens_total") > 0
-    for sensitive in (email, phone, "BLOCK-ME-TEST", "SECRET-TEST", answer["request_id"]):
+    assert 'route="openai_chat",status="401"' in observed
+    for sensitive in (
+        email,
+        phone,
+        "BLOCK-ME-TEST",
+        "SECRET-TEST",
+        answer["request_id"],
+        DEMO_TOKEN,
+        "wrong-synthetic-client-token",
+        "forbidden-model",
+    ):
         assert sensitive not in observed, "Request data leaked into metrics"
-    print("Chat, policy denial, usage, and privacy-safe metrics passed", flush=True)
+    print(
+        "Authentication, model access, both APIs, policies, usage, and safe metrics passed",
+        flush=True,
+    )
 
 
 def main() -> None:

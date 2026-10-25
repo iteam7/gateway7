@@ -18,6 +18,9 @@ nav:
   - Guides:
       - Setup and run: setup.md
       - CLI reference: cli.md
+      - HTTP API and OpenAI SDK: api.md
+      - Authentication: authentication.md
+      - Plugin generator and offline tests: authoring.md
       - Reference middleware: middleware-catalog.md
       - Metrics and Grafana: observability.md
       - Customer demonstration: demo.md

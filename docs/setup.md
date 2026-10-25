@@ -18,7 +18,7 @@ uv run --locked gateway7 demo
 
 `pyproject.toml` declares dependencies and `uv.lock` fixes their resolution.
 Do not remove `--locked` to hide an unexpected lock mismatch.
-In another terminal, `uv run --locked gateway7 chat --message 'Contact synthetic@example.com'` returns an answer containing `[EMAIL]`.
+In another terminal, set `GATEWAY7_TOKEN=gateway7-synthetic-client-token` in the environment, then `uv run --locked gateway7 chat --message 'Contact synthetic@example.com'` returns an answer containing `[EMAIL]`.
 The demo uses packaged defaults, creates a private loopback fixture and stops it on shutdown; it works outside the repository after wheel installation.
 See the [CLI reference](cli.md) for serving, validation, stdin and exit codes.
 
@@ -33,12 +33,13 @@ docker compose up --build --detach --wait
 
 | Service | Local address | Purpose |
 | --- | --- | --- |
-| Gateway | `http://127.0.0.1:8000` | `POST /chat`, `/health`, `/ready`, `/metrics` |
+| Gateway | `http://127.0.0.1:8000` | `POST /chat`, `/v1/chat/completions`, `/v1/models` and operational endpoints |
 | Prometheus | `http://127.0.0.1:9090` | Scrapes gateway metrics every 5 seconds |
 | Grafana | `http://127.0.0.1:3000/d/gateway7-overview` | Provisioned dashboard and Prometheus datasource |
 
 The default command is `gateway7 demo`; it calls a synthetic upstream inside the gateway container, listening only on loopback.
-No account, API key or fixture-recorder port is exposed.
+No provider account, provider API key or fixture-recorder port is needed.
+The demo protects chat/model endpoints with the public synthetic token `gateway7-synthetic-client-token`.
 The gateway image runs as UID/GID 10001, installs locked runtime dependencies without development tools, and copies a non-editable installation into the final image.
 Compose gives the gateway a read-only filesystem and temporary `/tmp`, drops Linux capabilities and publishes ports only on localhost.
 The build context includes only the required source and packaging files; credentials and local environments are excluded.
@@ -46,7 +47,7 @@ The build context includes only the required source and packaging files; credent
 The Dockerfile pins Python and uv versions; Compose pins Prometheus and Grafana versions.
 Tags can be republished upstream; these are version pins, not immutable image digests.
 Grafana uses anonymous Viewer access, disables the initial administrator account and login form, and treats dashboards/datasources as repository-owned configuration.
-Do not publish this local pilot directly on a shared network: developer authentication and TLS termination are not implemented here.
+Client authentication and model allowlists protect chat access. A shared deployment still needs TLS termination and a trusted boundary around monitoring endpoints.
 
 ```sh
 python scripts/smoke_compose.py
@@ -54,7 +55,7 @@ docker compose logs --tail=50 gateway
 docker compose down
 ```
 
-The smoke check sends synthetic requests, verifies request blocking and response redaction, checks that denial causes no provider call, and exercises metrics, Prometheus scraping and Grafana's provisioned datasource/dashboard.
+The smoke check verifies missing/wrong client tokens, model permissions, native and OpenAI-compatible requests, masking/redaction, and zero provider calls for denied requests, then exercises Prometheus and Grafana provisioning.
 Named volumes retain metrics and Grafana state across restarts.
 To intentionally delete that history, run `docker compose down --volumes`.
 If ports 8000, 9090 or 3000 are occupied, stop the conflicting local service or edit the corresponding host-side port mapping; update the smoke URLs accordingly.
@@ -76,29 +77,32 @@ The origin defaults to the provider's official HTTPS origin; custom origins, red
 Only the server adapter attaches the key to an outbound header.
 There is no automatic retry, provider routing or failover.
 
-Set the selected credential privately in the server process environment or through your deployment's secret injection, then:
+Set the selected provider credential and a distinct `GATEWAY7_CLIENT_TOKEN` privately in the server environment or secret injection, then:
 
 ```sh
 uv run --locked gateway7 validate --config config/openai.yaml
 uv run --locked gateway7 serve --config config/openai.yaml
 ```
 
-In another terminal:
+In the client terminal, put the gateway client token value in `GATEWAY7_TOKEN`, then:
 
 ```sh
 uv run --locked gateway7 chat --message 'Reply with the word pong' --max-tokens 1024
 ```
 
-For Compose, export the selected key in your shell, set the configuration path, and use the live override:
+For Compose, set the selected provider key and `GATEWAY7_CLIENT_TOKEN` in your shell, then select the configuration and provider variable name:
 
 ```sh
 export GATEWAY_CONFIG_FILE=./config/openai.yaml
+export GATEWAY_KEY_ENV=OPENAI_API_KEY
 docker compose -f compose.yaml -f compose.live.yaml up --build --detach --wait
 ```
 
 Use the same two `-f` arguments for subsequent `logs` or `down` commands.
-The override switches the gateway to `serve`, mounts the selected YAML read-only and passes provider variables from the host environment; it does not start the synthetic upstream.
-For Claude or Gemini, change the config path and supply its corresponding key.
+The override switches the gateway to `serve`, mounts the selected YAML read-only and passes only the selected provider variable and `GATEWAY7_CLIENT_TOKEN` from the host environment; it does not start the synthetic upstream.
+For Claude or Gemini, change the config path and `GATEWAY_KEY_ENV` to the corresponding credential-variable name in the table.
+The YAML `provider.key_env` and `GATEWAY_KEY_ENV` must select the same provider variable.
+See [client authentication](authentication.md) for token rules, model permissions and restart-based rotation.
 The application does not read `.env` files itself; Docker Compose's own environment-file behavior is separate.
 Never put credentials in YAML, command-line arguments or committed files, and avoid printing an expanded live Compose configuration because it contains injected environment values.
 
@@ -118,11 +122,12 @@ The actual keyed Claude/Gemini `pong` response in [US-01 AC-05](https://github.c
 | `provider.kind` | One of `fake`, `openai`, `claude`, `gemini` |
 | `provider.base_url` | Optional official origin for real providers; fake requires literal loopback HTTP |
 | `provider.key_env` | Server environment-variable name; no credential value in YAML |
-| `provider.model` | Explicit server-selected model for real providers |
+| `provider.model` | Default model; each request must select a model permitted for its authenticated client |
 | `provider.timeout_seconds` | Transport timeout, default 30 seconds |
 | `limits.request_timeout_seconds` | Deadline covering reading, middleware, provider and response work |
 | `limits.hook_timeout_seconds` | Each middleware's cumulative own-work budget, excluding downstream waiting |
 | `limits.max_body_bytes` | HTTP request body cap |
+| `auth` | Client token environment-variable names and model allowlists; real providers require authentication |
 | `plugins` | Named module instances with strict validated settings and enabled/required flags |
 | `middleware` | Request order; response processing reverses this order |
 
@@ -130,10 +135,12 @@ Unknown fields, invalid plugin settings, missing required filters and unavailabl
 `gateway7 validate` checks the configuration without requiring a credential; `serve` additionally starts plugin lifecycles and resolves the key before readiness.
 See the [middleware catalog](middleware-catalog.md) and [API v2 migration](plugins.md#migration-from-api-version-1).
 
-`POST /chat` accepts `messages` and optional `max_tokens` from 1 to 4096.
+`POST /chat` accepts `messages`, optional authorized `model`, and optional `max_tokens` from 1 to 4096.
+`POST /v1/chat/completions` and `GET /v1/models` support the documented [OpenAI SDK subset](api.md).
 Messages use roles `system`, `user` or `assistant` with plain-text `content`; unsupported fields, tools, attachments and streaming are rejected.
 `GET /health` is process liveness; `GET /ready` is startup/shutdown readiness, without a billable provider probe.
-`GET /metrics` exports Prometheus text. Errors contain a stable code and request ID, without raw input or provider details.
+`GET /metrics` exports Prometheus text. These operational endpoints are unauthenticated; chat and model endpoints require the client bearer token.
+Errors contain a stable code and request ID, without raw input, token values or provider details.
 The configured limits bound cooperative async work; trusted Python plugins are not a process sandbox.
 
 ## Checks and tests
@@ -147,7 +154,7 @@ uv run --locked python -m demo.run
 uv build --wheel
 ```
 
-The Python workflow additionally installs the wheel outside the checkout and builds/runs the full Compose stack on Ubuntu.
+The Python workflow additionally installs the gateway wheel outside the checkout, generates/tests/normally installs a plugin package, makes authorized SDK calls to that installed server, and builds/runs the full Compose stack on Ubuntu.
 Markdown and link checks remain separate documentation gates.
 Neither an automated check nor AI review replaces human PR approval, live-provider verification or Customer acceptance.
 

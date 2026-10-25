@@ -8,7 +8,7 @@ The default scrape/refresh interval is 5 seconds and the dashboard initially sho
 ## What the dashboard shows
 
 - Scrape availability, in-flight HTTP requests and completed provider calls.
-- Chat throughput by status, policy denials, server failures and p95 request latency.
+- Chat throughput by status, authentication/model/policy denials, server failures and p95 request latency.
 - Provider outcomes, p95 latency and reported input/output token throughput.
 - Attempts with unknown token usage, kept separate from known token counters.
 - Each configured middleware's request/response outcomes and p95 own-work duration.
@@ -22,7 +22,7 @@ The datasource UID is `gateway7-prometheus`, the dashboard UID is `gateway7-over
 
 `GET /metrics` exposes Prometheus text with one registry per application instance.
 No labels contain prompts, answers, policy terms, credentials, URLs, request IDs or arbitrary client data.
-Routes are mapped to the fixed names `chat`, `health`, `ready`, `metrics` and `other`; provider names and middleware names come from validated server configuration.
+Routes are mapped to the fixed names `chat`, `openai_chat`, `models`, `health`, `ready`, `metrics` and `other`; provider names and middleware names come from validated server configuration.
 
 | Metric | Labels | Meaning |
 | --- | --- | --- |
@@ -43,7 +43,8 @@ For Gemini, the output count includes reported thinking tokens when present, eve
 These are operational counters, not a billing ledger; they reset when the gateway process restarts.
 
 Middleware metrics count processing segments, not distinct HTTP requests.
-An inner failure can give several outer middleware a `downstream_error` outcome; use HTTP `status="403"` for denied request counts instead of summing middleware denials.
+An inner failure can give several outer middleware a `downstream_error` outcome; use HTTP `status="403"` for combined model-access/policy denial counts instead of summing middleware denials.
+HTTP 401 counts failed authentication. Client names, bearer tokens and selected model IDs never become metric labels.
 Prometheus adds histogram `_bucket`, `_sum` and `_count` series and counter creation timestamps.
 Before a labeled event has occurred its series may be absent; a blank chart is not proof of zero errors or zero cost.
 The in-flight gauge includes the scrape request currently collecting it.
@@ -53,14 +54,14 @@ The in-flight gauge includes the scrape request currently collecting it.
 Chat throughput by outcome:
 
 ```promql
-sum by (status) (rate(gateway7_http_requests_total{route="chat"}[1m]))
+sum by (status) (rate(gateway7_http_requests_total{route=~"chat|openai_chat"}[1m]))
 ```
 
 Chat p95 latency in seconds:
 
 ```promql
 histogram_quantile(0.95,
-  sum by (le) (rate(gateway7_http_request_duration_seconds_bucket{route="chat"}[5m])))
+  sum by (le) (rate(gateway7_http_request_duration_seconds_bucket{route=~"chat|openai_chat"}[5m])))
 ```
 
 Slow middleware phases, excluding the provider and nested handlers:
@@ -79,7 +80,7 @@ sum by (provider) (increase(gateway7_provider_usage_unknown_total[5m]))
 ## Diagnose a failing request
 
 1. Check `/ready`, then Prometheus `up{job="gateway7"}`. Readiness confirms successful local startup, not provider credentials or model access.
-2. Look at the chat status series: 403 is a policy denial, 500 a middleware/internal failure, 502 a provider failure and 504 an overall deadline.
+2. Look at the chat status series: 401 is failed authentication, 403 a model-access or policy denial, 500 a middleware/internal failure, 502 a provider failure and 504 an overall deadline.
 3. Compare provider latency with middleware own-work latency to locate the slow stage. Middleware awaiting the provider does not spend its own timeout budget on that wait.
 4. Use the returned request ID to find gateway logs with `docker compose logs gateway`. Events contain only safe component/outcome codes and durations; the ID is not a metric label.
 
@@ -93,7 +94,7 @@ Prometheus uses a named volume with a seven-day/512 MB retention cap; Grafana us
 The default local stack does not send telemetry to a hosted monitoring service.
 `docker compose down` preserves these volumes. `docker compose down --volumes` intentionally discards them.
 
-`python scripts/smoke_compose.py` checks more than service health: it sends masked/redacted/denied synthetic requests, verifies provider call counts, checks privacy-safe metrics, and queries the provisioned Prometheus datasource through Grafana.
+`python scripts/smoke_compose.py` checks more than service health: it exercises client authentication and model permissions through both APIs and sends masked/redacted/denied synthetic requests, verifies provider call counts, checks privacy-safe metrics, and queries the provisioned Prometheus datasource through Grafana.
 The Compose CI job builds the installed image and runs that smoke check on Ubuntu.
 The Python tests cover metrics isolation, failures and token accounting without containers.
 

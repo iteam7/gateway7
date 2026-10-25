@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import ipaddress
 import json
-from typing import TYPE_CHECKING, Any
+import re
+from typing import TYPE_CHECKING, Any, Literal
 from urllib.parse import urlsplit
 
 import httpx
@@ -24,6 +25,7 @@ if TYPE_CHECKING:
 
 MAX_RESPONSE_BYTES = 1_048_576
 MAX_USAGE_TOKENS = 2**63 - 1
+FinishReason = Literal["stop", "length"]
 _REAL_HOSTS = {
     "claude": "api.anthropic.com",
     "openai": "api.openai.com",
@@ -98,8 +100,8 @@ def _normalized_usage(value: Any, input_name: str, output_name: str) -> dict[str
     return _usage({"input_tokens": value.get(input_name), "output_tokens": value.get(output_name)})
 
 
-def _claude_response(data: dict[str, Any]) -> tuple[str, dict[str, int] | None]:
-    if data.get("stop_reason") not in (None, "end_turn", "max_tokens", "stop_sequence"):
+def _claude_response(data: dict[str, Any]) -> tuple[str, dict[str, int] | None, FinishReason]:
+    if data.get("stop_reason") not in ("end_turn", "max_tokens", "stop_sequence"):
         raise ProviderError()
     content = data.get("content")
     if not isinstance(content, list) or not content:
@@ -120,10 +122,10 @@ def _claude_response(data: dict[str, Any]) -> tuple[str, dict[str, int] | None]:
         else:
             raise ProviderError()
     usage = _normalized_usage(data.get("usage"), "input_tokens", "output_tokens")
-    return "".join(text_parts), usage
+    return "".join(text_parts), usage, "length" if data["stop_reason"] == "max_tokens" else "stop"
 
 
-def _openai_response(data: dict[str, Any]) -> tuple[str, dict[str, int] | None]:
+def _openai_response(data: dict[str, Any]) -> tuple[str, dict[str, int] | None, FinishReason]:
     choices = data.get("choices")
     if not isinstance(choices, list) or len(choices) != 1 or not isinstance(choices[0], dict):
         raise ProviderError()
@@ -143,10 +145,14 @@ def _openai_response(data: dict[str, Any]) -> tuple[str, dict[str, int] | None]:
     text = message.get("content")
     if not isinstance(text, str):
         raise ProviderError()
-    return text, _normalized_usage(data.get("usage"), "prompt_tokens", "completion_tokens")
+    return (
+        text,
+        _normalized_usage(data.get("usage"), "prompt_tokens", "completion_tokens"),
+        "length" if choice["finish_reason"] == "length" else "stop",
+    )
 
 
-def _gemini_response(data: dict[str, Any]) -> tuple[str, dict[str, int] | None]:
+def _gemini_response(data: dict[str, Any]) -> tuple[str, dict[str, int] | None, FinishReason]:
     feedback = data.get("promptFeedback")
     if feedback is not None and (not isinstance(feedback, dict) or feedback.get("blockReason")):
         raise ProviderError()
@@ -201,7 +207,11 @@ def _gemini_response(data: dict[str, Any]) -> tuple[str, dict[str, int] | None]:
         else:
             # Gemini reports reasoning separately from candidate text tokens.
             usage["output_tokens"] += thoughts
-    return "".join(text_parts), usage
+    return (
+        "".join(text_parts),
+        usage,
+        "length" if candidate["finishReason"] == "MAX_TOKENS" else "stop",
+    )
 
 
 class HTTPProvider:
@@ -229,7 +239,15 @@ class HTTPProvider:
     async def aclose(self) -> None:
         await self._client.aclose()
 
-    def _request(self, request: ChatRequest) -> tuple[str, dict[str, Any]]:
+    def _request(
+        self, request: ChatRequest, model: str | None = None
+    ) -> tuple[str, dict[str, Any]]:
+        selected_model = self._model if model is None else model
+        if (
+            not isinstance(selected_model, str)
+            or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", selected_model) is None
+        ):
+            raise ProviderError()
         if self._kind == "fake":
             return "/chat", request.model_dump(mode="json")
         messages = [
@@ -237,7 +255,7 @@ class HTTPProvider:
         ]
         if self._kind == "openai":
             return "/v1/chat/completions", {
-                "model": self._model,
+                "model": selected_model,
                 "messages": messages,
                 "max_completion_tokens": request.max_tokens,
                 "stream": False,
@@ -249,7 +267,7 @@ class HTTPProvider:
             raise ProviderError()
         if self._kind == "claude":
             payload: dict[str, Any] = {
-                "model": self._model,
+                "model": selected_model,
                 "max_tokens": request.max_tokens,
                 "messages": conversation,
             }
@@ -272,11 +290,11 @@ class HTTPProvider:
         }
         if system:
             payload["systemInstruction"] = {"parts": [{"text": "\n\n".join(system)}]}
-        return f"/v1beta/models/{self._model}:generateContent", payload
+        return f"/v1beta/models/{selected_model}:generateContent", payload
 
-    async def complete(self, request: ChatRequest) -> ChatResponse:
+    async def complete(self, request: ChatRequest, *, model: str | None = None) -> ChatResponse:
         try:
-            path, payload = self._request(request)
+            path, payload = self._request(request, model)
             # A single request: retries and redirects are intentionally absent.
             async with self._client.stream(
                 "POST", self._origin + path, json=payload, headers=self._headers
@@ -293,15 +311,18 @@ class HTTPProvider:
                 raise ProviderError()
             if self._kind == "fake":
                 text, usage = data.get("text"), _usage(data.get("usage"))
+                # The synthetic fixture contract predates finish metadata. Real
+                # adapters require an explicit provider completion reason.
+                finish_reason = data.get("finish_reason", "stop")
             elif self._kind == "claude":
-                text, usage = _claude_response(data)
+                text, usage, finish_reason = _claude_response(data)
             elif self._kind == "openai":
-                text, usage = _openai_response(data)
+                text, usage, finish_reason = _openai_response(data)
             else:
-                text, usage = _gemini_response(data)
-            if not isinstance(text, str) or not text:
+                text, usage, finish_reason = _gemini_response(data)
+            if not isinstance(text, str) or not text or finish_reason not in ("stop", "length"):
                 raise ProviderError()
-            return ChatResponse(text=text, usage=usage)
+            return ChatResponse(text=text, usage=usage, finish_reason=finish_reason)
         except Exception:
             # Includes network timeouts and provider authentication/rate-limit
             # errors. Never include bodies, URLs, headers or raw exceptions.

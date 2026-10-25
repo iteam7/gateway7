@@ -6,6 +6,12 @@ provider:
   key_env: OPENAI_API_KEY
   model: gpt-4.1-mini
   timeout_seconds: 30
+auth:
+  enabled: true
+  clients:
+    developer:
+      token_env: GATEWAY7_CLIENT_TOKEN
+      models: [gpt-4.1-mini]
 limits:
   request_timeout_seconds: 60
   hook_timeout_seconds: 2
