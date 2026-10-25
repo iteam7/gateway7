@@ -2,7 +2,7 @@
 
 ## Context
 
-Prepared on 25 October 2026; no date, time or Customer attendance has been agreed yet (TODO: record the real arrangement once the team schedules it; SPRINT-05 is due on 30 October).
+Prepared on 25 October 2026; no date, time or Customer attendance has been agreed yet (TODO: record the real arrangement once the team schedules it; SPRINT-05 is due on 31 October).
 Gateway7 lets corporate IT route developers' model requests through company policy plugins without changing the gateway core.
 The team believes the pilot from [PR #90](https://github.com/iteam7/gateway7/pull/90) implements US-01–US-09 against a synthetic upstream, but no story has a Customer verdict and US-01 / AC-05 has never run against a real provider.
 **The Week 4 review did not take place**: there is no Week 4 meeting report, so the [Week 3 action points](../week-03/meeting-report.md#action-points) and [open questions](../week-03/meeting-report.md#open-questions) are still unanswered and are put to the Customer here.
