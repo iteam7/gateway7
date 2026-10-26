@@ -301,6 +301,7 @@ Claude Code then split the changelog into dated `0.2.0` and `0.1.1` sections, fi
 No Customer verdict or acceptance is claimed.
 
 TODO: Team members must record what they accepted, changed or rejected after reviewing the release notes, changelog sections and report changes.
+
 ## Application architecture explanation for task #127
 
 On 26 October, azamatbayramov asked Codex to improve the site's explanation of the application, its structure and its diagrams.
