@@ -42,6 +42,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ### Fixed
 
 - Gateway shutdown attempts every initialized middleware and closes the provider even when a plugin shutdown hook cancels or fails.
+- Oversized upstream responses are rejected at the first overflowing transport chunk, without consuming later chunks or appending the overflowing chunk to the response buffer.
 
 ## [0.1.0] - 2026-10-18
 

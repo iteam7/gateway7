@@ -128,6 +128,25 @@ The remaining human step is the Accountable member's review of these records and
 TODO: Team members must record what they accepted, changed or rejected after reviewing the architecture, diagram and ADR records.
 The AI review and automated checks do not replace that assessment or the Accountable member's approval.
 
+## Provider transport regressions for task #121
+
+On 26 October, azamatbayramov asked Codex to test incremental provider response limits and cleanup during body-read failure or cancellation.
+Formater created [task #121](https://github.com/iteam7/gateway7/issues/121) and an isolated branch, leaving human review assignment and acceptance untouched.
+The TechLead first confirmed that the existing oversized-response tests used ready-made bodies and the existing cancellation test stopped before headers.
+The new offline tests use controlled HTTPX byte streams and synchronization to observe actual body consumption and stream closure.
+
+The new bound-plus-one regression failed on the baseline because HTTPX rechunking consumed a later tail before the adapter observed the overflow.
+Codex removed that optional rechunking and checks the bound before appending each delivered chunk to the response buffer.
+This is a narrow response-reader correction, not a public token-streaming API or a guarantee about all memory held by the HTTP transport.
+Fifteen new cases cover the exact limit, incremental overflow, unread tails, post-header cancellation, read errors, sanitized failure behavior, one attempt and stream closure exactly once.
+The focused transport and provider suite passed 334 tests after the correction; formatting, lint and whole-gateway type checks passed.
+The TechLead independently reviewed and approved the frozen code and tests; the pull request records documentation and exact-head CI evidence.
+No live provider or credential was used, and no Windows validation is claimed.
+
+### Team evaluation for the transport regressions
+
+TODO: Team members must record what they accepted, changed or rejected after reviewing the reproduced overflow delay and its correction.
+
 ## Sprint-plan reconciliation for task #95
 
 On 25 October, azamatbayramov asked Codex to carry out [task #95](https://github.com/iteam7/gateway7/issues/95).

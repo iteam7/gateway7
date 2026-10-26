@@ -310,10 +310,10 @@ class HTTPProvider:
                         reason = ProviderErrorReason.REJECTED
                     raise ProviderError(reason)
                 body = bytearray()
-                async for chunk in response.aiter_bytes(chunk_size=16_384):
-                    body.extend(chunk)
-                    if len(body) > MAX_RESPONSE_BYTES:
+                async for chunk in response.aiter_bytes():
+                    if len(chunk) > MAX_RESPONSE_BYTES - len(body):
                         raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
+                    body.extend(chunk)
             try:
                 data = json.loads(body)
             except (ValueError, UnicodeError, RecursionError):
