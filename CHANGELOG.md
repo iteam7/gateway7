@@ -7,6 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- A configurable per-process limit of 64 active pipelines by default, with immediate safe HTTP 503 responses when capacity is full.
 - Late Week 4 report linking the delivered artifacts and remaining evidence, with the release and submission sequence documented for the team.
 - OpenAI-compatible chat completions and model discovery with an explicitly supported non-streaming API subset.
 - Gateway client Bearer tokens and per-client access to configured models, enforced before company middleware or provider calls.

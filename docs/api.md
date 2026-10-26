@@ -91,11 +91,13 @@ Model selection is pinned before middleware execution; plugins cannot change the
 | 422 | Invalid native `/chat` payload |
 | 500 | Middleware/internal processing failure |
 | 502 | Provider transport, credential, rate-limit or unsupported-response error |
-| 503 | Gateway not ready |
+| 503 | Gateway not ready (`unavailable`) or active pipeline capacity full (`overloaded`) |
 | 504 | Overall request deadline exceeded |
 
 `/v1/*` errors use an OpenAI-style `error` object with safe `message`, `type`, `param` and `code`, plus a request ID.
 The `WWW-Authenticate: Bearer` header accompanies authentication errors.
+An `overloaded` response rejects the request immediately, before middleware or a provider call; the gateway does not queue or automatically retry it.
+The limit is `limits.max_concurrent_requests` (default 64 per process), shared by both chat APIs.
 No error echoes the bearer token, request text or raw provider response.
 `/health`, `/ready` and `/metrics` are unauthenticated operational endpoints; keep them within the trusted deployment network.
 See [authentication](authentication.md) and [observability](observability.md) for configuration and diagnosis.

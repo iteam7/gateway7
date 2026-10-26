@@ -24,6 +24,16 @@ class Metrics:
             "HTTP requests currently in progress.",
             registry=self.registry,
         )
+        self.active_pipelines = Gauge(
+            "gateway7_active_pipelines",
+            "Admitted pipeline tasks that have not finished, including cancellation cleanup.",
+            registry=self.registry,
+        )
+        self.admission_rejections = Counter(
+            "gateway7_admission_rejections_total",
+            "Chat requests rejected because active pipeline capacity is full.",
+            registry=self.registry,
+        )
         self.provider_calls = Counter(
             "gateway7_provider_calls_total",
             "Provider attempts by outcome.",

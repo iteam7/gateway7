@@ -8,6 +8,7 @@ provider:
   key_env: FAKE_LLM_API_KEY
   model: fake
 limits:
+  max_concurrent_requests: 64
   request_timeout_seconds: 30
   hook_timeout_seconds: 2
   max_body_bytes: 65536
