@@ -51,6 +51,7 @@ class GatewayError(Exception):
         "invalid_request": (422, "Invalid chat request"),
         "body_too_large": (413, "Request body is too large"),
         "unavailable": (503, "Gateway is not ready"),
+        "overloaded": (503, "Gateway active request capacity is full"),
         "internal_error": (500, "Request processing failed"),
     }
 

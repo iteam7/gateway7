@@ -29,6 +29,8 @@ Routes are mapped to the fixed names `chat`, `openai_chat`, `models`, `health`, 
 | `gateway7_http_requests_total` | `route`, `status` | Completed HTTP requests, including failures |
 | `gateway7_http_request_duration_seconds` | `route` | Histogram of HTTP duration |
 | `gateway7_http_requests_in_flight` | None | Active HTTP requests, including health/scrape traffic |
+| `gateway7_active_pipelines` | None | Admitted pipeline tasks still running, including cancellation cleanup; excludes health and scrape traffic |
+| `gateway7_admission_rejections_total` | None | Chat requests rejected immediately because active pipeline capacity is full |
 | `gateway7_provider_calls_total` | `provider`, `outcome` | Exactly one observation per attempted provider call |
 | `gateway7_provider_duration_seconds` | `provider`, `outcome` | Histogram of provider attempt duration |
 | `gateway7_provider_errors_total` | `provider`, `reason` | One safe diagnostic category per failed attempt; excludes cancellation |
@@ -48,7 +50,10 @@ An inner failure can give several outer middleware a `downstream_error` outcome;
 HTTP 401 counts failed authentication. Client names, bearer tokens and selected model IDs never become metric labels.
 Prometheus adds histogram `_bucket`, `_sum` and `_count` series and counter creation timestamps.
 Before a labeled event has occurred its series may be absent; a blank chart is not proof of zero errors or zero cost.
-The in-flight gauge includes the scrape request currently collecting it.
+The HTTP in-flight gauge includes the scrape request currently collecting it.
+The active-pipeline gauge tracks the tasks that hold `limits.max_concurrent_requests` slots and falls only when those tasks finish.
+If a plugin suppresses cancellation, its slot remains occupied until it exits.
+The rejection counter distinguishes capacity rejection from a not-ready HTTP 503 without adding request or client labels.
 
 ### Provider failure reasons
 
@@ -94,6 +99,12 @@ histogram_quantile(0.95,
   sum by (middleware, phase, le) (rate(gateway7_middleware_duration_seconds_bucket[5m])))
 ```
 
+Capacity rejections per second:
+
+```promql
+rate(gateway7_admission_rejections_total[5m])
+```
+
 Unknown-usage attempts over five minutes:
 
 ```promql
@@ -109,7 +120,7 @@ sum by (provider, reason) (increase(gateway7_provider_errors_total[5m]))
 ## Diagnose a failing request
 
 1. Check `/ready`, then Prometheus `up{job="gateway7"}`. Readiness confirms successful local startup, not provider credentials or model access.
-2. Look at the chat status series: 401 is failed authentication, 403 a model-access or policy denial, 500 a middleware/internal failure, 502 a provider failure and 504 an overall deadline.
+2. Look at the chat status series: 401 is failed authentication, 403 a model-access or policy denial, 500 a middleware/internal failure, 502 a provider failure, 503 unavailable/full capacity and 504 an overall deadline.
 3. Compare provider latency with middleware own-work latency to locate the slow stage. Middleware awaiting the provider does not spend its own timeout budget on that wait.
 4. Inspect `gateway7_provider_errors_total` by `reason`, then use the returned request ID to find gateway logs with `docker compose logs gateway`. Events contain safe component/outcome codes, durations and the provider failure reason; the ID is not a metric label.
 

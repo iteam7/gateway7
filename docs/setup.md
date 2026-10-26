@@ -127,9 +127,16 @@ The actual keyed Claude/Gemini `pong` response in [US-01 AC-05](https://github.c
 | `limits.request_timeout_seconds` | Deadline covering reading, middleware, provider and response work |
 | `limits.hook_timeout_seconds` | Each middleware's cumulative own-work budget, excluding downstream waiting |
 | `limits.max_body_bytes` | HTTP request body cap |
+| `limits.max_concurrent_requests` | Active middleware/provider pipeline cap per gateway process; default 64, integer from 1 to 10000 |
 | `auth` | Client token environment-variable names and model allowlists; real providers require authentication |
 | `plugins` | Named module instances with strict validated settings and enabled/required flags |
 | `middleware` | Request order; response processing reverses this order |
+
+Chat requests acquire capacity after authentication and payload/model validation, immediately before starting middleware.
+When every slot is occupied, both chat APIs return HTTP 503 with code `overloaded`; the gateway does not queue the request or call its middleware/provider.
+A slot stays occupied until its pipeline task actually finishes, including cancellation cleanup; disconnecting or timing out cannot free a slot while cancellation-resistant middleware is still running.
+`/health`, `/ready`, `/metrics` and `/v1/models` remain available independently of this cap.
+This is a per-process concurrency bound, not a per-client quota or an HTTP connection/body-read limit; multiple workers each have their own capacity.
 
 Unknown fields, invalid plugin settings, missing required filters and unavailable credentials fail startup safely.
 `gateway7 validate` checks the configuration without requiring a credential; `serve` additionally starts plugin lifecycles and resolves the key before readiness.

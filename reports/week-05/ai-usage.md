@@ -10,6 +10,16 @@ The review required explicit process cleanup when SIGTERM arrives during startup
 The Compose smoke was strengthened to verify phone/email masking, response redaction, provider-call counts and the Grafana datasource query path.
 The AI review does not supply the required approval from another team member or a Customer verdict.
 
+On 26 October, azamatbayramov selected bounded concurrent request work for [task #114](https://github.com/iteam7/gateway7/issues/114).
+Codex implemented one per-process admission limit, defaulting to 64 active pipelines, with a safe immediate 503 response shared by the native and OpenAI-compatible chat routes.
+The limit counts the actual pipeline task until it finishes, including work that temporarily resists cancellation; it is not a distributed quota, rate limiter or request queue.
+The AI TechLead required rollback if task creation fails, consuming abandoned task failures, and explicit authenticated-saturation and overall-deadline regressions.
+The focused admission/core/metrics/OpenAI suite passed 145 tests; Ruff and mypy passed, and a separate temporary snapshot combining tasks #113–#115 passed 663 tests with Ruff and mypy.
+The combined result is integration evidence, not the individual branch's test count or a live-provider result.
+Formater created a separate native Task and working branch, preserved existing main dependencies and reports, and left human planning, roles, Priority and acceptance checkboxes unset.
+The pull request records documentation and exact-head CI evidence; no Customer verdict, human approval, release or merge is claimed.
+TODO: The team records what it accepted, changed or rejected after reviewing task #114, its process-local limit and cancellation regressions.
+
 For [task #91](https://github.com/iteam7/gateway7/issues/91) on 25 October 2026, Claude Code (Claude Opus 5.5) drafted the four quality requirements, their priority matrix and ten functional requirements at DeniBorsh's request.
 It took each behavior from the documentation and tests already on `main`, checked the error codes and statuses against `gateway7/errors.py`, and used the container names `gateway`, `prometheus` and `grafana` from the architecture proposal in [task #92](https://github.com/iteam7/gateway7/issues/92).
 The priorities are the drafter's proposal for the Accountable reviewer; no Customer ranking, measured performance result or new requirement origin is claimed.

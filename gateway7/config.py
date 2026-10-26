@@ -65,6 +65,7 @@ class LimitsConfig(StrictConfig):
     request_timeout_seconds: float = Field(default=10.0, gt=0, le=300, allow_inf_nan=False)
     hook_timeout_seconds: float = Field(default=2.0, gt=0, le=300, allow_inf_nan=False)
     max_body_bytes: int = Field(default=65536, ge=1, le=10 * 1024 * 1024)
+    max_concurrent_requests: int = Field(default=64, ge=1, le=10000)
 
 
 class PluginConfig(StrictConfig):

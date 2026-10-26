@@ -177,6 +177,45 @@ class GatewayBoundaryMiddleware:
             )
 
 
+class _PipelineAdmission:
+    """App-local, event-loop-owned capacity; no waiting queue or early release."""
+
+    def __init__(self, metrics: Metrics) -> None:
+        self.limit = 64
+        self.active = 0
+        self.metrics = metrics
+        self._tasks: set[asyncio.Task[Any]] = set()
+
+    def acquire(self) -> None:
+        # This check and increment contain no await, so another request cannot
+        # acquire the same last slot on this application's event loop.
+        if self.active >= self.limit:
+            self.metrics.admission_rejections.inc()
+            raise GatewayError("overloaded")
+        self.active += 1
+        self.metrics.active_pipelines.inc()
+
+    def release_unstarted(self) -> None:
+        # Only task-creation failure uses this rollback: no pipeline exists yet.
+        self.active -= 1
+        self.metrics.active_pipelines.dec()
+
+    def track(self, task: asyncio.Task[Any]) -> None:
+        # Retain tasks even if their HTTP caller has already been cancelled.
+        self._tasks.add(task)
+        task.add_done_callback(self._finished)
+
+    def _finished(self, task: asyncio.Task[Any]) -> None:
+        # An abandoned HTTP caller may never await its terminal exception.
+        # Retrieving it prevents task-warning tracebacks without changing what
+        # callers that still await the task receive.
+        if not task.cancelled():
+            task.exception()
+        self._tasks.remove(task)
+        self.active -= 1
+        self.metrics.active_pipelines.dec()
+
+
 async def _watch_disconnect(request: Request) -> None:
     while True:
         message = await request.receive()
@@ -186,8 +225,11 @@ async def _watch_disconnect(request: Request) -> None:
 
 async def _run_connected(request: Request, payload: ChatRequest, selected_model: str) -> Any:
     pipeline = request.app.state.pipeline
-    job = asyncio.create_task(
-        pipeline.run(
+    admission = request.app.state.admission
+    admission.acquire()
+    work = None
+    try:
+        work = pipeline.run(
             payload,
             request.state.request_id,
             deadline=request.state.deadline,
@@ -195,9 +237,18 @@ async def _run_connected(request: Request, payload: ChatRequest, selected_model:
             if selected_model != request.app.state.config.provider.model
             else None,
         )
-    )
-    disconnected = asyncio.create_task(_watch_disconnect(request))
+        job = asyncio.create_task(work)
+    except BaseException:
+        admission.release_unstarted()
+        if work is not None:
+            work.close()
+        raise
+    admission.track(job)
+    disconnected = None
+    disconnect_work = None
     try:
+        disconnect_work = _watch_disconnect(request)
+        disconnected = asyncio.create_task(disconnect_work)
         done, _ = await asyncio.wait((job, disconnected), return_when=asyncio.FIRST_COMPLETED)
         if job in done:
             return job.result()
@@ -206,10 +257,13 @@ async def _run_connected(request: Request, payload: ChatRequest, selected_model:
         job.cancel()
         return None
     finally:
-        for task in (job, disconnected):
+        if disconnected is None and disconnect_work is not None:
+            disconnect_work.close()
+        tasks = (job,) if disconnected is None else (job, disconnected)
+        for task in tasks:
             if not task.done():
                 task.cancel()
-        await asyncio.gather(job, disconnected, return_exceptions=True)
+        await asyncio.gather(*tasks, return_exceptions=True)
 
 
 def create_app(
@@ -240,6 +294,7 @@ def create_app(
             await start_plugins(plugins, active_config.limits.hook_timeout_seconds)
             started = True
             app.state.config = active_config
+            app.state.admission.limit = active_config.limits.max_concurrent_requests
             app.state.access = access
             app.state.pipeline = Pipeline(
                 plugins,
@@ -287,6 +342,7 @@ def create_app(
     app = FastAPI(title="Gateway7", version="0.1.0", lifespan=lifespan, redirect_slashes=False)
     app.state.ready = False
     app.state.metrics = Metrics()
+    app.state.admission = _PipelineAdmission(app.state.metrics)
     app.add_middleware(GatewayBoundaryMiddleware, owner=app)
 
     @app.exception_handler(RequestValidationError)
