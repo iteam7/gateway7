@@ -37,6 +37,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Agent instructions in `AGENTS.md` describe the repository layout, checks, conventions and files agents must not edit.
 - Demonstration acceptance checklist covers US-01 to US-09 and separates automated mock checks, known gaps and evidence still needed.
 
+### Fixed
+
+- Gateway shutdown attempts every initialized middleware and closes the provider even when a plugin shutdown hook cancels or fails.
+
 ## [0.1.0] - 2026-10-18
 
 ### Added
