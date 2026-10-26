@@ -4,6 +4,7 @@ import json
 import logging
 import os
 from pathlib import Path
+import signal
 import socket
 import subprocess
 import sys
@@ -260,3 +261,103 @@ def test_chat_rejects_bad_token_value_without_echoing_it(monkeypatch, capsys):
     assert main(["chat", "--message", "synthetic"]) == 1
     output = capsys.readouterr()
     assert "synthetic secret with spaces" not in output.out + output.err
+
+
+def test_interrupted_chat_input_exits_130_without_output(monkeypatch, capsys):
+    class InterruptedInput:
+        def read(self, _limit):
+            raise KeyboardInterrupt
+
+    monkeypatch.setattr(sys, "stdin", InterruptedInput())
+    assert main(["chat"]) == 130
+    output = capsys.readouterr()
+    assert output.out == output.err == ""
+
+
+@pytest.mark.parametrize("command", ["serve", "demo"])
+def test_server_keyboard_interrupt_remains_an_orderly_exit(command, monkeypatch, capsys):
+    from gateway7 import cli
+
+    cleaned_up = []
+
+    async def interrupted(*_args):
+        try:
+            raise KeyboardInterrupt
+        finally:
+            cleaned_up.append(True)
+
+    monkeypatch.setattr(cli, "_" + command, interrupted)
+    arguments = [command, "--config", "synthetic.yaml"] if command == "serve" else [command]
+    assert main(arguments) == 0
+    assert cleaned_up == [True]
+    output = capsys.readouterr()
+    assert output.out == output.err == ""
+
+
+@pytest.mark.skipif(os.name == "nt", reason="Uses POSIX SIGINT delivery to a CLI subprocess")
+def test_sigint_during_chat_closes_connection_and_exits_130(tmp_path):
+    token = "gateway7-synthetic-interrupted-chat"
+    message = "Synthetic unfinished request"
+    environment = {**os.environ, "PYTHONPATH": str(ROOT), "GATEWAY7_TOKEN": token}
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        listener.listen(1)
+        listener.settimeout(10)
+        port = listener.getsockname()[1]
+        process = subprocess.Popen(
+            [
+                sys.executable,
+                "-m",
+                "gateway7",
+                "chat",
+                "--url",
+                f"http://127.0.0.1:{port}",
+                "--message",
+                message,
+            ],
+            cwd=tmp_path,
+            env=environment,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        try:
+            connection, _address = listener.accept()
+            with connection:
+                connection.settimeout(10)
+                request = bytearray()
+                while b"\r\n\r\n" not in request:
+                    chunk = connection.recv(4096)
+                    assert chunk, "CLI closed before sending its request"
+                    request.extend(chunk)
+                headers, body = bytes(request).split(b"\r\n\r\n", 1)
+                content_length = next(
+                    int(line.split(b":", 1)[1])
+                    for line in headers.split(b"\r\n")
+                    if line.lower().startswith(b"content-length:")
+                )
+                while len(body) < content_length:
+                    chunk = connection.recv(4096)
+                    assert chunk, "CLI closed before completing its request body"
+                    body += chunk
+                assert json.loads(body)["messages"][0]["content"] == message
+                assert b"authorization: Bearer " + token.encode() in headers
+                # Keep the HTTP response incomplete so chat is interrupted before success.
+                connection.sendall(
+                    b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n"
+                    b"Content-Length: 1024\r\n\r\n" + b'{"text": "unfinished'
+                )
+                process.send_signal(signal.SIGINT)
+                stdout, stderr = process.communicate(timeout=10)
+                assert process.returncode == 130
+                assert stdout == ""
+                assert "Traceback" not in stderr and token not in stderr and message not in stderr
+                try:
+                    assert connection.recv(1) == b"", "Interrupted CLI left its connection open"
+                except ConnectionResetError:
+                    pass  # Closing with unread response bytes may reset the TCP connection.
+        finally:
+            if process.poll() is None:
+                process.kill()
+                process.communicate(timeout=5)

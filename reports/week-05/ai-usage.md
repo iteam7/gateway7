@@ -211,3 +211,19 @@ The pull request records the Markdown, documentation and link-check results; no 
 
 TODO: Team members must record what they accepted, changed or rejected after reviewing the Week 4 report and release/submission handoff.
 The Accountable reviewer still verifies the task criteria and the final private package after its real prerequisites are met.
+
+## Interrupted chat status for task #119
+
+On 26 October, azamatbayramov asked Codex to implement the CLI interruption correction from the code review.
+Formater checked the current rules and merged baseline, created [task #119](https://github.com/iteam7/gateway7/issues/119) and an isolated branch, and applied its native Task type without inventing a sprint or human review assignment.
+The implementation changes only the `chat` keyboard-interrupt outcome to exit 130; the existing `serve`, `demo` and offline-test outcomes remain separate.
+Codex added a bounded loopback subprocess regression that interrupts an unfinished HTTP response and observes process status, safe output and connection closure, plus standard-input and server-command regressions.
+The process-signal test is POSIX-specific and explicitly skipped on Windows; this work does not claim Windows validation.
+
+The focused CLI suite passed 20 tests, and Python formatting, lint and the CLI type check passed.
+The pull request records the independent TechLead review, documentation checks and exact-head CI results.
+No live provider, secret, Customer verdict or acceptance checkbox was needed for these offline regressions.
+
+### Team evaluation for the chat interruption correction
+
+TODO: Team members must record what they accepted, changed or rejected after reviewing the change and its interruption evidence.

@@ -383,6 +383,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Gateway startup failed: {error}", file=sys.stderr)
         return 1
     except KeyboardInterrupt:
+        if args.command == "chat":
+            return 130
         if args.command == "plugin" and args.plugin_command == "test":
             print_report(
                 {
