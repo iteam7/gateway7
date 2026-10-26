@@ -100,7 +100,29 @@ def _normalized_usage(value: Any, input_name: str, output_name: str) -> dict[str
     return _usage({"input_tokens": value.get(input_name), "output_tokens": value.get(output_name)})
 
 
-def _claude_response(data: dict[str, Any]) -> tuple[str, dict[str, int] | None, FinishReason]:
+def _response_usage(kind: str, data: dict[str, Any]) -> dict[str, int] | None:
+    """Read accounting independently of answer/finish validation after HTTP 200."""
+    if kind == "fake":
+        return _usage(data.get("usage"))
+    if kind == "claude":
+        return _normalized_usage(data.get("usage"), "input_tokens", "output_tokens")
+    if kind == "openai":
+        return _normalized_usage(data.get("usage"), "prompt_tokens", "completion_tokens")
+    raw_usage = data.get("usageMetadata")
+    usage = _normalized_usage(raw_usage, "promptTokenCount", "candidatesTokenCount")
+    if usage is not None and isinstance(raw_usage, dict) and "thoughtsTokenCount" in raw_usage:
+        thoughts = raw_usage["thoughtsTokenCount"]
+        if (
+            type(thoughts) is not int
+            or not 0 <= thoughts <= MAX_USAGE_TOKENS - usage["output_tokens"]
+        ):
+            return None
+        # Gemini reports reasoning separately from candidate text tokens.
+        usage["output_tokens"] += thoughts
+    return usage
+
+
+def _claude_response(data: dict[str, Any]) -> tuple[str, FinishReason]:
     if data.get("stop_reason") not in ("end_turn", "max_tokens", "stop_sequence"):
         raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
     content = data.get("content")
@@ -121,11 +143,10 @@ def _claude_response(data: dict[str, Any]) -> tuple[str, dict[str, int] | None, 
             continue
         else:
             raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
-    usage = _normalized_usage(data.get("usage"), "input_tokens", "output_tokens")
-    return "".join(text_parts), usage, "length" if data["stop_reason"] == "max_tokens" else "stop"
+    return "".join(text_parts), "length" if data["stop_reason"] == "max_tokens" else "stop"
 
 
-def _openai_response(data: dict[str, Any]) -> tuple[str, dict[str, int] | None, FinishReason]:
+def _openai_response(data: dict[str, Any]) -> tuple[str, FinishReason]:
     choices = data.get("choices")
     if not isinstance(choices, list) or len(choices) != 1 or not isinstance(choices[0], dict):
         raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
@@ -145,14 +166,10 @@ def _openai_response(data: dict[str, Any]) -> tuple[str, dict[str, int] | None, 
     text = message.get("content")
     if not isinstance(text, str):
         raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
-    return (
-        text,
-        _normalized_usage(data.get("usage"), "prompt_tokens", "completion_tokens"),
-        "length" if choice["finish_reason"] == "length" else "stop",
-    )
+    return text, "length" if choice["finish_reason"] == "length" else "stop"
 
 
-def _gemini_response(data: dict[str, Any]) -> tuple[str, dict[str, int] | None, FinishReason]:
+def _gemini_response(data: dict[str, Any]) -> tuple[str, FinishReason]:
     feedback = data.get("promptFeedback")
     if feedback is not None and (not isinstance(feedback, dict) or feedback.get("blockReason")):
         raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
@@ -195,23 +212,7 @@ def _gemini_response(data: dict[str, Any]) -> tuple[str, dict[str, int] | None, 
             raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
         if not part.get("thought", False):
             text_parts.append(part["text"])
-    raw_usage = data.get("usageMetadata")
-    usage = _normalized_usage(raw_usage, "promptTokenCount", "candidatesTokenCount")
-    if usage is not None and isinstance(raw_usage, dict) and "thoughtsTokenCount" in raw_usage:
-        thoughts = raw_usage["thoughtsTokenCount"]
-        if (
-            type(thoughts) is not int
-            or not 0 <= thoughts <= MAX_USAGE_TOKENS - usage["output_tokens"]
-        ):
-            usage = None
-        else:
-            # Gemini reports reasoning separately from candidate text tokens.
-            usage["output_tokens"] += thoughts
-    return (
-        "".join(text_parts),
-        usage,
-        "length" if candidate["finishReason"] == "MAX_TOKENS" else "stop",
-    )
+    return "".join(text_parts), "length" if candidate["finishReason"] == "MAX_TOKENS" else "stop"
 
 
 class HTTPProvider:
@@ -293,6 +294,7 @@ class HTTPProvider:
         return f"/v1beta/models/{selected_model}:generateContent", payload
 
     async def complete(self, request: ChatRequest, *, model: str | None = None) -> ChatResponse:
+        usage = None
         try:
             path, payload = self._request(request, model)
             # A single request: retries and redirects are intentionally absent.
@@ -320,22 +322,23 @@ class HTTPProvider:
                 raise ProviderError(ProviderErrorReason.INVALID_RESPONSE) from None
             if not isinstance(data, dict):
                 raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
+            usage = _response_usage(self._kind, data)
             if self._kind == "fake":
-                text, usage = data.get("text"), _usage(data.get("usage"))
+                text = data.get("text")
                 # The synthetic fixture contract predates finish metadata. Real
                 # adapters require an explicit provider completion reason.
                 finish_reason = data.get("finish_reason", "stop")
             elif self._kind == "claude":
-                text, usage, finish_reason = _claude_response(data)
+                text, finish_reason = _claude_response(data)
             elif self._kind == "openai":
-                text, usage, finish_reason = _openai_response(data)
+                text, finish_reason = _openai_response(data)
             else:
-                text, usage, finish_reason = _gemini_response(data)
+                text, finish_reason = _gemini_response(data)
             if not isinstance(text, str) or not text or finish_reason not in ("stop", "length"):
                 raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
             return ChatResponse(text=text, usage=usage, finish_reason=finish_reason)
         except ProviderError as error:
-            raise ProviderError(error.reason) from None
+            raise ProviderError(error.reason, usage=usage) from None
         except httpx.TimeoutException:
             raise ProviderError(ProviderErrorReason.TIMEOUT) from None
         except httpx.DecodingError:
@@ -345,7 +348,7 @@ class HTTPProvider:
         except Exception:
             # Unexpected failures retain a bounded fallback. Never include
             # bodies, URLs, headers or raw exceptions in diagnostics.
-            raise ProviderError() from None
+            raise ProviderError(usage=usage) from None
 
 
 def build_provider(config: ProviderConfig, key: str) -> HTTPProvider:

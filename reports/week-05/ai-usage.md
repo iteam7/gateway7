@@ -86,6 +86,24 @@ TODO: Team members must record what they accepted, changed or rejected after rev
 - At the source check for task #89, `main` had no `FR-nnn` or `ADR-nnn` records for this work. The task retained this missing specification trace as a declared gap rather than inventing accepted course requirements; the later task #92 work below records the requirements integration.
 - At the source check on 25 October, Assignment 4 was the latest published assignment. This file records the implementation assistance only and does not claim completion of the Week 5 report or any unpublished assignment.
 
+## Usage on rejected answers for task #120
+
+On 26 October, azamatbayramov asked Codex to preserve known upstream consumption when answer validation rejects a received response.
+Formater created [task #120](https://github.com/iteam7/gateway7/issues/120) and an isolated branch from the merged hardening baseline, without inventing human roles, estimates or acceptance.
+The implementation reuses each provider's existing usage normalization after a complete HTTP 200 body is decoded, then carries only validated canonical input/output counts in an immutable exception snapshot if answer validation fails.
+The pipeline records those counts once alongside the existing failure outcome and reason; the sanitized client error does not expose the rejected answer or usage.
+Missing, incomplete, invalid and overflowing counts remain unknown, while an explicitly reported zero remains known.
+HTTP error bodies and incomplete or undecodable responses are not used as accounting evidence.
+
+The existing accounting after response-side middleware rejection was already correct, so Codex added regression coverage without refactoring that path.
+The focused provider and metrics suites passed 405 tests; formatting, lint and changed-module type checks passed, and the TechLead independently approved the frozen diff.
+The pull request records documentation checks and exact-head CI results.
+Operational usage remains distinct from a provider billing ledger, and no live-provider validation or secret data was needed.
+
+### Team evaluation for rejected-answer usage
+
+TODO: Team members must record what they accepted, changed or rejected after reviewing the accounting behavior and its tests.
+
 ## Architecture documentation for task #92
 
 On 25 October, azamatbayramov asked Codex to carry out [task #92](https://github.com/iteam7/gateway7/issues/92).

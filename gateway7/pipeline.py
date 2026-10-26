@@ -133,6 +133,7 @@ class Pipeline:
                             self.provider_name,
                             "provider_error",
                             time.monotonic() - started,
+                            error.usage if isinstance(error, ProviderError) else None,
                             error_reason=reason,
                         )
                     _log(

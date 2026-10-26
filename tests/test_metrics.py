@@ -13,6 +13,7 @@ from gateway7.loader import load_plugins
 from gateway7.metrics import Metrics
 from gateway7.models import ChatRequest, ChatResponse, Message
 from gateway7.pipeline import Pipeline
+from gateway7.plugin_api import Deny
 
 SECRET = "synthetic-private-metric-value"
 
@@ -49,11 +50,13 @@ def sample(metrics, name, **labels):
 async def test_request_denial_does_not_count_provider_or_tokens():
     config = policy_config()
     metrics = Metrics()
-    pipeline = Pipeline(load_plugins(config), Provider(), config.limits, metrics=metrics)
+    pipeline = Pipeline(load_plugins(config), Provider(usage={"input_tokens": 12, "output_tokens": 4}), config.limits, metrics=metrics)
     with pytest.raises(GatewayError, match="denied"):
         await pipeline.run(ChatRequest(messages=[Message(role="user", content="SECRET-TEST")]), "request-private")
     assert sample(metrics, "provider_calls_total", provider="fake", outcome="complete") is None
     assert not metrics.provider_errors.collect()[0].samples
+    assert not metrics.provider_tokens.collect()[0].samples
+    assert sample(metrics, "provider_usage_unknown_total", provider="fake") is None
     assert sample(metrics, "middleware_steps_total", middleware="guard", phase="request", outcome="policy_denied") == 1
 
 
@@ -74,6 +77,33 @@ async def test_response_denial_still_records_provider_usage_once():
     provider_duration = sample(metrics, "provider_duration_seconds_sum", provider="fake", outcome="complete")
     own_duration = sum(sample(metrics, "middleware_duration_seconds_sum", middleware="guard", phase=phase) for phase in ("request", "response"))
     assert own_duration < provider_duration
+
+
+@pytest.mark.parametrize("failure", ["deny", "error"])
+async def test_response_failure_cannot_mutate_or_count_provider_usage_again(monkeypatch, failure):
+    from gateway7.plugins.phone_mask import PhoneMaskPlugin
+
+    async def mutate_then_fail(self, request, context, call_next):
+        answer = await call_next(request)
+        answer.usage.update(input_tokens=1000, output_tokens=2000, private=SECRET)
+        if failure == "deny":
+            return Deny()
+        raise RuntimeError(SECRET)
+
+    monkeypatch.setattr(PhoneMaskPlugin, "handle", mutate_then_fail)
+    config = GatewayConfig.model_validate({
+        "plugins": {"phone": {"module": "gateway7.plugins.phone_mask"}}, "middleware": ["phone"],
+    })
+    metrics = Metrics()
+    pipeline = Pipeline(load_plugins(config), Provider(usage={"input_tokens": 12, "output_tokens": 4}), config.limits, metrics=metrics)
+    with pytest.raises(GatewayError) as error:
+        await pipeline.run(ChatRequest(messages=[Message(role="user", content="hello")]), "safe-id")
+    assert error.value.code == ("policy_denied" if failure == "deny" else "plugin_error")
+    assert sample(metrics, "provider_calls_total", provider="fake", outcome="complete") == 1
+    assert sample(metrics, "provider_tokens_total", provider="fake", direction="input") == 12
+    assert sample(metrics, "provider_tokens_total", provider="fake", direction="output") == 4
+    assert sample(metrics, "provider_usage_unknown_total", provider="fake") is None
+    assert not metrics.provider_errors.collect()[0].samples
 
 
 @pytest.mark.parametrize("usage", [None, {}, {"input_tokens": -1, "output_tokens": 2}, {"input_tokens": True, "output_tokens": 2}, {"input_tokens": 10**400, "output_tokens": 2}])
@@ -200,6 +230,14 @@ def test_real_adapter_failure_reaches_safe_http_error_and_metrics(monkeypatch, c
             raise RuntimeError(SECRET + key + token + upstream_url)
         if failure == "wrong_payload":
             return httpx.Response(200, json={"untrusted": SECRET + key + token + upstream_url})
+        if isinstance(failure, int):
+            # Error bodies can look like valid accounting; they are not trusted
+            # usage sources and must retain the existing unknown observation.
+            return httpx.Response(failure, json={
+                "error": SECRET + key + token + upstream_url,
+                "usage": {"input_tokens": 12, "output_tokens": 4, "prompt_tokens": 12, "completion_tokens": 4},
+                "usageMetadata": {"promptTokenCount": 12, "candidatesTokenCount": 4},
+            })
         return httpx.Response(200 if failure == "malformed" else failure,
                               text=SECRET + key + token + upstream_url,
                               headers={"location": upstream_url, "retry-after": "1"})
@@ -239,6 +277,66 @@ def test_real_adapter_failure_reaches_safe_http_error_and_metrics(monkeypatch, c
             SECRET, key, token, upstream_url, model, "synthetic-client-private", str(attempts[0].url),
         ))
         assert response.json()["request_id"] not in metrics
+
+
+@pytest.mark.parametrize("path,route", [("/chat", "chat"), ("/v1/chat/completions", "openai_chat")])
+@pytest.mark.parametrize("kind,body,expected", [
+    ("claude", {"content": [{"type": "thinking", "thinking": SECRET}], "stop_reason": "max_tokens",
+                "usage": {"input_tokens": 12, "output_tokens": 4}}, (12, 4)),
+    ("openai", {"choices": [{"finish_reason": "content_filter", "message": {"role": "assistant", "content": SECRET}}],
+                "usage": {"prompt_tokens": 12, "completion_tokens": 4}}, (12, 4)),
+    ("gemini", {"candidates": [{"finishReason": "MAX_TOKENS", "content": {"role": "model", "parts": [{"text": SECRET, "thought": True}]}}],
+                "usageMetadata": {"promptTokenCount": 12, "candidatesTokenCount": 0, "thoughtsTokenCount": 4}}, (12, 4)),
+    ("openai", {"choices": [], "usage": {"prompt_tokens": 0, "completion_tokens": 0}}, (0, 0)),
+    ("openai", {"choices": [], "usage": {"prompt_tokens": 0}}, None),
+    ("gemini", {"candidates": [], "usageMetadata": {"promptTokenCount": 12, "candidatesTokenCount": 1, "thoughtsTokenCount": 2**63 - 1}}, None),
+])
+def test_rejected_answer_keeps_usage_without_changing_public_error(monkeypatch, caplog, path, route, kind, body, expected):
+    import httpx
+    from gateway7 import providers
+
+    key, token = "synthetic-usage-provider-key", "synthetic-usage-client-token"
+    monkeypatch.setenv("GATEWAY7_USAGE_PROVIDER_KEY", key)
+    monkeypatch.setenv("GATEWAY7_USAGE_CLIENT_TOKEN", token)
+    attempts = []
+
+    def upstream(request):
+        attempts.append(request)
+        return httpx.Response(200, json={**body, "private_metadata": SECRET + key + token})
+
+    client_class = httpx.AsyncClient
+    monkeypatch.setattr(providers.httpx, "AsyncClient", lambda **kwargs: client_class(
+        transport=httpx.MockTransport(upstream), **kwargs,
+    ))
+    config = GatewayConfig.model_validate({
+        "provider": {"kind": kind, "model": "usage-test-model", "key_env": "GATEWAY7_USAGE_PROVIDER_KEY"},
+        "auth": {"enabled": True, "clients": {"usage-test-client": {
+            "token_env": "GATEWAY7_USAGE_CLIENT_TOKEN", "models": ["usage-test-model"],
+        }}},
+    })
+    app = create_app(config=config)
+    with caplog.at_level("INFO", logger="gateway7"), TestClient(app) as client:
+        response = client.post(path, headers={"authorization": "Bearer " + token}, json={
+            "model": "usage-test-model", "messages": [{"role": "user", "content": SECRET}],
+        })
+        assert response.status_code == 502 and len(attempts) == 1
+        expected_error = {"code": "provider_error", "message": "Provider request failed"}
+        if route == "openai_chat":
+            expected_error.update(type="api_error", param=None)
+        assert response.json()["error"] == expected_error
+        assert set(response.json()) == {"error", "request_id"}
+        metrics = app.state.metrics
+        assert sample(metrics, "provider_calls_total", provider=kind, outcome="provider_error") == 1
+        assert sample(metrics, "provider_duration_seconds_count", provider=kind, outcome="provider_error") == 1
+        assert sample(metrics, "provider_errors_total", provider=kind, reason="invalid_response") == 1
+        assert sample(metrics, "provider_tokens_total", provider=kind, direction="input") == (expected[0] if expected is not None else None)
+        assert sample(metrics, "provider_tokens_total", provider=kind, direction="output") == (expected[1] if expected is not None else None)
+        assert sample(metrics, "provider_usage_unknown_total", provider=kind) == (None if expected is not None else 1)
+        report = client.get("/metrics").text
+        assert all(value not in response.text + report + caplog.text for value in (
+            SECRET, key, token, "usage-test-model", "usage-test-client", "private_metadata",
+        ))
+        assert response.json()["request_id"] not in report
 
 
 @pytest.mark.parametrize("reason", [SECRET, [], {"untrusted": SECRET}])

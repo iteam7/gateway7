@@ -41,6 +41,12 @@ Routes are mapped to the fixed names `chat`, `openai_chat`, `models`, `health`, 
 
 A request rejected before forwarding does not increment provider metrics.
 A response rejected after forwarding still increments the provider call and any known token amounts: rejecting an answer cannot undo upstream work.
+Complete, valid usage from a fully decoded HTTP 200 response is counted once even if later answer validation rejects an empty answer, unsupported content or finish state.
+That attempt keeps the `provider_error` outcome and its failure reason; the client still receives the sanitized HTTP 502 error, without the rejected answer or usage fields.
+Only canonical input/output counts are retained, with the same provider normalization used for successful answers.
+Both counts must be integers from 0 through 2^63−1; missing, incomplete, boolean, negative, fractional or overflowing counts remain unknown.
+Reported `0/0` is known usage; an absent count is never filled with zero.
+HTTP error bodies, incomplete bodies and undecodable responses do not supply usage.
 Missing usage is not invented as zero. A provider failure/cancellation can still consume tokens that were never returned to the gateway.
 For Gemini, the output count includes reported thinking tokens when present, even though hidden thought content is not delivered.
 These are operational counters, not a billing ledger; they reset when the gateway process restarts.
@@ -73,7 +79,8 @@ The additional failure counter and the provider failure log's `reason` field use
 
 Categories describe the observed status or failure type; they do not prove the provider's underlying cause.
 The gateway does not inspect error bodies or expose upstream exception strings, headers or URLs in these diagnostics.
-No category triggers a retry or fallback, and failures still count as unknown token usage.
+No category triggers a retry or fallback.
+Failures count as unknown token usage unless complete valid usage was independently parsed from HTTP 200 before answer validation failed.
 An overall gateway deadline or caller cancellation records the existing `cancelled` provider outcome when a call is active, without incrementing the failure counter.
 Authentication, model or policy rejection before the provider is invoked does not increment either provider counter.
 
