@@ -291,3 +291,13 @@ No runtime feature, dependency, workflow, historical report, requirement or arch
 ### Team evaluation for the customer documentation
 
 TODO: Team members must record what they accepted, changed or rejected after reviewing the guide content, examples and rendered site.
+
+## REL-04 release for task #98
+
+On 26 October 2026, at ExFuseMe's request, Claude Code (Claude Opus 5.5) checked the Assignment 4 release and submission rules and the CI status of `main` commit `8cdf230c77e029074d0b3b9ad82e3edc6d25b59b`.
+ExFuseMe decided to release without the missing Week 4 Customer Review, chose version `v0.2.0` because plugin API version 2 is a breaking change, and asked for a dated section for the existing `v0.1.1` tag.
+The Formater agent pushed the annotated `v0.2.0` tag and prepared release notes from the changelog; the release itself was published by a team member.
+Claude Code then split the changelog into dated `0.2.0` and `0.1.1` sections, filled the plan's `REL-04` line and added the release links to the Week 4 report.
+No Customer verdict or acceptance is claimed.
+
+TODO: Team members must record what they accepted, changed or rejected after reviewing the release notes, changelog sections and report changes.
