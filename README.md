@@ -25,7 +25,7 @@ curl --fail-with-body http://127.0.0.1:8000/chat \
 
 The answer contains `[EMAIL]` and `[removed]`.
 This local demo uses a synthetic provider and a public demo token; no provider account or API key is needed.
-Open [Grafana](http://127.0.0.1:3000/d/gateway7-overview), then stop with `docker compose down`.
+Open `http://127.0.0.1:3000/d/gateway7-overview` for Grafana, then stop with `docker compose down`.
 The [quickstart](docs/quickstart.md) explains the result, ports and cleanup.
 
 ## Run without Docker
