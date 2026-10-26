@@ -5,6 +5,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- Reproducible middleware diagnostics and an offline pipeline-overhead benchmark, with a complete synthetic authoring walkthrough.
+
+### Fixed
+
+- Generated middleware installation instructions use `uv pip` in the documented environment.
+
 ## [0.2.0] - 2026-10-26
 
 ### Added

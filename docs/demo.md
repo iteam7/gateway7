@@ -37,27 +37,65 @@ uv run --locked python -m demo.run
 Use the same demo command during the call; a nonzero exit is a failed check.
 Keep the terminal, `config/demo.yaml`, `examples/sample_plugin.py` and the architecture page visible.
 The runner uses disposable files, restarts the gateway for configuration changes and stops its child processes afterwards.
+For each failure, it verifies a safe diagnosis containing `component`, `phase`, `duration_ms` and `request_id`, correlated with the terminal HTTP outcome and actual provider-call count.
+The timeout fixture sleeps for 0.3 seconds under a 0.05-second cooperative hook budget; these are demonstration timings, not the exact US-06 / AC-02 fixture.
 
 | Time | Show | Expected observation |
 | --- | --- | --- |
-| 0–2 min | Customer view and `config/demo.yaml` | Core orchestration, policy middleware and provider adapter are separate; one list defines both directions |
-| 2–4 min | Start `uv run --locked python -m demo.run` | Real HTTP request gets `pong — deterministic upstream`; fake upstream verifies the configured key while client/log checks find no key |
-| 4–6 min | Masking checks and recorder output | Three specified phone strings become `[PHONE]`; earlier history is processed; `Order ORDER-2026-1001 shipped on 2026-10-08` is unchanged |
-| 6–9 min | Sample module and its instance configuration | Only the new plugin file and YAML change; after restart the upstream user message ends with `[checked-by-sample]` |
-| 9–11 min | Two marker instances and restart checks | A then B appears upstream and B then A returns; changing one list changes both directions |
-| 11–13 min | Three middleware types and safe trace | Phone mask, policy guard and sample transformation run together; the response trace unwinds in reverse |
-| 13–15 min | Policy denial, request exception, timeout and response failure | The first three produce zero provider calls; a response-side failure produces one provider call and no delivered answer |
-| 15–17 min | Checklist below and questions | Distinguish demonstrated behavior, actual-provider evidence still needed, and Customer verdicts still needed |
+| 0–2 min | Customer view and `config/demo.yaml` | Core, middleware and provider adapter have separate roles; one list defines both directions |
+| 2–4 min | Run `uv run --locked python -m demo.run`; inspect masking checks | Real HTTP returns a synthetic answer; phones and history are masked, while the order/date fixture is unchanged |
+| 4–7 min | Sample module, instance settings and restart checks | Only module and YAML change; three middleware types compose, and response order reverses request order |
+| 7–10 min | Policy denial, exception, timeout and response failure | Locate the failing instance from its correlated trace; request failures make zero provider calls, a response failure makes one |
+| 10–13 min | Prepared [authoring walkthrough](authoring.md#try-the-installed-package-without-a-provider-account) | Offline expectations pass or fail clearly; the normally installed plugin changes a real local HTTP request after restart |
+| 13–15 min | Local benchmark and questions | Compare measured pipeline overhead, explain excluded costs, then collect Customer feedback |
 
-For an interactive manual installation, follow [Writing a plugin](plugins.md#smallest-installation), restart the manual gateway, send a user message and open the fake upstream `/requests` endpoint.
-Use `git status --short --untracked-files=all` to inspect the literal US-03 / AC-01 two-file change constraint in a clean checkout.
-The automated runner additionally checks its disposable file changes so normal rehearsal leaves your source unchanged.
+For a hands-on package installation, follow the [no-key authoring walkthrough](authoring.md#try-the-installed-package-without-a-provider-account): generate, test, install and call your own middleware over HTTP.
+The original [two-file course example](plugins.md#smallest-installation) is checked inside the runner's disposable folder, leaving the checkout unchanged.
+Only that recorder fixture exposes `/requests`; the interactive `gateway7 demo` does not.
+Install dependencies and prepare the authoring terminals before the call so downloads do not use presentation time.
+
+## Measure local middleware overhead
+
+From the checkout, run:
+
+```sh
+uv run --locked python -m demo.benchmark \
+  --counts 0 1 3 8 16 32 --samples 200 --warmup 20 --json
+```
+
+An installed wheel also supports `python -m demo.benchmark` from any folder.
+Omit `--json` for a readable table.
+The JSON report identifies the Python/platform environment and gives one row per middleware count, with `p50_ms`, `p95_ms`, sample counts and provider-call counts.
+Each row runs sequential requests through the real pipeline, using no-op middleware and a fixed in-memory provider.
+The first 20 calls warm up the code and are excluded from the 200 measured samples; percentiles use nearest rank.
+
+The zero-middleware row still includes pipeline validation, timers, the synthetic provider and metric updates.
+The other rows include the added no-op middleware work; results are total durations without subtracting the baseline.
+Loading, startup, HTTP, authentication, admission, network transport, real LLM latency and gateway log I/O are excluded.
+No provider account or network request is used.
+The default whole-run timeout is 30 seconds; use `--timeout` to change it.
+
+One local run on 26 October 2026 used CPython 3.12.14 on Linux 6.18.55 x86_64, with 200 measured samples and 20 warmups per row.
+The monotonic `perf_counter_ns` clock reported 1 ns resolution; the durations below are rounded to three decimal places.
+
+| Middleware count | p50 (ms) | p95 (ms) |
+| --- | --- | --- |
+| 0 | 0.023 | 0.094 |
+| 1 | 0.056 | 0.130 |
+| 3 | 0.116 | 0.304 |
+| 8 | 0.289 | 0.595 |
+| 16 | 0.578 | 1.295 |
+| 32 | 1.188 | 1.970 |
+
+Each row made 220 synthetic provider calls, including warmup.
+Compare repeated runs on the same machine and Python version.
+These measurements describe this small local workload, not production throughput or a supported maximum plugin count.
 
 ## Acceptance checklist
 
 These are implementation checks, not prewritten customer acceptance.
 Dated evidence and outstanding submission work are recorded in the repository's `reports/week-03/README.md`.
-The matrix was compiled from `main` on 25 October 2026 for the next Customer Review.
+The matrix was compiled from `main` on 25 October 2026; the installation route and diagnostic evidence were updated on 26 October without repeating every criterion's review.
 "Automated (mock)" means a synthetic fake upstream or HTTP transport in `demo/run.py`, `tests/`, `scripts/smoke_compose.py` or `scripts/smoke_authoring.py`; it never stands for a live provider call or a Customer verdict.
 "No exact check found" means the repository has related checks but none with the criterion's exact fixture; the dry-run must produce the observation before the criterion is shown as met.
 "Known gap" means the current code or documentation contradicts the criterion, so it cannot be shown as met until the code or the criterion changes.
@@ -73,7 +111,7 @@ No story has a recorded Customer verdict: US-03, US-06 and US-09 were closed on 
 | [US-02](https://github.com/iteam7/gateway7/issues/31) / AC-01 | `python -m demo.run`: the three phone formats arrive upstream as three `[PHONE]` tokens | Automated (mock): `demo/run.py` | Customer verdict; production format policy remains open |
 | US-02 / AC-02 | Same run: the first message of a three-message conversation is masked | Automated (mock): `demo/run.py` | Customer verdict |
 | US-02 / AC-03 | Same run: `Order ORDER-2026-1001 shipped on 2026-10-08` arrives unchanged | Automated (mock): `demo/run.py` | Customer verdict |
-| [US-03](https://github.com/iteam7/gateway7/issues/32) / AC-01 | Same run plus `git status --short`: after restart the message ends with `[checked-by-sample]`; only the plugin file and configuration changed | Automated (mock): `demo/run.py` | Human inspection of the two-path status and Customer verdict |
+| [US-03](https://github.com/iteam7/gateway7/issues/32) / AC-01 | Same run: after restart the message ends with `[checked-by-sample]`; only the plugin file and configuration changed in the disposable folder | Automated (mock): `demo/run.py` | Human inspection of the two changed paths and Customer verdict |
 | US-03 / AC-02 | Same run: a listed missing plugin stops startup and is named | Automated (mock): `demo/run.py` | Customer verdict |
 | US-03 / AC-03 | Same run: two instances produce A's marker before B's upstream | Automated (mock): `demo/run.py` | Customer verdict |
 | [US-04](https://github.com/iteam7/gateway7/issues/33) / AC-01 | [Interactive pilot](#interactive-pilot-and-monitoring): `BLOCK-ME-TEST` returns HTTP 403 and the provider receives no call | Automated (mock) for HTTP 403 and zero provider calls: `tests/test_reference_middleware.py`, `scripts/smoke_compose.py`; **known gap**: the client error is always `Request denied by policy` and never names the plugin | Code change or Customer decision on the criterion; Customer verdict |
@@ -83,7 +121,7 @@ No story has a recorded Customer verdict: US-03, US-06 and US-09 were closed on 
 | US-05 / AC-02 | Upstream answer `Nothing to remove` reaches the client unchanged | Related automated (mock): `tests/test_reference_middleware.py`; no exact check found | Dry-run with the exact fixture; Customer verdict |
 | [US-06](https://github.com/iteam7/gateway7/issues/35) / AC-01 | `python -m demo.run`: a raising plugin returns an error naming it, with zero upstream calls | Automated (mock) for the error and zero upstream calls: `demo/run.py`; **known gap**: the client error is always `Plugin processing failed`, and the plugin is named only in the log trace | Code change or Customer decision on the criterion; Customer verdict |
 | US-06 / AC-02 | Same run: a slow plugin returns a time-limit error with zero upstream calls | Automated (mock) with the demo's own limits; no exact check found for 1 s limit, 3 s plugin and a 2 s bound | Dry-run with the criterion's timings; Customer verdict |
-| US-06 / AC-03 | Same run: each failure trace names the plugin and request ID without the message text | Partial: `demo/run.py` prints the trace without asserting it; related checks in `tests/test_core.py` | Dry-run inspection of the log; Customer verdict |
+| US-06 / AC-03 | Same run: each failure trace names the plugin and request ID without the message text | Automated (mock): `demo/run.py` asserts the originating instance, phase, request ID, safe duration, terminal HTTP outcome and provider-call count; logs exclude fixture text, keys and exception details | Customer verdict |
 | US-06 / AC-04 | A 0.5 s plugin under a 1 s limit: the request is forwarded and answered with HTTP 200 | No exact check found | Dry-run with the criterion's timings; Customer verdict |
 | [US-07](https://github.com/iteam7/gateway7/issues/36) / AC-01 | Client token allowed `model-a`: `model-a` is answered; `model-b` gets HTTP 403 with no upstream request | Automated (mock): `tests/test_access.py` | Customer verdict |
 | US-07 / AC-02 | Missing and unregistered tokens each get HTTP 401 with no upstream request | Automated (mock): `tests/test_access.py` | Customer verdict |
