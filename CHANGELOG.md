@@ -41,6 +41,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- Interrupted `gateway7 chat` requests return exit status 130 and close the pending client connection instead of reporting success.
 - Gateway shutdown attempts every initialized middleware and closes the provider even when a plugin shutdown hook cancels or fails.
 
 ## [0.1.0] - 2026-10-18

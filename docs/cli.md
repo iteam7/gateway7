@@ -74,7 +74,8 @@ Only use synthetic fixtures and trusted plugin code. The [authoring guide](autho
 
 ## Exit codes and checks
 
-Exit 0 means success or an orderly Ctrl-C shutdown, exit 1 means a command/startup failure, and invalid CLI arguments return exit 2.
+Exit 0 means success or an orderly Ctrl-C shutdown of `serve` or `demo`, exit 1 means a command/startup failure, and invalid CLI arguments return exit 2.
+Interrupting `chat` while reading standard input or waiting for the gateway returns exit 130.
 `plugin test` uses exit 0 for all checks passing, 1 for expected/actual mismatches and 2 for invalid setup, interruption or worker timeout.
 Interrupting an offline test terminates its worker and never reports a successful fixture run.
 Use `gateway7 --help` or `gateway7 COMMAND --help` for options.
