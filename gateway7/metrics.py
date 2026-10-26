@@ -2,6 +2,8 @@
 
 from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram
 
+from gateway7.errors import ProviderErrorReason
+
 
 class Metrics:
     def __init__(self) -> None:
@@ -37,6 +39,12 @@ class Metrics:
             registry=self.registry,
             buckets=(0.01, 0.1, 0.5, 1, 2.5, 5, 10, 30, 60, 120, 300),
         )
+        self.provider_errors = Counter(
+            "gateway7_provider_errors_total",
+            "Failed provider attempts by safe diagnostic reason, excluding cancellation.",
+            ("provider", "reason"),
+            registry=self.registry,
+        )
         self.provider_tokens = Counter(
             "gateway7_provider_tokens_total",
             "Known provider-reported tokens, including denied responses.",
@@ -69,9 +77,14 @@ class Metrics:
         outcome: str,
         duration: float,
         usage: dict[str, int] | None = None,
+        *,
+        error_reason: object = ProviderErrorReason.UNKNOWN,
     ) -> None:
         self.provider_calls.labels(provider, outcome).inc()
         self.provider_duration.labels(provider, outcome).observe(max(0, duration))
+        if outcome == "provider_error":
+            reason = ProviderErrorReason.normalize(error_reason)
+            self.provider_errors.labels(provider, reason.value).inc()
         if usage is None or any(
             type(usage.get(name)) is not int or not 0 <= usage[name] <= 2**63 - 1
             for name in ("input_tokens", "output_tokens")

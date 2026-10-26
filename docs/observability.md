@@ -31,6 +31,7 @@ Routes are mapped to the fixed names `chat`, `openai_chat`, `models`, `health`, 
 | `gateway7_http_requests_in_flight` | None | Active HTTP requests, including health/scrape traffic |
 | `gateway7_provider_calls_total` | `provider`, `outcome` | Exactly one observation per attempted provider call |
 | `gateway7_provider_duration_seconds` | `provider`, `outcome` | Histogram of provider attempt duration |
+| `gateway7_provider_errors_total` | `provider`, `reason` | One safe diagnostic category per failed attempt; excludes cancellation |
 | `gateway7_provider_tokens_total` | `provider`, `direction` | Known reported token amounts; direction is `input` or `output` |
 | `gateway7_provider_usage_unknown_total` | `provider` | Attempts without complete valid usage, including failed/cancelled attempts |
 | `gateway7_middleware_steps_total` | `middleware`, `phase`, `outcome` | Own-work segments, including terminal failures |
@@ -48,6 +49,28 @@ HTTP 401 counts failed authentication. Client names, bearer tokens and selected 
 Prometheus adds histogram `_bucket`, `_sum` and `_count` series and counter creation timestamps.
 Before a labeled event has occurred its series may be absent; a blank chart is not proof of zero errors or zero cost.
 The in-flight gauge includes the scrape request currently collecting it.
+
+### Provider failure reasons
+
+Provider failures keep the public HTTP 502 / `provider_error` contract and the existing `provider_error` outcome on call counters and duration histograms.
+The additional failure counter and the provider failure log's `reason` field use only these fixed values:
+
+| Reason | Condition |
+| --- | --- |
+| `authentication` | Upstream HTTP 401 or 403, including provider permission failures |
+| `rate_limit` | Upstream HTTP 429 |
+| `timeout` | Provider HTTP connect, read, write or pool timeout |
+| `unavailable` | Upstream HTTP 500–599 |
+| `transport` | Other HTTP transport failures, such as connection or protocol errors |
+| `invalid_response` | Malformed, oversized, incorrectly encoded or unsupported response content; invalid adapter response payload |
+| `rejected` | Any other upstream status except the expected HTTP 200, including redirects |
+| `unknown` | Unexpected adapter failures or absent/unrecognized diagnostic reasons |
+
+Categories describe the observed status or failure type; they do not prove the provider's underlying cause.
+The gateway does not inspect error bodies or expose upstream exception strings, headers or URLs in these diagnostics.
+No category triggers a retry or fallback, and failures still count as unknown token usage.
+An overall gateway deadline or caller cancellation records the existing `cancelled` provider outcome when a call is active, without incrementing the failure counter.
+Authentication, model or policy rejection before the provider is invoked does not increment either provider counter.
 
 ## Useful queries
 
@@ -77,12 +100,18 @@ Unknown-usage attempts over five minutes:
 sum by (provider) (increase(gateway7_provider_usage_unknown_total[5m]))
 ```
 
+Provider failures by safe category over five minutes:
+
+```promql
+sum by (provider, reason) (increase(gateway7_provider_errors_total[5m]))
+```
+
 ## Diagnose a failing request
 
 1. Check `/ready`, then Prometheus `up{job="gateway7"}`. Readiness confirms successful local startup, not provider credentials or model access.
 2. Look at the chat status series: 401 is failed authentication, 403 a model-access or policy denial, 500 a middleware/internal failure, 502 a provider failure and 504 an overall deadline.
 3. Compare provider latency with middleware own-work latency to locate the slow stage. Middleware awaiting the provider does not spend its own timeout budget on that wait.
-4. Use the returned request ID to find gateway logs with `docker compose logs gateway`. Events contain only safe component/outcome codes and durations; the ID is not a metric label.
+4. Inspect `gateway7_provider_errors_total` by `reason`, then use the returned request ID to find gateway logs with `docker compose logs gateway`. Events contain safe component/outcome codes, durations and the provider failure reason; the ID is not a metric label.
 
 The configured provider HTTP timeout may fail before the overall request deadline; this is a provider error (502), not an automatic retry.
 A failed or denied response can follow a completed provider attempt, so inspect both HTTP and provider metrics.
