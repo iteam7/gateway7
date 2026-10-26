@@ -1,80 +1,54 @@
-# Modular LLM Gateway — Team 7
+# Gateway7
 
-Gateway7 applies company-authored Python middleware to messages and model answers.
-Choose OpenAI, Anthropic Claude or Google Gemini in server configuration; clients authenticate with their own gateway token and can use only permitted models.
-One ordered middleware list wraps the provider, with responses processed in reverse order.
+<!-- Preserve links to the previous page heading. -->
+<!-- markdownlint-disable MD033 -->
+<div id="modular-llm-gateway--team-7"></div>
+<!-- markdownlint-enable MD033 -->
 
-The included policies mask phone numbers and email addresses, block or log literal policy matches, and redact response text.
-The CLI, Docker image, Prometheus metrics and provisioned Grafana dashboard support a reproducible local pilot.
+**Add your team's policies between an application and an LLM.**
+Gateway7 keeps provider keys on the server, checks each client's model access, and runs your Python middleware on requests and answers.
+Use OpenAI, Claude or Gemini through one configured provider per instance.
 
 ## Start with Docker Compose
 
+With Git, curl and Docker Compose v2 installed:
+
 ```sh
+git clone https://github.com/iteam7/gateway7.git
+cd gateway7
 docker compose up --build --detach --wait
-export GATEWAY7_TOKEN=gateway7-synthetic-client-token
 curl --fail-with-body http://127.0.0.1:8000/chat \
-  -H "Authorization: Bearer $GATEWAY7_TOKEN" \
+  -H 'Authorization: Bearer gateway7-synthetic-client-token' \
   -H 'Content-Type: application/json' \
-  -d '{"messages":[{"role":"user","content":"Contact synthetic@example.com or +7 999 123-45-67"}]}'
+  -d '{"messages":[{"role":"user","content":"Contact synthetic@example.com; SECRET-TEST"}]}'
 ```
 
-No provider account or provider API key is needed for this default synthetic mode.
-The public token above authenticates only the local synthetic demo.
-The response contains `[EMAIL]` and `[PHONE]` instead of the submitted fixtures.
-Open Grafana at `http://127.0.0.1:3000/d/gateway7-overview` and Prometheus at `http://127.0.0.1:9090`.
-Grafana is a local, read-only viewer with no administrator login.
-
-Stop the stack with `docker compose down`; add `--volumes` only to discard its monitoring history.
-The [setup guide](docs/setup.md#real-providers) covers real provider credentials and the Compose override.
+The answer contains `[EMAIL]` and `[removed]`.
+This local demo uses a synthetic provider and a public demo token; no provider account or API key is needed.
+Open `http://127.0.0.1:3000/d/gateway7-overview` for Grafana, then stop with `docker compose down`.
+The [quickstart](docs/quickstart.md) explains the result, ports and cleanup.
 
 ## Run without Docker
 
-Install Python 3.12 and [uv](https://docs.astral.sh/uv/getting-started/installation/), then:
-
-```sh
-uv sync --locked
-uv run --locked gateway7 demo
-```
-
-In another terminal:
-
-```sh
-export GATEWAY7_TOKEN=gateway7-synthetic-client-token
-uv run --locked gateway7 chat --message 'Contact synthetic@example.com; SECRET-TEST'
-uv run --locked gateway7 validate --config config/openai.yaml
-```
-
-The [OpenAI SDK guide](docs/api.md) shows how existing clients can use `/v1/chat/completions`.
-
-`demo` runs until Ctrl-C, starts its own private synthetic upstream and retains no input history.
-`validate` checks provider configuration and trusted middleware without requiring a key or calling a provider.
-The separate-process regression walkthrough remains available as `uv run --locked python -m demo.run`.
+Use Python 3.12 and uv: `uv sync --locked`, then `uv run --locked gateway7 demo`.
+Follow [Python setup](docs/setup.md#install-from-a-checkout) for a complete first request.
 
 ## Create a company middleware
 
-```sh
-uv run --locked gateway7 plugin init company_mask --directory .
-uv run --locked gateway7 plugin test --config company_mask/gateway.yaml --fixtures company_mask/fixtures.json
-```
-
-The generated package includes request/response middleware and synthetic positive/negative fixtures.
-The [authoring workflow](docs/authoring.md) covers ordinary installation, offline reports and deployment.
+Generate a small Python package, test it with offline fixtures, then install it and restart the gateway.
+The [authoring guide](docs/authoring.md) walks through each command.
 
 ## Project guides
 
-- [Setup, Docker and real providers](docs/setup.md)
-- [CLI reference](docs/cli.md)
-- [HTTP API and OpenAI SDK](docs/api.md)
-- [Client authentication and model permissions](docs/authentication.md)
-- [Middleware generator and offline tests](docs/authoring.md)
-- [Reference middleware and policy coverage](docs/middleware-catalog.md)
-- [Plugin authoring and API v2 migration](docs/plugins.md)
-- [Metrics, Grafana and troubleshooting](docs/observability.md)
-- [Customer demonstration](docs/demo.md)
-- [Architecture](docs/architecture/README.md)
-- [Documentation site](https://iteam7.github.io/gateway7/)
-- [Contributing](CONTRIBUTING.md), [Definition of Done](docs/definition-of-done.md), [MIT license](LICENSE)
+| I want to… | Start here |
+| --- | --- |
+| Connect an application with curl or the OpenAI SDK | [HTTP API](docs/api.md) |
+| Give clients tokens and model permissions | [Client access](docs/authentication.md) |
+| Mask personal data or block a request | [Policy examples](docs/middleware-catalog.md) |
+| Use a real provider and run the service | [Setup](docs/setup.md#real-providers) · [Monitoring](docs/observability.md) |
 
-This ITPD project is a local pilot: one configured provider, authenticated text chat and trusted in-process middleware.
-The default ports bind to localhost. A shared deployment needs TLS and a trusted boundary around its monitoring endpoints.
-Offline adapter checks and the synthetic demo do not establish live-provider success or Customer acceptance.
+Gateway7 supports nonstreaming text chat and trusted, in-process middleware.
+One ordered chain handles requests; answers pass through it in reverse.
+For shared use, configure TLS and protect the anonymous monitoring endpoints.
+
+[Documentation](https://iteam7.github.io/gateway7/) · [Architecture](docs/architecture/README.md) · [Product vision](docs/product-vision.md) · [Contributing](CONTRIBUTING.md) · [MIT license](LICENSE)

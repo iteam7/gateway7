@@ -264,3 +264,30 @@ No live provider, secret, Customer verdict or acceptance checkbox was needed for
 ### Team evaluation for the chat interruption correction
 
 TODO: Team members must record what they accepted, changed or rejected after reviewing the change and its interruption evidence.
+
+## Customer documentation for task #125
+
+On 26 October, azamatbayramov asked Codex for one concise documentation change suitable for sharing with the Customer and integrating developers.
+Formater checked the current instructions, created [task #125](https://github.com/iteam7/gateway7/issues/125) and its isolated branch, and preserved the merged CLI, usage and transport corrections in the baseline.
+The task's native Task type was set and read back; human roles, sprint assignment and acceptance were not invented.
+
+The TechLead coordinated the README and documentation home, a short Quickstart, application/authentication examples, middleware authoring and policies, CLI/setup and operations guides.
+The existing MkDocs theme gained a small local stylesheet for the guide cards and readable code blocks, while deeper references and existing incoming anchors remain available.
+The content review corrected the demo model to `fake`, distinguished configuration validation from possible trusted-factory side effects, kept exact dependency-sync behavior separate from ordinary `uv run`, and replaced illustrative response placeholders with observed synthetic text and usage.
+The card labels use CSS styling rather than heading-like emphasis rejected by Markdown lint.
+
+The application and authentication smoke ran the ten exact shell blocks and an official OpenAI SDK request against the synthetic gateway.
+The setup smoke checked readiness, curl and CLI requests, metrics, key-free configuration validation and shutdown.
+A fresh installed-wheel authoring smoke outside the checkout exercised package generation, passing and mismatching fixtures, JSON output, ordinary plugin installation, validation, authenticated serving and restart.
+The policy examples verified masking, redaction, a blocked request with no additional provider call, history and response handling; the existing reference middleware suites passed 82 tests.
+The pull request records the final Markdown, strict documentation build, generated-site and exact-head CI results.
+
+Formater and TechLead inspected static HTML/CSS renders of the home and Quickstart at wide and narrow page widths.
+A browser executable was unavailable and the cloud browser could not open the local preview; its file-URL policy rejection was respected without a bypass.
+The static renderer does not faithfully implement the site's grid, media queries or interactive scrolling, so browser, responsive and JavaScript behavior still need a manual browser review and are not claimed as verified.
+The renders are temporary QA material, not published project artifacts or Customer acceptance evidence.
+No runtime feature, dependency, workflow, historical report, requirement or architectural decision was changed by this documentation work.
+
+### Team evaluation for the customer documentation
+
+TODO: Team members must record what they accepted, changed or rejected after reviewing the guide content, examples and rendered site.
