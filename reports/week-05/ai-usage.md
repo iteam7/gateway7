@@ -291,3 +291,25 @@ No runtime feature, dependency, workflow, historical report, requirement or arch
 ### Team evaluation for the customer documentation
 
 TODO: Team members must record what they accepted, changed or rejected after reviewing the guide content, examples and rendered site.
+
+## Application architecture explanation for task #127
+
+On 26 October, azamatbayramov asked Codex to improve the site's explanation of the application, its structure and its diagrams.
+Formater read the current architecture, ADR and general rules and the linked Week 5 view plan, created [task #127](https://github.com/iteam7/gateway7/issues/127), and prepared an isolated branch from the merged documentation baseline.
+The task's native Task type was set and read back; no human roles, sprint placement or acceptance were inferred.
+The published Assignment 5 file was not available at that check, so this work follows the current architecture rules for the requested views without claiming completion of that assignment.
+
+The TechLead and documentation agents use the running application's source to explain component responsibilities, code locations, startup/shutdown and the request path alongside the existing container view.
+The added views document the implemented system; they do not introduce a new container, architectural decision or runtime behavior.
+The independent review checked token/model authorization before admission, the nested middleware path, one gateway-owned adapter invocation, retained usage on rejected answers, and slot release only after the pipeline task finishes.
+It kept pre-HTTP adapter failures and cooperative cancellation explicit, preserved the historical clarification and existing incoming anchors, and corrected one sequence label that touched the preceding card.
+
+The three diagram generators passed their check mode, XML parsing and byte-identical regeneration from another working directory.
+Formater and TechLead inspected rendered PNGs of the component and sequence images; the labels and relationships were readable without overlap after the correction.
+Markdown, strict MkDocs and the generated-site check passed; the ADR index, accepted records, requirement statements, runtime, dependencies and workflows remained unchanged.
+The pull request records exact-head CI; this documentation review does not claim a new runtime, live-provider, Windows or Customer acceptance result.
+The PNGs are temporary visual QA evidence, while the reproducible SVGs and their sources are the repository artifacts.
+
+### Team evaluation for the architecture explanation
+
+TODO: Team members must record what they accepted, changed or rejected after reviewing the explanation, diagrams and source evidence.

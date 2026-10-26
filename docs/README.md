@@ -11,6 +11,8 @@ Put Gateway7 between your application and OpenAI, Claude or Gemini.
 Keep the provider key on the server, choose which models each client can use, and apply your team's rules to messages and answers.
 Start with a local demo that needs no provider account.
 
+**Understand the design:** [what runs](architecture/README.md#container-view), [where the code lives](architecture/README.md#code-map), and [how a request is handled](architecture/README.md#sequence-view).
+
 ## Choose your path
 
 <!-- markdownlint-disable MD033 -->
@@ -84,7 +86,7 @@ Move from the demo to a real provider, then follow outcomes, usage and failures.
 The gateway checks the client token and model before running middleware.
 One ordered chain wraps the configured provider: request processing follows the list, and response processing runs in reverse.
 A denied request never reaches the provider; a denied answer is not delivered to the client.
-See the [architecture](architecture/README.md) for the container view and design choices.
+Follow the [numbered request view](architecture/README.md#sequence-view), then open the [component and code map](architecture/README.md#component-view) to find the implementation.
 
 ## What to expect
 
