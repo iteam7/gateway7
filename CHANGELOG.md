@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Changed
+
+- Python checks also run on Windows.
 ### Added
 
 - A configurable per-process limit of 64 active pipelines by default, with immediate safe HTTP 503 responses when capacity is full.
