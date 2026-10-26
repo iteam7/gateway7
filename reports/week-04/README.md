@@ -13,9 +13,9 @@ The merged increment provides an async middleware gateway, selectable OpenAI/Cla
 The late documentation adds four quality scenarios, ten functional requirements, the three-container view, three Accepted ADRs and a nine-term glossary; Accepted records describe implemented choices, not Customer approval or proof that every quality measure passed.
 The tracker forms and existing story specifications were migrated, and the plan now records the corrected Saturday dates and two unscheduled, estimated future-work candidates.
 
-**REL-04 is not published: there is no REL-04 tag or released changelog section.**
-The latest published tag remains [v0.1.1](https://github.com/iteam7/gateway7/releases/tag/v0.1.1); it is not relabelled as REL-04.
-No Week 4 Customer Review occurred, so the required post-review release sequence cannot yet be completed.
+**REL-04 is published as [v0.2.0](https://github.com/iteam7/gateway7/releases/tag/v0.2.0), tagged on 26 October 2026 at `main` commit `8cdf230c77e029074d0b3b9ad82e3edc6d25b59b`.**
+No Week 4 Customer Review occurred; on 26 October the Responsible for task #98 decided to cut the release without it, so REL-04 is a technical release and establishes no Customer acceptance.
+The earlier [v0.1.1](https://github.com/iteam7/gateway7/releases/tag/v0.1.1) tag now has its own dated changelog section and is not relabelled as REL-04.
 Tasks #91–#98 were created as Assignment 4 carryover in SPRINT-05 on 25 October; this was not a recorded Week 4 planning or Customer scope decision.
 Unfinished SPRINT-04 work remains in its original milestone, including [US-04](https://github.com/iteam7/gateway7/issues/33), [#77](https://github.com/iteam7/gateway7/issues/77) and [#84](https://github.com/iteam7/gateway7/issues/84); no retrospective rescheduling or zero velocity is inferred.
 
@@ -50,7 +50,7 @@ Statuses describe evidence available on 25 October, with live issue metadata che
 | Week 3 open questions | No Week 4 `Previous open questions` outcome was produced. [reports/week-03/meeting-report.md#open-questions](../week-03/meeting-report.md#open-questions) and [reports/week-05/meeting-script.md#questions](../week-05/meeting-script.md#questions) preserve the questions; no answers are invented. |
 | Meeting script | `reports/week-04/meeting-script.md` is absent. [reports/week-05/meeting-script.md](../week-05/meeting-script.md) prepares the next review; date, roles and dry-run evidence remain TODO, and its description of PR #99/#101 as unmerged must be refreshed before use. It is not a retrospective Week 4 script. |
 | Customer validation | No Week 4 meeting report, recording or transcript exists for a review that did not occur; no per-story acceptance/rejection was established. [reports/week-05/meeting-script.md#context](../week-05/meeting-script.md#context) records this absence and the next validation target. |
-| REL-04 | Blocked by the missing review and ensuing rework: [CHANGELOG.md](../../CHANGELOG.md) retains Unreleased, [docs/project-plan.md#rel-04](../../docs/project-plan.md#rel-04) remains an empty heading, and no release link is fabricated. The ordered handoff is in [CONTRIBUTING.md#release-and-submission-handoff](../../CONTRIBUTING.md#release-and-submission-handoff). |
+| REL-04 | [v0.2.0](https://github.com/iteam7/gateway7/releases/tag/v0.2.0), cut without the Week 4 Customer Review: after the tag, [CHANGELOG.md](../../CHANGELOG.md) gained the dated 0.2.0 section and [docs/project-plan.md#rel-04](../../docs/project-plan.md#rel-04) the release line, merged together with this report's release links in one pull request. Technical release status only; no Customer acceptance. The ordered handoff is in [CONTRIBUTING.md#release-and-submission-handoff](../../CONTRIBUTING.md#release-and-submission-handoff). |
 | Sprint retrospective | [reports/week-04/sprint-retrospective.md](sprint-retrospective.md): a dated 25 October team-chat retrospective with four positive observations, two root-cause findings, three owned actions and the first-retrospective declaration. It does not establish a measured sprint velocity. |
 | AI usage | [reports/week-04/ai-usage.md](ai-usage.md) preserves the middleware work record; [reports/week-05/ai-usage.md](../week-05/ai-usage.md) records the later pilot and Assignment 4 carryover. Team evaluation remains TODO in both; AI review is not human assessment. |
 
@@ -85,8 +85,8 @@ The workflow accepts HTTP 429 and 503 as an availability workaround, so a green 
 ## Release and submission status
 
 [Task #98](https://github.com/iteam7/gateway7/issues/98) remains open for the release and private package; this PR supplies the public report and a concrete handoff, without claiming the whole task's acceptance criteria passed.
-Responsible azamatbayramov prepares the package; Accountable DeniBorsh verifies the resulting artifacts and remaining blockers.
-Follow the linked release/submission handoff only after the real Customer Review and required rework, then merge the release-linking documentation and choose one full `main` SHA containing this report and every linked repository artifact.
+Responsible ExFuseMe prepares the package; Accountable DeniBorsh verifies the resulting artifacts and remaining blockers.
+The release was cut without the Customer Review by the Responsible's decision; the remaining handoff is to merge the release-linking documentation and choose one full `main` SHA containing this report and every linked repository artifact.
 The final report permalink, private two-page PDF and repository ZIP must identify that same verified commit.
 No final PDF, ZIP or Moodle submission is claimed here; an earlier private submission cannot be confirmed from GitHub alone.
 
@@ -94,7 +94,7 @@ No final PDF, ZIP or Moodle submission is claimed here; an earlier private submi
 
 - This new report and the main documentation carryover are late additions on 25 October, not backdated Week 4 deliverables. The existing Week 4 AI report and retrospective are preserved rather than rewritten.
 - Week 4 had no Customer Review. The missing script/report/transcript, unanswered Week 3 items and absent story verdicts remain unmet requirements; preparing a future review does not substitute for the event.
-- The public report is prepared before REL-04 to expose the actual gaps. This reverses the normal final-report-after-release order for this interim record; it neither authorizes a premature release nor claims Assignment 4 is complete. Final release links must be added in the required order after a real tag exists.
+- REL-04 was cut on 26 October without the Week 4 Customer Review or post-review rework, by decision of the Responsible for task #98; this deviates from the required post-review release order and does not claim Assignment 4 is complete. The changelog section, the plan line and this report's release links were added after the tag existed, but merged together in one pull request instead of the required changelog, plan, report order.
 - Historical planning estimates and accepted-completion evidence are unavailable, so SPRINT-04 velocity is N/A rather than an invented total. The newly confirmed 3/5 SP estimate is for future remaining work only.
 - QR-02 names Gateway7's HTTP entry point, middleware runner, authentication and provider adapters. The product has no frontend or payment module; this follows the canonical critical-module rule but differs from Assignment 4's example-specific wording and still needs instructor clarification.
 - The tracker setup and migrated issue bodies do not establish every issue's completed metadata or verified criteria. The carryover tasks lack native role/Priority values, and several scheduled issues' assignees do not match both role fields. The original task/PR closures are not treated as evidence that those omissions passed review.

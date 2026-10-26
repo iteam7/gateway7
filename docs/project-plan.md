@@ -61,6 +61,8 @@ The two tasks remain separate, and this correction does not move or close either
 
 #### REL-04
 
+Released as [v0.2.0](https://github.com/iteam7/gateway7/releases/tag/v0.2.0) on 2026-10-26, without a Week 4 Customer Review; it is a technical release and establishes no Customer acceptance.
+
 ### SPRINT-05
 
 Provisional goal: a reviewer can run the gateway through the documented delivery path and assess its chat and middleware behavior against the carried quality, architecture and story criteria.
