@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1370" viewBox="0 0 1440 1370" role="img" aria-labelledby="title description">
+<title id="title">Gateway7 C4 component view</title>
+<desc id="description">One gateway application is expanded into startup and configuration, HTTP boundary and access, middleware pipeline, provider adapter, metrics and diagnostics, and plugin authoring and offline tests. HTTP chat enters the middleware pipeline and calls one configured external LLM provider. Startup configures these components. HTTP and pipeline work produce safe observations. Offline CLI tests reuse the pipeline in a separate worker with fixture replies, without the HTTP provider adapter. Components group Python responsibilities, not independently deployed services.</desc>
+<defs>
+<marker id="request" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#215baf"/></marker>
+<marker id="startup" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#75529a"/></marker>
+<marker id="observation" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#16736b"/></marker>
+<marker id="offline" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#966619"/></marker>
+</defs><g font-family="DejaVu Sans, Arial, sans-serif">
+<rect x="0" y="0" width="1440" height="1370" rx="0" fill="#ffffff" stroke="none" stroke-width="2"/>
+<rect x="48" y="48" width="48" height="5" rx="2" fill="#215baf" stroke="none" stroke-width="2"/>
+<text x="48" y="99" font-size="36" fill="#14253d" font-weight="700" text-anchor="start">Gateway7 — component view</text>
+<text x="48" y="136" font-size="19" fill="#52657c" font-weight="400" text-anchor="start">C4 • Inside the gateway application; one request path, shared support code</text>
+<rect x="48" y="200" width="1020" height="1000" rx="18" fill="#fafcff" stroke="#93a6bd" stroke-width="2" stroke-dasharray="9 7"/>
+<text x="80" y="242" font-size="27" fill="#14253d" font-weight="700" text-anchor="start">gateway</text>
+<text x="80" y="270" font-size="16" fill="#52657c" font-weight="400" text-anchor="start">Application container · Python / FastAPI / Uvicorn</text>
+<text x="810" y="181" font-size="17" fill="#14253d" font-weight="700" text-anchor="middle">HTTP caller · native client / OpenAI SDK</text>
+<path d="M 810 204 V 325" fill="none" stroke="#215baf" stroke-width="2.5" marker-end="url(#request)"/>
+<text x="832" y="245" font-size="14" fill="#215baf" font-weight="400" text-anchor="start">JSON + bearer token</text>
+<text x="832" y="267" font-size="14" fill="#215baf" font-weight="400" text-anchor="start">answer / safe error</text>
+<path d="M 810 560 V 650" fill="none" stroke="#215baf" stroke-width="2.5" marker-end="url(#request)"/>
+<text x="830" y="585" font-size="14" fill="#215baf" font-weight="400" text-anchor="start">Pipeline.run(...)</text>
+<text x="830" y="607" font-size="14" fill="#215baf" font-weight="400" text-anchor="start">request + pinned model</text>
+<text x="830" y="629" font-size="14" fill="#215baf" font-weight="400" text-anchor="start">ChatResponse / error</text>
+<path d="M 810 860 V 950" fill="none" stroke="#215baf" stroke-width="2.5" marker-end="url(#request)"/>
+<text x="830" y="895" font-size="14" fill="#215baf" font-weight="400" text-anchor="start">complete(..., model=...)</text>
+<text x="830" y="917" font-size="14" fill="#215baf" font-weight="400" text-anchor="start">text / usage / finish</text>
+<path d="M 1020 1040 H 1175" fill="none" stroke="#215baf" stroke-width="2.5" marker-end="url(#request)"/>
+<text x="1115" y="1001" font-size="14" fill="#215baf" font-weight="400" text-anchor="middle">HTTPS · live</text>
+<text x="1115" y="1023" font-size="14" fill="#215baf" font-weight="400" text-anchor="middle">text / usage</text>
+<path d="M 430 435 H 500 V 1020 H 600" fill="none" stroke="#75529a" stroke-width="2.5" stroke-dasharray="9 6" marker-end="url(#startup)"/>
+<path d="M 500 435 H 600" fill="none" stroke="#75529a" stroke-width="2.5" stroke-dasharray="9 6" marker-end="url(#startup)"/>
+<path d="M 500 730 H 600" fill="none" stroke="#75529a" stroke-width="2.5" stroke-dasharray="9 6" marker-end="url(#startup)"/>
+<text x="515" y="412" font-size="12" fill="#75529a" font-weight="400" text-anchor="start">access / limits</text>
+<text x="510" y="712" font-size="12" fill="#75529a" font-weight="400" text-anchor="start">loaded plugins</text>
+<text x="510" y="1048" font-size="12" fill="#75529a" font-weight="400" text-anchor="start">session / key</text>
+<path d="M 600 510 H 555 V 600 H 255 V 650" fill="none" stroke="#16736b" stroke-width="2.5" stroke-dasharray="2 6" marker-end="url(#observation)"/>
+<text x="273" y="582" font-size="14" fill="#16736b" font-weight="400" text-anchor="start">HTTP counts / timings</text>
+<path d="M 600 800 H 430" fill="none" stroke="#16736b" stroke-width="2.5" stroke-dasharray="2 6" marker-end="url(#observation)"/>
+<text x="548" y="779" font-size="12" fill="#16736b" font-weight="400" text-anchor="middle">timing / usage</text>
+<path d="M 430 1000 H 560 V 835 H 600" fill="none" stroke="#966619" stroke-width="2.5" stroke-dasharray="12 5 2 5" marker-end="url(#offline)"/>
+<text x="480" y="890" font-size="13" fill="#966619" font-weight="400" text-anchor="end">Fixture run()</text>
+<text x="480" y="912" font-size="13" fill="#966619" font-weight="400" text-anchor="end">same pipeline code</text>
+<rect x="80" y="325" width="350" height="215" rx="12" fill="#eff6ff" stroke="#215baf" stroke-width="2"/>
+<text x="100" y="361" font-size="21" fill="#215baf" font-weight="700" text-anchor="start">Startup and configuration</text>
+<text x="100" y="387" font-size="13" fill="#52657c" font-weight="400" text-anchor="start">cli.py · config.py · loader.py · app lifespan</text>
+<path d="M 100 403 H 410" stroke="#c7d9f1"/>
+<text x="100" y="429" font-size="15" fill="#14253d" font-weight="400" text-anchor="start">CLI: gateway7 serve / demo / validate</text>
+<text x="100" y="453" font-size="15" fill="#14253d" font-weight="400" text-anchor="start">Validates YAML; resolves server secrets.</text>
+<text x="100" y="477" font-size="15" fill="#14253d" font-weight="400" text-anchor="start">Creates access, plugins and adapter.</text>
+<text x="100" y="501" font-size="15" fill="#14253d" font-weight="400" text-anchor="start">Owns startup and reverse cleanup.</text>
+<rect x="600" y="325" width="420" height="235" rx="12" fill="#eff6ff" stroke="#215baf" stroke-width="2"/>
+<text x="620" y="361" font-size="23" fill="#215baf" font-weight="700" text-anchor="start">HTTP boundary and access</text>
+<text x="620" y="387" font-size="13" fill="#52657c" font-weight="400" text-anchor="start">app.py · openai_api.py · auth.py</text>
+<path d="M 620 403 H 1000" stroke="#c7d9f1"/>
+<text x="620" y="429" font-size="15" fill="#14253d" font-weight="400" text-anchor="start">POST /chat · /v1/chat/completions</text>
+<text x="620" y="453" font-size="15" fill="#14253d" font-weight="400" text-anchor="start">GET /v1/models</text>
+<text x="620" y="477" font-size="15" fill="#14253d" font-weight="400" text-anchor="start">GET /health · /ready · /metrics</text>
+<text x="620" y="501" font-size="15" fill="#14253d" font-weight="400" text-anchor="start">Token / model checks; bounded request bodies.</text>
+<text x="620" y="525" font-size="15" fill="#14253d" font-weight="400" text-anchor="start">Only admitted chat enters the pipeline.</text>
+<rect x="600" y="650" width="420" height="210" rx="12" fill="#eff6ff" stroke="#215baf" stroke-width="2"/>
+<text x="620" y="686" font-size="23" fill="#215baf" font-weight="700" text-anchor="start">Middleware pipeline</text>
+<text x="620" y="712" font-size="13" fill="#52657c" font-weight="400" text-anchor="start">pipeline.py · plugin_api.py · models.py · plugins/</text>
+<path d="M 620 728 H 1000" stroke="#c7d9f1"/>
+<text x="620" y="754" font-size="15" fill="#14253d" font-weight="400" text-anchor="start">handle(request, context, call_next)</text>
+<text x="620" y="778" font-size="15" fill="#14253d" font-weight="400" text-anchor="start">Request order → provider → reverse return.</text>
+<text x="620" y="802" font-size="15" fill="#14253d" font-weight="400" text-anchor="start">Deadlines; at most one provider invocation.</text>
+<text x="620" y="826" font-size="15" fill="#14253d" font-weight="400" text-anchor="start">Trusted built-ins and installed plugins.</text>
+<rect x="600" y="950" width="420" height="185" rx="12" fill="#eff6ff" stroke="#215baf" stroke-width="2"/>
+<text x="620" y="986" font-size="23" fill="#215baf" font-weight="700" text-anchor="start">Provider adapter</text>
+<text x="620" y="1012" font-size="13" fill="#52657c" font-weight="400" text-anchor="start">providers.py · httpx AsyncClient</text>
+<path d="M 620 1028 H 1000" stroke="#c7d9f1"/>
+<text x="620" y="1054" font-size="15" fill="#14253d" font-weight="400" text-anchor="start">Maps messages to one provider&#x27;s HTTP API.</text>
+<text x="620" y="1078" font-size="15" fill="#14253d" font-weight="400" text-anchor="start">Keeps server credentials in request headers.</text>
+<text x="620" y="1102" font-size="15" fill="#14253d" font-weight="400" text-anchor="start">Normalizes text, usage, finish and failures.</text>
+<rect x="80" y="650" width="350" height="210" rx="12" fill="#eff6ff" stroke="#215baf" stroke-width="2"/>
+<text x="100" y="686" font-size="23" fill="#215baf" font-weight="700" text-anchor="start">Metrics and diagnostics</text>
+<text x="100" y="712" font-size="13" fill="#52657c" font-weight="400" text-anchor="start">metrics.py · errors.py · app / pipeline logs</text>
+<path d="M 100 728 H 410" stroke="#c7d9f1"/>
+<text x="100" y="754" font-size="15" fill="#14253d" font-weight="400" text-anchor="start">Owns the application&#x27;s metric registry.</text>
+<text x="100" y="778" font-size="15" fill="#14253d" font-weight="400" text-anchor="start">Provides samples for GET /metrics.</text>
+<text x="100" y="802" font-size="15" fill="#14253d" font-weight="400" text-anchor="start">Safe error codes and correlated events.</text>
+<text x="100" y="826" font-size="15" fill="#14253d" font-weight="400" text-anchor="start">No prompt or credential in core logs.</text>
+<rect x="80" y="925" width="350" height="210" rx="12" fill="#fff7e7" stroke="#966619" stroke-width="2"/>
+<text x="100" y="961" font-size="23" fill="#966619" font-weight="700" text-anchor="start">Plugin authoring</text>
+<text x="100" y="989" font-size="23" fill="#966619" font-weight="700" text-anchor="start">and offline tests</text>
+<text x="100" y="1015" font-size="13" fill="#52657c" font-weight="400" text-anchor="start">scaffold.py · offline.py · _offline_worker.py</text>
+<path d="M 100 1031 H 410" stroke="#c7d9f1"/>
+<text x="100" y="1057" font-size="15" fill="#14253d" font-weight="400" text-anchor="start">CLI: gateway7 plugin init / test</text>
+<text x="100" y="1081" font-size="15" fill="#14253d" font-weight="400" text-anchor="start">Separate test worker; synthetic replies.</text>
+<text x="100" y="1105" font-size="15" fill="#14253d" font-weight="400" text-anchor="start">Reuses loader, lifecycle and pipeline.</text>
+<rect x="1175" y="950" width="217" height="185" rx="12" fill="#f1f3f6" stroke="#677487" stroke-width="2"/>
+<text x="1193" y="985" font-size="23" fill="#14253d" font-weight="700" text-anchor="start">LLM provider</text>
+<text x="1193" y="1009" font-size="13" fill="#52657c" font-weight="400" text-anchor="start">External software system</text>
+<text x="1193" y="1041" font-size="15" fill="#14253d" font-weight="400" text-anchor="start">OpenAI /</text>
+<text x="1193" y="1064" font-size="15" fill="#14253d" font-weight="400" text-anchor="start">Anthropic Claude /</text>
+<text x="1193" y="1087" font-size="15" fill="#14253d" font-weight="400" text-anchor="start">Google Gemini</text>
+<text x="1193" y="1117" font-size="13" fill="#52657c" font-weight="400" text-anchor="start">One configured provider</text>
+<text x="80" y="1167" font-size="14" fill="#52657c" font-weight="400" text-anchor="start">Amber is CLI-only work, not a service in the HTTP path; its worker uses fixture replies, not HTTPProvider.</text>
+<rect x="48" y="1236" width="20" height="16" rx="4" fill="#eff6ff" stroke="#215baf" stroke-width="2"/>
+<text x="80" y="1250" font-size="14" fill="#52657c" font-weight="400" text-anchor="start">Python component</text>
+<rect x="280" y="1236" width="20" height="16" rx="4" fill="#fff7e7" stroke="#966619" stroke-width="2"/>
+<text x="312" y="1250" font-size="14" fill="#52657c" font-weight="400" text-anchor="start">CLI activity / worker</text>
+<rect x="550" y="1236" width="20" height="16" rx="4" fill="#f1f3f6" stroke="#677487" stroke-width="2"/>
+<text x="582" y="1250" font-size="14" fill="#52657c" font-weight="400" text-anchor="start">External system</text>
+<rect x="795" y="1236" width="20" height="16" rx="4" fill="#fafcff" stroke="#93a6bd" stroke-width="2" stroke-dasharray="4 3"/>
+<text x="827" y="1250" font-size="14" fill="#52657c" font-weight="400" text-anchor="start">Expanded gateway boundary</text>
+<path d="M 48 1293 H 95" fill="none" stroke="#215baf" stroke-width="2.5" marker-end="url(#request)"/>
+<text x="109" y="1298" font-size="14" fill="#52657c" font-weight="400" text-anchor="start">Request / response contract</text>
+<path d="M 375 1293 H 422" fill="none" stroke="#75529a" stroke-width="2.5" stroke-dasharray="9 6" marker-end="url(#startup)"/>
+<text x="436" y="1298" font-size="14" fill="#52657c" font-weight="400" text-anchor="start">Startup configuration</text>
+<path d="M 670 1293 H 717" fill="none" stroke="#16736b" stroke-width="2.5" stroke-dasharray="2 6" marker-end="url(#observation)"/>
+<text x="731" y="1298" font-size="14" fill="#52657c" font-weight="400" text-anchor="start">Observations</text>
+<path d="M 935 1293 H 982" fill="none" stroke="#966619" stroke-width="2.5" stroke-dasharray="12 5 2 5" marker-end="url(#offline)"/>
+<text x="996" y="1298" font-size="14" fill="#52657c" font-weight="400" text-anchor="start">Offline code reuse</text>
+<text x="48" y="1343" font-size="14" fill="#52657c" font-weight="400" text-anchor="start">Arrows point from caller to dependency; replies return on the same path. Components are not deployment containers.</text>
+</g></svg>

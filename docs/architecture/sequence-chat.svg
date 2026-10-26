@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1740" viewBox="0 0 1280 1740" role="img" aria-labelledby="title description">
+<title id="title">Gateway7 chat request sequence</title>
+<desc id="description">The client sends a chat request to gateway. Gateway checks authentication, model permission and process capacity, then runs request middleware. If adapter mapping succeeds it sends one HTTPS request to the configured external LLM. Gateway bounds and validates the response, snapshots usage and finish reason, runs response middleware in reverse order, and delivers a safe response. Alternatives show rejection before HTTP, failures with possible token consumption, and cancellation that holds capacity until the pipeline task finishes. Prometheus scrapes independently.</desc>
+<defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#52657c"/></marker></defs>
+<g font-family="DejaVu Sans, Arial, sans-serif">
+<rect x="0" y="0" width="1280" height="1740" rx="0" fill="#ffffff" stroke="none" stroke-width="2"/>
+<rect x="48" y="48" width="48" height="5" rx="2" fill="#215baf" stroke="none" stroke-width="2"/>
+<text x="48" y="99" font-size="34" fill="#14253d" font-weight="700" text-anchor="start">Gateway7 — chat request sequence</text>
+<text x="48" y="136" font-size="18" fill="#52657c" font-weight="400" text-anchor="start">Read top to bottom · numbered success path; alternatives stop delivery</text>
+<rect x="332" y="164" width="576" height="1250" rx="16" fill="#fafcff" stroke="#93a6bd" stroke-width="2" stroke-dasharray="9 7"/>
+<path d="M 138 258 V 1408" stroke="#aebdce" stroke-width="2" stroke-dasharray="5 7"/>
+<path d="M 620 258 V 1408" stroke="#aebdce" stroke-width="2" stroke-dasharray="5 7"/>
+<path d="M 1106 258 V 1408" stroke="#aebdce" stroke-width="2" stroke-dasharray="5 7"/>
+<rect x="48" y="182" width="180" height="76" rx="10" fill="#f1f3f6" stroke="#677487" stroke-width="2"/>
+<text x="138" y="214" font-size="25" fill="#14253d" font-weight="700" text-anchor="middle">Client</text>
+<text x="138" y="240" font-size="14" fill="#52657c" font-weight="400" text-anchor="middle">Application / user</text>
+<rect x="348" y="182" width="544" height="76" rx="10" fill="#eff6ff" stroke="#215baf" stroke-width="2"/>
+<text x="620" y="214" font-size="25" fill="#14253d" font-weight="700" text-anchor="middle">gateway</text>
+<text x="620" y="240" font-size="14" fill="#52657c" font-weight="400" text-anchor="middle">Container · Python / FastAPI</text>
+<rect x="980" y="182" width="252" height="76" rx="10" fill="#f1f3f6" stroke="#677487" stroke-width="2"/>
+<text x="1106" y="214" font-size="25" fill="#14253d" font-weight="700" text-anchor="middle">LLM provider</text>
+<text x="1106" y="240" font-size="14" fill="#52657c" font-weight="400" text-anchor="middle">External system · one selected</text>
+<path d="M 138 298 H 620" fill="none" stroke="#52657c" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="165" y="259" width="427" height="29" rx="3" fill="#ffffff" stroke="none" stroke-width="2"/>
+<text x="379" y="281" font-size="18" fill="#14253d" font-weight="700" text-anchor="middle">1. POST /chat or /v1/chat/completions</text>
+<text x="379" y="325" font-size="16" fill="#52657c" font-weight="400" text-anchor="middle">Bearer token + model + text messages</text>
+<rect x="357" y="345" width="526" height="88" rx="8" fill="#eff6ff" stroke="#a9c5eb" stroke-width="2"/>
+<text x="620" y="378" font-size="22" fill="#215baf" font-weight="700" text-anchor="middle">2. Authenticate and pin model</text>
+<text x="620" y="407" font-size="16" fill="#52657c" font-weight="400" text-anchor="middle">Validate payload; select an allowed model.</text>
+<rect x="357" y="460" width="526" height="88" rx="8" fill="#eff6ff" stroke="#a9c5eb" stroke-width="2"/>
+<text x="620" y="493" font-size="22" fill="#215baf" font-weight="700" text-anchor="middle">3. Admit one pipeline</text>
+<text x="620" y="522" font-size="16" fill="#52657c" font-weight="400" text-anchor="middle">Default: 64 active slots per process; no queue.</text>
+<rect x="357" y="575" width="526" height="88" rx="8" fill="#eff6ff" stroke="#a9c5eb" stroke-width="2"/>
+<text x="620" y="608" font-size="22" fill="#215baf" font-weight="700" text-anchor="middle">4. Request middleware A → B → C</text>
+<text x="620" y="637" font-size="16" fill="#52657c" font-weight="400" text-anchor="middle">Successful middleware awaits next once.</text>
+<rect x="357" y="690" width="526" height="88" rx="8" fill="#eff6ff" stroke="#a9c5eb" stroke-width="2"/>
+<text x="620" y="723" font-size="22" fill="#215baf" font-weight="700" text-anchor="middle">5. Adapter maps provider payload</text>
+<text x="620" y="752" font-size="16" fill="#52657c" font-weight="400" text-anchor="middle">Continue to HTTP only if mapping succeeds.</text>
+<path d="M 620 825 H 1106" fill="none" stroke="#52657c" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="743" y="786" width="240" height="29" rx="3" fill="#ffffff" stroke="none" stroke-width="2"/>
+<text x="863" y="808" font-size="18" fill="#14253d" font-weight="700" text-anchor="middle">6. One HTTPS request</text>
+<text x="863" y="852" font-size="16" fill="#52657c" font-weight="400" text-anchor="middle">Server key in header · no retry or redirect</text>
+<path d="M 1106 910 H 620" fill="none" stroke="#52657c" stroke-width="2.5" stroke-dasharray="8 5" marker-end="url(#arrow)"/>
+<rect x="743" y="871" width="240" height="29" rx="3" fill="#ffffff" stroke="none" stroke-width="2"/>
+<text x="863" y="893" font-size="18" fill="#14253d" font-weight="700" text-anchor="middle">7. Provider response</text>
+<rect x="357" y="950" width="526" height="88" rx="8" fill="#eff6ff" stroke="#a9c5eb" stroke-width="2"/>
+<text x="620" y="983" font-size="22" fill="#215baf" font-weight="700" text-anchor="middle">8. Bound, decode, validate</text>
+<text x="620" y="1012" font-size="16" fill="#52657c" font-weight="400" text-anchor="middle">Parse valid usage before checking the answer.</text>
+<rect x="357" y="1055" width="526" height="88" rx="8" fill="#eff6ff" stroke="#a9c5eb" stroke-width="2"/>
+<text x="620" y="1088" font-size="22" fill="#215baf" font-weight="700" text-anchor="middle">9. Snapshot usage + finish reason</text>
+<text x="620" y="1117" font-size="16" fill="#52657c" font-weight="400" text-anchor="middle">Gateway records provider metrics once.</text>
+<rect x="357" y="1160" width="526" height="88" rx="8" fill="#eff6ff" stroke="#a9c5eb" stroke-width="2"/>
+<text x="620" y="1193" font-size="22" fill="#215baf" font-weight="700" text-anchor="middle">10. Response middleware C → B → A</text>
+<text x="620" y="1222" font-size="16" fill="#52657c" font-weight="400" text-anchor="middle">Mask, redact or deny before delivery.</text>
+<rect x="357" y="1265" width="526" height="88" rx="8" fill="#eff6ff" stroke="#a9c5eb" stroke-width="2"/>
+<text x="620" y="1298" font-size="22" fill="#215baf" font-weight="700" text-anchor="middle">11. Pipeline task finishes</text>
+<text x="620" y="1327" font-size="16" fill="#52657c" font-weight="400" text-anchor="middle">Release its slot only when the task is done.</text>
+<path d="M 620 1400 H 138" fill="none" stroke="#52657c" stroke-width="2.5" stroke-dasharray="8 5" marker-end="url(#arrow)"/>
+<rect x="160" y="1361" width="438" height="29" rx="3" fill="#ffffff" stroke="none" stroke-width="2"/>
+<text x="379" y="1383" font-size="18" fill="#14253d" font-weight="700" text-anchor="middle">12. HTTP 200 · filtered answer + usage</text>
+<rect x="48" y="374" width="260" height="228" rx="8" fill="#fff5d8" stroke="#e6bf62" stroke-width="2"/>
+<text x="66" y="404" font-size="15" fill="#81570c" font-weight="700" text-anchor="start">ALT A · BEFORE HTTP</text>
+<text x="66" y="436" font-size="16" fill="#634c1d" font-weight="400" text-anchor="start">Invalid token → 401</text>
+<text x="66" y="463" font-size="16" fill="#634c1d" font-weight="400" text-anchor="start">Model forbidden → 403</text>
+<text x="66" y="490" font-size="16" fill="#634c1d" font-weight="400" text-anchor="start">Capacity full → 503</text>
+<text x="66" y="517" font-size="16" fill="#634c1d" font-weight="400" text-anchor="start">Request policy deny → 403</text>
+<text x="66" y="544" font-size="16" fill="#634c1d" font-weight="400" text-anchor="start">Return a safe error to client.</text>
+<text x="66" y="571" font-size="16" fill="#634c1d" font-weight="400" text-anchor="start">No outbound HTTP call.</text>
+<rect x="936" y="1000" width="296" height="336" rx="8" fill="#fff5d8" stroke="#e6bf62" stroke-width="2"/>
+<text x="954" y="1030" font-size="15" fill="#81570c" font-weight="700" text-anchor="start">ALT B · NO ANSWER DELIVERED</text>
+<text x="954" y="1062" font-size="16" fill="#634c1d" font-weight="400" text-anchor="start">Provider failure → 502</text>
+<text x="954" y="1089" font-size="16" fill="#634c1d" font-weight="400" text-anchor="start">Can be local at step 5,</text>
+<text x="954" y="1116" font-size="16" fill="#634c1d" font-weight="400" text-anchor="start">or during steps 6–8.</text>
+<text x="954" y="1143" font-size="16" fill="#634c1d" font-weight="400" text-anchor="start">Response policy deny → 403</text>
+<text x="954" y="1170" font-size="16" fill="#634c1d" font-weight="400" text-anchor="start">Middleware failure → 500</text>
+<text x="954" y="1197" font-size="16" fill="#634c1d" font-weight="400" text-anchor="start">After HTTP, tokens may</text>
+<text x="954" y="1224" font-size="16" fill="#634c1d" font-weight="400" text-anchor="start">already be consumed.</text>
+<text x="954" y="1251" font-size="16" fill="#634c1d" font-weight="400" text-anchor="start">Retain valid known usage;</text>
+<text x="954" y="1278" font-size="16" fill="#634c1d" font-weight="400" text-anchor="start">unknown stays unknown.</text>
+<text x="954" y="1305" font-size="16" fill="#634c1d" font-weight="400" text-anchor="start">Return a safe error + ID.</text>
+<rect x="48" y="1442" width="1184" height="120" rx="8" fill="#fff5d8" stroke="#e6bf62" stroke-width="2"/>
+<text x="66" y="1472" font-size="15" fill="#81570c" font-weight="700" text-anchor="start">ALT C · DEADLINE / CALLER CANCELLATION</text>
+<text x="66" y="1504" font-size="16" fill="#634c1d" font-weight="400" text-anchor="start">Deadline expires → 504 if the caller is connected; a disconnected caller gets no delivered answer.</text>
+<text x="66" y="1531" font-size="16" fill="#634c1d" font-weight="400" text-anchor="start">Cancel owned work; keep the slot until the pipeline task actually finishes, including cooperative cleanup.</text>
+<text x="48" y="1600" font-size="16" fill="#52657c" font-weight="400" text-anchor="start">Capacity is per process, not a client quota. A → B → C illustrates the configured middleware order.</text>
+<text x="48" y="1627" font-size="16" fill="#52657c" font-weight="400" text-anchor="start">Independent monitoring: prometheus scrapes gateway via HTTP GET /metrics; chat never waits for it.</text>
+<text x="48" y="1654" font-size="16" fill="#52657c" font-weight="400" text-anchor="start">Demo mode replaces the external LLM with a private loopback child process inside the gateway container.</text>
+<rect x="48" y="1685" width="20" height="16" rx="3" fill="#eff6ff" stroke="#215baf" stroke-width="2"/>
+<text x="80" y="1698" font-size="14" fill="#52657c" font-weight="400" text-anchor="start">Gateway checkpoint</text>
+<rect x="278" y="1685" width="20" height="16" rx="3" fill="#fff5d8" stroke="#e6bf62" stroke-width="2"/>
+<text x="310" y="1698" font-size="14" fill="#52657c" font-weight="400" text-anchor="start">Alternative / safe exit</text>
+<path d="M 520 1693 H 566" stroke="#52657c" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="580" y="1698" font-size="14" fill="#52657c" font-weight="400" text-anchor="start">Request</text>
+<path d="M 680 1693 H 726" stroke="#52657c" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrow)"/>
+<text x="740" y="1698" font-size="14" fill="#52657c" font-weight="400" text-anchor="start">Response</text>
+<text x="870" y="1698" font-size="14" fill="#52657c" font-weight="400" text-anchor="start">Vertical dotted line: time / participant</text>
+</g></svg>
