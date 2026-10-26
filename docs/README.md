@@ -1,33 +1,106 @@
-# Documentation
+# Gateway7
 
-Gateway7 is a corporate LLM gateway with company-authored request and response policies.
-It supports OpenAI, Claude and Gemini through trusted middleware, with a key-free demo, CLI and local monitoring stack.
-The complete MUP still needs a verified real-provider response and customer verdicts.
+<!-- Preserve links to the previous page heading. -->
+<!-- markdownlint-disable MD033 -->
+<div id="documentation"></div>
+<!-- markdownlint-enable MD033 -->
 
-- [Setup, Docker and real providers](setup.md)
-- [CLI reference](cli.md)
-- [HTTP API and OpenAI SDK](api.md)
-- [Authentication and model permissions](authentication.md)
-- [Plugin generator and offline tests](authoring.md)
-- [Reference middleware](middleware-catalog.md)
-- [Metrics and Grafana](observability.md)
-- [Customer demonstration](demo.md)
-- [Plugin authoring](plugins.md)
-- [Product vision](product-vision.md)
-- [Threshold of success](threshold-of-success.md)
-- [Threshold clarification proposal](threshold-review.md)
-- [Project plan](project-plan.md)
-- [Risks](risks.md)
-- [Architecture](architecture/README.md)
-- Architecture decisions: [gateway and monitoring stack](architecture/adr/ADR-001.md), [trusted middleware](architecture/adr/ADR-002.md), [credentials and model access](architecture/adr/ADR-003.md), and the [ADR template](architecture/adr/TEMPLATE.md)
-- [Container diagram source](architecture/container.py)
-- [Functional requirements](functional-requirements/README.md)
-- [Quality requirements and priority matrix](quality-requirements/README.md)
-- [Decisions](decisions.md)
-- [Assumptions](assumptions.md)
-- [Definition of Done](definition-of-done.md)
-- [Glossary](glossary.md)
-- [System context diagram source](architecture/context.mmd)
-- Research: [alternatives](research/alternatives.md), [comparison](research/comparison.md), [gap analysis](research/gap-analysis.md), and [value proposition](research/value-proposition.md)
+**Your application. Your policies. One route to an LLM.**
 
-Project resources: [source repository](https://github.com/iteam7/gateway7) and [user stories](https://github.com/iteam7/gateway7/issues?q=type%3A%22User+Story%22).
+Put Gateway7 between your application and OpenAI, Claude or Gemini.
+Keep the provider key on the server, choose which models each client can use, and apply your team's rules to messages and answers.
+Start with a local demo that needs no provider account.
+
+## Choose your path
+
+<!-- markdownlint-disable MD033 -->
+<div class="guide-grid" markdown="1">
+
+<div class="guide-card" markdown="1">
+
+01 · Try it
+
+[Send your first request](quickstart.md)
+
+Run the demo with Docker Compose, see masked text, and open the Grafana dashboard.
+
+</div>
+
+<div class="guide-card" markdown="1">
+
+02 · Connect your app
+
+[Use curl or the OpenAI SDK](api.md)
+
+Keep your text-chat client and point it at the gateway's HTTP API.
+
+</div>
+
+<div class="guide-card" markdown="1">
+
+03 · Control access
+
+[Set client tokens and model access](authentication.md)
+
+Give each client its own gateway credential and a list of allowed models.
+
+</div>
+
+<div class="guide-card" markdown="1">
+
+04 · Apply your policies
+
+[Mask, block and redact](middleware-catalog.md)
+
+Try phone and email masking, literal content rules, and response redaction.
+
+</div>
+
+<div class="guide-card" markdown="1">
+
+05 · Write a middleware
+
+[Generate, test and install](authoring.md)
+
+Create a Python package and check it with synthetic fixtures before deployment.
+
+</div>
+
+<div class="guide-card" markdown="1">
+
+06 · Run the service
+
+[Configure a provider](setup.md#real-providers) · [Monitor requests](observability.md)
+
+Move from the demo to a real provider, then follow outcomes, usage and failures.
+
+</div>
+
+</div>
+<!-- markdownlint-enable MD033 -->
+
+## How it works
+
+The gateway checks the client token and model before running middleware.
+One ordered chain wraps the configured provider: request processing follows the list, and response processing runs in reverse.
+A denied request never reaches the provider; a denied answer is not delivered to the client.
+See the [architecture](architecture/README.md) for the container view and design choices.
+
+## What to expect
+
+This is a local pilot for **nonstreaming, text-only chat** with one configured provider per instance.
+Python middleware is trusted code in the gateway process; installing or changing it requires a restart.
+The demo proves the local workflow with synthetic answers, while real-provider access depends on your account and model permissions.
+
+Use the [CLI reference](cli.md) for commands and exit codes, or the [middleware API reference](plugins.md) for lifecycle, ordering and failure behavior.
+The [demonstration guide](demo.md) keeps the longer walkthrough and acceptance evidence separate from this getting-started path.
+
+## Project documentation
+
+- **Product:** [vision](product-vision.md), [threshold of success](threshold-of-success.md), [threshold review proposal](threshold-review.md), [plan](project-plan.md), [risks](risks.md), [glossary](glossary.md).
+- **Requirements:** [functional requirements](functional-requirements/README.md), [quality requirements and priority matrix](quality-requirements/README.md).
+- **Architecture decisions:** [ADR-001](architecture/adr/ADR-001.md), [ADR-002](architecture/adr/ADR-002.md), [ADR-003](architecture/adr/ADR-003.md), [ADR template](architecture/adr/TEMPLATE.md), [container source](architecture/container.py), [context source](architecture/context.mmd).
+- **Project records:** [decisions](decisions.md), [assumptions](assumptions.md), [Definition of Done](definition-of-done.md).
+- **Research:** [alternatives](research/alternatives.md), [comparison](research/comparison.md), [gap analysis](research/gap-analysis.md), [value proposition](research/value-proposition.md).
+
+[Source repository](https://github.com/iteam7/gateway7) · [User stories](https://github.com/iteam7/gateway7/issues?q=type%3A%22User+Story%22)

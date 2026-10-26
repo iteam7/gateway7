@@ -28,6 +28,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- Customer documentation now starts with a short quickstart and clear paths for application developers, middleware authors and operators, with tested synthetic examples.
 - Known canonical token usage is counted when a decoded provider response is rejected, while invalid or unavailable usage remains unknown.
 - Upstream failures expose bounded diagnostic reasons in safe logs and a separate metric while retaining existing client errors and provider-call metrics.
 - Sprint plan dates and backlog links reconciled with the Assignment 4 calendar, with missing planning, estimation and review evidence stated explicitly.

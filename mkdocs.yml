@@ -1,5 +1,5 @@
 site_name: Gateway7
-site_description: A corporate LLM gateway with company-authored request and response plugins.
+site_description: Apply your team’s policies to LLM requests and answers. Start with a local demo, connect your app, and write Python middleware.
 site_url: https://iteam7.github.io/gateway7/
 repo_url: https://github.com/iteam7/gateway7
 edit_uri: ""
@@ -15,16 +15,19 @@ theme:
 
 nav:
   - Home: README.md
-  - Guides:
-      - Setup and run: setup.md
-      - CLI reference: cli.md
-      - HTTP API and OpenAI SDK: api.md
-      - Authentication: authentication.md
-      - Plugin generator and offline tests: authoring.md
-      - Reference middleware: middleware-catalog.md
-      - Metrics and Grafana: observability.md
-      - Customer demonstration: demo.md
-      - Plugin authoring: plugins.md
+  - Get started:
+      - Quickstart: quickstart.md
+      - Setup and providers: setup.md
+  - Use the gateway:
+      - Connect your application: api.md
+      - Control client access: authentication.md
+      - Apply policies: middleware-catalog.md
+      - Write a middleware: authoring.md
+      - Monitor the service: observability.md
+  - Reference:
+      - CLI commands: cli.md
+      - Middleware API: plugins.md
+      - Demonstration and acceptance: demo.md
   - Product:
       - Product vision: product-vision.md
       - Threshold of success: threshold-of-success.md
@@ -67,6 +70,7 @@ nav:
 
 markdown_extensions:
   - fenced_code
+  - md_in_html
   - tables
   - toc:
       permalink: true
@@ -88,3 +92,4 @@ extra_javascript:
   - assets/mermaid-init.js
 extra_css:
   - assets/diagrams.css
+  - assets/guides.css

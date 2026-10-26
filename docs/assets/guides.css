@@ -1,0 +1,118 @@
+/* Customer guides use the existing MkDocs theme; no external fonts or assets. */
+:root {
+  --guide-ink: #173b49;
+  --guide-accent: #0f6371;
+  --guide-border: #d8e5e9;
+  --guide-soft: #f2f7f8;
+}
+
+body {
+  color: #253a45;
+  line-height: 1.65;
+}
+
+[role="main"] {
+  min-width: 0;
+}
+
+[role="main"] h1,
+[role="main"] h2,
+[role="main"] h3 {
+  color: var(--guide-ink);
+  line-height: 1.25;
+}
+
+[role="main"] h1 {
+  font-weight: 700;
+  margin-bottom: 1.2rem;
+}
+
+[role="main"] h2 {
+  margin-top: 2rem;
+  font-size: 1.65rem;
+}
+
+[role="main"] a {
+  text-underline-offset: 0.16em;
+}
+
+.guide-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 1.25rem 0 1.75rem;
+}
+
+.guide-card {
+  border: 1px solid var(--guide-border);
+  border-radius: 0.75rem;
+  padding: 1.15rem 1.25rem;
+  background: linear-gradient(135deg, #fff, var(--guide-soft));
+}
+
+.guide-card p:first-child {
+  color: var(--guide-accent);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.025em;
+  margin-bottom: 0.55rem;
+}
+
+.guide-card p:nth-child(2) {
+  font-size: 1.1rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.guide-card p:last-child {
+  margin-bottom: 0;
+  font-size: 0.95rem;
+}
+
+[role="main"] pre {
+  max-width: 100%;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--guide-border);
+  border-radius: 0.5rem;
+  background: var(--guide-soft);
+  overflow-x: auto;
+  line-height: 1.55;
+}
+
+[role="main"] pre code {
+  font-size: 0.85rem;
+}
+
+[role="main"] table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+[role="main"] blockquote {
+  border-left: 3px solid var(--guide-accent);
+  padding: 0.6rem 1rem;
+  background: var(--guide-soft);
+}
+
+[role="main"] blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 575.98px) {
+  .guide-grid {
+    grid-template-columns: 1fr;
+  }
+
+  [role="main"] h1 {
+    font-size: 2rem;
+  }
+
+  [role="main"] h2 {
+    font-size: 1.45rem;
+  }
+
+  .guide-card {
+    padding: 1rem;
+  }
+}
