@@ -6,7 +6,7 @@ import inspect
 import logging
 import re
 import time
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Coroutine
 from dataclasses import dataclass
 from typing import Any
 
@@ -160,10 +160,31 @@ async def start_plugins(plugins: LoadedPlugins, timeout_seconds: float) -> None:
                 if timer.expired() or time.monotonic() >= deadline:
                     raise TimeoutError
     except BaseException as error:
-        await _stop_instances(reversed(started), timeout_seconds)
+        try:
+            await complete_cleanup(_stop_instances(reversed(started), timeout_seconds))
+        except (Exception, asyncio.CancelledError):
+            # Rollback must not replace the original startup failure/cancellation.
+            pass
         if isinstance(error, asyncio.CancelledError):
             raise
         raise StartupError(f"Startup failed for plugin instance {plugin.name}") from None
+
+
+async def complete_cleanup(operation: Coroutine[Any, Any, None]) -> None:
+    """Finish owned cooperative cleanup, then re-raise the caller's cancellation."""
+    cleanup = asyncio.create_task(operation)
+    cancelled: asyncio.CancelledError | None = None
+    try:
+        while not cleanup.done():
+            try:
+                await asyncio.shield(cleanup)
+            except asyncio.CancelledError as error:
+                if cancelled is None:
+                    cancelled = error
+        cleanup.result()
+    finally:
+        if cancelled is not None:
+            raise cancelled
 
 
 async def _stop_instances(plugins: Any, timeout_seconds: float) -> None:
@@ -171,10 +192,13 @@ async def _stop_instances(plugins: Any, timeout_seconds: float) -> None:
         if plugin.shutdown is None:
             continue
         started = time.monotonic()
+        timer = asyncio.timeout(timeout_seconds)
         try:
-            async with asyncio.timeout(timeout_seconds):
+            async with timer:
                 await plugin.shutdown()
-        except Exception:
+            if timer.expired() or time.monotonic() - started >= timeout_seconds:
+                raise TimeoutError
+        except (Exception, asyncio.CancelledError):
             logger.warning(
                 "request_id=- outcome=shutdown_error component=%s duration_ms=%.3f",
                 plugin.name,
@@ -183,4 +207,6 @@ async def _stop_instances(plugins: Any, timeout_seconds: float) -> None:
 
 
 async def stop_plugins(plugins: LoadedPlugins, timeout_seconds: float) -> None:
-    await _stop_instances(reversed(tuple(plugins.instances.values())), timeout_seconds)
+    await complete_cleanup(
+        _stop_instances(reversed(tuple(plugins.instances.values())), timeout_seconds)
+    )

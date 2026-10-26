@@ -759,3 +759,289 @@ def test_legacy_continue_import_gets_safe_migration_guidance(monkeypatch, tmp_pa
     assert "Cannot load module" in str(error.value)
     assert "migrate API v1 hooks/Continue to API v2 handle" in str(error.value)
     assert str(tmp_path) not in str(error.value)
+
+
+class ClosingProvider(FakeProvider):
+    async def aclose(self):
+        self.events.append("provider_close")
+        self.closed = True
+
+
+def lifecycle_app(monkeypatch, plugin, provider, timeout=0.05):
+    monkeypatch.setenv("GATEWAY7_TEST_KEY", SECRET)
+    monkeypatch.setattr(app_module, "build_provider", lambda *_: provider)
+    name = module(monkeypatch, plugin)
+    config = configuration({
+        "first": {"module": name, "settings": {"label": "first"}},
+        "second": {"module": name, "settings": {"label": "second"}},
+    }, limits={"hook_timeout_seconds": timeout})
+    return create_app(config=config)
+
+
+@pytest.mark.parametrize("failure", ["exception", "cancelled", "timeout", "suppressed_timeout"])
+async def test_shutdown_failure_finishes_other_plugins_and_provider(monkeypatch, caplog, failure):
+    events = []
+
+    class Lifecycle(PassThrough):
+        def __init__(self, settings):
+            self.label = settings.label
+
+        async def shutdown(self):
+            events.append("stop:" + self.label)
+            if self.label != "second":
+                return
+            if failure == "exception":
+                raise RuntimeError(SECRET)
+            if failure == "cancelled":
+                raise asyncio.CancelledError(SECRET)
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                if failure != "suppressed_timeout":
+                    raise
+
+    provider = ClosingProvider(events)
+    app = lifecycle_app(monkeypatch, Lifecycle, provider)
+    with caplog.at_level("WARNING", logger="gateway7"):
+        async with app.router.lifespan_context(app):
+            assert app.state.ready
+    assert events == ["stop:second", "stop:first", "provider_close"]
+    assert provider.closed and not app.state.ready
+    assert "outcome=shutdown_error component=second" in caplog.text
+    assert SECRET not in caplog.text
+
+
+@pytest.mark.parametrize("failure", [RuntimeError, asyncio.CancelledError])
+async def test_provider_close_failure_is_safe_after_plugin_cleanup(monkeypatch, caplog, failure):
+    events = []
+
+    class Lifecycle(PassThrough):
+        def __init__(self, settings):
+            self.label = settings.label
+
+        async def shutdown(self):
+            events.append("stop:" + self.label)
+
+    class FailingClose(ClosingProvider):
+        async def aclose(self):
+            await super().aclose()
+            raise failure(SECRET)
+
+    provider = FailingClose(events)
+    app = lifecycle_app(monkeypatch, Lifecycle, provider)
+    with caplog.at_level("WARNING", logger="gateway7"):
+        async with app.router.lifespan_context(app):
+            pass
+    assert events == ["stop:second", "stop:first", "provider_close"]
+    assert provider.closed and SECRET not in caplog.text
+    assert "outcome=shutdown_error component=provider" in caplog.text
+
+
+async def test_external_cancellation_during_shutdown_is_deferred_until_provider_closes(monkeypatch):
+    events = []
+    stopping = asyncio.Event()
+    release = asyncio.Event()
+
+    class Lifecycle(PassThrough):
+        def __init__(self, settings):
+            self.label = settings.label
+
+        async def shutdown(self):
+            events.append("stop:" + self.label)
+            if self.label == "second":
+                stopping.set()
+                await release.wait()
+
+    provider = ClosingProvider(events)
+    app = lifecycle_app(monkeypatch, Lifecycle, provider, timeout=1)
+
+    async def serve():
+        async with app.router.lifespan_context(app):
+            pass
+
+    task = asyncio.create_task(serve())
+    await stopping.wait()
+    task.cancel("first caller cancellation")
+    await asyncio.sleep(0)
+    assert not task.done() and not provider.closed
+    task.cancel("second caller cancellation")
+    release.set()
+    with pytest.raises(asyncio.CancelledError) as caught:
+        await task
+    assert caught.value.args == ("first caller cancellation",)
+    assert events == ["stop:second", "stop:first", "provider_close"]
+    assert provider.closed
+
+
+async def test_original_body_cancellation_survives_cancelled_plugin_shutdown(monkeypatch):
+    events = []
+    running = asyncio.Event()
+    original = []
+
+    class Lifecycle(PassThrough):
+        def __init__(self, settings):
+            self.label = settings.label
+
+        async def shutdown(self):
+            events.append("stop:" + self.label)
+            raise asyncio.CancelledError(SECRET)
+
+    provider = ClosingProvider(events)
+    app = lifecycle_app(monkeypatch, Lifecycle, provider)
+
+    async def serve():
+        async with app.router.lifespan_context(app):
+            running.set()
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError as error:
+                original.append(error)
+                raise
+
+    task = asyncio.create_task(serve())
+    await running.wait()
+    task.cancel("original body cancellation")
+    with pytest.raises(asyncio.CancelledError) as caught:
+        await task
+    assert caught.value is original[0]
+    assert caught.value.args == ("original body cancellation",)
+    assert events == ["stop:second", "stop:first", "provider_close"]
+    assert provider.closed
+
+
+@pytest.mark.parametrize("cleanup_failure", [RuntimeError, asyncio.CancelledError])
+async def test_startup_failure_survives_rollback_errors_and_closes_provider(monkeypatch, cleanup_failure):
+    events = []
+
+    class Lifecycle(PassThrough):
+        def __init__(self, settings):
+            self.label = settings.label
+
+        async def startup(self):
+            events.append("start:" + self.label)
+            if self.label == "second":
+                raise RuntimeError(SECRET)
+
+        async def shutdown(self):
+            events.append("stop:" + self.label)
+            raise cleanup_failure(SECRET)
+
+    provider = ClosingProvider(events)
+    app = lifecycle_app(monkeypatch, Lifecycle, provider)
+    with pytest.raises(StartupError, match="Startup failed for plugin instance second") as caught:
+        async with app.router.lifespan_context(app):
+            pytest.fail("Failed startup became ready")
+    assert SECRET not in str(caught.value)
+    assert events == ["start:first", "start:second", "stop:second", "stop:first", "provider_close"]
+    assert provider.closed
+
+
+async def test_external_startup_cancellation_survives_rollback_cancellation(monkeypatch):
+    events = []
+    starting = asyncio.Event()
+    original = []
+
+    class Lifecycle(PassThrough):
+        def __init__(self, settings):
+            self.label = settings.label
+
+        async def startup(self):
+            events.append("start:" + self.label)
+            if self.label == "second":
+                starting.set()
+                try:
+                    await asyncio.Event().wait()
+                except asyncio.CancelledError as error:
+                    original.append(error)
+                    raise
+
+        async def shutdown(self):
+            events.append("stop:" + self.label)
+            raise asyncio.CancelledError(SECRET)
+
+    provider = ClosingProvider(events)
+    app = lifecycle_app(monkeypatch, Lifecycle, provider, timeout=1)
+
+    async def serve():
+        async with app.router.lifespan_context(app):
+            pytest.fail("Cancelled startup became ready")
+
+    task = asyncio.create_task(serve())
+    await starting.wait()
+    task.cancel("original startup cancellation")
+    with pytest.raises(asyncio.CancelledError) as caught:
+        await task
+    assert caught.value is original[0]
+    assert caught.value.args == ("original startup cancellation",)
+    assert events == ["start:first", "start:second", "stop:second", "stop:first", "provider_close"]
+    assert provider.closed
+
+
+async def test_new_rollback_cancellation_does_not_replace_original_startup_failure(monkeypatch):
+    events = []
+    stopping = asyncio.Event()
+    release = asyncio.Event()
+
+    class Lifecycle(PassThrough):
+        def __init__(self, settings):
+            self.label = settings.label
+
+        async def startup(self):
+            if self.label == "second":
+                raise RuntimeError(SECRET)
+
+        async def shutdown(self):
+            events.append("stop:" + self.label)
+            if self.label == "second":
+                stopping.set()
+                await release.wait()
+
+    provider = ClosingProvider(events)
+    app = lifecycle_app(monkeypatch, Lifecycle, provider, timeout=1)
+
+    async def serve():
+        async with app.router.lifespan_context(app):
+            pytest.fail("Failed startup became ready")
+
+    task = asyncio.create_task(serve())
+    await stopping.wait()
+    task.cancel("rollback interruption")
+    release.set()
+    with pytest.raises(StartupError, match="Startup failed for plugin instance second"):
+        await task
+    assert events == ["stop:second", "stop:first", "provider_close"]
+    assert provider.closed
+
+
+@pytest.mark.parametrize("failure", [RuntimeError, asyncio.CancelledError])
+async def test_cleanup_failure_cannot_replace_deferred_caller_cancellation(failure):
+    from gateway7.loader import complete_cleanup
+
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def failing_cleanup():
+        started.set()
+        await release.wait()
+        raise failure(SECRET)
+
+    task = asyncio.create_task(complete_cleanup(failing_cleanup()))
+    await started.wait()
+    task.cancel("original caller cancellation")
+    await asyncio.sleep(0)
+    release.set()
+    with pytest.raises(asyncio.CancelledError) as caught:
+        await task
+    assert caught.value.args == ("original caller cancellation",)
+
+
+async def test_cleanup_task_cancellation_finishes_without_caller_cancellation():
+    from gateway7.loader import complete_cleanup
+
+    async def cancelled_cleanup():
+        raise asyncio.CancelledError(SECRET)
+
+    task = asyncio.create_task(complete_cleanup(cancelled_cleanup()))
+    with pytest.raises(asyncio.CancelledError):
+        await asyncio.wait_for(task, timeout=0.5)
+    assert task.done() and task.cancelled()

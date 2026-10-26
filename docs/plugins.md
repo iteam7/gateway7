@@ -76,6 +76,10 @@ The core preserves the provider's original usage and finish reason independently
 The authenticated model selection is pinned outside the plugin request contract and cannot be changed by middleware.
 
 Optional async `startup()` and `shutdown()` manage instance resources.
+Shutdown visits instances in reverse initialization order and still closes the provider when a plugin's cleanup raises an exception or `CancelledError`.
+Each cleanup hook has the configured cooperative timeout; failures are logged without exception details.
+Cleanup hooks run in an owned task and must not depend on the startup task's identity.
+External cancellation waits for this cleanup and is then re-raised; if startup or the service body already failed, that original failure or cancellation takes precedence over cleanup interruptions.
 Instances are shared across requests; immutable settings and concurrency-safe resources belong on the instance, and temporary mutable data belongs in `context.state`.
 
 ## Order, enable and required

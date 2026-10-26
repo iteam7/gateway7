@@ -19,7 +19,7 @@ from starlette.types import ASGIApp, Message as ASGIMessage, Receive, Scope, Sen
 from gateway7.config import GatewayConfig, load_config, provider_key
 from gateway7.auth import AccessControl
 from gateway7.errors import GatewayError, StartupError
-from gateway7.loader import load_plugins, start_plugins, stop_plugins
+from gateway7.loader import complete_cleanup, load_plugins, start_plugins, stop_plugins
 from gateway7.models import ChatRequest
 from gateway7.metrics import Metrics
 from gateway7.openai_api import (
@@ -235,6 +235,7 @@ def create_app(
         except Exception:
             raise StartupError("Provider initialization failed") from None
         started = False
+        failed = False
         try:
             await start_plugins(plugins, active_config.limits.hook_timeout_seconds)
             started = True
@@ -249,19 +250,39 @@ def create_app(
             )
             app.state.ready = True
             yield
+        except BaseException:
+            failed = True
+            raise
         finally:
             app.state.ready = False
             app.state.pipeline = None
             app.state.access = None
-            if started:
-                await stop_plugins(plugins, active_config.limits.hook_timeout_seconds)
+
+            async def cleanup() -> None:
+                try:
+                    if started:
+                        await stop_plugins(plugins, active_config.limits.hook_timeout_seconds)
+                finally:
+                    closing_started = time.monotonic()
+                    timeout = active_config.limits.hook_timeout_seconds
+                    timer = asyncio.timeout(timeout)
+                    try:
+                        async with timer:
+                            await provider.aclose()
+                        if timer.expired() or time.monotonic() - closing_started >= timeout:
+                            raise TimeoutError
+                    except (Exception, asyncio.CancelledError):
+                        logger.warning(
+                            "request_id=- outcome=shutdown_error component=provider duration_ms=%.3f",
+                            (time.monotonic() - closing_started) * 1000,
+                        )
+
             try:
-                async with asyncio.timeout(active_config.limits.hook_timeout_seconds):
-                    await provider.aclose()
-            except Exception:
-                logger.warning(
-                    "request_id=- outcome=shutdown_error component=provider duration_ms=0"
-                )
+                await complete_cleanup(cleanup())
+            except (Exception, asyncio.CancelledError):
+                # A cleanup interruption must not replace a startup/body failure.
+                if not failed:
+                    raise
 
     app = FastAPI(title="Gateway7", version="0.1.0", lifespan=lifespan, redirect_slashes=False)
     app.state.ready = False

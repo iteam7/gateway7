@@ -21,6 +21,16 @@ Review kept authorized model selection outside plugin-visible payloads and prese
 The generated-package installation check uses the reviewed Gateway7 wheel and installs the plugin with `--no-deps`, so it cannot substitute an unrelated package resolution for the reviewed runtime.
 The review also required interrupted offline checks to return a failure after cleaning up their worker, instead of being treated as an orderly successful server shutdown.
 
+On 26 October, azamatbayramov selected the shutdown-cleanup finding from a read-only code review for [task #113](https://github.com/iteam7/gateway7/issues/113).
+Codex had reproduced a shutdown hook raising `CancelledError` and skipping the remaining resources; the developer changed the lifecycle helper and application cleanup, then added 15 regression cases.
+The AI TechLead independently reviewed the helper, provider-close guarantee, initialization unwind and cancellation precedence.
+Review required the helper's outer `finally` to retain an already observed caller cancellation even if a later cleanup attempt raises, and tests cover both ordinary failures and hook cancellation.
+Cleanup hooks now run in owned tasks; the guide records that task-identity change and the limit of cooperative cancellation rather than promising forced termination of blocking code.
+The local full suite passed 541 tests, with Ruff and mypy passing; exact-head documentation, link and CI results belong to the pull request.
+Formater created a separate task and working branch, set its native Task type through the interface unavailable in the connector, and left human scheduling, roles, Priority and acceptance checkboxes unset.
+No live-provider verification, Customer verdict, human approval or merge is claimed by this AI work.
+TODO: The team records what it accepted, changed or rejected after reviewing task #113 and its regression evidence.
+
 On 25 October, for [task #93](https://github.com/iteam7/gateway7/issues/93), Claude Code drafted `docs/glossary.md` and rewrote the root `AGENTS.md` with layout, checks, conventions and do-not-edit sections while keeping the team's agent roles and PRE/POST workflow.
 Its Formater agent checked the draft against the course glossary and agent-instruction requirements, compared every path and command in `AGENTS.md` with the repository and the CI workflows, and traced each glossary definition to the linked artifact and the gateway code.
 
