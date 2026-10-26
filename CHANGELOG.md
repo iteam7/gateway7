@@ -28,6 +28,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- Known canonical token usage is counted when a decoded provider response is rejected, while invalid or unavailable usage remains unknown.
 - Upstream failures expose bounded diagnostic reasons in safe logs and a separate metric while retaining existing client errors and provider-call metrics.
 - Sprint plan dates and backlog links reconciled with the Assignment 4 calendar, with missing planning, estimation and review evidence stated explicitly.
 - Breaking plugin API version 2: replace independent request/response hooks with `handle(request, context, call_next)` and one YAML `middleware` list; responses unwind in reverse order.

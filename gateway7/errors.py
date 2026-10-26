@@ -33,9 +33,29 @@ class ProviderErrorReason(StrEnum):
 
 
 class ProviderError(Exception):
-    def __init__(self, reason: object = ProviderErrorReason.UNKNOWN) -> None:
+    def __init__(
+        self, reason: object = ProviderErrorReason.UNKNOWN, *, usage: object = None
+    ) -> None:
         self.reason = ProviderErrorReason.normalize(reason)
+        # Keep only independently validated numeric accounting. The immutable
+        # pair cannot retain upstream metadata or share a mutable response dict.
+        self._usage: tuple[int, int] | None = None
+        if isinstance(usage, dict):
+            input_tokens, output_tokens = usage.get("input_tokens"), usage.get("output_tokens")
+            if (
+                type(input_tokens) is int
+                and type(output_tokens) is int
+                and 0 <= input_tokens <= 2**63 - 1
+                and 0 <= output_tokens <= 2**63 - 1
+            ):
+                self._usage = (input_tokens, output_tokens)
         super().__init__("Provider request failed")
+
+    @property
+    def usage(self) -> dict[str, int] | None:
+        if self._usage is None:
+            return None
+        return {"input_tokens": self._usage[0], "output_tokens": self._usage[1]}
 
 
 class GatewayError(Exception):

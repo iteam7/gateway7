@@ -550,3 +550,84 @@ async def test_missing_real_or_invalid_finish_reason_is_not_fabricated(kind, bod
     async with mocked_provider(lambda _: httpx.Response(200, json=body), kind=kind) as provider:
         with pytest.raises(ProviderError, match="^Provider request failed$"):
             await provider.complete(REQUEST)
+
+
+@pytest.mark.parametrize("kind,body,expected", [
+    ("fake", {"text": "", "usage": {"input_tokens": 12, "output_tokens": 4}},
+     {"input_tokens": 12, "output_tokens": 4}),
+    ("claude", {"content": [{"type": "thinking", "thinking": KEY}], "stop_reason": "max_tokens",
+                "usage": {"input_tokens": 12, "output_tokens": 4}},
+     {"input_tokens": 12, "output_tokens": 4}),
+    ("openai", openai_reply(choices=[{"finish_reason": "content_filter", "message": {"role": "assistant", "content": KEY}}]),
+     {"input_tokens": 3, "output_tokens": 1}),
+    ("gemini", gemini_reply(candidates=[{"finishReason": "MAX_TOKENS", "content": {"role": "model", "parts": [{"text": KEY, "thought": True}]}}],
+                            usageMetadata={"promptTokenCount": 12, "candidatesTokenCount": 0, "thoughtsTokenCount": 4}),
+     {"input_tokens": 12, "output_tokens": 4}),
+])
+async def test_rejected_answers_retain_independently_reported_usage(kind, body, expected):
+    attempts = []
+
+    def upstream(request):
+        attempts.append(request)
+        return httpx.Response(200, json=body)
+
+    async with mocked_provider(upstream, kind=kind) as provider:
+        with pytest.raises(ProviderError) as error:
+            await provider.complete(REQUEST)
+    assert error.value.reason is ProviderErrorReason.INVALID_RESPONSE
+    assert error.value.usage == expected
+    assert str(error.value) == "Provider request failed"
+    assert KEY not in repr(error.value) and len(attempts) == 1
+
+
+@pytest.mark.parametrize("kind,usage_key,input_name,output_name", [
+    ("fake", "usage", "input_tokens", "output_tokens"),
+    ("claude", "usage", "input_tokens", "output_tokens"),
+    ("openai", "usage", "prompt_tokens", "completion_tokens"),
+    ("gemini", "usageMetadata", "promptTokenCount", "candidatesTokenCount"),
+])
+@pytest.mark.parametrize("counts,expected", [
+    (None, None), ("malformed", None), ((0,), None),
+    ((0, 0), {"input_tokens": 0, "output_tokens": 0}),
+    ((2**63 - 1, 2**63 - 1), {"input_tokens": 2**63 - 1, "output_tokens": 2**63 - 1}),
+    ((2, -1), None), ((2, True), None), ((2, 1.5), None), ((2, "3"), None), ((2, 2**63), None),
+])
+async def test_rejected_answer_usage_is_complete_strict_and_bounded(kind, usage_key, input_name, output_name, counts, expected):
+    # Missing answer/finish fields fail independently of the accounting fields.
+    raw_usage = dict(zip((input_name, output_name), counts)) if isinstance(counts, tuple) else counts
+    async with mocked_provider(lambda _: httpx.Response(200, json={usage_key: raw_usage}), kind=kind) as provider:
+        with pytest.raises(ProviderError) as error:
+            await provider.complete(REQUEST)
+    assert error.value.reason is ProviderErrorReason.INVALID_RESPONSE
+    assert error.value.usage == expected
+
+
+@pytest.mark.parametrize("usage", [
+    {"promptTokenCount": 1, "thoughtsTokenCount": 3},
+    {"promptTokenCount": 1, "candidatesTokenCount": 1, "thoughtsTokenCount": 2**63 - 1},
+    {"promptTokenCount": 1, "candidatesTokenCount": 1, "thoughtsTokenCount": True},
+])
+async def test_rejected_gemini_answer_does_not_infer_or_overflow_thought_usage(usage):
+    async with mocked_provider(lambda _: httpx.Response(200, json={"usageMetadata": usage}), kind="gemini") as provider:
+        with pytest.raises(ProviderError) as error:
+            await provider.complete(REQUEST)
+    assert error.value.usage is None
+
+
+def test_provider_error_usage_is_a_private_canonical_snapshot():
+    usage = {"input_tokens": 12, "output_tokens": 4, "upstream_private": KEY}
+    error = ProviderError("invalid_response", usage=usage)
+    usage["input_tokens"] = -1
+    snapshot = error.usage
+    assert snapshot == {"input_tokens": 12, "output_tokens": 4}
+    snapshot["output_tokens"] = 1000
+    assert error.usage == {"input_tokens": 12, "output_tokens": 4}
+    assert KEY not in str(vars(error)) + str(error) + repr(error)
+
+
+@pytest.mark.parametrize("usage", [None, [], {}, {"input_tokens": 2},
+    {"input_tokens": True, "output_tokens": 1}, {"input_tokens": -1, "output_tokens": 1},
+    {"input_tokens": 1, "output_tokens": 1.5}, {"input_tokens": 1, "output_tokens": 2**63},
+])
+def test_provider_error_does_not_carry_invalid_usage(usage):
+    assert ProviderError("invalid_response", usage=usage).usage is None
