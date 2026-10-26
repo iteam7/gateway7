@@ -32,6 +32,15 @@ It did not run the demonstration; the Accountable reviewer's dry-run, the meetin
 
 The adapters are checked with synthetic HTTP transports against the documented provider protocols.
 These tests can establish payload conversion, usage handling and failure behavior; they do not establish access to a live model or successful provider billing/account setup.
+On 26 October, azamatbayramov selected safer provider diagnostics for [task #115](https://github.com/iteam7/gateway7/issues/115).
+Codex added a finite failure-reason contract, adapter classification, safe pipeline diagnostics and a separate failure counter while retaining the existing client error and provider-call metric contracts.
+The AI TechLead independently checked the HTTP/transport/parser cases, the fixed enum and normalization at the metric boundary, cancellation handling and pre-provider rejection behavior.
+The local focused provider/metrics suite passed 440 tests, and Ruff and mypy passed; upstream failures on native/OpenAI routes remain HTTP 502 with `provider_error`, without raw upstream details or automatic retry.
+This work does not change usage accounting, retry policy, the supported request subset or the trusted-plugin boundary.
+Formater created its separate native Task and branch, preserved concurrent main updates, and left human planning, role assignment and acceptance checkboxes unset.
+The pull request records documentation and exact-head CI evidence; no real-provider account, Customer verdict, human approval or merge is claimed.
+TODO: The team records what it accepted, changed or rejected after reviewing task #115 and its privacy/category regression evidence.
+
 Reference policy tests cover transformations, benign messages, request history, configuration failures and whether blocked requests reach the provider.
 CLI and metric checks exercise installed commands, startup errors, readiness and bounded metric labels without prompt text or credentials.
 For the initial pilot, the [Ubuntu Compose CI check](https://github.com/iteam7/gateway7/actions/runs/40192076568/job/121165000016) built the non-root image, started the actual gateway/Prometheus/Grafana stack, validated Prometheus configuration and passed the HTTP policy, metric, scrape, dashboard and datasource-query smoke.

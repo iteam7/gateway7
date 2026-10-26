@@ -8,7 +8,7 @@ import httpx
 import pytest
 
 from gateway7.config import ProviderConfig
-from gateway7.errors import ProviderError
+from gateway7.errors import ProviderError, ProviderErrorReason
 from gateway7.models import ChatRequest, Message
 from gateway7.providers import MAX_RESPONSE_BYTES, build_provider, validate_provider_config
 
@@ -375,8 +375,12 @@ async def test_claude_refusal_or_invalid_thinking_fails_closed(body):
 
 
 @pytest.mark.parametrize("kind", ["claude", "openai", "gemini"])
-@pytest.mark.parametrize("status", [301, 307, 400, 401, 403, 429, 500, 503, 529])
-async def test_all_real_provider_http_failures_are_safe_and_single_attempt(kind, status):
+@pytest.mark.parametrize("status,reason", [
+    (301, "rejected"), (307, "rejected"), (400, "rejected"),
+    (401, "authentication"), (403, "authentication"), (429, "rate_limit"),
+    (500, "unavailable"), (503, "unavailable"), (529, "unavailable"),
+])
+async def test_all_real_provider_http_failures_are_safe_and_single_attempt(kind, status, reason):
     attempts = 0
 
     def handle(_):
@@ -388,32 +392,55 @@ async def test_all_real_provider_http_failures_are_safe_and_single_attempt(kind,
         with pytest.raises(ProviderError) as error:
             await provider.complete(REQUEST)
     assert str(error.value) == "Provider request failed"
+    assert error.value.reason == reason
     assert error.value.__suppress_context__
     assert attempts == 1
 
 
 @pytest.mark.parametrize("kind", ["claude", "openai", "gemini"])
-@pytest.mark.parametrize("failure", [httpx.ConnectError, httpx.ReadTimeout, httpx.ConnectTimeout])
-async def test_real_provider_transport_failures_are_safe_and_single_attempt(kind, failure):
+@pytest.mark.parametrize("failure,reason", [
+    (httpx.ConnectError, "transport"), (httpx.ReadError, "transport"),
+    (httpx.RemoteProtocolError, "transport"), (httpx.ReadTimeout, "timeout"),
+    (httpx.ConnectTimeout, "timeout"), (httpx.WriteTimeout, "timeout"),
+    (httpx.PoolTimeout, "timeout"), (httpx.DecodingError, "invalid_response"),
+    (RuntimeError, "unknown"),
+])
+async def test_real_provider_transport_failures_are_safe_and_single_attempt(kind, failure, reason):
     attempts = 0
 
     def handle(wire):
         nonlocal attempts
         attempts += 1
-        raise failure(KEY + " transport details", request=wire)
+        raise failure(KEY + " transport details " + str(wire.url))
 
     async with mocked_provider(handle, kind=kind) as provider:
-        with pytest.raises(ProviderError, match="^Provider request failed$"):
+        with pytest.raises(ProviderError, match="^Provider request failed$") as error:
             await provider.complete(REQUEST)
+    assert error.value.reason == reason
+    assert error.value.__suppress_context__
     assert attempts == 1
 
 
 @pytest.mark.parametrize("kind", ["claude", "openai", "gemini"])
-@pytest.mark.parametrize("body", [b"not-json", b"[]", b"x" * (MAX_RESPONSE_BYTES + 1)], ids=["not-json", "array", "oversized"])
+@pytest.mark.parametrize("body", [b"not-json", b"\xff", b"[]", b"{}", b"x" * (MAX_RESPONSE_BYTES + 1)], ids=["not-json", "invalid-encoding", "array", "invalid-payload", "oversized"])
 async def test_real_provider_bodies_are_bounded_and_safe(kind, body):
     async with mocked_provider(lambda _: httpx.Response(200, content=body), kind=kind) as provider:
-        with pytest.raises(ProviderError, match="^Provider request failed$"):
+        with pytest.raises(ProviderError, match="^Provider request failed$") as error:
             await provider.complete(REQUEST)
+    assert error.value.reason is ProviderErrorReason.INVALID_RESPONSE
+
+
+@pytest.mark.parametrize("reason", [KEY, "unknown-new-category", None, [], {}, 429, True])
+def test_arbitrary_provider_error_reasons_become_unknown(reason):
+    error = ProviderError(reason)
+    assert error.reason is ProviderErrorReason.UNKNOWN
+    assert str(error) == "Provider request failed"
+
+
+@pytest.mark.parametrize("reason", list(ProviderErrorReason))
+def test_provider_error_accepts_only_documented_reason_values(reason):
+    assert ProviderError(reason).reason is reason
+    assert ProviderError(reason.value).reason is reason
 
 
 @pytest.mark.parametrize("kind", ["claude", "gemini"])

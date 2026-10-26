@@ -6,7 +6,7 @@ import time
 from typing import Any, Literal, TypeVar
 
 from gateway7.config import LimitsConfig
-from gateway7.errors import GatewayError
+from gateway7.errors import GatewayError, ProviderError, ProviderErrorReason
 from gateway7.loader import LoadedPlugins
 from gateway7.metrics import Metrics
 from gateway7.models import ChatRequest, ChatResponse
@@ -36,14 +36,24 @@ def _validated(payload: object, expected: type[Payload]) -> Payload:
     return expected.model_validate(payload.model_dump(mode="python", warnings=False), strict=True)
 
 
-def _log(request_id: str, outcome: str, component: str, phase: str, duration: float) -> None:
+def _log(
+    request_id: str,
+    outcome: str,
+    component: str,
+    phase: str,
+    duration: float,
+    *,
+    reason: ProviderErrorReason | None = None,
+) -> None:
+    detail = "" if reason is None else " reason=" + ProviderErrorReason.normalize(reason).value
     logger.info(
-        "request_id=%s outcome=%s component=%s phase=%s duration_ms=%.3f",
+        "request_id=%s outcome=%s component=%s phase=%s duration_ms=%.3f%s",
         request_id,
         outcome,
         component,
         phase,
         max(duration, 0) * 1000,
+        detail,
     )
 
 
@@ -101,7 +111,10 @@ class Pipeline:
                         if provider_model is None
                         else await self.provider.complete(incoming, model=provider_model)
                     )
-                    result = _validated(response, ChatResponse)
+                    try:
+                        result = _validated(response, ChatResponse)
+                    except (TypeError, ValueError):
+                        raise ProviderError(ProviderErrorReason.INVALID_RESPONSE) from None
                 except asyncio.CancelledError:
                     if self.metrics is not None:
                         self.metrics.observe_provider(
@@ -111,10 +124,16 @@ class Pipeline:
                         request_id, "cancelled", "provider", "provider", time.monotonic() - started
                     )
                     raise
-                except Exception:
+                except Exception as error:
+                    reason = ProviderErrorReason.normalize(
+                        error.reason if isinstance(error, ProviderError) else None
+                    )
                     if self.metrics is not None:
                         self.metrics.observe_provider(
-                            self.provider_name, "provider_error", time.monotonic() - started
+                            self.provider_name,
+                            "provider_error",
+                            time.monotonic() - started,
+                            error_reason=reason,
                         )
                     _log(
                         request_id,
@@ -122,6 +141,7 @@ class Pipeline:
                         "provider",
                         "provider",
                         time.monotonic() - started,
+                        reason=reason,
                     )
                     raise GatewayError("provider_error") from None
                 # Snapshot before any middleware can mutate the returned object.

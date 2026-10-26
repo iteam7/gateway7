@@ -97,5 +97,7 @@ Model selection is pinned before middleware execution; plugins cannot change the
 `/v1/*` errors use an OpenAI-style `error` object with safe `message`, `type`, `param` and `code`, plus a request ID.
 The `WWW-Authenticate: Bearer` header accompanies authentication errors.
 No error echoes the bearer token, request text or raw provider response.
+All upstream failure categories retain HTTP 502 and the `provider_error` code on both APIs.
+The [fixed diagnostic reasons](observability.md#provider-failure-reasons) appear only in gateway logs and the provider failure metric; they do not add response fields or trigger retries.
 `/health`, `/ready` and `/metrics` are unauthenticated operational endpoints; keep them within the trusted deployment network.
 See [authentication](authentication.md) and [observability](observability.md) for configuration and diagnosis.

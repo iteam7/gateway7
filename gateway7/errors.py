@@ -1,12 +1,40 @@
 """Errors whose public representations contain no upstream or input details."""
 
+from enum import StrEnum
+
 
 class StartupError(RuntimeError):
     """Raised only with a core-authored, sanitized configuration diagnostic."""
 
 
+class ProviderErrorReason(StrEnum):
+    """Fixed diagnostic categories; never upstream text or client-facing codes."""
+
+    AUTHENTICATION = "authentication"
+    RATE_LIMIT = "rate_limit"
+    TIMEOUT = "timeout"
+    UNAVAILABLE = "unavailable"
+    TRANSPORT = "transport"
+    INVALID_RESPONSE = "invalid_response"
+    REJECTED = "rejected"
+    UNKNOWN = "unknown"
+
+    @classmethod
+    def normalize(cls, value: object) -> "ProviderErrorReason":
+        if isinstance(value, cls):
+            return value
+        # Do not stringify, hash or otherwise expose arbitrary exception data.
+        if type(value) is str:
+            try:
+                return cls(value)
+            except ValueError:
+                pass
+        return cls.UNKNOWN
+
+
 class ProviderError(Exception):
-    def __init__(self) -> None:
+    def __init__(self, reason: object = ProviderErrorReason.UNKNOWN) -> None:
+        self.reason = ProviderErrorReason.normalize(reason)
         super().__init__("Provider request failed")
 
 

@@ -15,7 +15,7 @@ from urllib.parse import urlsplit
 
 import httpx
 
-from gateway7.errors import ProviderError
+from gateway7.errors import ProviderError, ProviderErrorReason
 from gateway7.models import ChatResponse
 
 if TYPE_CHECKING:
@@ -102,14 +102,14 @@ def _normalized_usage(value: Any, input_name: str, output_name: str) -> dict[str
 
 def _claude_response(data: dict[str, Any]) -> tuple[str, dict[str, int] | None, FinishReason]:
     if data.get("stop_reason") not in ("end_turn", "max_tokens", "stop_sequence"):
-        raise ProviderError()
+        raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
     content = data.get("content")
     if not isinstance(content, list) or not content:
-        raise ProviderError()
+        raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
     text_parts = []
     for block in content:
         if not isinstance(block, dict):
-            raise ProviderError()
+            raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
         kind = block.get("type")
         if kind == "text" and isinstance(block.get("text"), str):
             text_parts.append(block["text"])
@@ -120,7 +120,7 @@ def _claude_response(data: dict[str, Any]) -> tuple[str, dict[str, int] | None, 
         elif kind == "redacted_thinking" and isinstance(block.get("data"), str):
             continue
         else:
-            raise ProviderError()
+            raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
     usage = _normalized_usage(data.get("usage"), "input_tokens", "output_tokens")
     return "".join(text_parts), usage, "length" if data["stop_reason"] == "max_tokens" else "stop"
 
@@ -128,10 +128,10 @@ def _claude_response(data: dict[str, Any]) -> tuple[str, dict[str, int] | None, 
 def _openai_response(data: dict[str, Any]) -> tuple[str, dict[str, int] | None, FinishReason]:
     choices = data.get("choices")
     if not isinstance(choices, list) or len(choices) != 1 or not isinstance(choices[0], dict):
-        raise ProviderError()
+        raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
     choice = choices[0]
     if choice.get("finish_reason") not in ("stop", "length"):
-        raise ProviderError()
+        raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
     message = choice.get("message")
     if (
         not isinstance(message, dict)
@@ -141,10 +141,10 @@ def _openai_response(data: dict[str, Any]) -> tuple[str, dict[str, int] | None, 
         or message.get("function_call") is not None
         or message.get("audio") is not None
     ):
-        raise ProviderError()
+        raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
     text = message.get("content")
     if not isinstance(text, str):
-        raise ProviderError()
+        raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
     return (
         text,
         _normalized_usage(data.get("usage"), "prompt_tokens", "completion_tokens"),
@@ -155,23 +155,23 @@ def _openai_response(data: dict[str, Any]) -> tuple[str, dict[str, int] | None, 
 def _gemini_response(data: dict[str, Any]) -> tuple[str, dict[str, int] | None, FinishReason]:
     feedback = data.get("promptFeedback")
     if feedback is not None and (not isinstance(feedback, dict) or feedback.get("blockReason")):
-        raise ProviderError()
+        raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
     candidates = data.get("candidates")
     if (
         not isinstance(candidates, list)
         or len(candidates) != 1
         or not isinstance(candidates[0], dict)
     ):
-        raise ProviderError()
+        raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
     candidate = candidates[0]
     if candidate.get("finishReason") not in ("STOP", "MAX_TOKENS"):
-        raise ProviderError()
+        raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
     content = candidate.get("content")
     if not isinstance(content, dict) or content.get("role") != "model":
-        raise ProviderError()
+        raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
     parts = content.get("parts")
     if not isinstance(parts, list) or not parts:
-        raise ProviderError()
+        raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
     text_parts = []
     for part in parts:
         if (
@@ -192,7 +192,7 @@ def _gemini_response(data: dict[str, Any]) -> tuple[str, dict[str, int] | None, 
             )
             or ("thought" in part and type(part["thought"]) is not bool)
         ):
-            raise ProviderError()
+            raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
         if not part.get("thought", False):
             text_parts.append(part["text"])
     raw_usage = data.get("usageMetadata")
@@ -300,15 +300,26 @@ class HTTPProvider:
                 "POST", self._origin + path, json=payload, headers=self._headers
             ) as response:
                 if response.status_code != 200:
-                    raise ProviderError()
+                    if response.status_code in (401, 403):
+                        reason = ProviderErrorReason.AUTHENTICATION
+                    elif response.status_code == 429:
+                        reason = ProviderErrorReason.RATE_LIMIT
+                    elif 500 <= response.status_code < 600:
+                        reason = ProviderErrorReason.UNAVAILABLE
+                    else:
+                        reason = ProviderErrorReason.REJECTED
+                    raise ProviderError(reason)
                 body = bytearray()
                 async for chunk in response.aiter_bytes(chunk_size=16_384):
                     body.extend(chunk)
                     if len(body) > MAX_RESPONSE_BYTES:
-                        raise ProviderError()
-            data = json.loads(body)
+                        raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
+            try:
+                data = json.loads(body)
+            except (ValueError, UnicodeError, RecursionError):
+                raise ProviderError(ProviderErrorReason.INVALID_RESPONSE) from None
             if not isinstance(data, dict):
-                raise ProviderError()
+                raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
             if self._kind == "fake":
                 text, usage = data.get("text"), _usage(data.get("usage"))
                 # The synthetic fixture contract predates finish metadata. Real
@@ -321,11 +332,19 @@ class HTTPProvider:
             else:
                 text, usage, finish_reason = _gemini_response(data)
             if not isinstance(text, str) or not text or finish_reason not in ("stop", "length"):
-                raise ProviderError()
+                raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
             return ChatResponse(text=text, usage=usage, finish_reason=finish_reason)
+        except ProviderError as error:
+            raise ProviderError(error.reason) from None
+        except httpx.TimeoutException:
+            raise ProviderError(ProviderErrorReason.TIMEOUT) from None
+        except httpx.DecodingError:
+            raise ProviderError(ProviderErrorReason.INVALID_RESPONSE) from None
+        except httpx.TransportError:
+            raise ProviderError(ProviderErrorReason.TRANSPORT) from None
         except Exception:
-            # Includes network timeouts and provider authentication/rate-limit
-            # errors. Never include bodies, URLs, headers or raw exceptions.
+            # Unexpected failures retain a bounded fallback. Never include
+            # bodies, URLs, headers or raw exceptions in diagnostics.
             raise ProviderError() from None
 
 
