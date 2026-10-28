@@ -323,3 +323,22 @@ The PNGs are temporary visual QA evidence, while the reproducible SVGs and their
 ### Team evaluation for the architecture explanation
 
 TODO: Team members must record what they accepted, changed or rejected after reviewing the explanation, diagrams and source evidence.
+
+## New stories and their requirements for task #139
+
+On 28 October, iceberkut asked Claude Code (Claude Opus 5.5) to carry out [task #139](https://github.com/iteam7/gateway7/issues/139).
+Formater ran PRE and POST and kept the work in a separate worktree, so the uncommitted changes in the main checkout stayed untouched.
+
+- Claude Code drafted two candidate stories from gaps it found on `main`, and created them at the user's request with `gh issue create` and the native `User Story` type: [US-12](https://github.com/iteam7/gateway7/issues/140) answers DEC-014's request to identify a failing or hanging plugin, and [US-13](https://github.com/iteam7/gateway7/issues/141) covers the usage analytics named by the SPRINT-06 milestone, which no story covered.
+- It then wrote FR-011 to specify US-12.
+  Reading `gateway7/pipeline.py` showed that the gateway already logs each middleware instance's outcome, phase and duration per request, so FR-011 records existing behavior and US-12's remaining work is verification and demonstration.
+  The AI TechLead corrected AC-03 (the request phase logs `continue`, not `complete`) and added the outer instance's own failure entry; it could not run the tests in the worktree, so the criteria were checked by reading the code.
+- A draft FR-012 for US-13 was withdrawn after the AI TechLead review: an unauthenticated `GET /usage` falls outside the operational boundary in ADR-003 and needs its own ADR, and counting since process start narrows the story's "over a period".
+  Both are left for the team before US-13 gets a specification.
+
+The AI set no `MoSCoW`, `Story Points`, milestone, Responsible, Accountable or assignee value and ticked no criterion: these are team decisions, and no team or Customer decision on them has been recorded.
+The `Specified by` links in #140 and #141 are added after this change merges.
+
+### Team evaluation for the new stories
+
+TODO: Team members must record what they accepted, changed or rejected in US-12, US-13 and FR-011, and confirm their priorities and estimates.
