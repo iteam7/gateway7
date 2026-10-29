@@ -11,7 +11,7 @@ The [architecture customer view](architecture/README.md#customer-view) is the op
 
 ## Interactive pilot and monitoring
 
-Start `uv run --locked gateway7 demo`, or `docker compose up --build --detach --wait` for the complete monitoring stack.
+Start `uv run --locked gateway7 demo`, or `docker compose -f compose.yaml up --build --detach --wait` for the complete monitoring stack.
 Send these public synthetic fixtures through the CLI:
 
 ```sh

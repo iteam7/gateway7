@@ -415,3 +415,40 @@ Lychee was unavailable, so a full external-link check was not run; no CI polling
 ### Team evaluation for PR 142 conflict resolution
 
 TODO: Team members must record what they accepted, changed or rejected after reviewing the conflict resolution.
+
+## OpenAI environment-file setup for task #148
+
+On 29 October, azamatbayramov asked Codex to make the basic OpenAI setup simple with a local `.env` file.
+Formater read the current course rules, created [task #148](https://github.com/iteam7/gateway7/issues/148) through the Task form, and prepared an isolated branch from `main` commit `eb94ce4f70c89827419fa758dec62bf332eb065c`.
+TechLead chose Docker Compose's existing environment-file support instead of adding a runtime dotenv parser or a dependency.
+The example selects the live Compose files and OpenAI; the operator fills only the provider key and a separate gateway client token, then starts the stack with plain `docker compose up`.
+The guides keep synthetic demonstrations explicit with `-f compose.yaml`, explain shell precedence and existing-file migration, and reuse the installed smoke inside the container without exporting secrets to a client shell.
+
+TechLead reviewed the example, maintained guides and eleven semantic Compose test cases, including automatic dotenv selection, literal quoted values, process-variable precedence, unfilled credentials and explicit synthetic mode.
+The changed test file passed Ruff, and 36 maintained shell blocks passed Bash syntax checks.
+The eleven Compose cases were skipped locally because Docker was unavailable; the existing CI runs them with synthetic temporary files and no provider calls.
+CI exposed an incorrect test assumption about dollar signs: Compose's rendered config escapes them for reuse, while the resolved environment retains literal values.
+TechLead checked Docker's implementation and required the test to assert both the original values from `config --environment` and the exact escaped config representation, without normalizing either result.
+Formater verified Git exclusions for root and nested `.env` variants and inspected the Docker context allowlist and secret-file exclusions.
+Two isolated server-start checks rejected a missing OpenAI key and a missing gateway token with safe variable-name diagnostics and no credential-value disclosure.
+Markdown passed for 80 files, the strict MkDocs build passed, and the generated-site check passed for 47 maintained pages with 4838 links and assets.
+The pull request records the final documentation checks and exact-head CI results.
+No real credential file, paid API request, VM verification, Customer verdict or human team assessment was created or inferred.
+
+### Team evaluation for OpenAI environment-file setup
+
+TODO: Team members must record what they accepted, changed or rejected after reviewing the template, Compose behavior, tests and operator instructions.
+
+## PR 149 conflict resolution
+
+On 29 October, Codex acted as Formater to resolve [PR #149](https://github.com/iteam7/gateway7/pull/149) against `main` commit `22e9260fe41aa2a4b06f40288e200b549e9ea08e` after the user requested the conflict fix.
+The only overlapping file was this report: the resolution retains main's task #139 and PR #142 accounts and the complete OpenAI environment-file account for task #148.
+FR-011, its index entry and navigation are taken unchanged from main; the existing OpenAI setup, runtime, tests and configuration are preserved.
+Formater used an isolated snapshot and prepared a normal two-parent merge without rebasing or rewriting the published branch.
+Markdown passed for 81 files; the strict MkDocs build and generated-site check passed for 48 maintained pages and 4981 links and assets.
+The pull request records the new merge commit's CI results.
+No real credential file, paid API call, Customer verdict or human team assessment was created or inferred.
+
+### Team evaluation for PR 149 conflict resolution
+
+TODO: Team members must record what they accepted, changed or rejected after reviewing the conflict resolution.
