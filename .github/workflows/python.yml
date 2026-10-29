@@ -12,6 +12,8 @@ jobs:
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # All five product checks apply to the Python stack, so none is marked not applicable:
+    # formatting, linting, type checking, automated tests and build each have a named step.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
@@ -22,10 +24,10 @@ jobs:
         run: uv sync --locked
       - name: Check Python syntax
         run: uv run --locked python -m compileall -q gateway7 demo examples tests
-      - name: Check formatting and lint
-        run: |
-          uv run --locked ruff format --check gateway7
-          uv run --locked ruff check gateway7
+      - name: Check formatting
+        run: uv run --locked ruff format --check gateway7
+      - name: Lint the gateway
+        run: uv run --locked ruff check gateway7
       - name: Type-check the gateway
         run: uv run --locked mypy gateway7
       - name: Run tests

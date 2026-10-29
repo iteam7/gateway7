@@ -23,7 +23,7 @@ Merged tasks or a successful demonstration alone do not record that acceptance.
 - The pull request closes exactly one task issue and links it with a closing keyword.
 - The accountable reviewer ticks every task acceptance criterion before approving.
 - Approval comes from a team member other than the author.
-- The repository checks are green: Link check, Markdown check, Python checks and the documentation build.
+- The repository checks are green: Workflow check (`actionlint` over `.github/workflows/`), Link check, Markdown check, the documentation build, and Python checks with their formatting, linting, type checking, automated tests and build steps.
 - A user-visible change updates the `[Unreleased]` section of `CHANGELOG.md`.
 - The acceptance criteria the pull request claims pass on its branch and on `main` after it merges.
 - No secret, recording or private-only material is committed.
