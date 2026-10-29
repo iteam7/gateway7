@@ -2,7 +2,7 @@
 
 Build a small Python package, check its behavior with synthetic data, then install it in the gateway environment.
 The generated example replaces `PRIVATE-TEST` with `[removed]` in request history and in the answer.
-No provider account is needed for the offline tests.
+No provider account is needed for the offline tests or local HTTP walkthrough.
 
 ## Generate a project
 
@@ -135,29 +135,74 @@ The server now loads the installed package from any folder.
 The loader checks plugin API v2 when it loads the package.
 Package installation may download build requirements; only `plugin test` is an offline check.
 
-Follow [provider setup](setup.md#real-providers) to choose a real model and supply server credentials.
-Copy that configuration's `provider`, `auth` and `limits` sections into `company_mask/gateway.yaml`, keeping this plugin declaration:
+### Try the installed package without a provider account
 
-```yaml
-plugins:
-  sample:
-    module: gateway7_plugin_company_mask.plugin
-    required: true
-    settings:
-      term: PRIVATE-TEST
-      replacement: "[removed]"
-middleware: [sample]
-```
-
-Validate again, then start the gateway:
+Use three terminals with the same Gateway7 environment active, in the folder containing `company_mask`.
+Ports 18000 and 18001 must be free.
+Create a separate local config, keeping the generated plugin and original fixtures:
 
 ```sh
-gateway7 validate --config company_mask/gateway.yaml
-gateway7 serve --config company_mask/gateway.yaml
+python - <<'PY'
+from pathlib import Path
+import yaml
+
+source = Path("company_mask/gateway.yaml")
+config = yaml.safe_load(source.read_text())
+config["provider"].update(
+    base_url="http://127.0.0.1:18001", key_env="GATEWAY7_DEMO_KEY"
+)
+config["auth"] = {
+    "enabled": True,
+    "clients": {
+        "demo": {"token_env": "GATEWAY7_AUTHORING_TOKEN", "models": ["fake"]}
+    },
+}
+with source.with_name("gateway-local.yaml").open("x") as output:
+    yaml.safe_dump(config, output, sort_keys=False)
+PY
 ```
 
-The original generated YAML uses a fake provider for fixtures; `serve` does not start that upstream for you.
-Use the [API guide](api.md) for an authenticated client request after configuring a real provider.
+This refuses to overwrite an existing `gateway-local.yaml`; reuse that file when restarting.
+In the first terminal, start the packaged echo fixture on loopback:
+
+```sh
+GATEWAY7_DEMO_KEY=gateway7-synthetic-authoring-upstream \
+  python -m uvicorn gateway7.demo:app --host 127.0.0.1 --port 18001 --no-access-log
+```
+
+In the second terminal, validate and start the gateway with the installed plugin:
+
+```sh
+gateway7 validate --config company_mask/gateway-local.yaml
+GATEWAY7_DEMO_KEY=gateway7-synthetic-authoring-upstream \
+GATEWAY7_AUTHORING_TOKEN=gateway7-synthetic-authoring-client \
+  gateway7 serve --config company_mask/gateway-local.yaml --host 127.0.0.1 --port 18000
+```
+
+Wait for both servers to print `Uvicorn running on`, then send a request in the third terminal:
+
+```sh
+GATEWAY7_TOKEN=gateway7-synthetic-authoring-client \
+  gateway7 chat --url http://127.0.0.1:18000 --model fake --message 'PRIVATE-TEST'
+```
+
+Expect:
+
+```json
+{"text": "pong — [removed]", "usage": {"input_tokens": 12, "output_tokens": 4}}
+```
+
+The echo confirms that the installed middleware changed the request before the provider received it.
+The two-way offline fixture separately checks response filtering.
+These credentials and token counts are public synthetic values; neither process calls a real provider or records request text.
+After success or any error, stop both server terminals with Ctrl-C; the command-scoped credentials do not remain in the shell environment.
+
+### Use a real provider or update the plugin
+
+For a real model, copy the `provider`, `auth` and `limits` sections from [provider setup](setup.md#real-providers) into `company_mask/gateway.yaml`, keeping its `plugins` and `middleware` sections.
+Supply the server credentials, validate the file, then run `gateway7 serve --config company_mask/gateway.yaml`.
+Use the [API guide](api.md) for an authenticated client request.
+The original generated fake-provider YAML is for fixtures; `serve` does not start an upstream for you.
 
 After a code change, rerun the fixtures, reinstall the package, and restart the server:
 

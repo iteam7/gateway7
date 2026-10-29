@@ -334,6 +334,48 @@ The PNGs are temporary visual QA evidence, while the reproducible SVGs and their
 
 TODO: Team members must record what they accepted, changed or rejected after reviewing the explanation, diagrams and source evidence.
 
+## Middleware rehearsal and overhead measurement for task #130
+
+On 26 October 2026 (UTC), azamatbayramov asked Codex for one practical follow-up to the recorded Customer feedback in DEC-009, DEC-014 and DEC-015.
+Formater checked the current instructions and merged baseline, created [task #130](https://github.com/iteam7/gateway7/issues/130) with its native Task type, and prepared an isolated branch.
+No human roles, sprint assignment, estimates or acceptance were inferred.
+The TechLead split the work between the existing demonstration, an offline benchmark and the authoring walkthrough, then reviewed their integration.
+
+The existing HTTP demonstration now checks correlated failure traces rather than only printing them, including the failing middleware, direction, outcome and request identifier, safe fields and the expected zero or one provider calls.
+The guide distinguishes the runner's synthetic recorder from the interactive demo's private upstream, and connects generated middleware, passing and mismatching fixtures, normal installation and a local authenticated request.
+The generated README now uses `uv pip` because the documented environment does not require pip.
+The review also corrected the old acceptance-matrix statement that failure traces were not asserted, while preserving the separate unresolved Customer verdicts and exact-fixture gaps.
+
+The benchmark runs the actual pipeline with no-op middleware and an immediate in-memory provider, with bounded counts, samples and run time.
+The measured run used CPython 3.12.14 on Linux x86_64, six counts from zero through 32, and 200 measured samples plus 20 warmups per count: 1,320 verified synthetic provider calls in total.
+Its JSON and the guide's rounded table distinguish included validation, timers and metric observations from excluded loading, startup, HTTP, authentication, admission, log output, network and model inference.
+These timings are one local sequential measurement, not a supported plugin maximum, capacity result or production SLO.
+
+Targeted benchmark, demonstration and tooling tests, Ruff and mypy passed; Formater checked Markdown, strict MkDocs, generated-site links and preserved guide headings.
+A freshly built wheel installed outside the checkout passed generated-package fixtures, an intentional mismatch, normal plugin installation, validation, the exact authenticated HTTP walkthrough, restart, denied access and a small benchmark run.
+The smoke checked that its processes and loopback ports were closed afterward.
+One package-build retry used existing cached dependencies after a registry DNS failure; no dependency, workflow or source workaround was added.
+The pull request records final review and exact-head CI evidence.
+No paid provider, real credential, new meeting, Customer acceptance, production benchmark or operating-system sandbox was claimed; the gateway runtime contracts, dependency locks and historical decisions/reports were preserved.
+
+### Team evaluation for the middleware rehearsal
+
+TODO: Team members must record what they accepted, changed or rejected after reviewing the demonstration, measurements and authoring instructions.
+
+## Markdown follow-up for PR #131
+
+On 29 October, Codex acted as Formater after the user requested the two Markdown corrections identified in [PR #131](https://github.com/iteam7/gateway7/pull/131).
+The correction groups new capabilities under `Added`, combines the `Fixed` entries in `Unreleased`, and inserts the missing blank line before the task #139 account.
+Released changelog sections and all earlier AI usage accounts are preserved.
+The Markdown corrections do not change runtime behavior.
+When main advanced during the correction, a normal merge retained its new requirements, workflows and independent fault-tolerance tests alongside the existing diagnostics tests.
+The pull request records the exact-head CI results.
+No runtime behavior, paid API call, Customer verdict or human team assessment was created or inferred.
+
+### Team evaluation for the PR #131 Markdown follow-up
+
+TODO: Team members must record what they accepted, changed or rejected after reviewing these corrections.
+
 ## New stories and their requirements for task #139
 
 On 28 October, iceberkut asked Claude Code (Claude Opus 5.5) to carry out [task #139](https://github.com/iteam7/gateway7/issues/139).

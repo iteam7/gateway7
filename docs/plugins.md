@@ -6,19 +6,19 @@ One ordered list defines both directions: `A -> B -> provider -> B -> A`.
 [DEC-016](decisions.md#dec-016) records this API migration; restart-based installation remains [DEC-010](decisions.md#dec-010).
 
 Start with the [plugin generator and offline test runner](authoring.md) for an installable company package with synthetic fixtures.
-The two-file checkout example below remains available for the original course demonstration.
+The original two-file checkout example is checked by the demonstration below.
 
 ## Smallest installation
 
-From the repository root after [setup](setup.md):
+For a package you can deploy, follow [normal installation and the local HTTP walkthrough](authoring.md#install-normally-and-serve).
+To inspect the original two-file course example, run from the repository root after [setup](setup.md):
 
 ```sh
-mkdir -p company_plugins
-cp examples/sample_plugin.py company_plugins/sample.py
+uv run --locked python -m demo.run
 ```
 
-Python discovers `company_plugins` as a namespace package from the working directory.
-Keep the provider and limits in `config/demo.yaml`, and use these instances and middleware list:
+The runner copies `examples/sample_plugin.py` to `company_plugins/sample.py` in a disposable folder and makes that folder importable.
+It retains the synthetic provider and limits, and configures these instances:
 
 ```yaml
 plugins:
@@ -36,11 +36,11 @@ plugins:
 middleware: [mask, sample]
 ```
 
-Restart with the same config path, send a user message to `/chat`, and inspect the fake provider's `/requests` record.
-The forwarded user message and the returned answer both end with `[checked-by-sample]`.
-No core edit or package rebuild is needed.
-For [US-03](https://github.com/iteam7/gateway7/issues/32) / AC-01, inspect `git status --short --untracked-files=all`: only the new module and configuration should change.
-The [demo](demo.md) checks that two-file installation in a disposable directory.
+After restarting its gateway, the runner checks that the forwarded user message and returned answer both end with `[checked-by-sample]`.
+It verifies the [US-03](https://github.com/iteam7/gateway7/issues/32) / AC-01 two-file constraint inside that disposable folder; no core edit or package rebuild is needed.
+Your checkout is unchanged.
+This runner explicitly starts `demo.upstream`, a synthetic recorder with `/requests`; the interactive `gateway7 demo` uses a different private upstream with no recorder endpoint.
+The [demo guide](demo.md) explains the checks and their safe traces.
 
 ## Descriptor and hooks
 
