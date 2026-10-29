@@ -352,6 +352,18 @@ No paid provider, real credential, new meeting, Customer acceptance, production 
 
 TODO: Team members must record what they accepted, changed or rejected after reviewing the demonstration, measurements and authoring instructions.
 
+## Markdown follow-up for PR #131
+
+On 29 October, Codex acted as Formater after the user requested the two Markdown corrections identified in [PR #131](https://github.com/iteam7/gateway7/pull/131).
+The correction groups new capabilities under `Added`, combines the `Fixed` entries in `Unreleased`, and inserts the missing blank line before the task #139 account.
+Released changelog sections and all earlier AI usage accounts are preserved.
+The change is documentation only; its exact-head CI results are recorded in the pull request.
+No runtime behavior, paid API call, Customer verdict or human team assessment was created or inferred.
+
+### Team evaluation for the PR #131 Markdown follow-up
+
+TODO: Team members must record what they accepted, changed or rejected after reviewing these corrections.
+
 ## New stories and their requirements for task #139
 
 On 28 October, iceberkut asked Claude Code (Claude Opus 5.5) to carry out [task #139](https://github.com/iteam7/gateway7/issues/139).
@@ -480,15 +492,3 @@ No real credential file, paid API call, Customer verdict or human team assessmen
 ### Team evaluation for PR 149 conflict resolution
 
 TODO: Team members must record what they accepted, changed or rejected after reviewing the conflict resolution.
-
-## Markdown follow-up for PR #131
-
-On 29 October, Codex acted as Formater after the user requested the two Markdown corrections identified in [PR #131](https://github.com/iteam7/gateway7/pull/131).
-The correction groups new capabilities under `Added`, combines the `Fixed` entries in `Unreleased`, and inserts the missing blank line before the task #139 account.
-Released changelog sections and all earlier AI usage accounts are preserved.
-The change is documentation only; its exact-head CI results are recorded in the pull request.
-No runtime behavior, paid API call, Customer verdict or human team assessment was created or inferred.
-
-### Team evaluation for the PR #131 Markdown follow-up
-
-TODO: Team members must record what they accepted, changed or rejected after reviewing these corrections.
