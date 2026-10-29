@@ -1,6 +1,10 @@
 # Customer demonstration
 
-The demonstration shows one running Python service, async middleware plugins and a separate deterministic HTTP upstream.
+For a demonstration with an actual OpenAI account, use the [live provider recipe and rehearsal](setup.md#real-providers), including `gateway7 smoke` before the meeting.
+The deterministic walkthrough below remains a separate way to inspect exact transformations and failure traces without paid calls.
+Only a successful run against the selected real-provider deployment establishes that integration path; it does not itself record a Customer verdict.
+
+The deterministic demonstration shows one running Python service, async middleware plugins and a separate deterministic HTTP upstream.
 It includes three distinct middleware types, reverse response order and inspectable failure traces under [DEC-016](decisions.md#dec-016).
 It follows [DEC-009](decisions.md#dec-009) and [DEC-011](decisions.md#dec-011); the actual model call in US-01 / AC-05 remains pending.
 The [architecture customer view](architecture/README.md#customer-view) is the opening slide, and [setup](setup.md) contains the installation and manual curl commands.

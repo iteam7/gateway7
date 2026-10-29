@@ -359,3 +359,22 @@ The pull request records the exact-head CI results and the remaining human revie
 ### Team evaluation for the provider proxy transport
 
 TODO: Team members must record what they accepted, changed or rejected after reviewing the extension, trust boundary, tests and operator examples.
+
+## Live-provider preparation for task #145
+
+On 29 October, azamatbayramov asked Codex to implement the preparation work for a Customer demonstration with real OpenAI and configured middleware.
+Formater created [task #145](https://github.com/iteam7/gateway7/issues/145) through the Task form and prepared an isolated branch from `main` commit `26dab3122dbc2f4247533d0c57cdb0f83e5073cf`.
+Codex added the installed `gateway7 smoke` command, live Compose proxy-environment forwarding and maintained OpenAI launch, verification and demonstration instructions.
+The command checks liveness, local readiness and authentication before sending at most one bounded chat request; its report omits credentials, prompts, model output and arbitrary error bodies.
+TechLead rejected an automatic policy POST in this command because a changed server rule could turn it into another billable call; the guide keeps that check separate and explains the deterministic middleware evidence.
+The independent review required a whole-run deadline, bounded streamed responses, validated report metadata, no redirects or retries, and safe local validation failures.
+
+The integrated local suite passed 892 tests; three Docker Compose interpolation tests were skipped because no Docker CLI was available locally and remain part of the existing CI suite.
+Ruff formatting and lint checks passed, mypy passed for 27 source modules, and the separate-process synthetic demonstration passed.
+The documentation checks passed for the changed guides, the strict MkDocs build and 47 maintained pages with 4830 links and assets.
+The pull request records the installed-wheel and exact-head CI results.
+No paid provider request, university VM access, actual account verification, Customer acceptance or team assessment was performed or inferred.
+
+### Team evaluation for live-provider preparation
+
+TODO: Team members must record what they accepted, changed or rejected after reviewing the smoke command, live Compose configuration and operator instructions.
