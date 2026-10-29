@@ -17,6 +17,11 @@ desktop.ini
 *.pem
 *.key
 
+# Intentionally public certificates/key for the isolated proxy TLS tests
+!tests/fixtures/proxy/synthetic-ca.pem
+!tests/fixtures/proxy/synthetic-server.pem
+!tests/fixtures/proxy/synthetic-server-key.pem
+
 # Build output
 build/
 dist/

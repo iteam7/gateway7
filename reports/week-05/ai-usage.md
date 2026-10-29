@@ -323,3 +323,39 @@ The PNGs are temporary visual QA evidence, while the reproducible SVGs and their
 ### Team evaluation for the architecture explanation
 
 TODO: Team members must record what they accepted, changed or rejected after reviewing the explanation, diagrams and source evidence.
+
+## Provider proxy transport for task #143
+
+On 29 October, azamatbayramov asked Codex to add provider access through a proxy in a way that fits Gateway7's plugin concept.
+Formater read the current agent instructions, the authoritative Assignment 5 revision `0173b82dfb82e515457a1074970c116760490c79`, the applicable task and ADR rules, and the current provider trust boundary.
+It checked the open work, created [task #143](https://github.com/iteam7/gateway7/issues/143) from the Task form, and prepared an isolated branch from `main` commit `36a204c61bb10feef89e68fbe1ae8135aa0836de`.
+The issue is an unscheduled Task in the project; no human reviewer, role, estimate or acceptance was inferred.
+
+TechLead defined a startup transport extension separately from content middleware.
+The proposed descriptor/factory returns an HTTPX asynchronous transport; a request does not mutate a shared client's proxy settings.
+The review criteria preserve direct connections by default, official provider origins, TLS verification, gateway-owned time and size bounds, cancellation cleanup and safe errors.
+Configuration validation must inspect the descriptor and settings without constructing its transport or reading proxy credentials.
+The new decision record remains Proposed until the team agrees it; the existing accepted decisions and earlier reports are preserved.
+
+The transport review reproduced an active CONNECT tunnel remaining open after cancellation in the pinned HTTPX/httpcore implementation.
+TechLead selected a public-API fix: keep the outer extension and shared client owned by startup, but close the built-in proxy's request-owned inner transport when its response ends, fails or is cancelled.
+Proxy mode therefore does not reuse connections; direct mode keeps its existing connection behavior.
+Further review covered cancellation before CONNECT as well as after it; the wrapper tracks raw connection ownership through public trace events and preserves the original cancellation if closing a resource fails.
+The publication check found that the existing `*.pem` ignore rule hid the three intentionally public TLS test fixtures.
+Formater added exceptions for those exact files after TechLead confirmed their synthetic origin; the general secret-file exclusions remain in place, and no real key or CA private key was added.
+
+The independent full suite passed 846 tests; Ruff formatting and lint checks passed for the gateway and the three added test files, and mypy passed for 26 source files.
+The 17 real-socket proxy tests passed separately after the cleanup fix.
+The separate-process demonstration also passed, while its live-provider acceptance criterion remains pending.
+They use local CONNECT servers and synthetic TLS fixtures to check all three real-provider adapters, HTTPS proxy connections, authentication separation, timeouts, cancellation and response cleanup without paid provider requests.
+The checks do not claim successful access through a production proxy, a live model response or Windows verification.
+The final wheel was installed outside the checkout without `PYTHONPATH`.
+Its smoke checked the built-in API import, validation with an absent or deliberately invalid proxy environment value, sanitized startup/configuration failures, and ordinary installation and isolated import of the guide's custom transport package.
+The guarded offline runner passed the valid fixtures and returned the expected mismatch and invalid-shape exit codes without importing the selected provider transport or inheriting its proxy secret.
+Only the custom example package build used the existing offline dependency cache; no dependency or workflow file changed.
+Markdown, the strict MkDocs build and the generated-site check passed; the site check covered 47 maintained pages and 4816 links and assets, including local anchors and report exclusion.
+The pull request records the exact-head CI results and the remaining human review of the Proposed decision and task criteria.
+
+### Team evaluation for the provider proxy transport
+
+TODO: Team members must record what they accepted, changed or rejected after reviewing the extension, trust boundary, tests and operator examples.

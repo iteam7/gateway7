@@ -32,7 +32,8 @@ The list of model identifiers on the configured provider that one client may req
 
 ### Middleware
 
-A trusted, company-authored Python module that can change or deny a chat request before it reaches the provider and the response on its way back; "plugin" names the same thing.
+A trusted, company-authored Python module that can change or deny a chat request before it reaches the provider and the response on its way back.
+In the middleware configuration and guide, "plugin" means this middleware, using the `PLUGIN` descriptor and API version 2.
 
 **Defined by:** [DEC-016](decisions.md#dec-016) and [the plugin guide](plugins.md#descriptor-and-hooks).
 
@@ -53,6 +54,14 @@ The result a middleware returns to stop a request or response, which the client 
 The time one middleware instance may spend on its own request and response work, excluding the time it waits for the next handler, set by `limits.hook_timeout_seconds`.
 
 **Defined by:** [the plugin guide](plugins.md#deadlines-and-diagnosis).
+
+### Provider Transport
+
+A trusted networking extension that supplies the provider adapter's outbound HTTP transport.
+Its `TRANSPORT` descriptor uses API version 1 and creates one transport at startup; it is separate from the middleware chain and has no `call_next`.
+The built-in proxy transport is one such extension.
+
+**Defined by:** [the transport guide](provider-transports.md) and [ADR-004](architecture/adr/ADR-004.md).
 
 ## Demonstration
 
