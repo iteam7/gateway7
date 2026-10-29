@@ -54,6 +54,10 @@ Before relying on each check it broke the code on purpose: the forwarding change
 It ran the QR-01 script only on Linux and could not reach the staging VM, so it claims no Windows or staging result.
 TODO: The team records what it accepted, changed or rejected after reviewing the task #136 tests.
 
+For [task #137](https://github.com/iteam7/gateway7/issues/137) on 29 October 2026, Claude Code drafted `docs/features.md` and the testing plan in `docs/project-plan.md` at DeniBorsh's request.
+It took each feature only from a story that has a functional requirement, so US-13 waits for its requirement, and it left every testing-plan row `Not verified` because no check of the new tests had run on `main` yet.
+TODO: The team records what it accepted, changed or rejected after reviewing the task #137 features and testing plan.
+
 ## Handling and checks
 
 The adapters are checked with synthetic HTTP transports against the documented provider protocols.

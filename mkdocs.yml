@@ -21,6 +21,7 @@ nav:
       - Connect through a proxy: provider-transports.md
       - Deploy to the university VM: deployment.md
   - Use the gateway:
+      - Features: features.md
       - Connect your application: api.md
       - Control client access: authentication.md
       - Apply policies: middleware-catalog.md
