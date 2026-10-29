@@ -13,4 +13,4 @@ Each file under [`qr/`](qr/QR-01.md) carries the requirement's outcome, its ISO/
 The course rule's examples for the mandated testability requirement name a frontend entry point and a payment module.
 Gateway7 is a server-side gateway with neither, so [QR-02](qr/QR-02.md) names the gateway's own critical modules by repository path instead.
 
-The tests for these requirements and their testing plan are Assignment 5 work; the plan will be linked here once it exists.
+The tests and their results are in [the testing plan](../project-plan.md#quality-requirement-testing-plan).
