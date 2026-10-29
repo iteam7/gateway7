@@ -462,3 +462,13 @@ No real credential file, paid API call, Customer verdict or human team assessmen
 ### Team evaluation for PR 149 conflict resolution
 
 TODO: Team members must record what they accepted, changed or rejected after reviewing the conflict resolution.
+
+## Workflow check and Definition of Done for task #135
+
+On 29 October, ExFuseMe asked Claude Code to implement [task #135](https://github.com/iteam7/gateway7/issues/135).
+Claude Code added `.github/workflows/actionlint.yml`, which runs actionlint 1.7.12 through `raven-actions/actionlint` v2.2.0 pinned to its commit SHA over `.github/workflows/` on pull requests and pushes to `main`.
+It split the combined formatting and lint step in `.github/workflows/python.yml` into two named steps and recorded beside the job that all five product checks apply.
+It named the Workflow check and the five product checks in the Pull Request list of `docs/definition-of-done.md`, and added actionlint to the Checks table in `AGENTS.md`.
+Formater checked the change against AGENTS.md and task #135's acceptance criteria, and TechLead reviewed the workflow change.
+
+TODO: Team members must record what they accepted, changed or rejected after reviewing the workflow check and the Definition of Done change.
