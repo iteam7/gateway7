@@ -114,11 +114,23 @@ Provisional goal: the final gateway release demonstrates the agreed core task, w
 
 #### REL-09
 
+## Quality Requirement Testing Plan
+
+Each row is one quality requirement test and what it found at its last check; the test itself is defined in its requirement's file.
+
+| QR | QRT | Status | Checked | Planned for sprint | Evidence |
+| --- | --- | --- | --- | --- | --- |
+| [QR-01](quality-requirements/qr/QR-01.md) | [QR-01 QRT-01](quality-requirements/qr/QR-01.md#qrt-01) | Not verified | None | [SPRINT-05](#sprint-05) | None |
+| [QR-02](quality-requirements/qr/QR-02.md) | [QR-02 QRT-01](quality-requirements/qr/QR-02.md#qrt-01) | Not verified | None | [SPRINT-05](#sprint-05) | None |
+| [QR-03](quality-requirements/qr/QR-03.md) | [QR-03 QRT-01](quality-requirements/qr/QR-03.md#qrt-01) | Not verified | None | [SPRINT-05](#sprint-05) | None |
+| [QR-03](quality-requirements/qr/QR-03.md) | [QR-03 QRT-02](quality-requirements/qr/QR-03.md#qrt-02) | Not verified | None | [SPRINT-05](#sprint-05) | None |
+
 ## Progress Monitoring
 
 - **Review:** proposed team review every Thursday at 18:00 Europe/Moscow, before Saturday's 23:59 deadline and separate from the Customer meeting; the team still needs to confirm this cadence.
 - **Checked by:** each scheduled issue's Responsible member presents implementation evidence, its distinct Accountable member checks the acceptance criteria, and the whole team compares the sprint goal with completed work and unresolved gates.
 - **Review inputs:** read the [threshold of success](threshold-of-success.md) and [risk register](risks.md), review each trigger and response, and record outcomes in the artifact they change; a threshold change or candidate removal requires the Customer's recorded decision.
+- **Testing plan:** read every row of the [Quality Requirement Testing Plan](#quality-requirement-testing-plan) that is not `Passes`, and keep its result and planned sprint until a new check is recorded.
 - **Visible at:** the [Sprints table view](https://github.com/orgs/iteam7/projects/1/views/3) and [GitHub sprint milestones](https://github.com/iteam7/gateway7/milestones), with the table's reported configuration described in [CONTRIBUTING.md](https://github.com/iteam7/gateway7/blob/main/CONTRIBUTING.md#project-views-and-scheduling).
 - **Refinement:** the two existing candidates for the SPRINT-06/07 horizon are in the [unscheduled product backlog](https://github.com/iteam7/gateway7/issues?q=is%3Aissue+is%3Aopen+no%3Amilestone), with their remaining scope, runnable acceptance criteria, dependencies and native `Story Points` confirmed by azamatbayramov on 25 October under [task #95](https://github.com/iteam7/gateway7/issues/95).
   Neither exceeds `13` points, so this pass needs no split; selection and capacity are assessed at actual sprint planning, not inferred from the two estimates.

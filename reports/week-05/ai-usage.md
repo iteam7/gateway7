@@ -48,6 +48,16 @@ On 25 October, for [task #96](https://github.com/iteam7/gateway7/issues/96), Cla
 It mapped each acceptance criterion to the existing demo runner, tests and smoke scripts by name, and marked criteria without an exact check as needing a dry-run instead of treating related tests as evidence.
 It did not run the demonstration; the Accountable reviewer's dry-run, the meeting date and the role assignments remain with the team.
 
+On 29 October 2026, for [task #136](https://github.com/iteam7/gateway7/issues/136), Claude Code (Claude Opus 5.5) wrote the quality requirement tests for QR-01, QR-02 and QR-03 at DeniBorsh's request.
+It added the QR-02 check that copies the checkout, makes `gateway7/pipeline.py` forward a request after a middleware raises or denies, and requires the suite and the demonstration to fail on that copy, and the QR-03 process-level search of logs, metrics and error bodies for synthetic credentials and messages.
+Before relying on each check it broke the code on purpose: the forwarding change failed the suite, the demonstration and the QR-01 failure script, and a temporary log line with the message text failed the QR-03 test.
+It ran the QR-01 script only on Linux and could not reach the staging VM, so it claims no Windows or staging result.
+TODO: The team records what it accepted, changed or rejected after reviewing the task #136 tests.
+
+For [task #137](https://github.com/iteam7/gateway7/issues/137) on 29 October 2026, Claude Code drafted `docs/features.md` and the testing plan in `docs/project-plan.md` at DeniBorsh's request.
+It took each feature only from a story that has a functional requirement, so US-13 waits for its requirement, and it left every testing-plan row `Not verified` because no check of the new tests had run on `main` yet.
+TODO: The team records what it accepted, changed or rejected after reviewing the task #137 features and testing plan.
+
 ## Handling and checks
 
 The adapters are checked with synthetic HTTP transports against the documented provider protocols.
@@ -357,7 +367,9 @@ TODO: Team members must record what they accepted, changed or rejected after rev
 On 29 October, Codex acted as Formater after the user requested the two Markdown corrections identified in [PR #131](https://github.com/iteam7/gateway7/pull/131).
 The correction groups new capabilities under `Added`, combines the `Fixed` entries in `Unreleased`, and inserts the missing blank line before the task #139 account.
 Released changelog sections and all earlier AI usage accounts are preserved.
-The change is documentation only; its exact-head CI results are recorded in the pull request.
+The Markdown corrections do not change runtime behavior.
+When main advanced during the correction, a normal merge retained its new requirements, workflows and independent fault-tolerance tests alongside the existing diagnostics tests.
+The pull request records the exact-head CI results.
 No runtime behavior, paid API call, Customer verdict or human team assessment was created or inferred.
 
 ### Team evaluation for the PR #131 Markdown follow-up
@@ -418,6 +430,16 @@ The pull request records the exact-head CI results and the remaining human revie
 ### Team evaluation for the provider proxy transport
 
 TODO: Team members must record what they accepted, changed or rejected after reviewing the extension, trust boundary, tests and operator examples.
+
+## University VM deployment for task #134
+
+On 29 October, ExFuseMe asked Claude Code to deploy a candidate commit to staging and production on the university VM and document the result for [task #134](https://github.com/iteam7/gateway7/issues/134).
+Claude Code installed Docker Engine, the Compose v2 plugin and git on the VM, then checked out commit `26dab3122dbc2f4247533d0c57cdb0f83e5073cf` into two separate VM-local directories for staging and production, giving staging distinct published host ports so both stacks run on the VM at once.
+It brought up each stack with its own `docker compose` project name, then confirmed `/health` and a synthetic-provider chat completion on each.
+It wrote `docs/deployment.md` describing the environments, campus-network access, configuration and secrets handling, the manual deployment steps, verification and rollback, linked from `docs/README.md` and `mkdocs.yml`, without recording the VM's real address or credentials in any committed file.
+Formater checked the change against AGENTS.md and task #134's acceptance criteria.
+
+TODO: Team members must record what they accepted, changed or rejected after reviewing the deployment runbook and its verification evidence.
 
 ## Live-provider preparation for task #145
 
@@ -492,3 +514,13 @@ No real credential file, paid API call, Customer verdict or human team assessmen
 ### Team evaluation for PR 149 conflict resolution
 
 TODO: Team members must record what they accepted, changed or rejected after reviewing the conflict resolution.
+
+## Workflow check and Definition of Done for task #135
+
+On 29 October, ExFuseMe asked Claude Code to implement [task #135](https://github.com/iteam7/gateway7/issues/135).
+Claude Code added `.github/workflows/actionlint.yml`, which runs actionlint 1.7.12 through `raven-actions/actionlint` v2.2.0 pinned to its commit SHA over `.github/workflows/` on pull requests and pushes to `main`.
+It split the combined formatting and lint step in `.github/workflows/python.yml` into two named steps and recorded beside the job that all five product checks apply.
+It named the Workflow check and the five product checks in the Pull Request list of `docs/definition-of-done.md`, and added actionlint to the Checks table in `AGENTS.md`.
+Formater checked the change against AGENTS.md and task #135's acceptance criteria, and TechLead reviewed the workflow change.
+
+TODO: Team members must record what they accepted, changed or rejected after reviewing the workflow check and the Definition of Done change.

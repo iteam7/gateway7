@@ -14,7 +14,7 @@ If a rule is not in the course repository, say so.
 - `tests/` holds the pytest suite as `tests/test_<area>.py`; add a test to the file of the area it checks.
 - `demo/` is the synthetic provider and the scripted demonstration, `examples/` holds the sample plugins the plugin guide uses, and `config/` holds the YAML configuration for each provider and the demo.
 - `monitoring/` holds the Prometheus configuration and Grafana provisioning used by `compose.yaml`.
-- `scripts/` holds the smoke scripts the Python workflow runs.
+- `scripts/` holds the smoke scripts the Python workflow runs and the staging confidentiality check `scripts/check_confidentiality.py`.
 - `docs/` holds the maintained documentation published as the site: guides, product vision, plan, risks, decisions, architecture in `docs/architecture/`, research in `docs/research/`, and the glossary in `docs/glossary.md`.
   A new page is also added to `nav` in `mkdocs.yml` and to the list in `docs/README.md`.
 - `docs-build/` holds the site hooks, the generated-site check and the locked Mermaid asset.
@@ -29,6 +29,7 @@ Run the checks your change touches before you push; CI runs them again on pull r
 | Check | Local command | CI workflow |
 | --- | --- | --- |
 | Python format, lint, types, tests, demo, wheel | `uv run --locked ruff format --check gateway7`, `uv run --locked ruff check gateway7`, `uv run --locked mypy gateway7`, `uv run --locked pytest -q`, `uv run --locked python -m demo.run`, `uv build --wheel` | `.github/workflows/python.yml`, which also builds and checks the Compose stack |
+| Workflows | `actionlint` from the repository root | `.github/workflows/actionlint.yml` |
 | Markdown | `npx markdownlint-cli2 "**/*.md"` | `.github/workflows/markdown.yml` |
 | Links | `lychee --no-progress --max-concurrency 2 --accept 200,206,429,503 './**/*.md'` (needs the network) | `.github/workflows/lychee.yml` |
 | Documentation site | `mkdocs build --strict` and `python docs-build/check_site.py` in the docs environment from `CONTRIBUTING.md` | `.github/workflows/docs.yml` |

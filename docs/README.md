@@ -100,10 +100,10 @@ The [demonstration guide](demo.md) keeps the longer walkthrough and acceptance e
 
 ## Project documentation
 
-- **Product:** [vision](product-vision.md), [threshold of success](threshold-of-success.md), [threshold review proposal](threshold-review.md), [plan](project-plan.md), [risks](risks.md), [glossary](glossary.md).
+- **Product:** [features](features.md), [vision](product-vision.md), [threshold of success](threshold-of-success.md), [threshold review proposal](threshold-review.md), [plan](project-plan.md), [risks](risks.md), [glossary](glossary.md).
 - **Requirements:** [functional requirements](functional-requirements/README.md), [quality requirements and priority matrix](quality-requirements/README.md).
 - **Architecture decisions:** [ADR-001](architecture/adr/ADR-001.md), [ADR-002](architecture/adr/ADR-002.md), [ADR-003](architecture/adr/ADR-003.md), [ADR-004](architecture/adr/ADR-004.md), [ADR template](architecture/adr/TEMPLATE.md), [container source](architecture/container.py), [context source](architecture/context.mmd).
-- **Project records:** [decisions](decisions.md), [assumptions](assumptions.md), [Definition of Done](definition-of-done.md).
+- **Project records:** [decisions](decisions.md), [assumptions](assumptions.md), [Definition of Done](definition-of-done.md), [deployment](deployment.md).
 - **Research:** [alternatives](research/alternatives.md), [comparison](research/comparison.md), [gap analysis](research/gap-analysis.md), [value proposition](research/value-proposition.md).
 
 [Source repository](https://github.com/iteam7/gateway7) · [User stories](https://github.com/iteam7/gateway7/issues?q=type%3A%22User+Story%22)
