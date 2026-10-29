@@ -378,3 +378,24 @@ No paid provider request, university VM access, actual account verification, Cus
 ### Team evaluation for live-provider preparation
 
 TODO: Team members must record what they accepted, changed or rejected after reviewing the smoke command, live Compose configuration and operator instructions.
+
+## OpenAI environment-file setup for task #148
+
+On 29 October, azamatbayramov asked Codex to make the basic OpenAI setup simple with a local `.env` file.
+Formater read the current course rules, created [task #148](https://github.com/iteam7/gateway7/issues/148) through the Task form, and prepared an isolated branch from `main` commit `eb94ce4f70c89827419fa758dec62bf332eb065c`.
+TechLead chose Docker Compose's existing environment-file support instead of adding a runtime dotenv parser or a dependency.
+The example selects the live Compose files and OpenAI; the operator fills only the provider key and a separate gateway client token, then starts the stack with plain `docker compose up`.
+The guides keep synthetic demonstrations explicit with `-f compose.yaml`, explain shell precedence and existing-file migration, and reuse the installed smoke inside the container without exporting secrets to a client shell.
+
+TechLead reviewed the example, maintained guides and eleven semantic Compose test cases, including automatic dotenv selection, literal quoted values, process-variable precedence, unfilled credentials and explicit synthetic mode.
+The changed test file passed Ruff, and 36 maintained shell blocks passed Bash syntax checks.
+The eleven Compose cases were skipped locally because Docker was unavailable; the existing CI runs them with synthetic temporary files and no provider calls.
+Formater verified Git exclusions for root and nested `.env` variants and inspected the Docker context allowlist and secret-file exclusions.
+Two isolated server-start checks rejected a missing OpenAI key and a missing gateway token with safe variable-name diagnostics and no credential-value disclosure.
+Markdown passed for 80 files, the strict MkDocs build passed, and the generated-site check passed for 47 maintained pages with 4838 links and assets.
+The pull request records the final documentation checks and exact-head CI results.
+No real credential file, paid API request, VM verification, Customer verdict or human team assessment was created or inferred.
+
+### Team evaluation for OpenAI environment-file setup
+
+TODO: Team members must record what they accepted, changed or rejected after reviewing the template, Compose behavior, tests and operator instructions.

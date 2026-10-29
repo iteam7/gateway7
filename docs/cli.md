@@ -81,6 +81,14 @@ Ctrl-C while reading input or waiting for an answer returns exit 130.
 
 ## Check a running gateway
 
+With the [OpenAI `.env` Compose stack](setup.md#openai-with-a-env-file), check from inside the running container:
+
+```sh
+docker compose exec -T gateway gateway7 smoke --token-env GATEWAY7_CLIENT_TOKEN
+```
+
+This uses the gateway client token already passed to the container, so no local Python installation or second token variable is needed.
+
 After [starting a real-provider server](setup.md#real-providers) and setting `GATEWAY7_TOKEN` in the client environment:
 
 ```sh
