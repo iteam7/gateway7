@@ -11,12 +11,35 @@ Use OpenAI, Claude or Gemini through one configured provider per instance.
 
 ## Start with Docker Compose
 
-With Git, curl and Docker Compose v2 installed:
+With Git and Docker Compose v2 installed, copy the OpenAI environment template:
 
 ```sh
 git clone https://github.com/iteam7/gateway7.git
 cd gateway7
+cp -n .env.example .env
+chmod 600 .env
+```
+
+In `.env`, fill in `OPENAI_API_KEY` and a different random `GATEWAY7_CLIENT_TOKEN` of 16–512 visible ASCII characters, without spaces.
+The template already selects OpenAI and the reference middleware; no exports or YAML edits are needed.
+
+```sh
 docker compose up --build --detach --wait
+docker compose exec -T gateway gateway7 smoke --token-env GATEWAY7_CLIENT_TOKEN
+```
+
+The smoke makes at most one short, potentially billable model request and reports status and token usage without printing the answer or secrets.
+The sample uses `gpt-4.1-mini`; your OpenAI account must have access to it.
+Open `http://127.0.0.1:3000/d/gateway7-overview` for Grafana, then stop with `docker compose down`.
+The [setup guide](docs/setup.md#real-providers) covers environment precedence, other providers and proxies.
+Keep `.env` private; it is ignored by Git and excluded from the image build.
+
+## Try without a provider account
+
+From the checkout, start the synthetic demo explicitly:
+
+```sh
+docker compose -f compose.yaml up --build --detach --wait
 curl --fail-with-body http://127.0.0.1:8000/chat \
   -H 'Authorization: Bearer gateway7-synthetic-client-token' \
   -H 'Content-Type: application/json' \
@@ -25,7 +48,8 @@ curl --fail-with-body http://127.0.0.1:8000/chat \
 
 The answer contains `[EMAIL]` and `[removed]`.
 This local demo uses a synthetic provider and a public demo token; no provider account or API key is needed.
-Open `http://127.0.0.1:3000/d/gateway7-overview` for Grafana, then stop with `docker compose down`.
+The explicit `-f compose.yaml` selects the demo even if `.env` selects OpenAI.
+Stop it with `docker compose -f compose.yaml down`.
 The [quickstart](docs/quickstart.md) explains the result, ports and cleanup.
 
 ## Run without Docker

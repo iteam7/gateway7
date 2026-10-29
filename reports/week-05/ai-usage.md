@@ -351,3 +351,131 @@ No paid provider, real credential, new meeting, Customer acceptance, production 
 ### Team evaluation for the middleware rehearsal
 
 TODO: Team members must record what they accepted, changed or rejected after reviewing the demonstration, measurements and authoring instructions.
+## New stories and their requirements for task #139
+
+On 28 October, iceberkut asked Claude Code (Claude Opus 5.5) to carry out [task #139](https://github.com/iteam7/gateway7/issues/139).
+Formater ran PRE and POST and kept the work in a separate worktree, so the uncommitted changes in the main checkout stayed untouched.
+
+- Claude Code drafted two candidate stories from gaps it found on `main`, and created them at the user's request with `gh issue create` and the native `User Story` type: [US-12](https://github.com/iteam7/gateway7/issues/140) answers DEC-014's request to identify a failing or hanging plugin, and [US-13](https://github.com/iteam7/gateway7/issues/141) covers the usage analytics named by the SPRINT-06 milestone, which no story covered.
+- It then wrote FR-011 to specify US-12.
+  Reading `gateway7/pipeline.py` showed that the gateway already logs each middleware instance's outcome, phase and duration per request, so FR-011 records existing behavior and US-12's remaining work is verification and demonstration.
+  The AI TechLead corrected AC-03 (the request phase logs `continue`, not `complete`) and added the outer instance's own failure entry; it could not run the tests in the worktree, so the criteria were checked by reading the code.
+- A draft FR-012 for US-13 was withdrawn after the AI TechLead review: an unauthenticated `GET /usage` falls outside the operational boundary in ADR-003 and needs its own ADR, and counting since process start narrows the story's "over a period".
+  Both are left for the team before US-13 gets a specification.
+
+The AI set no `MoSCoW`, `Story Points`, milestone, Responsible, Accountable or assignee value and ticked no criterion: these are team decisions, and no team or Customer decision on them has been recorded.
+The `Specified by` links in #140 and #141 are added after this change merges.
+
+### Team evaluation for the new stories
+
+TODO: Team members must record what they accepted, changed or rejected in US-12, US-13 and FR-011, and confirm their priorities and estimates.
+
+## Provider proxy transport for task #143
+
+On 29 October, azamatbayramov asked Codex to add provider access through a proxy in a way that fits Gateway7's plugin concept.
+Formater read the current agent instructions, the authoritative Assignment 5 revision `0173b82dfb82e515457a1074970c116760490c79`, the applicable task and ADR rules, and the current provider trust boundary.
+It checked the open work, created [task #143](https://github.com/iteam7/gateway7/issues/143) from the Task form, and prepared an isolated branch from `main` commit `36a204c61bb10feef89e68fbe1ae8135aa0836de`.
+The issue is an unscheduled Task in the project; no human reviewer, role, estimate or acceptance was inferred.
+
+TechLead defined a startup transport extension separately from content middleware.
+The proposed descriptor/factory returns an HTTPX asynchronous transport; a request does not mutate a shared client's proxy settings.
+The review criteria preserve direct connections by default, official provider origins, TLS verification, gateway-owned time and size bounds, cancellation cleanup and safe errors.
+Configuration validation must inspect the descriptor and settings without constructing its transport or reading proxy credentials.
+The new decision record remains Proposed until the team agrees it; the existing accepted decisions and earlier reports are preserved.
+
+The transport review reproduced an active CONNECT tunnel remaining open after cancellation in the pinned HTTPX/httpcore implementation.
+TechLead selected a public-API fix: keep the outer extension and shared client owned by startup, but close the built-in proxy's request-owned inner transport when its response ends, fails or is cancelled.
+Proxy mode therefore does not reuse connections; direct mode keeps its existing connection behavior.
+Further review covered cancellation before CONNECT as well as after it; the wrapper tracks raw connection ownership through public trace events and preserves the original cancellation if closing a resource fails.
+The publication check found that the existing `*.pem` ignore rule hid the three intentionally public TLS test fixtures.
+Formater added exceptions for those exact files after TechLead confirmed their synthetic origin; the general secret-file exclusions remain in place, and no real key or CA private key was added.
+
+The independent full suite passed 846 tests; Ruff formatting and lint checks passed for the gateway and the three added test files, and mypy passed for 26 source files.
+The 17 real-socket proxy tests passed separately after the cleanup fix.
+The separate-process demonstration also passed, while its live-provider acceptance criterion remains pending.
+They use local CONNECT servers and synthetic TLS fixtures to check all three real-provider adapters, HTTPS proxy connections, authentication separation, timeouts, cancellation and response cleanup without paid provider requests.
+The checks do not claim successful access through a production proxy, a live model response or Windows verification.
+The final wheel was installed outside the checkout without `PYTHONPATH`.
+Its smoke checked the built-in API import, validation with an absent or deliberately invalid proxy environment value, sanitized startup/configuration failures, and ordinary installation and isolated import of the guide's custom transport package.
+The guarded offline runner passed the valid fixtures and returned the expected mismatch and invalid-shape exit codes without importing the selected provider transport or inheriting its proxy secret.
+Only the custom example package build used the existing offline dependency cache; no dependency or workflow file changed.
+Markdown, the strict MkDocs build and the generated-site check passed; the site check covered 47 maintained pages and 4816 links and assets, including local anchors and report exclusion.
+The pull request records the exact-head CI results and the remaining human review of the Proposed decision and task criteria.
+
+### Team evaluation for the provider proxy transport
+
+TODO: Team members must record what they accepted, changed or rejected after reviewing the extension, trust boundary, tests and operator examples.
+
+## Live-provider preparation for task #145
+
+On 29 October, azamatbayramov asked Codex to implement the preparation work for a Customer demonstration with real OpenAI and configured middleware.
+Formater created [task #145](https://github.com/iteam7/gateway7/issues/145) through the Task form and prepared an isolated branch from `main` commit `26dab3122dbc2f4247533d0c57cdb0f83e5073cf`.
+Codex added the installed `gateway7 smoke` command, live Compose proxy-environment forwarding and maintained OpenAI launch, verification and demonstration instructions.
+The command checks liveness, local readiness and authentication before sending at most one bounded chat request; its report omits credentials, prompts, model output and arbitrary error bodies.
+TechLead rejected an automatic policy POST in this command because a changed server rule could turn it into another billable call; the guide keeps that check separate and explains the deterministic middleware evidence.
+The independent review required a whole-run deadline, bounded streamed responses, validated report metadata, no redirects or retries, and safe local validation failures.
+
+The integrated local suite passed 892 tests; three Docker Compose interpolation tests were skipped because no Docker CLI was available locally and remain part of the existing CI suite.
+Ruff formatting and lint checks passed, mypy passed for 27 source modules, and the separate-process synthetic demonstration passed.
+The documentation checks passed for the changed guides, the strict MkDocs build and 47 maintained pages with 4830 links and assets.
+The pull request records the installed-wheel and exact-head CI results.
+No paid provider request, university VM access, actual account verification, Customer acceptance or team assessment was performed or inferred.
+
+### Team evaluation for live-provider preparation
+
+TODO: Team members must record what they accepted, changed or rejected after reviewing the smoke command, live Compose configuration and operator instructions.
+
+## PR 142 conflict resolution
+
+On 29 October 2026, Codex acted as Formater to merge freshly fetched `origin/main` commit `eb94ce4` into `139-add-week5-stories` for [PR #142](https://github.com/iteam7/gateway7/pull/142), under the user's explicit authorization to resolve conflicts, commit and push.
+No executing-subagent tool was available, so Codex performed PRE, execution and POST separately using the fallback in AGENTS.md.
+The only content conflict was in this report; Codex retained the task #139 account and both incoming accounts for tasks #143 and #145.
+Main contained FR-001 through FR-010, so FR-011, its criteria, index and navigation retained their identifiers and wording.
+The merge preserves main's provider and live-demo work without changing product decisions or adding runtime changes.
+The dirty root checkout was left untouched; no rebase, force push, new pull request or pull-request merge was performed.
+
+Markdown lint passed all 81 files, and the strict MkDocs build passed.
+The generated-site check passed in Python UTF-8 mode on Windows: 48 maintained pages and 4973 links/assets, including local anchors and report exclusion.
+The staged whitespace check, tracked Markdown conflict scan, changed-page local targets and exact preservation of main's runtime, tests, workflows, architecture and decisions passed.
+Lychee was unavailable, so a full external-link check was not run; no CI polling or runtime test result is claimed for this documentation conflict resolution.
+
+### Team evaluation for PR 142 conflict resolution
+
+TODO: Team members must record what they accepted, changed or rejected after reviewing the conflict resolution.
+
+## OpenAI environment-file setup for task #148
+
+On 29 October, azamatbayramov asked Codex to make the basic OpenAI setup simple with a local `.env` file.
+Formater read the current course rules, created [task #148](https://github.com/iteam7/gateway7/issues/148) through the Task form, and prepared an isolated branch from `main` commit `eb94ce4f70c89827419fa758dec62bf332eb065c`.
+TechLead chose Docker Compose's existing environment-file support instead of adding a runtime dotenv parser or a dependency.
+The example selects the live Compose files and OpenAI; the operator fills only the provider key and a separate gateway client token, then starts the stack with plain `docker compose up`.
+The guides keep synthetic demonstrations explicit with `-f compose.yaml`, explain shell precedence and existing-file migration, and reuse the installed smoke inside the container without exporting secrets to a client shell.
+
+TechLead reviewed the example, maintained guides and eleven semantic Compose test cases, including automatic dotenv selection, literal quoted values, process-variable precedence, unfilled credentials and explicit synthetic mode.
+The changed test file passed Ruff, and 36 maintained shell blocks passed Bash syntax checks.
+The eleven Compose cases were skipped locally because Docker was unavailable; the existing CI runs them with synthetic temporary files and no provider calls.
+CI exposed an incorrect test assumption about dollar signs: Compose's rendered config escapes them for reuse, while the resolved environment retains literal values.
+TechLead checked Docker's implementation and required the test to assert both the original values from `config --environment` and the exact escaped config representation, without normalizing either result.
+Formater verified Git exclusions for root and nested `.env` variants and inspected the Docker context allowlist and secret-file exclusions.
+Two isolated server-start checks rejected a missing OpenAI key and a missing gateway token with safe variable-name diagnostics and no credential-value disclosure.
+Markdown passed for 80 files, the strict MkDocs build passed, and the generated-site check passed for 47 maintained pages with 4838 links and assets.
+The pull request records the final documentation checks and exact-head CI results.
+No real credential file, paid API request, VM verification, Customer verdict or human team assessment was created or inferred.
+
+### Team evaluation for OpenAI environment-file setup
+
+TODO: Team members must record what they accepted, changed or rejected after reviewing the template, Compose behavior, tests and operator instructions.
+
+## PR 149 conflict resolution
+
+On 29 October, Codex acted as Formater to resolve [PR #149](https://github.com/iteam7/gateway7/pull/149) against `main` commit `22e9260fe41aa2a4b06f40288e200b549e9ea08e` after the user requested the conflict fix.
+The only overlapping file was this report: the resolution retains main's task #139 and PR #142 accounts and the complete OpenAI environment-file account for task #148.
+FR-011, its index entry and navigation are taken unchanged from main; the existing OpenAI setup, runtime, tests and configuration are preserved.
+Formater used an isolated snapshot and prepared a normal two-parent merge without rebasing or rewriting the published branch.
+Markdown passed for 81 files; the strict MkDocs build and generated-site check passed for 48 maintained pages and 4981 links and assets.
+The pull request records the new merge commit's CI results.
+No real credential file, paid API call, Customer verdict or human team assessment was created or inferred.
+
+### Team evaluation for PR 149 conflict resolution
+
+TODO: Team members must record what they accepted, changed or rejected after reviewing the conflict resolution.

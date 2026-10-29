@@ -218,6 +218,7 @@ An exact dependency sync may remove extra company packages, so include their ins
 ## Offline execution boundary
 
 The worker always uses the supplied fixture answer, even if the YAML selects a real provider.
+It does not import or initialize a configured [provider transport](provider-transports.md#offline-middleware-tests).
 It reads no provider key or client token and starts with a small operating-system environment.
 It blocks Python socket and subprocess calls before loading the plugin, discards plugin stdout/stderr, and stops on the suite timeout or interruption.
 

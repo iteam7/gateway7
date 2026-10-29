@@ -18,6 +18,7 @@ nav:
   - Get started:
       - Quickstart: quickstart.md
       - Setup and providers: setup.md
+      - Connect through a proxy: provider-transports.md
   - Use the gateway:
       - Connect your application: api.md
       - Control client access: authentication.md
@@ -29,6 +30,7 @@ nav:
       - Gateway and monitoring stack: architecture/adr/ADR-001.md
       - Trusted middleware: architecture/adr/ADR-002.md
       - Credentials and model access: architecture/adr/ADR-003.md
+      - Provider transport proposal: architecture/adr/ADR-004.md
       - ADR template: architecture/adr/TEMPLATE.md
   - Reference:
       - CLI commands: cli.md
@@ -58,6 +60,7 @@ nav:
           - FR-008 Generate a middleware starter: functional-requirements/fr/FR-008.md
           - FR-009 Expose metrics: functional-requirements/fr/FR-009.md
           - FR-010 Show the overview dashboard: functional-requirements/fr/FR-010.md
+          - FR-011 Name the failing middleware: functional-requirements/fr/FR-011.md
       - Decisions: decisions.md
       - Assumptions: assumptions.md
       - Definition of Done: definition-of-done.md

@@ -27,6 +27,8 @@ The gateway can also run alone through its CLI.
 
 One external LLM provider is selected at startup: OpenAI, Claude or Gemini.
 The [live override](https://github.com/iteam7/gateway7/blob/8cdf230c77e029074d0b3b9ad82e3edc6d25b59b/compose.live.yaml) calls it over HTTPS with the server's key.
+An optional [provider transport](../provider-transports.md) can tunnel that HTTPS connection through an operator's proxy.
+The proxy is external network infrastructure; the shipped Compose stack does not add or manage a proxy container.
 The default Compose command runs `demo` instead: a private synthetic HTTP upstream runs as a child process **inside the gateway's Docker container**.
 It replaces the external call for this demo; it is neither a fourth deployment container nor a fallback provider.
 
@@ -82,16 +84,23 @@ The rest of the repository supports those components:
 
 To add a company policy, use the [generate → test → install workflow](../authoring.md).
 The [middleware API](../plugins.md#descriptor-and-hooks) defines the contract; a new policy does not need a core edit.
+Provider networking has a separate [startup transport interface](../provider-transports.md): `transport_api.py` defines its descriptor, `transport_loader.py` validates modules, and `transports/` holds the shipped proxy module.
+It belongs to the provider adapter component, outside the per-request middleware chain.
 
 ### Startup and shutdown
 
 `serve` loads strict YAML, resolves the provider key and client tokens from environment variables, checks plugin descriptors/settings, creates instances and the HTTP adapter, then awaits startup hooks.
+If configured, a provider transport factory runs once before the adapter client is created.
+Startup closes a valid transport if client construction fails; after construction, the client owns it and closes it with the provider during lifespan cleanup.
+The built-in proxy keeps this shared client but uses request-owned connections so a cancelled TLS handshake cannot leave a tunnel occupying a shared pool slot; proxied requests do not reuse keep-alive connections.
 The app becomes ready only after these local steps succeed.
 The CLI owns this lifespan and the Uvicorn server; readiness does not make a provider request or prove account access.
 
 `validate` checks configuration and loads trusted factories without requiring credentials or calling the provider.
 It does not run startup hooks, and importing a plugin can have side effects.
+For a provider transport, it checks only the descriptor and settings: it does not call the transport factory or resolve the proxy environment variable.
 `plugin test` instead starts a limited worker with synthetic fixtures and Python-level networking guards; it is not an operating-system sandbox.
+That fixture path does not load provider transports.
 
 On shutdown, readiness becomes false, hooks are attempted in reverse instance order, and the provider client is closed even if a hook raises or cancels itself.
 Cleanup defers an external cancellation until those cooperative cleanup attempts finish, then preserves the cancellation.
@@ -180,12 +189,14 @@ The product vision keeps the separate [system context](../product-vision.md#cont
 | [ADR-001](adr/ADR-001.md) | Accepted | [FR-001](../functional-requirements/fr/FR-001.md), [FR-003](../functional-requirements/fr/FR-003.md), [FR-009](../functional-requirements/fr/FR-009.md), [FR-010](../functional-requirements/fr/FR-010.md), [QR-02](../quality-requirements/qr/QR-02.md), [QR-03](../quality-requirements/qr/QR-03.md) | Keep one Python gateway with separately deployed monitoring applications |
 | [ADR-002](adr/ADR-002.md) | Accepted | [FR-003](../functional-requirements/fr/FR-003.md), [FR-004](../functional-requirements/fr/FR-004.md), [FR-005](../functional-requirements/fr/FR-005.md), [FR-007](../functional-requirements/fr/FR-007.md), [QR-01](../quality-requirements/qr/QR-01.md), [QR-02](../quality-requirements/qr/QR-02.md) | Run trusted plugins as guarded middleware inside the gateway |
 | [ADR-003](adr/ADR-003.md) | Accepted | [FR-001](../functional-requirements/fr/FR-001.md), [FR-006](../functional-requirements/fr/FR-006.md), [QR-03](../quality-requirements/qr/QR-03.md), [QR-04](../quality-requirements/qr/QR-04.md) | Authorize clients separately and pin permitted models outside plugin payloads |
+| [ADR-004](adr/ADR-004.md) | Proposed | [FR-001](../functional-requirements/fr/FR-001.md), [QR-01](../quality-requirements/qr/QR-01.md), [QR-02](../quality-requirements/qr/QR-02.md), [QR-03](../quality-requirements/qr/QR-03.md) | Configure provider transports through startup modules |
 
 These Accepted records describe choices already in force through [PR #90](https://github.com/iteam7/gateway7/pull/90), approved in [DeniBorsh's implementation review](https://github.com/iteam7/gateway7/pull/90#pullrequestreview-5643522171) and merged on 25 October 2026.
 They are dated when written, not when an undocumented earlier discussion might have happened.
 That implementation review is evidence for the existing choices, not a review of these ADR texts or a new Customer acceptance.
 The records now address the requirements merged in [PR #101](https://github.com/iteam7/gateway7/pull/101); their quality consequences explain the design's support and limits without claiming that every response measure has been verified.
 The ADR texts were added in [PR #99](https://github.com/iteam7/gateway7/pull/99); their Accepted status records the implemented choices, not a new Customer verdict.
+ADR-004 is the proposed extension for [task #143](https://github.com/iteam7/gateway7/issues/143); it does not change those earlier acceptance records.
 The [ADR template](adr/TEMPLATE.md) provides the unfilled shape for later decisions.
 
 ### Customer view
