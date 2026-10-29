@@ -37,11 +37,11 @@ See the [CLI reference](cli.md) for all commands.
 ## Docker Compose
 
 Install Docker Engine or Docker Desktop with Compose v2.
-From the checkout, run:
+From the checkout, select the synthetic demo explicitly:
 
 ```sh
-docker compose config --quiet
-docker compose up --build --detach --wait
+docker compose -f compose.yaml config --quiet
+docker compose -f compose.yaml up --build --detach --wait
 ```
 
 Use the [first-request example](quickstart.md#send-your-first-request) to check the result.
@@ -52,17 +52,17 @@ Use the [first-request example](quickstart.md#send-your-first-request) to check 
 | Prometheus | `http://127.0.0.1:9090` | Collect and query gateway metrics |
 | Grafana | `http://127.0.0.1:3000/d/gateway7-overview` | Ready-to-use monitoring dashboard |
 
-The default stack runs `gateway7 demo` with the public token `gateway7-synthetic-client-token`.
+This stack runs `gateway7 demo` with the public token `gateway7-synthetic-client-token`, even if `.env` selects a real provider.
 Its synthetic provider runs inside the gateway container and listens only on loopback.
 It makes no call to a real provider.
 
 ```sh
-docker compose logs --tail=50 gateway
-docker compose down
+docker compose -f compose.yaml logs --tail=50 gateway
+docker compose -f compose.yaml down
 ```
 
 Stopping the stack keeps the named monitoring volumes.
-`docker compose down --volumes` also deletes their history.
+`docker compose -f compose.yaml down --volumes` also deletes their history.
 If a port is busy, stop the other local service or change the host port in `compose.yaml` and use the new address in your requests.
 
 The gateway image runs as user 10001 with locked runtime dependencies and no development tools.
@@ -76,6 +76,52 @@ Chat authentication does not protect `/health`, `/ready` or `/metrics`.
 
 ## Real providers
 
+### OpenAI with a `.env` file
+
+From a new checkout, copy the template:
+
+```sh
+cp -n .env.example .env
+chmod 600 .env
+```
+
+Open `.env` in your editor and fill in two values:
+
+- `OPENAI_API_KEY`: your OpenAI API key.
+- `GATEWAY7_CLIENT_TOKEN`: a different random token from your password manager, 16–512 visible ASCII characters without spaces.
+
+The template already selects the live Compose files and `config/openai.yaml`.
+Use single quotes around a `.env` value containing literal `$` or `#` characters.
+If you already have `.env`, keep your secrets and copy the four presets from `.env.example`: `COMPOSE_FILE`, `COMPOSE_PATH_SEPARATOR`, `GATEWAY_CONFIG_FILE` and `GATEWAY_KEY_ENV`.
+Stop any demo using port 8000, then run:
+
+```sh
+docker compose up --build --detach --wait
+docker compose exec -T gateway gateway7 smoke --token-env GATEWAY7_CLIENT_TOKEN
+```
+
+No exports, Python installation or YAML edits are needed for the sample.
+The second command reuses the container's gateway client token and sends at most one potentially billable chat request.
+It reports status, safe request IDs and token usage without printing credentials or the model's answer.
+Open Grafana at `http://127.0.0.1:3000/d/gateway7-overview`.
+Use `docker compose logs --tail=50 gateway` to inspect safe logs and `docker compose down` to stop the stack.
+
+Compose reads `.env` from this checkout: `COMPOSE_FILE` selects the base and live override, and `COMPOSE_PATH_SEPARATOR` fixes the file-list separator across platforms.
+Values exported in your shell take precedence over `.env`; remove stale exports when switching configurations.
+An explicit `-f compose.yaml` overrides that file selection and starts the synthetic demo.
+The gateway itself reads process variables; Compose loads the file and passes only the selected provider key, client token and proxy variable into the container.
+Keep `.env` private: Git ignores it, the image build excludes it and it is not mounted into the container.
+Avoid printing the expanded live Compose config because it can contain credentials.
+
+After editing `.env`, recreate the gateway to apply the values:
+
+```sh
+docker compose up --detach --wait --force-recreate gateway
+docker compose exec -T gateway gateway7 smoke --token-env GATEWAY7_CLIENT_TOKEN
+```
+
+### Choose a provider and model
+
 Select one provider for each running gateway.
 The sample files already define a model, an authenticated client and the reference middleware chain.
 
@@ -88,27 +134,23 @@ The sample files already define a model, an authenticated client and the referen
 Your provider account must have access to the selected model.
 If you change it, update both `provider.model` and the client's `auth.clients.developer.models` list.
 The gateway does not discover or switch models for you.
+For Claude or Gemini with `.env`, change `GATEWAY_CONFIG_FILE` and `GATEWAY_KEY_ENV` to the matching file and variable, and add that provider key to the file.
+Keep the same two Compose file selectors and the separate gateway client token.
 For a network proxy or a custom outbound HTTP transport, see [provider transports](provider-transports.md).
+Setting a proxy URL alone does not enable proxy routing.
 
 ### Select and validate a config
 
-For OpenAI, set:
+The `.env` example already selects OpenAI.
+Validate the sample with a Python checkout:
 
 ```sh
-export GATEWAY_CONFIG_FILE=./config/openai.yaml
-export GATEWAY_KEY_ENV=OPENAI_API_KEY
-```
-
-For Claude or Gemini, use the matching file and variable from the table.
-Validate with the Python checkout:
-
-```sh
-uv run --locked gateway7 validate --config "$GATEWAY_CONFIG_FILE"
+uv run --locked gateway7 validate --config config/openai.yaml
 ```
 
 Expect `Configuration valid: provider=openai; middleware=4` for the OpenAI sample.
 
-With the image built in the quickstart, you can validate without installing Python locally:
+With a built image, validate the selected Compose configuration without installing Python locally:
 
 ```sh
 docker compose -f compose.yaml -f compose.live.yaml run --rm --no-deps \
@@ -121,11 +163,15 @@ A valid config does not prove that an account or model is available.
 
 ### Supply server credentials
 
+Skip this section if you filled in `.env` above.
 Use a secret manager or private environment injection in a shared deployment.
 For a local Bash session, the prompts below read values without echoing them or putting them in shell history.
 Create a separate random client token in your password manager: 16–512 visible ASCII characters, without spaces.
+Select OpenAI as shown, or use the matching config and key variable from the provider table:
 
 ```sh
+export GATEWAY_CONFIG_FILE=./config/openai.yaml
+export GATEWAY_KEY_ENV=OPENAI_API_KEY
 read -r -s -p 'Provider API key: ' "$GATEWAY_KEY_ENV"
 printf '\n'
 export "$GATEWAY_KEY_ENV"
@@ -136,12 +182,13 @@ export GATEWAY7_CLIENT_TOKEN
 
 The client token must differ from the provider key.
 Keep credential values out of YAML and committed files.
-Gateway7 does not load `.env` files; Docker Compose has its own environment-file behavior.
+The gateway does not parse `.env`; Compose loads it for the Docker flow above.
 Avoid printing the expanded live Compose config because it can contain injected credentials.
 
 ### Start the server and send a request
 
-Stop the demo first if it uses port 8000.
+For the `.env` Compose flow, use the commands above.
+For a process-environment setup, stop the demo first if it uses port 8000.
 Choose one launch method:
 
 ```sh
@@ -156,6 +203,7 @@ docker compose -f compose.yaml -f compose.live.yaml up --build --detach --wait
 
 The live override mounts the selected YAML read-only and passes the selected provider key and `GATEWAY7_CLIENT_TOKEN` to the server.
 `GATEWAY_KEY_ENV` must match the YAML `provider.key_env`.
+For an explicit proxy transport, it also forwards `GATEWAY7_PROXY_URL`; see the [proxy configuration](provider-transports.md#configure-the-built-in-proxy) before starting the stack.
 The live stack does not start the synthetic provider.
 
 In a client terminal, enter the installed Python checkout and paste the same gateway client token:
@@ -164,11 +212,18 @@ In a client terminal, enter the installed Python checkout and paste the same gat
 read -r -s -p 'Gateway client token: ' GATEWAY7_TOKEN
 printf '\n'
 export GATEWAY7_TOKEN
-uv run --locked gateway7 chat --message 'Reply with the word pong' --max-tokens 1024
+uv run --locked gateway7 smoke --model gpt-4.1-mini --max-tokens 256
 ```
 
-This command makes a real provider call and can consume paid tokens.
-A successful call returns JSON with `text` and provider-reported `usage`; model output can vary.
+Use the selected model ID if you changed the OpenAI sample or chose another provider.
+`smoke` checks liveness, local readiness and authenticated model access, then sends at most one short chat request without retries.
+With a real provider configured, this can consume paid tokens, including when the final check fails.
+Its JSON report includes `passed`, individual `checks`, `chat_attempts`, duration, safe request IDs and reported token usage; it omits the answer and credentials.
+Exit 0 means the checks passed; any other exit needs investigation before the demonstration.
+The [CLI reference](cli.md#check-a-running-gateway) covers options and failure reporting.
+
+Confirm the selected server configuration yourself: smoke cannot distinguish a real provider from a synthetic server by its response alone.
+`/ready` alone confirms initialization, not OpenAI account, model or proxy access.
 Use [the API guide](api.md) to connect an application without the Gateway7 CLI.
 See [authentication](authentication.md) for additional clients, model access and token rotation.
 
@@ -184,6 +239,33 @@ Provider failures return a safe HTTP 502; the gateway's overall deadline returns
 Some models can use tokens without producing a supported final answer, especially with a small output budget.
 Missing or invalid usage is returned as `null`.
 Use the [provider failure reasons](observability.md#provider-failure-reasons) to diagnose errors.
+
+### Rehearse the live demonstration
+
+With the unchanged OpenAI `.env` Compose stack, show the contact-handling case and the request policy:
+
+```sh
+docker compose exec -T gateway gateway7 chat --token-env GATEWAY7_CLIENT_TOKEN \
+  --message 'Draft a short support reply for synthetic@example.com, phone +7 999 123-45-67.' \
+  --max-tokens 256
+docker compose exec -T gateway gateway7 chat --token-env GATEWAY7_CLIENT_TOKEN \
+  --message 'BLOCK-ME-TEST' --max-tokens 256
+```
+
+The first command makes another potentially billable call; its wording can vary.
+The second must report HTTP 403 and exit 1 without a provider call because the sample's request guard blocks that exact marker.
+Check the configured rule before using it on a modified deployment; otherwise it may reach the provider.
+Show [Grafana](observability.md#what-the-dashboard-shows) and correlate the request ID from the smoke report with safe gateway logs.
+
+Prove masking and response redaction with the [deterministic regression fixtures](middleware-catalog.md#ordering-and-verification) before the meeting.
+An email missing from a model's answer does not prove it was masked before sending; a model also need not repeat the response-redaction marker.
+Use synthetic contacts and keep prompt bodies out of logs.
+
+Record the tested commit with `git rev-parse HEAD` and keep its image and configuration available.
+After changing credentials or YAML, recreate the gateway and run smoke again as shown in the [`.env` recipe](#openai-with-a-env-file).
+Each smoke invocation can make one paid call.
+If the new configuration fails, restore the saved image/configuration and recreate it before rechecking.
+Use the [architecture](architecture/README.md#customer-view), [middleware authoring](authoring.md) and this live recipe as the short documentation route during the demonstration.
 
 ## Configuration and HTTP contract
 

@@ -23,6 +23,7 @@ provider:
 
 Only the environment variable's name belongs in YAML.
 The complete proxy URL, including any username/password, stays in the server environment or secret manager.
+For the [OpenAI `.env` setup](setup.md#openai-with-a-env-file), fill in `GATEWAY7_PROXY_URL` in the private `.env` file after adding the explicit transport configuration above.
 The built-in accepts HTTP and HTTPS proxy endpoints; SOCKS is not supported.
 Use at most 4096 ASCII characters, with a hostname or IP address, an optional port and percent-encoded user information when needed.
 Whitespace and control characters are rejected.
@@ -56,8 +57,9 @@ Use the [normal authenticated chat request](setup.md#start-the-server-and-send-a
 Restart after changing the transport, settings or proxy credentials.
 Remove `provider.transport` and restart to return to a direct connection.
 
-The supplied live Compose override does not forward `GATEWAY7_PROXY_URL` automatically.
-Add `- GATEWAY7_PROXY_URL` to its gateway `environment` list, alongside the provider and client credential names, before starting that deployment.
+The [live Compose override](https://github.com/iteam7/gateway7/blob/main/compose.live.yaml) forwards `GATEWAY7_PROXY_URL` from `.env` or the host environment.
+For a custom variable name, set `GATEWAY_PROXY_ENV` to the same name used in `provider.transport.settings.url_env` and supply that variable's value in `.env` or the host environment.
+Forwarding a variable does not enable proxy routing: the selected YAML must contain the explicit `provider.transport` configuration above.
 Do not print the expanded live Compose config: it can contain injected credentials.
 
 ## HTTP proxy and TLS boundary

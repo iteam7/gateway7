@@ -1,6 +1,6 @@
 # Gateway7 CLI
 
-Use the CLI to start a gateway, send one message, or create and test middleware.
+Use the CLI to start and check a gateway, send one message, or create and test middleware.
 The examples below run from a [Python checkout](setup.md#install-from-a-checkout).
 With an installed Gateway7 wheel, omit `uv run --locked`; `gateway7` also works outside the checkout.
 `python -m gateway7` provides the same commands.
@@ -79,6 +79,47 @@ Use the [HTTP API](api.md) when you need conversation history instead of a singl
 A non-200 response returns a nonzero exit without printing the server's arbitrary error body.
 Ctrl-C while reading input or waiting for an answer returns exit 130.
 
+## Check a running gateway
+
+With the [OpenAI `.env` Compose stack](setup.md#openai-with-a-env-file), check from inside the running container:
+
+```sh
+docker compose exec -T gateway gateway7 smoke --token-env GATEWAY7_CLIENT_TOKEN
+```
+
+This uses the gateway client token already passed to the container, so no local Python installation or second token variable is needed.
+
+After [starting a real-provider server](setup.md#real-providers) and setting `GATEWAY7_TOKEN` in the client environment:
+
+```sh
+uv run --locked gateway7 smoke --model gpt-4.1-mini --max-tokens 256
+```
+
+This is an explicit live check: after successful prechecks it sends one short chat request, which can consume paid tokens.
+It makes no automatic retries and sends no chat if a precheck fails.
+A missing client token or invalid token format fails locally before any request.
+
+The checks run in order: `/health`, `/ready`, anonymous `/v1/models` (must return 401), authenticated `/v1/models`, then `/chat`.
+The command expects authentication to be enabled; an anonymous server fails before the chat request.
+`--model`, when supplied, must appear in the authenticated model list.
+Omit it to use the server's configured default.
+Readiness only checks local initialization, and the command does not independently identify which provider the server uses.
+
+| Option | Meaning |
+| --- | --- |
+| `--url` | Gateway origin; default `http://127.0.0.1:8000`, with the same URL restrictions as `chat`. |
+| `--token-env` | Client-token variable; default `GATEWAY7_TOKEN`. |
+| `--model` | Optional allowed model ID. |
+| `--max-tokens` | Chat output budget, 1–4,096; default 256. |
+| `--timeout` | Whole-run deadline, 1–300 seconds; default 90. |
+
+The JSON report contains `schema_version`, `passed`, `checks`, `chat_attempts` (0 or 1) and `duration_ms`.
+Checks include their status, safe request IDs and, for a successful chat, validated usage counts or `null` when unknown.
+It never prints model output, raw server error bodies, URLs or credentials.
+Failure stops at the first unsuccessful check and returns exit 1; Ctrl-C returns 130.
+Correlate a reported request ID with [safe server logs](observability.md#diagnose-a-failing-request) to investigate provider and middleware failures.
+Passing smoke confirms the checked HTTP behavior, not complete privacy-policy coverage, billing accuracy or Customer acceptance.
+
 ## Generate and test middleware
 
 ```sh
@@ -111,7 +152,7 @@ It is not an operating-system sandbox: test only trusted code and use synthetic 
 | `0` | Success, including an orderly Ctrl-C shutdown of `serve` or `demo` |
 | `1` | Command/startup failure; for `plugin test`, an expected/actual mismatch |
 | `2` | Invalid CLI arguments; for `plugin test`, invalid setup, worker failure, timeout or interruption |
-| `130` | Interrupted `chat`, including while reading stdin |
+| `130` | Interrupted `chat` or `smoke`, including while reading chat input |
 
 Interrupting `plugin test` stops its worker and reports a failed run.
 Use `uv run --locked gateway7 --help` or add `--help` to a subcommand for its options.

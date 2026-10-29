@@ -16,10 +16,11 @@ For a Python-only run, use [Install from a checkout](setup.md#install-from-a-che
 ```sh
 git clone https://github.com/iteam7/gateway7.git
 cd gateway7
-docker compose up --build --detach --wait
+docker compose -f compose.yaml up --build --detach --wait
 ```
 
 This starts Gateway7, Prometheus and Grafana on your computer.
+The explicit Compose file keeps this demo synthetic even if you have a `.env` file for [OpenAI](setup.md#real-providers).
 Check that the gateway is ready:
 
 ```sh
@@ -65,11 +66,11 @@ See [Metrics and Grafana](observability.md) for queries and troubleshooting.
 ## Stop the demo
 
 ```sh
-docker compose down
+docker compose -f compose.yaml down
 ```
 
 This keeps the monitoring history.
-Use `docker compose down --volumes` when you also want to delete that local history.
+Use `docker compose -f compose.yaml down --volumes` when you also want to delete that local history.
 
 ## Next steps
 

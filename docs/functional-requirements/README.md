@@ -14,3 +14,4 @@ Each requirement states one behavior of Gateway7, the containers it runs in and 
 | [FR-008](fr/FR-008.md) | Generate A Middleware Starter Package | `gateway` | Active |
 | [FR-009](fr/FR-009.md) | Expose Request And Middleware Metrics | `gateway` | Active |
 | [FR-010](fr/FR-010.md) | Show Gateway Operations On The Overview Dashboard | `prometheus`, `grafana` | Active |
+| [FR-011](fr/FR-011.md) | Name The Middleware That Failed Or Slowed A Request | `gateway` | Active |

@@ -61,6 +61,7 @@ nav:
           - FR-008 Generate a middleware starter: functional-requirements/fr/FR-008.md
           - FR-009 Expose metrics: functional-requirements/fr/FR-009.md
           - FR-010 Show the overview dashboard: functional-requirements/fr/FR-010.md
+          - FR-011 Name the failing middleware: functional-requirements/fr/FR-011.md
       - Decisions: decisions.md
       - Assumptions: assumptions.md
       - Definition of Done: definition-of-done.md
