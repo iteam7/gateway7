@@ -6,5 +6,6 @@ services:
     environment:
       - ${GATEWAY_KEY_ENV:-ANTHROPIC_API_KEY}
       - GATEWAY7_CLIENT_TOKEN
+      - ${GATEWAY_PROXY_ENV:-GATEWAY7_PROXY_URL}
     volumes:
       - ${GATEWAY_CONFIG_FILE:-./config/claude.yaml}:/etc/gateway7/gateway.yaml:ro

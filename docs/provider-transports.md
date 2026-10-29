@@ -56,8 +56,9 @@ Use the [normal authenticated chat request](setup.md#start-the-server-and-send-a
 Restart after changing the transport, settings or proxy credentials.
 Remove `provider.transport` and restart to return to a direct connection.
 
-The supplied live Compose override does not forward `GATEWAY7_PROXY_URL` automatically.
-Add `- GATEWAY7_PROXY_URL` to its gateway `environment` list, alongside the provider and client credential names, before starting that deployment.
+The [live Compose override](https://github.com/iteam7/gateway7/blob/main/compose.live.yaml) forwards `GATEWAY7_PROXY_URL` from the host environment automatically.
+For a custom variable name, set `GATEWAY_PROXY_ENV` to the same name used in `provider.transport.settings.url_env` before starting Compose.
+Forwarding a variable does not enable proxy routing: the selected YAML must contain the explicit `provider.transport` configuration above.
 Do not print the expanded live Compose config: it can contain injected credentials.
 
 ## HTTP proxy and TLS boundary

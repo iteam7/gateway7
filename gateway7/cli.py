@@ -30,6 +30,7 @@ from gateway7.models import ChatRequest, ChatResponse, Message
 from gateway7.providers import validate_provider_config
 from gateway7.offline import print_report, run_offline
 from gateway7.scaffold import create_plugin_project
+from gateway7.smoke import run_smoke
 from gateway7.transport_loader import validate_transport_config
 
 
@@ -298,6 +299,21 @@ def _parser() -> argparse.ArgumentParser:
         default="GATEWAY7_TOKEN",
         help="Environment variable holding the gateway bearer token",
     )
+    smoke = subcommands.add_parser(
+        "smoke",
+        help="Check a running authenticated gateway with one potentially billable chat request",
+        description=(
+            "Check readiness and authentication, then make at most one chat request. "
+            "Invoking this command can consume paid provider tokens; it does not verify provider identity."
+        ),
+    )
+    smoke.add_argument("--url", default="http://127.0.0.1:8000")
+    smoke.add_argument("--token-env", default="GATEWAY7_TOKEN")
+    smoke.add_argument("--model", help="An allowed model ID; omitted uses the server default")
+    smoke.add_argument("--max-tokens", type=int, default=256)
+    smoke.add_argument(
+        "--timeout", type=float, default=90, help="Whole-run limit in seconds (1–300)"
+    )
     demo = subcommands.add_parser(
         "demo", help="Run a synthetic provider and reference middleware without keys"
     )
@@ -333,8 +349,10 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(arguments)
     if args.command in ("serve", "demo") and not 1 <= args.port <= 65535:
         parser.error("--port must be between 1 and 65535")
-    if args.command == "chat" and not 1 <= args.max_tokens <= 4096:
+    if args.command in ("chat", "smoke") and not 1 <= args.max_tokens <= 4096:
         parser.error("--max-tokens must be between 1 and 4096")
+    if args.command == "smoke" and not 1 <= args.timeout <= 300:
+        parser.error("--timeout must be between 1 and 300 seconds")
     if args.command == "plugin" and args.plugin_command == "test" and not 1 <= args.timeout <= 300:
         parser.error("--timeout must be between 1 and 300 seconds")
     handler = logging.StreamHandler(sys.stderr)
@@ -344,6 +362,18 @@ def main(argv: list[str] | None = None) -> int:
     gateway_logger.setLevel(logging.INFO)
     gateway_logger.propagate = False
     try:
+        if args.command == "smoke":
+            code, report = asyncio.run(
+                run_smoke(
+                    args.url,
+                    token_env=args.token_env,
+                    model=args.model,
+                    max_tokens=args.max_tokens,
+                    timeout=args.timeout,
+                )
+            )
+            print(json.dumps(report))
+            return code
         if args.command == "plugin":
             if args.plugin_command == "init":
                 project = create_plugin_project(args.name, args.directory)
@@ -385,7 +415,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Gateway startup failed: {error}", file=sys.stderr)
         return 1
     except KeyboardInterrupt:
-        if args.command == "chat":
+        if args.command in ("chat", "smoke"):
             return 130
         if args.command == "plugin" and args.plugin_command == "test":
             print_report(
