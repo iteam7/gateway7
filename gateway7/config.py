@@ -31,6 +31,11 @@ class StrictConfig(BaseModel):
     model_config = ConfigDict(strict=True, extra="forbid", frozen=True)
 
 
+class TransportConfig(StrictConfig):
+    module: ModuleName
+    settings: dict[str, Any] = Field(default_factory=dict)
+
+
 class ProviderConfig(StrictConfig):
     kind: Literal["fake", "claude", "openai", "gemini"] = "fake"
     base_url: str = Field(default="http://127.0.0.1:8001", min_length=1)
@@ -41,6 +46,7 @@ class ProviderConfig(StrictConfig):
     # alphabet because Gemini puts this server-controlled value in its URL.
     model: str = Field(default="fake", pattern=r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
     timeout_seconds: float = Field(default=30.0, gt=0, le=300, allow_inf_nan=False)
+    transport: TransportConfig | None = None
 
     @model_validator(mode="before")
     @classmethod

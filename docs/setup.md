@@ -88,6 +88,7 @@ The sample files already define a model, an authenticated client and the referen
 Your provider account must have access to the selected model.
 If you change it, update both `provider.model` and the client's `auth.clients.developer.models` list.
 The gateway does not discover or switch models for you.
+For a network proxy or a custom outbound HTTP transport, see [provider transports](provider-transports.md).
 
 ### Select and validate a config
 
@@ -218,7 +219,8 @@ Plugins are trusted Python code in the gateway process, not isolated services or
 The [HTTP API reference](api.md) covers native chat, the supported OpenAI-compatible subset and error bodies.
 `/health` reports process liveness; `/ready` reports local startup/shutdown state without calling a provider.
 `/metrics` exposes Prometheus text.
-Real-provider traffic uses the official HTTPS origins with server-held keys in headers; custom origins, redirects and proxy-environment settings are not used.
+Real-provider traffic uses the official HTTPS origins with server-held keys in headers; custom origins and redirects are not used.
+Proxy routing is an explicit [provider transport](provider-transports.md) setting; implicit HTTP proxy and certificate environment settings are ignored.
 Gateway7 does not retry, route between providers or fail over automatically.
 
 ## Checks and tests

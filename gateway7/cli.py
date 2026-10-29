@@ -30,6 +30,7 @@ from gateway7.models import ChatRequest, ChatResponse, Message
 from gateway7.providers import validate_provider_config
 from gateway7.offline import print_report, run_offline
 from gateway7.scaffold import create_plugin_project
+from gateway7.transport_loader import validate_transport_config
 
 
 class _ManagedServer(uvicorn.Server):
@@ -357,6 +358,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "validate":
             config = load_config(args.config)
             validate_provider_config(config.provider)
+            validate_transport_config(config.provider.transport)
             plugins = load_plugins(config)
             print(
                 f"Configuration valid: provider={config.provider.kind}; middleware={len(plugins.middleware_chain)}"

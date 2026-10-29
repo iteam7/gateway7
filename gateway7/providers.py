@@ -218,7 +218,13 @@ def _gemini_response(data: dict[str, Any]) -> tuple[str, FinishReason]:
 class HTTPProvider:
     """Adapters own their HTTP session; the gateway owns its lifetime."""
 
-    def __init__(self, config: ProviderConfig, key: str) -> None:
+    def __init__(
+        self,
+        config: ProviderConfig,
+        key: str,
+        *,
+        transport: httpx.AsyncBaseTransport | None = None,
+    ) -> None:
         validate_provider_config(config)
         self._kind = config.kind
         self._origin = _validated_origin(config.kind, config.base_url)
@@ -231,10 +237,12 @@ class HTTPProvider:
             self._headers = {"x-api-key": key, "anthropic-version": "2023-06-01"}
         else:
             self._headers = {"x-goog-api-key": key}
+        options: dict[str, Any] = {} if transport is None else {"transport": transport}
         self._client = httpx.AsyncClient(
             timeout=config.timeout_seconds,
             follow_redirects=False,
             trust_env=False,
+            **options,
         )
 
     async def aclose(self) -> None:
@@ -351,5 +359,7 @@ class HTTPProvider:
             raise ProviderError(usage=usage) from None
 
 
-def build_provider(config: ProviderConfig, key: str) -> HTTPProvider:
-    return HTTPProvider(config, key)
+def build_provider(
+    config: ProviderConfig, key: str, *, transport: httpx.AsyncBaseTransport | None = None
+) -> HTTPProvider:
+    return HTTPProvider(config, key, transport=transport)

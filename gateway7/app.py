@@ -30,8 +30,25 @@ from gateway7.openai_api import (
 )
 from gateway7.pipeline import Pipeline
 from gateway7.providers import build_provider
+from gateway7.transport_loader import create_transport, validate_transport_config
 
 logger = logging.getLogger("gateway7")
+
+
+async def _close_provider_resource(resource: Any, timeout: float) -> None:
+    """Close the one resource currently owned by startup or the provider."""
+    closing_started = time.monotonic()
+    timer = asyncio.timeout(timeout)
+    try:
+        async with timer:
+            await resource.aclose()
+        if timer.expired() or time.monotonic() - closing_started >= timeout:
+            raise TimeoutError
+    except (Exception, asyncio.CancelledError):
+        logger.warning(
+            "request_id=- outcome=shutdown_error component=provider duration_ms=%.3f",
+            (time.monotonic() - closing_started) * 1000,
+        )
 
 
 def _error_response(
@@ -283,10 +300,27 @@ def create_app(
         active_config = config if config is not None else load_config(path)
         key = provider_key(active_config.provider)
         access = AccessControl(active_config)
+        validated_transport = validate_transport_config(active_config.provider.transport)
         plugins = load_plugins(active_config)
+        transport = create_transport(validated_transport)
         try:
-            provider = build_provider(active_config.provider, key)
-        except Exception:
+            if transport is None:
+                provider = build_provider(active_config.provider, key)
+            else:
+                provider = build_provider(active_config.provider, key, transport=transport)
+        except BaseException as error:
+            if transport is not None:
+                try:
+                    await complete_cleanup(
+                        _close_provider_resource(
+                            transport, active_config.limits.hook_timeout_seconds
+                        )
+                    )
+                except (Exception, asyncio.CancelledError):
+                    # Preserve the initialization failure after owned cleanup.
+                    pass
+            if not isinstance(error, Exception):
+                raise
             raise StartupError("Provider initialization failed") from None
         started = False
         failed = False
@@ -318,19 +352,9 @@ def create_app(
                     if started:
                         await stop_plugins(plugins, active_config.limits.hook_timeout_seconds)
                 finally:
-                    closing_started = time.monotonic()
-                    timeout = active_config.limits.hook_timeout_seconds
-                    timer = asyncio.timeout(timeout)
-                    try:
-                        async with timer:
-                            await provider.aclose()
-                        if timer.expired() or time.monotonic() - closing_started >= timeout:
-                            raise TimeoutError
-                    except (Exception, asyncio.CancelledError):
-                        logger.warning(
-                            "request_id=- outcome=shutdown_error component=provider duration_ms=%.3f",
-                            (time.monotonic() - closing_started) * 1000,
-                        )
+                    await _close_provider_resource(
+                        provider, active_config.limits.hook_timeout_seconds
+                    )
 
             try:
                 await complete_cleanup(cleanup())
