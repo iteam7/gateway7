@@ -29,6 +29,7 @@ Run the checks your change touches before you push; CI runs them again on pull r
 | Check | Local command | CI workflow |
 | --- | --- | --- |
 | Python format, lint, types, tests, demo, wheel | `uv run --locked ruff format --check gateway7`, `uv run --locked ruff check gateway7`, `uv run --locked mypy gateway7`, `uv run --locked pytest -q`, `uv run --locked python -m demo.run`, `uv build --wheel` | `.github/workflows/python.yml`, which also builds and checks the Compose stack |
+| Workflows | `actionlint` from the repository root | `.github/workflows/actionlint.yml` |
 | Markdown | `npx markdownlint-cli2 "**/*.md"` | `.github/workflows/markdown.yml` |
 | Links | `lychee --no-progress --max-concurrency 2 --accept 200,206,429,503 './**/*.md'` (needs the network) | `.github/workflows/lychee.yml` |
 | Documentation site | `mkdocs build --strict` and `python docs-build/check_site.py` in the docs environment from `CONTRIBUTING.md` | `.github/workflows/docs.yml` |
