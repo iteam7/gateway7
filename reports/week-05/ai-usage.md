@@ -388,6 +388,7 @@ It wrote `docs/deployment.md` describing the environments, campus-network access
 Formater checked the change against AGENTS.md and task #134's acceptance criteria.
 
 TODO: Team members must record what they accepted, changed or rejected after reviewing the deployment runbook and its verification evidence.
+
 ## Live-provider preparation for task #145
 
 On 29 October, azamatbayramov asked Codex to implement the preparation work for a Customer demonstration with real OpenAI and configured middleware.
