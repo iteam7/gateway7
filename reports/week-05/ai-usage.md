@@ -359,3 +359,13 @@ The pull request records the exact-head CI results and the remaining human revie
 ### Team evaluation for the provider proxy transport
 
 TODO: Team members must record what they accepted, changed or rejected after reviewing the extension, trust boundary, tests and operator examples.
+
+## University VM deployment for task #134
+
+On 29 October, ExFuseMe asked Claude Code to deploy a candidate commit to staging and production on the university VM and document the result for [task #134](https://github.com/iteam7/gateway7/issues/134).
+Claude Code installed Docker Engine, the Compose v2 plugin and git on the VM, then checked out commit `26dab3122dbc2f4247533d0c57cdb0f83e5073cf` into two separate VM-local directories for staging and production, giving staging distinct published host ports so both stacks run on the VM at once.
+It brought up each stack with its own `docker compose` project name, then confirmed `/health` and a synthetic-provider chat completion on each.
+It wrote `docs/deployment.md` describing the environments, campus-network access, configuration and secrets handling, the manual deployment steps, verification and rollback, linked from `docs/README.md` and `mkdocs.yml`, without recording the VM's real address or credentials in any committed file.
+Formater checked the change against AGENTS.md and task #134's acceptance criteria.
+
+TODO: Team members must record what they accepted, changed or rejected after reviewing the deployment runbook and its verification evidence.
