@@ -180,7 +180,7 @@ def test_unfilled_dotenv_stays_live_instead_of_falling_back_to_demo(dotenv_proje
     assert mounted_configuration(gateway)["source"] == str(project / "config" / "openai.yaml")
 
 
-def test_single_quoted_dotenv_values_are_forwarded_literally(dotenv_project):
+def test_quoted_dotenv_literals_are_preserved_and_config_output_escapes_dollars(dotenv_project):
     docker, environment, project = dotenv_project
     env_file = project / ".env"
     env_file.write_text(
@@ -195,12 +195,32 @@ def test_single_quoted_dotenv_values_are_forwarded_literally(dotenv_project):
         ),
         encoding="utf-8",
     )
+    resolved = subprocess.run(
+        [docker, "compose", "config", "--environment"],
+        env=environment,
+        cwd=project,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    assert resolved.returncode == 0, "Docker Compose could not resolve the test environment"
+    fixture_values = {}
+    for line in resolved.stdout.splitlines():
+        key, _, value = line.partition("=")
+        if key in {"OPENAI_API_KEY", "GATEWAY7_CLIENT_TOKEN"}:
+            fixture_values[key] = value
+    assert fixture_values.get("OPENAI_API_KEY") == "synthetic-provider-$literal#key"
+    assert fixture_values.get("GATEWAY7_CLIENT_TOKEN") == "synthetic-client-$literal#token"
+
     gateway = render_compose(
         [docker, "compose", "config", "--format", "json"], environment, project
     )
 
-    assert gateway["environment"]["OPENAI_API_KEY"] == "synthetic-provider-$literal#key"
-    assert gateway["environment"]["GATEWAY7_CLIENT_TOKEN"] == "synthetic-client-$literal#token"
+    # Config serialization escapes $ to $$ for reuse as Compose input:
+    # https://github.com/docker/compose/blob/v2.39.4/cmd/compose/config.go#L184
+    assert gateway["environment"]["OPENAI_API_KEY"] == "synthetic-provider-$$literal#key"
+    assert gateway["environment"]["GATEWAY7_CLIENT_TOKEN"] == "synthetic-client-$$literal#token"
 
 
 @pytest.mark.parametrize(

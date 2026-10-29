@@ -390,6 +390,8 @@ The guides keep synthetic demonstrations explicit with `-f compose.yaml`, explai
 TechLead reviewed the example, maintained guides and eleven semantic Compose test cases, including automatic dotenv selection, literal quoted values, process-variable precedence, unfilled credentials and explicit synthetic mode.
 The changed test file passed Ruff, and 36 maintained shell blocks passed Bash syntax checks.
 The eleven Compose cases were skipped locally because Docker was unavailable; the existing CI runs them with synthetic temporary files and no provider calls.
+CI exposed an incorrect test assumption about dollar signs: Compose's rendered config escapes them for reuse, while the resolved environment retains literal values.
+TechLead checked Docker's implementation and required the test to assert both the original values from `config --environment` and the exact escaped config representation, without normalizing either result.
 Formater verified Git exclusions for root and nested `.env` variants and inspected the Docker context allowlist and secret-file exclusions.
 Two isolated server-start checks rejected a missing OpenAI key and a missing gateway token with safe variable-name diagnostics and no credential-value disclosure.
 Markdown passed for 80 files, the strict MkDocs build passed, and the generated-site check passed for 47 maintained pages with 4838 links and assets.
