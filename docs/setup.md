@@ -88,6 +88,7 @@ The sample files already define a model, an authenticated client and the referen
 Your provider account must have access to the selected model.
 If you change it, update both `provider.model` and the client's `auth.clients.developer.models` list.
 The gateway does not discover or switch models for you.
+For a network proxy or a custom outbound HTTP transport, see [provider transports](provider-transports.md).
 
 ### Select and validate a config
 
@@ -155,6 +156,7 @@ docker compose -f compose.yaml -f compose.live.yaml up --build --detach --wait
 
 The live override mounts the selected YAML read-only and passes the selected provider key and `GATEWAY7_CLIENT_TOKEN` to the server.
 `GATEWAY_KEY_ENV` must match the YAML `provider.key_env`.
+For an explicit proxy transport, it also forwards `GATEWAY7_PROXY_URL`; see the [proxy configuration](provider-transports.md#configure-the-built-in-proxy) before starting the stack.
 The live stack does not start the synthetic provider.
 
 In a client terminal, enter the installed Python checkout and paste the same gateway client token:
@@ -163,11 +165,18 @@ In a client terminal, enter the installed Python checkout and paste the same gat
 read -r -s -p 'Gateway client token: ' GATEWAY7_TOKEN
 printf '\n'
 export GATEWAY7_TOKEN
-uv run --locked gateway7 chat --message 'Reply with the word pong' --max-tokens 1024
+uv run --locked gateway7 smoke --model gpt-4.1-mini --max-tokens 256
 ```
 
-This command makes a real provider call and can consume paid tokens.
-A successful call returns JSON with `text` and provider-reported `usage`; model output can vary.
+Use the selected model ID if you changed the OpenAI sample or chose another provider.
+`smoke` checks liveness, local readiness and authenticated model access, then sends at most one short chat request without retries.
+With a real provider configured, this can consume paid tokens, including when the final check fails.
+Its JSON report includes `passed`, individual `checks`, `chat_attempts`, duration, safe request IDs and reported token usage; it omits the answer and credentials.
+Exit 0 means the checks passed; any other exit needs investigation before the demonstration.
+The [CLI reference](cli.md#check-a-running-gateway) covers options and failure reporting.
+
+Confirm the selected server configuration yourself: smoke cannot distinguish a real provider from a synthetic server by its response alone.
+`/ready` alone confirms initialization, not OpenAI account, model or proxy access.
 Use [the API guide](api.md) to connect an application without the Gateway7 CLI.
 See [authentication](authentication.md) for additional clients, model access and token rotation.
 
@@ -183,6 +192,38 @@ Provider failures return a safe HTTP 502; the gateway's overall deadline returns
 Some models can use tokens without producing a supported final answer, especially with a small output budget.
 Missing or invalid usage is returned as `null`.
 Use the [provider failure reasons](observability.md#provider-failure-reasons) to diagnose errors.
+
+### Rehearse the live demonstration
+
+With the unchanged OpenAI sample, show the contact-handling case and the request policy:
+
+```sh
+uv run --locked gateway7 chat \
+  --message 'Draft a short support reply for synthetic@example.com, phone +7 999 123-45-67.' \
+  --max-tokens 256
+uv run --locked gateway7 chat --message 'BLOCK-ME-TEST' --max-tokens 256
+```
+
+The first command makes another potentially billable call; its wording can vary.
+The second must report HTTP 403 and exit 1 without a provider call because the sample's request guard blocks that exact marker.
+Check the configured rule before using it on a modified deployment; otherwise it may reach the provider.
+Show [Grafana](observability.md#what-the-dashboard-shows) and correlate the request ID from the smoke report with safe gateway logs.
+
+Prove masking and response redaction with the [deterministic regression fixtures](middleware-catalog.md#ordering-and-verification) before the meeting.
+An email missing from a model's answer does not prove it was masked before sending; a model also need not repeat the response-redaction marker.
+Use synthetic contacts and keep prompt bodies out of logs.
+
+Record the tested commit with `git rev-parse HEAD` and keep its image and configuration available.
+After changing credentials or YAML, recreate the gateway and run smoke again:
+
+```sh
+docker compose -f compose.yaml -f compose.live.yaml up --detach --wait --force-recreate gateway
+uv run --locked gateway7 smoke --model gpt-4.1-mini --max-tokens 256
+```
+
+Each smoke invocation can make one paid call.
+If the new configuration fails, restore the saved image/configuration and recreate it before rechecking.
+Use the [architecture](architecture/README.md#customer-view), [middleware authoring](authoring.md) and this live recipe as the short documentation route during the demonstration.
 
 ## Configuration and HTTP contract
 
@@ -218,7 +259,8 @@ Plugins are trusted Python code in the gateway process, not isolated services or
 The [HTTP API reference](api.md) covers native chat, the supported OpenAI-compatible subset and error bodies.
 `/health` reports process liveness; `/ready` reports local startup/shutdown state without calling a provider.
 `/metrics` exposes Prometheus text.
-Real-provider traffic uses the official HTTPS origins with server-held keys in headers; custom origins, redirects and proxy-environment settings are not used.
+Real-provider traffic uses the official HTTPS origins with server-held keys in headers; custom origins and redirects are not used.
+Proxy routing is an explicit [provider transport](provider-transports.md) setting; implicit HTTP proxy and certificate environment settings are ignored.
 Gateway7 does not retry, route between providers or fail over automatically.
 
 ## Checks and tests
