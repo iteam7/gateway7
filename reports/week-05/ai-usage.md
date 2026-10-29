@@ -48,6 +48,12 @@ On 25 October, for [task #96](https://github.com/iteam7/gateway7/issues/96), Cla
 It mapped each acceptance criterion to the existing demo runner, tests and smoke scripts by name, and marked criteria without an exact check as needing a dry-run instead of treating related tests as evidence.
 It did not run the demonstration; the Accountable reviewer's dry-run, the meeting date and the role assignments remain with the team.
 
+On 29 October 2026, for [task #136](https://github.com/iteam7/gateway7/issues/136), Claude Code (Claude Opus 5.5) wrote the quality requirement tests for QR-01, QR-02 and QR-03 at DeniBorsh's request.
+It added the QR-02 check that copies the checkout, makes `gateway7/pipeline.py` forward a request after a middleware raises or denies, and requires the suite and the demonstration to fail on that copy, and the QR-03 process-level search of logs, metrics and error bodies for synthetic credentials and messages.
+Before relying on each check it broke the code on purpose: the forwarding change failed the suite, the demonstration and the QR-01 failure script, and a temporary log line with the message text failed the QR-03 test.
+It ran the QR-01 script only on Linux and could not reach the staging VM, so it claims no Windows or staging result.
+TODO: The team records what it accepted, changed or rejected after reviewing the task #136 tests.
+
 ## Handling and checks
 
 The adapters are checked with synthetic HTTP transports against the documented provider protocols.
