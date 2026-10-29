@@ -11,7 +11,7 @@ from gateway7.plugin_api import NextHandler, PluginContext, PluginDescriptor
 
 class Settings(BaseModel):
     model_config = ConfigDict(strict=True, extra="forbid", frozen=True)
-    mode: Literal["error", "timeout"] = "error"
+    mode: Literal["error", "timeout", "late"] = "error"
     phase: Literal["request", "response"] = "request"
 
 
@@ -22,6 +22,12 @@ class FaultPlugin:
     async def fail(self) -> None:
         if self.settings.mode == "timeout":
             await asyncio.sleep(0.3)
+        elif self.settings.mode == "late":
+            # Swallow the budget's cancellation and carry on as a misbehaving plugin would.
+            try:
+                await asyncio.sleep(0.3)
+            except asyncio.CancelledError:
+                pass
         else:
             raise RuntimeError("synthetic-demo-exception-must-not-be-exposed")
 

@@ -3,6 +3,7 @@
 from fastapi.testclient import TestClient
 import pytest
 
+from demo.fault_tolerance import run as fault_tolerance
 from demo.upstream import ANSWER, MAX_BODY_BYTES, USAGE, app
 
 
@@ -43,3 +44,11 @@ def test_fake_does_not_start_without_explicit_synthetic_key(monkeypatch, key):
     with pytest.raises(RuntimeError, match="explicitly synthetic"):
         with TestClient(app):
             pass
+
+
+def test_fault_tolerance_check_passes_every_case_without_upstream_requests(capsys):
+    assert fault_tolerance(2)
+    lines = capsys.readouterr().out.splitlines()
+    assert [line.split(":")[0] for line in lines[1:]] == [
+        "PASS raise", "PASS deny", "PASS overrun", "PASS late", "PASS QR-01",
+    ]

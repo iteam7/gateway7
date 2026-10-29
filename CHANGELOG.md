@@ -10,6 +10,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - A ready-to-copy OpenAI `.env.example` for one-command live Compose startup and an in-container smoke check.
 - Optional startup transport extensions for provider calls, with an HTTP(S) forward-proxy module and environment-referenced proxy credentials.
 - An installed `gateway7 smoke` command for bounded live readiness, client access and one chat check, with safe diagnostic reports.
+- Quality requirement tests for fault tolerance, testability and confidentiality, with a repeatable middleware-failure check and a staging confidentiality check.
 
 ### Fixed
 

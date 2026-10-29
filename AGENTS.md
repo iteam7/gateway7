@@ -14,7 +14,7 @@ If a rule is not in the course repository, say so.
 - `tests/` holds the pytest suite as `tests/test_<area>.py`; add a test to the file of the area it checks.
 - `demo/` is the synthetic provider and the scripted demonstration, `examples/` holds the sample plugins the plugin guide uses, and `config/` holds the YAML configuration for each provider and the demo.
 - `monitoring/` holds the Prometheus configuration and Grafana provisioning used by `compose.yaml`.
-- `scripts/` holds the smoke scripts the Python workflow runs.
+- `scripts/` holds the smoke scripts the Python workflow runs and the staging confidentiality check `scripts/check_confidentiality.py`.
 - `docs/` holds the maintained documentation published as the site: guides, product vision, plan, risks, decisions, architecture in `docs/architecture/`, research in `docs/research/`, and the glossary in `docs/glossary.md`.
   A new page is also added to `nav` in `mkdocs.yml` and to the list in `docs/README.md`.
 - `docs-build/` holds the site hooks, the generated-site check and the locked Mermaid asset.
