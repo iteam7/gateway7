@@ -608,6 +608,9 @@ The handoff records that the current staging privacy script expects the syntheti
 Any private PDF and source snapshot prepared from the pull request are draft review candidates, identified by one exact pull-request head and kept outside GitHub; the final package requires the common merged report commit.
 No paid provider call, VM deployment, release tag, Customer verdict, completed team retrospective or Moodle upload was performed or inferred by this preparation.
 
+Formater used the existing authenticated GitHub UI to append the required final `Full changelog` line to the [existing v0.2.0 release body](https://github.com/iteam7/gateway7/releases/tag/v0.2.0), after checking the actual dated changelog section and its anchor.
+The connector has no release-metadata write operation; the existing release text, tag and publication date were retained, and no released changelog section or REL-05 state was changed.
+
 ### Team evaluation for release and submission preparation
 
 TODO: Team members must record what they accepted, changed or rejected after reviewing the report, CI evidence, release handoff and private candidate package.
