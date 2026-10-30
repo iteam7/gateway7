@@ -97,3 +97,33 @@ Run plugins as async middleware around the next handler, with one configured ord
 - **Made by:** Team, through azamatbayramov's explicit implementation request.
 - **Source:** [Task #89](https://github.com/iteam7/gateway7/issues/89), recording the contributor's request to migrate plugins to middleware.
 - **Why:** middleware places each plugin's request and response work in one method and makes the execution path inspectable for DEC-014/015. API version 2 deliberately replaces the earlier independent hook lists; the migration is documented in the [plugin guide](plugins.md#migration-from-api-version-1). Python, trusted in-process modules, server-held credentials and restart-based installation remain. This is a team design decision and does not claim Customer acceptance or completion of the outstanding story criteria.
+
+## DEC-017
+
+Try real harness integration early to expose compatibility requirements before extending the gateway further.
+
+- **Status:** Active
+- **Date:** 2026-10-30, from the supplied meeting record's filename; not stated aloud.
+- **Made by:** Customer
+- **Source:** [Week 05 Customer meeting report](https://github.com/iteam7/gateway7/blob/7938b665670c6b525ce6b389021dcd29e2ceb1bd/reports/week-05/meeting-report.md#summary).
+- **Why:** trying OpenCode uncovered a streaming requirement that earlier component work had not exercised. Customer asked the team to try connections between real systems early, confirming integration as a validation priority; this is not a requirement to support every provider feature or acceptance of the subsequent streaming implementation.
+
+## DEC-018
+
+Structure the next Customer demonstration around three or four substantial use cases with visible stories, exact criteria and explicit verdicts.
+
+- **Status:** Active
+- **Date:** 2026-10-30, from the supplied meeting record's filename; not stated aloud.
+- **Made by:** Customer
+- **Source:** [Week 05 Customer meeting report](https://github.com/iteam7/gateway7/blob/7938b665670c6b525ce6b389021dcd29e2ceb1bd/reports/week-05/meeting-report.md#summary).
+- **Why:** the narrated walkthrough left Customer to identify the interesting behavior and made it hard to establish which existing criteria were covered. Customer proposed a short list of major scenarios, such as connecting a harness and adding a plugin, then checking the behavior against visible wording. The discussion settled the next validation format, not the verdict on any story shown in this meeting.
+
+## DEC-019
+
+Add an investigation of blocking plugin behavior and cooperative deadline limits to the backlog.
+
+- **Status:** Active
+- **Date:** 2026-10-30, from the supplied meeting record's filename; not stated aloud.
+- **Made by:** Team, not contested
+- **Source:** [Week 05 Customer meeting report](https://github.com/iteam7/gateway7/blob/7938b665670c6b525ce6b389021dcd29e2ceb1bd/reports/week-05/meeting-report.md#summary).
+- **Why:** Customer asked how a synchronous handler or blocking code inside an async handler affects the gateway. azamatbayramov committed to adding the unresolved case to the backlog. This creates investigation scope, not a promised implementation date or a selection of threads, separate processes, another language or mandatory plugin isolation.
