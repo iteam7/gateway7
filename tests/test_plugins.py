@@ -50,7 +50,7 @@ def test_phone_mask_covers_entire_history_without_changing_roles_or_other_text(c
 
     masked = apply_request(plugin, original, plugin_context)
 
-    assert masked.model_dump() == {
+    assert masked.model_dump(exclude_defaults=True) == {
         "messages": [
             {"role": "system", "content": "Contact [PHONE]."},
             {"role": "user", "content": "Earlier number: [PHONE]."},

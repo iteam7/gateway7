@@ -11,8 +11,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from gateway7.models import ChatRequest, ChatResponse
-from gateway7.plugin_api import NextHandler, PluginContext, PluginDescriptor
+from gateway7.models import ChatRequest, ChatResponse, tool_text
+from gateway7.plugin_api import Deny, NextHandler, PluginContext, PluginDescriptor
 
 
 _PHONE_NUMBER = re.compile(
@@ -38,14 +38,18 @@ class PhoneMaskPlugin:
 
     async def handle(
         self, request: ChatRequest, context: PluginContext, call_next: NextHandler
-    ) -> ChatResponse:
+    ) -> ChatResponse | Deny:
         if self.settings.phase in ("request", "both"):
+            if any(_PHONE_NUMBER.search(text) is not None for text in tool_text(request)):
+                return Deny()
             request = request.model_copy(
                 update={
                     "messages": [
                         message.model_copy(
                             update={
-                                "content": _PHONE_NUMBER.sub(
+                                "content": None
+                                if message.content is None
+                                else _PHONE_NUMBER.sub(
                                     lambda _: self.settings.replacement, message.content
                                 )
                             }
@@ -56,6 +60,8 @@ class PhoneMaskPlugin:
             )
         response = await call_next(request)
         if self.settings.phase in ("response", "both"):
+            if any(_PHONE_NUMBER.search(text) is not None for text in tool_text(response)):
+                return Deny()
             response = response.model_copy(
                 update={
                     "text": _PHONE_NUMBER.sub(lambda _: self.settings.replacement, response.text)
@@ -68,4 +74,6 @@ def create(settings: Settings) -> PhoneMaskPlugin:
     return PhoneMaskPlugin(settings)
 
 
-PLUGIN = PluginDescriptor(id="phone-mask", api_version=2, settings_model=Settings, create=create)
+PLUGIN = PluginDescriptor(
+    id="phone-mask", api_version=2, settings_model=Settings, create=create, supports_tools=True
+)

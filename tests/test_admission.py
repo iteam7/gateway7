@@ -282,6 +282,9 @@ async def test_expired_timeout_keeps_capacity_until_cancellation_resistant_plugi
         request_timeout=0.03 if deadline == "request" else 10,
     )
     async with app.router.lifespan_context(app), client_for(app) as client:
+        # Clear earlier tests' cyclic app graphs before arming the 30 ms budget;
+        # this case requires the hook to enter before its deliberate timeout.
+        gc.collect()
         pending = asyncio.create_task(client.post("/chat", json=body()))
         await asyncio.wait_for(gate.entered.get(), 1)
         await asyncio.wait_for(gate.cancelled.wait(), 1)

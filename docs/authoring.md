@@ -120,6 +120,20 @@ A suite supports 1–64 cases in a file up to 1 MiB; reports are capped at 4 MiB
 The whole-suite timeout is 30 seconds by default; `--timeout` accepts 1–300 seconds.
 The configured middleware and request timeouts also apply to each case.
 
+## Function-tool fixtures
+
+The generated middleware declares no tool capability and remains usable for ordinary text chat.
+Adding `supports_tools=True` to `PLUGIN` is an explicit promise to inspect and preserve the extended [tool payload contract](plugins.md#tool-payload-capability).
+The flag alone does not make a text-only implementation safe.
+
+Before opting in, add offline cases covering a call-only `ChatResponse` with empty `text`, one typed `tool_calls` entry and `finish_reason: tool_calls`.
+Include nullable assistant history followed by a string `role: tool` result with the matching `tool_call_id`, allowed argument JSON, and a denial for synthetic sensitive data in arguments or definition text.
+Verify that call IDs and function names survive unchanged, that invalid argument edits fail validation, and that provider usage remains original when a response is denied or transformed.
+Use only synthetic paths, arguments and tool results: offline reports include fixture values.
+
+Upstream streaming changes provider transport, while middleware still receives the complete normalized response.
+Do not yield partial unchecked text or execute functions from a plugin; the harness owns execution after the gateway approves the call.
+
 ## Install normally and serve
 
 Install into the active Gateway7 environment with [uv](https://docs.astral.sh/uv/):

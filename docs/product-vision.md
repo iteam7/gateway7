@@ -46,7 +46,8 @@ Single-term course, with the MVP-0 estimate at two to three weeks once CI and li
 
 - **Status:** Active
 - **Source:** Environmental
-- **What it costs:** streaming, multi-provider routing, and governance features cannot be scheduled before the term ends; see [Boundary](#boundary).
+- **What it costs:** token-by-token caller delivery, multi-provider routing, and governance features remain outside the bounded implementation; see [Boundary](#boundary).
+  The provider-streaming extension in [ADR-005](architecture/adr/ADR-005.md) collects a complete response before client delivery and does not remove that boundary.
 
 ### CON-04
 

@@ -368,13 +368,13 @@ def assert_wire_request(proxy, kind):
     assert PROXY_USER not in str(headers) and PROXY_PASSWORD not in str(headers)
     assert KEY.encode() not in body
     assert proxy.sni == [HOSTS[kind]]
-    conversation = [message.model_dump() for message in REQUEST.messages[1:]]
+    conversation = [{"role": message.role, "content": message.content} for message in REQUEST.messages[1:]]
     if kind == "openai":
         assert line == "POST /v1/chat/completions HTTP/1.1"
         assert headers["authorization"] == "Bearer " + KEY
         assert json.loads(body) == {
             "model": MODEL,
-            "messages": [m.model_dump() for m in REQUEST.messages],
+            "messages": [{"role": message.role, "content": message.content} for message in REQUEST.messages],
             "max_completion_tokens": 32,
             "stream": False,
             "store": False,
@@ -607,4 +607,7 @@ async def test_default_direct_transport_ignores_proxy_and_ca_environment(monkeyp
         assert line == "POST /chat HTTP/1.1"
         assert headers["authorization"] == "Bearer " + KEY
         assert "proxy-authorization" not in headers
-        assert json.loads(body) == REQUEST.model_dump(mode="json")
+        assert json.loads(body) == {
+            "messages": [{"role": message.role, "content": message.content} for message in REQUEST.messages],
+            "max_tokens": REQUEST.max_tokens,
+        }

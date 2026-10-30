@@ -42,7 +42,10 @@ async def test_fake_sends_header_key_and_normalized_body_once():
         assert str(request.url) == "http://127.0.0.1:8001/chat"
         assert request.headers["authorization"] == "Bearer " + KEY
         assert KEY not in request.content.decode() and KEY not in str(request.url)
-        assert json.loads(request.content) == REQUEST.model_dump(mode="json")
+        assert json.loads(request.content) == {
+            "messages": [{"role": message.role, "content": message.content} for message in REQUEST.messages],
+            "max_tokens": REQUEST.max_tokens,
+        }
         return httpx.Response(200, json={"text": "pong", "usage": {"input_tokens": 3, "output_tokens": 1}})
 
     async with mocked_provider(handle) as provider:
@@ -208,7 +211,8 @@ def gemini_reply(**overrides):
     }
 
 
-async def test_openai_headers_payload_history_and_usage():
+@pytest.mark.parametrize("message_fields", [{}, {"tool_calls": None}, {"tool_calls": []}])
+async def test_openai_headers_payload_history_and_usage(message_fields):
     seen = []
     request = ChatRequest(messages=[
         Message(role="system", content="use short answers"),
@@ -225,12 +229,14 @@ async def test_openai_headers_payload_history_and_usage():
         assert KEY not in wire.content.decode() and KEY not in str(wire.url)
         assert json.loads(wire.content) == {
             "model": "configured-test-model",
-            "messages": [message.model_dump() for message in request.messages],
+            "messages": [{"role": message.role, "content": message.content} for message in request.messages],
             "max_completion_tokens": 17,
             "stream": False,
             "store": False,
         }
-        return httpx.Response(200, json=openai_reply())
+        return httpx.Response(200, json=openai_reply(choices=[{
+            "finish_reason": "stop", "message": {"role": "assistant", "content": "pong", **message_fields},
+        }]))
 
     async with mocked_provider(handle, kind="openai") as provider:
         answer = await provider.complete(request)
@@ -631,3 +637,310 @@ def test_provider_error_usage_is_a_private_canonical_snapshot():
 ])
 def test_provider_error_does_not_carry_invalid_usage(usage):
     assert ProviderError("invalid_response", usage=usage).usage is None
+
+
+def stream_chunk(delta=None, finish_reason=None, **fields):
+    return {
+        "id": "chatcmpl-synthetic-stream", "object": "chat.completion.chunk",
+        "created": 1, "model": "configured-test-model",
+        "choices": [{"index": 0, "delta": {} if delta is None else delta,
+                     "finish_reason": finish_reason}], **fields,
+    }
+
+
+def sse_body(*events, newline="\n", done=True):
+    data = "".join(
+        "data: " + json.dumps(event, ensure_ascii=False) + newline + newline
+        for event in events
+    )
+    if done:
+        data += "data: [DONE]" + newline + newline
+    return data.encode()
+
+
+class Fragments(httpx.AsyncByteStream):
+    def __init__(self, body, size=1):
+        self.body = body
+        self.size = size
+        self.closed = False
+
+    async def __aiter__(self):
+        for offset in range(0, len(self.body), self.size):
+            yield self.body[offset:offset + self.size]
+
+    async def aclose(self):
+        self.closed = True
+
+
+def streaming_response(body, *, size=1):
+    return httpx.Response(200, headers={"content-type": "text/event-stream; charset=utf-8"},
+                          stream=Fragments(body, size))
+
+
+def function_request(**changes):
+    return ChatRequest.model_validate({
+        "messages": [{"role": "user", "content": "read the fixture"}],
+        "tools": [{"type": "function", "function": {
+            "name": "read", "description": "Read a local fixture", "strict": False,
+            "parameters": {"type": "object", "properties": {"path": {"type": "string"}}},
+        }}], **changes,
+    })
+
+
+def read_call(*, name="read", arguments='{"path":"agent-fixture.txt"}'):
+    return {"id": "call_read_fixture", "type": "function",
+            "function": {"name": name, "arguments": arguments}}
+
+
+@pytest.mark.parametrize("newline", ["\n", "\r\n", "\r"])
+@pytest.mark.parametrize("finish_reason", ["stop", "length"])
+async def test_openai_stream_consumes_fragmented_utf8_sse_and_independent_usage(newline, finish_reason):
+    body = b"\xef\xbb\xbf" + (": keepalive" + newline + newline).encode() + sse_body(
+        stream_chunk({"role": "assistant", "content": ""}),
+        stream_chunk({"content": "Привет "}), stream_chunk({"content": "🌍"}),
+        stream_chunk(finish_reason=finish_reason),
+        {"choices": [], "usage": {"prompt_tokens": 7, "completion_tokens": 3}},
+        newline=newline,
+    )
+    attempts = []
+    response = streaming_response(body)
+
+    def handle(wire):
+        attempts.append(wire)
+        payload = json.loads(wire.content)
+        assert payload["stream"] is True
+        assert payload["stream_options"] == {"include_usage": True}
+        assert payload["store"] is False
+        assert wire.headers["authorization"] == "Bearer " + KEY
+        return response
+
+    async with mocked_provider(handle, kind="openai") as provider:
+        answer = await provider.complete(REQUEST, stream=True)
+    assert answer.text == "Привет 🌍"
+    assert answer.finish_reason == finish_reason
+    assert answer.usage == {"input_tokens": 7, "output_tokens": 3}
+    assert not answer.tool_calls
+    assert len(attempts) == 1 and response.is_closed
+
+
+@pytest.mark.parametrize("accounting", [
+    [], [{"choices": [], "usage": {}}],
+    [{"choices": [], "usage": {"prompt_tokens": True, "completion_tokens": 1}}],
+    [{"choices": [], "usage": {"prompt_tokens": 3, "completion_tokens": 1}},
+     {"choices": [], "usage": {"prompt_tokens": 4, "completion_tokens": 1}},
+     {"choices": [], "usage": {"prompt_tokens": 3, "completion_tokens": 1}}],
+])
+async def test_openai_stream_accepts_multiple_data_lines_and_unknown_usage(accounting):
+    event = json.dumps(stream_chunk({"content": "pong"}, "stop"))
+    left, right = event.split('"choices":', 1)
+    body = ("data: " + left + '"choices":' + "\ndata: " + right + "\n\n").encode()
+    body += sse_body(*accounting)
+    async with mocked_provider(lambda _: streaming_response(body), kind="openai") as provider:
+        answer = await provider.complete(REQUEST, stream=True)
+    assert answer.text == "pong" and answer.usage is None
+
+
+@pytest.mark.parametrize("stream", [False, True])
+async def test_openai_function_round_trip_forwards_definitions_call_ids_and_generation(stream):
+    request = function_request(
+        tool_choice="auto", parallel_tool_calls=False, max_tokens=1024,
+        temperature=0.0, top_p=0.9, frequency_penalty=0.1, presence_penalty=-0.1,
+        seed=12, stop=["END"],
+    )
+    call = read_call()
+    seen = []
+
+    def handle(wire):
+        payload = json.loads(wire.content)
+        seen.append(payload)
+        assert payload["stream"] is stream and payload["parallel_tool_calls"] is False
+        assert payload["tools"] == [request.tools[0].model_dump(exclude_none=True)]
+        assert payload["tool_choice"] == "auto"
+        if len(seen) == 1:
+            assert {name: payload[name] for name in (
+                "temperature", "top_p", "frequency_penalty", "presence_penalty", "seed", "stop"
+            )} == {"temperature": 0.0, "top_p": 0.9, "frequency_penalty": 0.1,
+                   "presence_penalty": -0.1, "seed": 12, "stop": ["END"]}
+            if stream:
+                first = {**call, "index": 0, "function": {"name": "read", "arguments": '{"path":'}}
+                second = {"index": 0, "function": {"arguments": '"agent-fixture.txt"}'}}
+                return streaming_response(sse_body(
+                    stream_chunk({"role": "assistant", "content": None, "tool_calls": [first]}),
+                    stream_chunk({"tool_calls": [second]}),
+                    stream_chunk(finish_reason="tool_calls"),
+                    {"choices": [], "usage": {"prompt_tokens": 10, "completion_tokens": 4}},
+                ))
+            return httpx.Response(200, json=openai_reply(choices=[{
+                "finish_reason": "tool_calls", "message": {"role": "assistant", "content": None,
+                                                             "tool_calls": [call]},
+            }]))
+        assert payload["messages"][-2:] == [
+            {"role": "assistant", "content": None, "tool_calls": [call]},
+            {"role": "tool", "content": "GATEWAY7_AGENT_OK", "tool_call_id": call["id"]},
+        ]
+        if stream:
+            return streaming_response(sse_body(stream_chunk({"content": "GATEWAY7_AGENT_OK"}, "stop")))
+        return httpx.Response(200, json=openai_reply(choices=[{
+            "finish_reason": "stop", "message": {"role": "assistant", "content": "GATEWAY7_AGENT_OK"},
+        }]))
+
+    async with mocked_provider(handle, kind="openai") as provider:
+        first = await provider.complete(request, stream=stream)
+        assert first.text == "" and first.finish_reason == "tool_calls"
+        assert first.tool_calls[0].model_dump() == call
+        followup = function_request(messages=[
+            {"role": "user", "content": "read the fixture"},
+            {"role": "assistant", "content": None, "tool_calls": [call]},
+            {"role": "tool", "content": "GATEWAY7_AGENT_OK", "tool_call_id": call["id"]},
+        ], tool_choice="auto")
+        assert (await provider.complete(followup, stream=stream)).text == "GATEWAY7_AGENT_OK"
+    assert len(seen) == 2
+
+
+@pytest.mark.parametrize("choice,call_name,has_call", [
+    ("none", "read", True), ("required", "read", False),
+    ({"type": "function", "function": {"name": "read"}}, "write", True),
+    ({"type": "function", "function": {"name": "read"}}, "read", False),
+    ("auto", "undeclared", True),
+])
+@pytest.mark.parametrize("stream", [False, True])
+async def test_openai_returned_tools_must_match_advertised_names_and_choice(choice, call_name, has_call, stream):
+    request = function_request(tool_choice=choice)
+    message = {"role": "assistant", "content": "" if has_call else "pong"}
+    if has_call:
+        message["tool_calls"] = [read_call(name=call_name)]
+    reason = "tool_calls" if has_call else "stop"
+    if stream:
+        delta = {key: value for key, value in message.items() if key != "role"}
+        if has_call:
+            delta["tool_calls"] = [{**message["tool_calls"][0], "index": 0}]
+        response = streaming_response(sse_body(
+            stream_chunk(delta, reason),
+            {"choices": [], "usage": {"prompt_tokens": 3, "completion_tokens": 1}},
+        ))
+    else:
+        response = httpx.Response(200, json=openai_reply(choices=[{"message": message, "finish_reason": reason}]))
+    async with mocked_provider(lambda _: response, kind="openai") as provider:
+        with pytest.raises(ProviderError) as caught:
+            await provider.complete(request, stream=stream)
+    assert caught.value.reason is ProviderErrorReason.INVALID_RESPONSE
+    assert caught.value.usage == {"input_tokens": 3, "output_tokens": 1}
+
+
+@pytest.mark.parametrize("body", [
+    sse_body(stream_chunk({"content": "pong"}, "stop"), done=False),
+    sse_body(stream_chunk({"content": "partial"})),
+    b'data: {"choices":[]}\n\ndata: [DONE]',
+    b'data: not-json\n\ndata: [DONE]\n\n',
+    b'data: \xff\n\ndata: [DONE]\n\n',
+    sse_body(stream_chunk({"content": "first"}), stream_chunk({"content": "changed"}, "stop", id="different")),
+    sse_body(stream_chunk({"content": "text"}, "stop"), stream_chunk({"content": "late"})),
+    sse_body(stream_chunk({"refusal": "private-upstream-answer"}, "stop")),
+    sse_body(stream_chunk({"audio": {"data": "private-upstream-answer"}}, "stop")),
+    sse_body(stream_chunk(choices=[{"index": 1, "delta": {"content": "bad"}, "finish_reason": "stop"}])),
+    sse_body(stream_chunk(choices=[{"index": True, "delta": {"content": "bad"}, "finish_reason": "stop"}])),
+    sse_body(stream_chunk(choices=[{"index": 0, "delta": {}, "finish_reason": "stop"},
+                                   {"index": 1, "delta": {}, "finish_reason": "stop"}])),
+    sse_body(stream_chunk({"content": "text"}, "stop")) + b'data: {}\n\n',
+], ids=["missing-done", "missing-finish", "unterminated-event", "invalid-json", "invalid-utf8",
+        "identity-change", "content-after-finish", "refusal", "audio", "wrong-choice-index",
+        "coerced-choice-index", "multiple-choices", "event-after-done"])
+async def test_openai_stream_rejects_invalid_or_incomplete_protocol_without_retry(body):
+    seen = []
+    response = streaming_response(body, size=3)
+
+    def handle(wire):
+        seen.append(wire)
+        return response
+
+    async with mocked_provider(handle, kind="openai") as provider:
+        with pytest.raises(ProviderError) as caught:
+            await provider.complete(REQUEST, stream=True)
+    assert caught.value.reason is ProviderErrorReason.INVALID_RESPONSE
+    assert str(caught.value) == "Provider request failed"
+    assert "private-upstream-answer" not in repr(caught.value)
+    assert len(seen) == 1 and response.is_closed
+
+
+@pytest.mark.parametrize("tool_events,reason", [
+    ([{"index": 0, **read_call(arguments='{') }], "tool_calls"),
+    ([{"index": 0, **read_call()}], "length"),
+    ([{"index": 0, **read_call()}, {"index": 1, **read_call()}], "tool_calls"),
+    ([{"index": 0, **read_call()}, {"index": 0, "id": "changed", "function": {"arguments": ""}}], "tool_calls"),
+    ([{"index": 0, **read_call()}, {"index": 0, "function": {"name": "changed", "arguments": ""}}], "tool_calls"),
+])
+async def test_openai_stream_rejects_incomplete_or_inconsistent_tool_fragments(tool_events, reason):
+    events = [stream_chunk({"tool_calls": [tool]}) for tool in tool_events]
+    body = sse_body(*events, stream_chunk(finish_reason=reason),
+                    {"choices": [], "usage": {"prompt_tokens": 5, "completion_tokens": 2}})
+    async with mocked_provider(lambda _: streaming_response(body), kind="openai") as provider:
+        with pytest.raises(ProviderError) as caught:
+            await provider.complete(function_request(), stream=True)
+    assert caught.value.reason is ProviderErrorReason.INVALID_RESPONSE
+    assert caught.value.usage == {"input_tokens": 5, "output_tokens": 2}
+
+
+async def test_openai_stream_accounts_usage_after_semantically_rejected_answer():
+    body = sse_body(stream_chunk({"content": "private-upstream-answer"}, "content_filter"),
+                    {"choices": [], "usage": {"prompt_tokens": 9, "completion_tokens": 4}})
+    async with mocked_provider(lambda _: streaming_response(body), kind="openai") as provider:
+        with pytest.raises(ProviderError) as caught:
+            await provider.complete(REQUEST, stream=True)
+    assert caught.value.usage == {"input_tokens": 9, "output_tokens": 4}
+
+
+@pytest.mark.parametrize("failure", ["event", "total", "media-type"])
+async def test_openai_stream_bounds_body_and_events_and_requires_sse_content_type(failure):
+    usage = {"choices": [], "usage": {"prompt_tokens": 2, "completion_tokens": 1}}
+    if failure == "event":
+        body = sse_body(usage, stream_chunk({"content": "x" * 65_536}, "stop"))
+    else:
+        body = sse_body(usage) + b": bounded-heartbeat\n\n" * (MAX_RESPONSE_BYTES // 10)
+    response = streaming_response(body, size=8192)
+    if failure == "media-type":
+        response.headers["content-type"] = "application/json"
+    async with mocked_provider(lambda _: response, kind="openai") as provider:
+        with pytest.raises(ProviderError) as caught:
+            await provider.complete(REQUEST, stream=True)
+    assert caught.value.reason is ProviderErrorReason.INVALID_RESPONSE
+    assert caught.value.usage == (None if failure == "media-type" else {"input_tokens": 2, "output_tokens": 1})
+    assert response.is_closed
+
+
+async def test_openai_stream_cancellation_closes_active_transport_without_retry():
+    started = asyncio.Event()
+    closed = asyncio.Event()
+    attempts = []
+
+    class ActiveStream(httpx.AsyncByteStream):
+        async def __aiter__(self):
+            yield sse_body(stream_chunk({"role": "assistant"}), done=False)
+            started.set()
+            await asyncio.Event().wait()
+
+        async def aclose(self):
+            closed.set()
+
+    def handle(wire):
+        attempts.append(wire)
+        return httpx.Response(200, headers={"content-type": "text/event-stream"}, stream=ActiveStream())
+
+    async with mocked_provider(handle, kind="openai") as provider:
+        task = asyncio.create_task(provider.complete(REQUEST, stream=True))
+        await started.wait()
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+    assert closed.is_set() and len(attempts) == 1
+
+
+@pytest.mark.parametrize("kind", ["fake", "claude", "gemini"])
+@pytest.mark.parametrize("payload,stream", [(REQUEST, True), (function_request(), False),
+                                          (ChatRequest(messages=REQUEST.messages, temperature=0.2), False)])
+async def test_other_provider_capabilities_are_rejected_before_transport(kind, payload, stream):
+    seen = []
+    async with mocked_provider(lambda wire: seen.append(wire), kind=kind) as provider:
+        with pytest.raises(ProviderError) as caught:
+            await provider.complete(payload, stream=stream)
+    assert caught.value.reason is ProviderErrorReason.REJECTED
+    assert not seen

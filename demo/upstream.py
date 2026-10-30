@@ -59,9 +59,15 @@ async def chat(request: Request):
         parsed = ChatRequest.model_validate(json.loads(body))
     except (ValueError, ValidationError):
         raise HTTPException(status_code=400, detail="Invalid demo request") from None
-    request.app.state.requests.append(
-        {"body": parsed.model_dump(mode="json"), "key_accepted": True}
-    )
+    if parsed.requires_tools or parsed != ChatRequest(
+        messages=parsed.messages, max_tokens=parsed.max_tokens
+    ):
+        raise HTTPException(status_code=400, detail="Demo provider supports text-only requests")
+    recorded = {
+        "messages": [{"role": item.role, "content": item.content} for item in parsed.messages],
+        "max_tokens": parsed.max_tokens,
+    }
+    request.app.state.requests.append({"body": recorded, "key_accepted": True})
     # Bound the diagnostic store; all demo inputs must be synthetic.
     del request.app.state.requests[:-100]
     return {"text": ANSWER, "usage": USAGE}

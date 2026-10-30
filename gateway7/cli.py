@@ -246,7 +246,11 @@ async def _chat(
     if model is not None and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", model) is None:
         raise StartupError("--model must be a valid model identifier")
     request = ChatRequest(messages=[Message(role="user", content=message)], max_tokens=max_tokens)
-    payload = request.model_dump()
+    # The CLI's chat command targets the unchanged native text endpoint.
+    payload: dict[str, Any] = {
+        "messages": [{"role": item.role, "content": item.content} for item in request.messages],
+        "max_tokens": request.max_tokens,
+    }
     if model is not None:
         payload["model"] = model
     headers = {} if token is None else {"authorization": "Bearer " + token}

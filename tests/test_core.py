@@ -12,13 +12,13 @@ from types import ModuleType
 import pytest
 import yaml
 from fastapi.testclient import TestClient
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from gateway7.app import create_app
 from gateway7.config import GatewayConfig, LimitsConfig, load_config, provider_key
 from gateway7.errors import GatewayError, StartupError
 from gateway7.loader import load_plugins, start_plugins
-from gateway7.models import ChatRequest, ChatResponse, Message
+from gateway7.models import ChatRequest, ChatResponse, Message, ToolCall, ToolDefinition
 from gateway7.pipeline import Pipeline
 from gateway7.plugin_api import API_VERSION, Deny, PluginDescriptor
 
@@ -134,7 +134,7 @@ def test_disabled_modules_are_validated_but_not_constructed(monkeypatch):
 
 @pytest.mark.parametrize("change", [
     {"api_version": 3}, {"api_version": True}, {"settings_model": int},
-    {"create": None}, {"id": "invalid type id"},
+    {"create": None}, {"id": "invalid type id"}, {"supports_tools": "true"},
 ])
 def test_invalid_descriptor_is_rejected(monkeypatch, change):
     values = {"id": "test", "api_version": API_VERSION, "settings_model": Settings, "create": lambda _: PassThrough()}
@@ -419,7 +419,7 @@ def test_http_schema_body_limit_and_safe_errors(monkeypatch, tmp_path, caplog):
     path = write_config(tmp_path, configuration(limits={"max_body_bytes": 256}))
     with caplog.at_level("INFO", logger="gateway7"), TestClient(create_app(path)) as client:
         assert client.get("/health").json() == {"status": "ok"}
-        valid = client.post("/chat", json=payload().model_dump())
+        valid = client.post("/chat", json=payload().model_dump(exclude_defaults=True))
         assert valid.status_code == 200 and valid.json()["text"] == "answer"
         assert valid.headers["x-request-id"] == valid.json()["request_id"]
         for data in (
@@ -459,7 +459,7 @@ def test_http_disconnect_cancels_hook_before_provider(monkeypatch, tmp_path):
         path = write_config(tmp_path, configuration({"p": {"module": name}}, ["p"]))
         app = create_app(path)
         messages = asyncio.Queue()
-        await messages.put({"type": "http.request", "body": json.dumps(payload().model_dump()).encode(), "more_body": False})
+        await messages.put({"type": "http.request", "body": json.dumps(payload().model_dump(exclude_defaults=True)).encode(), "more_body": False})
         responses = []
 
         async def send(message):
@@ -1045,3 +1045,137 @@ async def test_cleanup_task_cancellation_finishes_without_caller_cancellation():
     with pytest.raises(asyncio.CancelledError):
         await asyncio.wait_for(task, timeout=0.5)
     assert task.done() and task.cancelled()
+
+
+def tool_definition():
+    return ToolDefinition.model_validate({
+        "type": "function",
+        "function": {"name": "read", "parameters": {"type": "object"}},
+    })
+
+
+def tool_call(arguments='{"path":"agent-fixture.txt"}', *, identifier="call_read", name="read"):
+    return ToolCall.model_validate({
+        "id": identifier, "type": "function",
+        "function": {"name": name, "arguments": arguments},
+    })
+
+
+def tool_request(*, history=False):
+    messages = [Message(role="user", content="Read the fixture")]
+    if history:
+        messages += [
+            Message(role="assistant", content=None, tool_calls=[tool_call()]),
+            Message(role="tool", content="GATEWAY7_AGENT_OK", tool_call_id="call_read"),
+        ]
+    return ChatRequest(messages=messages, tools=[] if history else [tool_definition()])
+
+
+@pytest.mark.parametrize("changes", [
+    {"tool_choice": "required", "tools": []},
+    {"tools": [tool_definition(), tool_definition()]},
+    {"tool_choice": {"type": "function", "function": {"name": "missing"}}},
+    {"parallel_tool_calls": True}, {"parallel_tool_calls": 0},
+    {"temperature": float("nan")}, {"top_p": 1.1}, {"stop": []},
+    {"messages": [Message(role="assistant", content=None, tool_calls=[tool_call()])]},
+    {"messages": [Message(role="tool", content="orphan", tool_call_id="call_read")]},
+    {"messages": [Message(role="assistant", content=None, tool_calls=[tool_call()]),
+                  Message(role="tool", content="wrong", tool_call_id="call_other")]},
+    {"messages": [Message(role="assistant", content=None, tool_calls=[tool_call()]),
+                  Message(role="user", content="unresolved")]},
+])
+def test_function_tool_request_contract_rejects_inconsistent_controls_and_history(changes):
+    with pytest.raises(ValidationError):
+        ChatRequest.model_validate({**tool_request().model_dump(), **changes})
+
+
+@pytest.mark.parametrize("arguments", [
+    '[]', '{"path":', '{"path":"one","path":"two"}', '{"count":NaN}',
+    '{"nested":' * 66 + '{}' + '}' * 66,
+])
+def test_tool_arguments_are_valid_bounded_json_objects(arguments):
+    with pytest.raises(ValidationError):
+        tool_call(arguments)
+
+
+@pytest.mark.parametrize("history", [False, True])
+def test_legacy_middleware_rejects_tools_and_tool_history_before_provider(monkeypatch, history):
+    runner, provider = pipeline_for(monkeypatch, PassThrough())
+    with pytest.raises(GatewayError) as error:
+        asyncio.run(runner.run(tool_request(history=history), "legacy-tools"))
+    assert error.value.code == "invalid_request"
+    assert provider.calls == []
+
+
+def test_tool_history_accepts_no_active_definitions_and_keeps_result_identifier():
+    request = tool_request(history=True)
+    assert request.requires_tools and request.tools == []
+    assert request.messages[1].content is None
+    assert request.messages[2].tool_call_id == request.messages[1].tool_calls[0].id
+
+
+def test_stream_control_and_approved_tool_arguments_preserve_provider_accounting(monkeypatch):
+    calls = []
+    original = ChatResponse(text="", tool_calls=[tool_call()], finish_reason="tool_calls",
+                            usage={"input_tokens": 8, "output_tokens": 2})
+
+    class Provider:
+        async def complete(self, request, *, model=None, stream=False):
+            calls.append((request, model, stream))
+            return original
+
+    class Inspect:
+        async def handle(self, request, context, call_next):
+            response = await call_next(request)
+            response.usage["input_tokens"] = 0
+            checked_call = response.tool_calls[0].model_copy(update={
+                "function": response.tool_calls[0].function.model_copy(update={
+                    "arguments": '{"path":"checked-fixture.txt"}',
+                }),
+            })
+            return response.model_copy(update={"tool_calls": [checked_call]})
+
+    name = module(monkeypatch, descriptor=PluginDescriptor(
+        id="tool-inspector", api_version=API_VERSION, settings_model=Settings,
+        create=lambda _: Inspect(), supports_tools=True,
+    ))
+    config = configuration({"inspect": {"module": name}}, ["inspect"])
+    result = asyncio.run(Pipeline(load_plugins(config), Provider(), config.limits).run(
+        tool_request(), "stream-tools", provider_model="selected-model", provider_stream=True,
+    ))
+    assert len(calls) == 1 and calls[0][1:] == ("selected-model", True)
+    assert "stream" not in calls[0][0].model_dump()
+    assert result.tool_calls[0].function.arguments == '{"path":"checked-fixture.txt"}'
+    assert result.finish_reason == "tool_calls"
+    assert result.usage == {"input_tokens": 8, "output_tokens": 2}
+    assert original.tool_calls[0].function.arguments == '{"path":"agent-fixture.txt"}'
+
+
+@pytest.mark.parametrize("change", ["id", "name", "arguments", "remove"])
+def test_middleware_cannot_change_tool_identity_or_return_invalid_arguments(monkeypatch, change):
+    class Provider:
+        async def complete(self, request):
+            return ChatResponse(text="", tool_calls=[tool_call()], finish_reason="tool_calls")
+
+    class Invalid:
+        async def handle(self, request, context, call_next):
+            response = await call_next(request)
+            call = response.tool_calls[0]
+            if change == "remove":
+                return ChatResponse(text="hidden call")
+            if change == "id":
+                call = call.model_copy(update={"id": "call_changed"})
+            else:
+                call = call.model_copy(update={"function": call.function.model_copy(update={
+                    change: "changed" if change == "name" else "not JSON",
+                })})
+            return response.model_copy(update={"tool_calls": [call]})
+
+    name = module(monkeypatch, descriptor=PluginDescriptor(
+        id="invalid-inspector", api_version=API_VERSION, settings_model=Settings,
+        create=lambda _: Invalid(), supports_tools=True,
+    ))
+    config = configuration({"inspect": {"module": name}}, ["inspect"])
+    with pytest.raises(GatewayError) as error:
+        asyncio.run(Pipeline(load_plugins(config), Provider(), config.limits).run(tool_request(), "bad-tools"))
+    assert error.value.code == "plugin_error"

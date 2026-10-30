@@ -9,7 +9,7 @@ from gateway7.config import LimitsConfig
 from gateway7.errors import GatewayError, ProviderError, ProviderErrorReason
 from gateway7.loader import LoadedPlugins
 from gateway7.metrics import Metrics
-from gateway7.models import ChatRequest, ChatResponse
+from gateway7.models import ChatRequest, ChatResponse, NamedToolChoice
 from gateway7.plugin_api import Deny, PluginContext
 
 logger = logging.getLogger("gateway7")
@@ -80,6 +80,7 @@ class Pipeline:
         *,
         deadline: float | None = None,
         provider_model: str | None = None,
+        provider_stream: bool = False,
     ) -> ChatResponse:
         deadline = (
             deadline
@@ -92,11 +93,44 @@ class Pipeline:
         }
         provider_called = False
         provider_usage = None
-        provider_finish_reason: Literal["stop", "length"] = "stop"
+        provider_finish_reason: Literal["stop", "length", "tool_calls"] = "stop"
+        provider_calls: tuple[tuple[str, str], ...] = ()
+
+        def tool_capability(incoming: ChatRequest) -> None:
+            if incoming.requires_tools and any(
+                not plugin.descriptor.supports_tools for plugin in self.plugins.middleware_chain
+            ):
+                raise GatewayError("invalid_request")
+
+        def response_contract(incoming: ChatRequest, outgoing: ChatResponse) -> None:
+            names = {tool.function.name for tool in incoming.tools}
+            old_ids = {call.id for message in incoming.messages for call in message.tool_calls}
+            if any(
+                call.function.name not in names or call.id in old_ids
+                for call in outgoing.tool_calls
+            ):
+                raise ValueError("Provider returned an unadvertised or reused tool call")
+            if outgoing.tool_calls and incoming.tool_choice == "none":
+                raise ValueError("Tool calls were disabled")
+            if isinstance(incoming.tool_choice, NamedToolChoice) and any(
+                call.function.name != incoming.tool_choice.function.name
+                for call in outgoing.tool_calls
+            ):
+                raise ValueError("Provider returned a different named tool")
+            if (
+                (
+                    incoming.tool_choice == "required"
+                    or isinstance(incoming.tool_choice, NamedToolChoice)
+                )
+                and not outgoing.tool_calls
+                and outgoing.finish_reason != "length"
+            ):
+                raise ValueError("Provider omitted a required tool call")
 
         async def dispatch(index: int, incoming: ChatRequest) -> ChatResponse:
-            nonlocal provider_called, provider_usage, provider_finish_reason
+            nonlocal provider_called, provider_usage, provider_finish_reason, provider_calls
             _checkpoint(deadline)
+            tool_capability(incoming)
             if index == len(self.plugins.middleware_chain):
                 if provider_called:
                     raise GatewayError("plugin_error")
@@ -106,15 +140,25 @@ class Pipeline:
                 try:
                     # Authenticated routing is pinned outside plugin-visible
                     # payloads; concurrent requests never mutate the adapter.
-                    response = (
-                        await self.provider.complete(incoming)
-                        if provider_model is None
-                        else await self.provider.complete(incoming, model=provider_model)
-                    )
+                    options: dict[str, Any] = {}
+                    if provider_model is not None:
+                        options["model"] = provider_model
+                    if provider_stream:
+                        options["stream"] = True
+                    response = await self.provider.complete(incoming, **options)
                     try:
                         result = _validated(response, ChatResponse)
+                        response_contract(incoming, result)
+                        if result.tool_calls and any(
+                            not plugin.descriptor.supports_tools
+                            for plugin in self.plugins.middleware_chain
+                        ):
+                            raise ValueError("Middleware does not support tool payloads")
                     except (TypeError, ValueError):
-                        raise ProviderError(ProviderErrorReason.INVALID_RESPONSE) from None
+                        raise ProviderError(
+                            ProviderErrorReason.INVALID_RESPONSE,
+                            usage=response.usage if isinstance(response, ChatResponse) else None,
+                        ) from None
                 except asyncio.CancelledError:
                     if self.metrics is not None:
                         self.metrics.observe_provider(
@@ -148,6 +192,7 @@ class Pipeline:
                 # Snapshot before any middleware can mutate the returned object.
                 provider_usage = None if result.usage is None else dict(result.usage)
                 provider_finish_reason = result.finish_reason
+                provider_calls = tuple((call.id, call.function.name) for call in result.tool_calls)
                 if self.metrics is not None:
                     self.metrics.observe_provider(
                         self.provider_name, "complete", time.monotonic() - started, provider_usage
@@ -250,6 +295,11 @@ class Pipeline:
                     raise GatewayError("plugin_error")
                 try:
                     response = _validated(result, ChatResponse)
+                    if (
+                        tuple((call.id, call.function.name) for call in response.tool_calls)
+                        != provider_calls
+                    ):
+                        raise ValueError("Middleware changed tool call identity")
                 except Exception:
                     raise GatewayError("plugin_error") from None
                 budget_checkpoint()
@@ -295,7 +345,10 @@ class Pipeline:
                 raise GatewayError("timeout")
             _checkpoint(deadline)
             return ChatResponse(
-                text=response.text, usage=provider_usage, finish_reason=provider_finish_reason
+                text=response.text,
+                usage=provider_usage,
+                finish_reason=provider_finish_reason,
+                tool_calls=response.tool_calls,
             )
         except TimeoutError:
             raise GatewayError("timeout") from None

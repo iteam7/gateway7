@@ -21,6 +21,8 @@ class PluginDescriptor(Generic[SettingsT]):
     api_version: int
     settings_model: type[SettingsT]
     create: Callable[[SettingsT], object]
+    # Opt in only after inspecting structured arguments, definitions, and results.
+    supports_tools: bool = False
 
 
 @dataclass(frozen=True)

@@ -33,6 +33,7 @@ nav:
       - Trusted middleware: architecture/adr/ADR-002.md
       - Credentials and model access: architecture/adr/ADR-003.md
       - Provider transport proposal: architecture/adr/ADR-004.md
+      - Guarded streaming and agent turns: architecture/adr/ADR-005.md
       - ADR template: architecture/adr/TEMPLATE.md
   - Reference:
       - CLI commands: cli.md
@@ -64,6 +65,7 @@ nav:
           - FR-010 Show the overview dashboard: functional-requirements/fr/FR-010.md
           - FR-011 Name the failing middleware: functional-requirements/fr/FR-011.md
           - FR-012 Report developer model usage: functional-requirements/fr/FR-012.md
+          - FR-013 Exchange guarded function-tool turns: functional-requirements/fr/FR-013.md
       - Decisions: decisions.md
       - Assumptions: assumptions.md
       - Definition of Done: definition-of-done.md
