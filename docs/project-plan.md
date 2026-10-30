@@ -7,7 +7,7 @@ The corrected SPRINT-04–09 dates below match the GitHub milestone due dates, u
 The monitoring cadence and the unplanned sprint goals remain proposals for team review.
 Updated on 30 October 2026 under [task #138](https://github.com/iteam7/gateway7/issues/138): the user delegated the new milestone choices and the remaining SPRINT-05 scope to AI-assisted planning.
 This late planning update is dated when it was made; it does not reconstruct the original numerical commitment.
-The [31 October contributor follow-up](https://github.com/iteam7/gateway7/blob/main/reports/week-05/meeting-follow-up.md) confirms that planning took place and records Customer acceptance separately.
+The [31 October contributor follow-up](https://github.com/iteam7/gateway7/blob/7fa1eced4183c17f2cac9df41bb970a0075ef65f/reports/week-05/meeting-follow-up.md) confirms that planning took place and records Customer acceptance separately.
 
 ## Milestones
 
@@ -107,7 +107,7 @@ All eight Assignment 4 carryover tasks created on 25 October retain their placem
 New selection sets the sprint milestone, distinct native Responsible and Accountable values and exactly those two assignees together; scheduled tasks also carry native Priority.
 Unselected refined stories retain their estimates without a milestone, role values or assignees.
 
-The [31 October confirmation](https://github.com/iteam7/gateway7/blob/main/reports/week-05/meeting-follow-up.md#customer-verdicts) establishes acceptance of both currently estimated selected stories.
+The [31 October confirmation](https://github.com/iteam7/gateway7/blob/7fa1eced4183c17f2cac9df41bb970a0075ef65f/reports/week-05/meeting-follow-up.md#customer-verdicts) establishes acceptance of both currently estimated selected stories.
 The `8 SP` result is the known SPRINT-05 scope, not a recreated original commitment or a point total for accepted stories still placed in older sprint milestones without estimates.
 Closeout must record each unfinished issue's actual move to SPRINT-06 before closing this milestone; the contributor has authorized the carryover, but this document does not claim that the metadata moves or release already happened.
 The [SPRINT-04 actions](https://github.com/iteam7/gateway7/blob/main/reports/week-04/sprint-retrospective.md#actions) still require the tracker and review records to show their outcome, including the Customer review and remaining Windows work.
@@ -163,7 +163,7 @@ Each row is one quality requirement test and what it found at its last check; th
 
 The two CI results were checked on 31 October at `main` commit `a15b1cd14618ee7b5ac423f4aed5ed2f496f405d`.
 The job logs show both testability tests and the confidentiality test passing; the suite completed in 46.82 seconds and the separate HTTP demonstration step in 12 seconds.
-A separate [Linux QR-01 run](https://github.com/iteam7/gateway7/blob/main/reports/week-05/quality-checks.md#qr-01-linux-execution) completed 50 repetitions of each of four failure cases, with exit 0 and no upstream calls.
+A separate [Linux QR-01 run](https://github.com/iteam7/gateway7/blob/7fa1eced4183c17f2cac9df41bb970a0075ef65f/reports/week-05/quality-checks.md#qr-01-linux-execution) completed 50 repetitions of each of four failure cases, with exit 0 and no upstream calls.
 The declared QRT also requires Windows; the full row remains Not verified with Checked/Evidence None until that procedure is evidenced on both systems.
 The contributor reports OpenAI in staging and production, while the current deployed privacy script expects `fake`; no passing staging result is inferred from either report.
 These are CI checks of that commit; release evidence must be refreshed against the final verified production commit before tagging.

@@ -135,7 +135,7 @@ Accept the demonstrated US-01, US-02, US-03, US-04, US-05 and US-12.
 - **Status:** Active
 - **Date:** 2026-10-30.
 - **Made by:** Customer.
-- **Source:** [Week 05 contributor confirmation](https://github.com/iteam7/gateway7/blob/main/reports/week-05/meeting-follow-up.md#customer-verdicts).
+- **Source:** [Week 05 contributor confirmation](https://github.com/iteam7/gateway7/blob/7fa1eced4183c17f2cac9df41bb970a0075ef65f/reports/week-05/meeting-follow-up.md#customer-verdicts).
 - **Why:** answering the story-by-story completion question, azamatbayramov confirmed that #30, #31, #32, #33, #34 and #140 were shown and Customer was satisfied with them. This records those named story verdicts on member-provided evidence, separately from the transcript-only meeting account; it does not assert acceptance of US-06 or create missing individual test logs.
 
 ## DEC-021
@@ -145,5 +145,5 @@ Accept OpenAI as a real provider for the US-01 demonstration alongside Claude an
 - **Status:** Active
 - **Date:** 2026-10-30.
 - **Made by:** Customer.
-- **Source:** [Week 05 requirement clarification](https://github.com/iteam7/gateway7/blob/main/reports/week-05/meeting-follow-up.md#requirement-clarification).
+- **Source:** [Week 05 requirement clarification](https://github.com/iteam7/gateway7/blob/7fa1eced4183c17f2cac9df41bb970a0075ef65f/reports/week-05/meeting-follow-up.md#requirement-clarification).
 - **Why:** azamatbayramov confirmed that OpenAI was shown and acceptable to Customer when asked about US-01's earlier Claude/Gemini-only wording. This clarifies the allowed provider choice; no change to plugin-name or startup-error criteria is inferred, and the existing live-request evidence must still state what was actually checked.
