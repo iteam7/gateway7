@@ -15,3 +15,4 @@ Each requirement states one behavior of Gateway7, the containers it runs in and 
 | [FR-009](fr/FR-009.md) | Expose Request And Middleware Metrics | `gateway` | Active |
 | [FR-010](fr/FR-010.md) | Show Gateway Operations On The Overview Dashboard | `prometheus`, `grafana` | Active |
 | [FR-011](fr/FR-011.md) | Name The Middleware That Failed Or Slowed A Request | `gateway` | Active |
+| [FR-012](fr/FR-012.md) | Report Each Developer's Model Usage Over A Period | `gateway` | Active |
