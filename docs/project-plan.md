@@ -152,9 +152,13 @@ Each row is one quality requirement test and what it found at its last check; th
 | QR | QRT | Status | Checked | Planned for sprint | Evidence |
 | --- | --- | --- | --- | --- | --- |
 | [QR-01](quality-requirements/qr/QR-01.md) | [QR-01 QRT-01](quality-requirements/qr/QR-01.md#qrt-01) | Not verified | None | [SPRINT-05](#sprint-05) | None |
-| [QR-02](quality-requirements/qr/QR-02.md) | [QR-02 QRT-01](quality-requirements/qr/QR-02.md#qrt-01) | Not verified | None | [SPRINT-05](#sprint-05) | None |
-| [QR-03](quality-requirements/qr/QR-03.md) | [QR-03 QRT-01](quality-requirements/qr/QR-03.md#qrt-01) | Not verified | None | [SPRINT-05](#sprint-05) | None |
+| [QR-02](quality-requirements/qr/QR-02.md) | [QR-02 QRT-01](quality-requirements/qr/QR-02.md#qrt-01) | Passes | [SPRINT-05](#sprint-05) | [SPRINT-05](#sprint-05) | [Main CI check job, 30 October](https://github.com/iteam7/gateway7/actions/runs/41069175092/job/124108430488) |
+| [QR-03](quality-requirements/qr/QR-03.md) | [QR-03 QRT-01](quality-requirements/qr/QR-03.md#qrt-01) | Passes | [SPRINT-05](#sprint-05) | [SPRINT-05](#sprint-05) | [Main CI check job, 30 October](https://github.com/iteam7/gateway7/actions/runs/41069175092/job/124108430488) |
 | [QR-03](quality-requirements/qr/QR-03.md) | [QR-03 QRT-02](quality-requirements/qr/QR-03.md#qrt-02) | Not verified | None | [SPRINT-05](#sprint-05) | None |
+
+The two CI results were checked on 30 October at `main` commit `b0b91399f5c9c0eb5d285adbfce7d5f875c6192e`.
+The job logs show both testability tests and the confidentiality test passing; the suite completed in 46.72 seconds and the separate HTTP demonstration step in 12 seconds.
+These are CI checks of that commit; release evidence must be refreshed against the final verified production commit before tagging.
 
 ## Progress Monitoring
 
