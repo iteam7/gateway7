@@ -148,7 +148,8 @@ No test claims a supported maximum plugin count or production throughput.
 
 Modules are trusted code sharing one process and its environment; hiding the key from hook arguments does not sandbox a malicious plugin.
 Async timeouts are cooperative and cannot forcibly kill CPU-blocking code or reverse an upstream request already sent.
-There is no restoration map, hot loading, streaming, retry/failover, persistent chat storage or billing ledger in this slice.
+There is no restoration map, hot loading, live token delivery, retry/failover, persistent chat storage or billing ledger in this slice.
+This synthetic demo remains nonstreaming and text-only; the separate [OpenCode V2 check](setup.md#opencode-v2) exercises the OpenAI streaming and function-tool extension.
 The recorder is test-only and stores synthetic inputs so the operator can inspect what crossed the provider boundary.
 
 ## Questions to settle in the call

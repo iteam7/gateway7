@@ -74,6 +74,75 @@ Grafana allows anonymous read-only access on localhost and creates no administra
 For a shared deployment, add HTTPS termination and restrict access to the monitoring network.
 Chat authentication does not protect `/health`, `/ready` or `/metrics`.
 
+## OpenCode V2
+
+The checked scenario uses the exact package `@opencode/cli@2.2.2`, whose executable is `opencode2` and whose version output is `opencode v2.2.2`.
+The `opencode-ai` package is a different release line and is not the tested V2 harness.
+Gateway7 supports its OpenAI-compatible Chat route with function tools and serial calls.
+Upstream generation is streamed, but OpenCode receives SSE only after the gateway has checked the complete model response.
+
+### Reproduce the harness check without a provider account
+
+From a prepared Python checkout, install the pinned CLI into a disposable directory with Node.js and npm:
+
+```sh
+gateway7_opencode_tools="$(mktemp -d)"
+npm install --prefix "$gateway7_opencode_tools" --no-audit --no-fund @opencode/cli@2.2.2
+uv run --locked python scripts/smoke_opencode.py \
+  --opencode "$gateway7_opencode_tools/node_modules/.bin/opencode2"
+```
+
+The check creates its own loopback Gateway7 server, isolated OpenCode config/data directories and synthetic text file.
+It runs the real OpenCode binary through the production OpenAI adapter with an injected local transport; no request is sent to external OpenAI.
+The provider fixture sends 17-byte HTTP fragments and splits function arguments across SSE events.
+The allowed case executes `read` once, replays its result in a second provider request, and returns `GATEWAY7_AGENT_OK`.
+The denied case puts a policy term in the returned tool argument and verifies one provider request, zero tool executions and a client error.
+The report records the CLI version and binary hash, actual provider-stream flags and both scenario verdicts, without credentials or raw request bodies.
+
+This check passed on 30 October 2026 with the version above.
+It verifies a real harness against synthetic upstream responses; it does not verify access to a real OpenAI model or every OpenCode release and feature.
+The complete checked profile is the `opencode_config` function in `scripts/smoke_opencode.py`.
+It sets primary and small models to `gateway7/gpt-4.1`, output limit 1024, no reasoning or temperature control, and `parallelToolCalls: false`.
+Its primary agent allows file reading and denies other tool permissions; V2 also advertises its built-in `skill` definition.
+
+### Point the checked profile at your OpenAI gateway
+
+First start the [real OpenAI configuration](#openai-with-a-env-file).
+To reuse the checked model ID, set both `provider.model` and `auth.clients.developer.models` in `config/openai.yaml` to `gpt-4.1`, then recreate the gateway.
+Your OpenAI account must have access to that model.
+This live account/model combination was not exercised by the synthetic check and can incur charges.
+
+Keep `gateway7_opencode_tools` from the installation above and run the following from the Gateway7 checkout:
+
+```sh
+export GATEWAY7_OPENCODE_PROJECT="$(mktemp -d)"
+uv run --locked python - <<'PYCONFIG'
+import json
+import os
+from pathlib import Path
+from scripts.smoke_opencode import opencode_config
+
+project = Path(os.environ["GATEWAY7_OPENCODE_PROJECT"])
+profile = opencode_config("http://127.0.0.1:8000/v1")
+(project / "opencode.json").write_text(json.dumps(profile, indent=2), encoding="utf-8")
+(project / "agent-fixture.txt").write_text("GATEWAY7_AGENT_OK\n", encoding="utf-8")
+PYCONFIG
+read -r -s -p 'Gateway client token: ' GATEWAY7_CLIENT_TOKEN
+printf '\n'
+export GATEWAY7_CLIENT_TOKEN
+cd "$GATEWAY7_OPENCODE_PROJECT"
+"$gateway7_opencode_tools/node_modules/.bin/opencode2" --standalone run \
+  --model gateway7/gpt-4.1 --agent gateway7-smoke --format json \
+  --title 'Gateway7 file-read check' \
+  'Read agent-fixture.txt with the read tool and return its control string.'
+```
+
+Enter the gateway client token, not `OPENAI_API_KEY`.
+The generated file references `{env:GATEWAY7_CLIENT_TOKEN}` and contains no secret.
+Check the JSON events for a completed `read` and the final marker; a text answer alone does not prove a tool round trip.
+The underlying model decides whether to call a tool, so live output can differ from the deterministic fixture.
+For longer coding sessions, deliberately configure sufficient request-body and overall timeout limits; the bounded profile above is a read-only integration check.
+
 ## Real providers
 
 ### OpenAI with a `.env` file

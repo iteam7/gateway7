@@ -141,6 +141,25 @@ A successful call snapshots usage and finish reason before response middleware r
 A valid usage report from a complete HTTP 200 body is also kept for metrics when later answer validation fails.
 Response rejection never erases a known observation; missing or invalid counts stay unknown, not zero.
 
+### Guarded provider streams and agent turns
+
+[ADR-005](adr/ADR-005.md) proposes the OpenAI streaming extension for [task #153](https://github.com/iteam7/gateway7/issues/153).
+It adds no deployed application or persistent agent-session store.
+The adapter component assembles actual provider SSE in `gateway7/openai_stream.py`, while the middleware component still receives one complete `ChatResponse`.
+The authorized model and provider-streaming selection are passed separately from middleware-editable content.
+
+For a supported streaming request, the provider receives `stream: true`.
+The adapter validates the accumulated answer and terminal events before returning it through the reverse middleware chain.
+The HTTP boundary emits client SSE only after that chain succeeds, so client delivery remains buffered and a policy can still reject the whole answer before any text or function call is released.
+The existing numbered sequence remains the full-response ordering; SSE changes the wire framing, not the placement of response checks.
+
+[FR-013](../functional-requirements/fr/FR-013.md) owns the function-call/result exchange.
+Tool-capable middleware explicitly opts in through its descriptor; a chain containing a text-only plugin rejects an agent payload before provider work.
+A permitted function call is delivered to the harness for local execution, and a later request carries the matching tool result back through the same policies.
+The gateway validates the history but neither executes the tool nor resumes a server-side agent session.
+The [API guide](../api.md#supported-compatibility-subset) owns the supported provider, controls, limits and SSE format.
+A synthetic run of a named harness version is separate from a live provider-account check.
+
 ### Where a request stops
 
 | Boundary | Result | What reaches the provider |
@@ -190,6 +209,7 @@ The product vision keeps the separate [system context](../product-vision.md#cont
 | [ADR-002](adr/ADR-002.md) | Accepted | [FR-003](../functional-requirements/fr/FR-003.md), [FR-004](../functional-requirements/fr/FR-004.md), [FR-005](../functional-requirements/fr/FR-005.md), [FR-007](../functional-requirements/fr/FR-007.md), [QR-01](../quality-requirements/qr/QR-01.md), [QR-02](../quality-requirements/qr/QR-02.md) | Run trusted plugins as guarded middleware inside the gateway |
 | [ADR-003](adr/ADR-003.md) | Accepted | [FR-001](../functional-requirements/fr/FR-001.md), [FR-006](../functional-requirements/fr/FR-006.md), [QR-03](../quality-requirements/qr/QR-03.md), [QR-04](../quality-requirements/qr/QR-04.md) | Authorize clients separately and pin permitted models outside plugin payloads |
 | [ADR-004](adr/ADR-004.md) | Proposed | [FR-001](../functional-requirements/fr/FR-001.md), [QR-01](../quality-requirements/qr/QR-01.md), [QR-02](../quality-requirements/qr/QR-02.md), [QR-03](../quality-requirements/qr/QR-03.md) | Configure provider transports through startup modules |
+| [ADR-005](adr/ADR-005.md) | Proposed | [FR-001](../functional-requirements/fr/FR-001.md), [FR-003](../functional-requirements/fr/FR-003.md), [FR-005](../functional-requirements/fr/FR-005.md), [FR-013](../functional-requirements/fr/FR-013.md), [QR-01](../quality-requirements/qr/QR-01.md), [QR-02](../quality-requirements/qr/QR-02.md), [QR-03](../quality-requirements/qr/QR-03.md), [QR-04](../quality-requirements/qr/QR-04.md) | Collect actual provider streams, run full-response policies, then emit agent SSE |
 
 These Accepted records describe choices already in force through [PR #90](https://github.com/iteam7/gateway7/pull/90), approved in [DeniBorsh's implementation review](https://github.com/iteam7/gateway7/pull/90#pullrequestreview-5643522171) and merged on 25 October 2026.
 They are dated when written, not when an undocumented earlier discussion might have happened.
@@ -197,6 +217,7 @@ That implementation review is evidence for the existing choices, not a review of
 The records now address the requirements merged in [PR #101](https://github.com/iteam7/gateway7/pull/101); their quality consequences explain the design's support and limits without claiming that every response measure has been verified.
 The ADR texts were added in [PR #99](https://github.com/iteam7/gateway7/pull/99); their Accepted status records the implemented choices, not a new Customer verdict.
 ADR-004 is the proposed extension for [task #143](https://github.com/iteam7/gateway7/issues/143); it does not change those earlier acceptance records.
+ADR-005 is the proposed guarded streaming and function-tool extension for [task #153](https://github.com/iteam7/gateway7/issues/153); its harness checks do not constitute Customer acceptance.
 The [ADR template](adr/TEMPLATE.md) provides the unfilled shape for later decisions.
 
 ### Customer view

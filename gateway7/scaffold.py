@@ -52,7 +52,9 @@ def create(settings: Settings) -> LiteralMask:
 
 
 PLUGIN = PluginDescriptor(
-    id="__PLUGIN_NAME__", api_version=2, settings_model=Settings, create=create
+    id="__PLUGIN_NAME__", api_version=2, settings_model=Settings, create=create,
+    # Enable only after inspecting tool schemas, decoded arguments and results.
+    supports_tools=False,
 )
 '''
 

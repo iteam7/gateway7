@@ -26,6 +26,7 @@ from gateway7.openai_api import (
     NativeChatRequest,
     OpenAIChatRequest,
     completion_response,
+    completion_sse,
     error_body,
 )
 from gateway7.pipeline import Pipeline
@@ -240,7 +241,9 @@ async def _watch_disconnect(request: Request) -> None:
             return
 
 
-async def _run_connected(request: Request, payload: ChatRequest, selected_model: str) -> Any:
+async def _run_connected(
+    request: Request, payload: ChatRequest, selected_model: str, *, provider_stream: bool = False
+) -> Any:
     pipeline = request.app.state.pipeline
     admission = request.app.state.admission
     admission.acquire()
@@ -253,6 +256,7 @@ async def _run_connected(request: Request, payload: ChatRequest, selected_model:
             provider_model=selected_model
             if selected_model != request.app.state.config.provider.model
             else None,
+            **({"provider_stream": True} if provider_stream else {}),
         )
         job = asyncio.create_task(work)
     except BaseException:
@@ -281,6 +285,24 @@ async def _run_connected(request: Request, payload: ChatRequest, selected_model:
             if not task.done():
                 task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
+
+
+class _CheckedSSE(Response):
+    """A fully serialized, policy-approved SSE body with a bounded send."""
+
+    def __init__(self, body: bytes, deadline: float) -> None:
+        super().__init__(
+            body,
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
+        self.deadline = deadline
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if time.monotonic() >= self.deadline:
+            raise TimeoutError
+        async with asyncio.timeout_at(self.deadline):
+            await super().__call__(scope, receive, send)
 
 
 def create_app(
@@ -471,9 +493,24 @@ def create_app(
         selected = request.state.principal.select_model(
             payload.model, app.state.config.provider.model
         )
-        response = await _run_connected(request, payload.core_request(), selected)
+        if app.state.config.provider.kind != "openai" and payload.needs_openai_provider():
+            raise GatewayError("invalid_request")
+        response = await _run_connected(
+            request, payload.core_request(), selected, provider_stream=payload.stream
+        )
         if response is None:
             return Response(status_code=499)
+        if payload.stream:
+            body = completion_sse(
+                response,
+                selected,
+                request.state.request_id,
+                include_usage=payload.stream_options is not None
+                and payload.stream_options.include_usage,
+            )
+            if time.monotonic() >= request.state.deadline:
+                raise GatewayError("timeout")
+            return _CheckedSSE(body, request.state.deadline)
         return JSONResponse(completion_response(response, selected, request.state.request_id))
 
     @app.get("/v1/models")

@@ -11,7 +11,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 
-from gateway7.models import ChatRequest, ChatResponse
+from gateway7.models import ChatRequest, ChatResponse, tool_text
 from gateway7.plugin_api import Deny, NextHandler, PluginContext, PluginDescriptor
 
 logger = logging.getLogger("gateway7")
@@ -69,21 +69,30 @@ class ContentPolicyPlugin:
     ) -> ChatResponse | Deny:
         if self.settings.phase in ("request", "both"):
             messages = []
-            total = 0
+            structured_hits = sum(len(self.pattern.findall(text)) for text in tool_text(request))
+            total = structured_hits
             for message in request.messages:
-                text, hits = self._apply(message.content)
+                text, hits = (
+                    self._apply(message.content) if message.content is not None else (None, 0)
+                )
                 total += hits
                 messages.append(message.model_copy(update={"content": text}))
             self._record(context, "request", total)
-            if total and self.settings.action == "block":
+            if (total and self.settings.action == "block") or (
+                structured_hits and self.settings.action == "redact"
+            ):
                 return Deny()
             if self.settings.action == "redact":
                 request = request.model_copy(update={"messages": messages})
         response = await call_next(request)
         if self.settings.phase in ("response", "both"):
             text, hits = self._apply(response.text)
+            structured_hits = sum(len(self.pattern.findall(value)) for value in tool_text(response))
+            hits += structured_hits
             self._record(context, "response", hits)
-            if hits and self.settings.action == "block":
+            if (hits and self.settings.action == "block") or (
+                structured_hits and self.settings.action == "redact"
+            ):
                 return Deny()
             if self.settings.action == "redact":
                 response = response.model_copy(update={"text": text})
@@ -99,5 +108,5 @@ def create(settings: Settings) -> ContentPolicyPlugin:
 
 
 PLUGIN = PluginDescriptor(
-    id="content-policy", api_version=2, settings_model=Settings, create=create
+    id="content-policy", api_version=2, settings_model=Settings, create=create, supports_tools=True
 )

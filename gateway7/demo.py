@@ -33,7 +33,10 @@ async def chat(request: Request) -> dict[str, object]:
         parsed = ChatRequest.model_validate(json.loads(body))
     except (TypeError, ValueError):
         raise HTTPException(status_code=400, detail="Invalid demo request") from None
+    content = parsed.messages[-1].content
+    if parsed.requires_tools or content is None:
+        raise HTTPException(status_code=400, detail="Demo provider supports text-only requests")
     return {
-        "text": "pong — " + parsed.messages[-1].content,
+        "text": "pong — " + content,
         "usage": {"input_tokens": 12, "output_tokens": 4},
     }

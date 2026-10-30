@@ -1,5 +1,6 @@
 """Synthetic contract tests for the reusable reference middleware catalog."""
 
+import json
 import logging
 import time
 
@@ -126,21 +127,41 @@ async def test_request_policy_blocks_any_history_role_before_provider(caplog):
     assert "component=company_guard" in caplog.text
 
 
-async def test_response_policy_blocks_delivery_after_exactly_one_provider_call():
+@pytest.mark.parametrize("kind", ["text", "tool"])
+async def test_response_policy_blocks_delivery_after_exactly_one_provider_call(kind):
     provider = RecordingProvider("SECRET-TEST")
+    original = request("Allowed request")
+    if kind == "tool":
+        original = function_request()
+        provider.response = ChatResponse.model_validate({
+            "text": "", "finish_reason": "tool_calls",
+            "tool_calls": [{"id": "call_new", "type": "function", "function": {
+                "name": "read", "arguments": '{"path":"\\u0053ECRET-TEST"}',
+            }}], "usage": {"input_tokens": 8, "output_tokens": 5},
+        })
     with pytest.raises(GatewayError) as caught:
         await pipeline("gateway7.plugins.content_policy", {
             "terms": ["SECRET-TEST"], "phase": "response", "action": "block",
-        }, provider).run(request("Allowed request"), "synthetic-output-block")
+        }, provider).run(original, "synthetic-output-block")
     assert caught.value.code == "policy_denied"
     assert len(provider.requests) == 1
 
 
-async def test_log_policy_keeps_both_payloads_unchanged_and_logs_only_metadata(caplog):
+@pytest.mark.parametrize("kind", ["text", "tool"])
+async def test_log_policy_keeps_both_payloads_unchanged_and_logs_only_metadata(caplog, kind):
     caplog.set_level(logging.INFO, logger="gateway7")
     marker = "SYNTHETIC-PRIVATE-TERM"
     provider = RecordingProvider(f"Response {marker}")
     original = request(f"Request {marker} and {marker}")
+    if kind == "tool":
+        original = function_request(description=marker)
+        original = original.model_copy(update={"messages": [Message(role="user", content=f"Request {marker} and {marker}")]})
+        provider.response = ChatResponse.model_validate({
+            "text": f"Response {marker}", "usage": {"input_tokens": 8, "output_tokens": 5},
+            "finish_reason": "tool_calls", "tool_calls": [{"id": "call_new", "type": "function", "function": {
+                "name": "read", "arguments": json.dumps({"path": marker}),
+            }}],
+        })
     answer = await pipeline("gateway7.plugins.content_policy", {
         "terms": [marker], "action": "log", "phase": "both",
     }, provider, name="audit_only").run(original, "synthetic-log")
@@ -149,8 +170,8 @@ async def test_log_policy_keeps_both_payloads_unchanged_and_logs_only_metadata(c
     assert marker not in caplog.text
     policy_logs = [record.message for record in caplog.records if "outcome=policy_match" in record.message]
     assert len(policy_logs) == 2
-    assert any("phase=request action=log matches=2" in item for item in policy_logs)
-    assert any("phase=response action=log matches=1" in item for item in policy_logs)
+    assert any(f"phase=request action=log matches={3 if kind == 'tool' else 2}" in item for item in policy_logs)
+    assert any(f"phase=response action=log matches={2 if kind == 'tool' else 1}" in item for item in policy_logs)
     assert all("component=audit_only" in item for item in policy_logs)
 
 
@@ -233,3 +254,93 @@ async def test_instances_hold_only_immutable_configuration_not_originals_or_requ
     with pytest.raises(ValidationError):
         plugin.settings.action = "log"
     assert set(vars(plugin)) == {"settings", "pattern"}
+
+
+def function_request(*, description="Read the fixture", schema=None, arguments=None, result="safe"):
+    messages = [{"role": "user", "content": "Read the fixture"}]
+    if arguments is not None:
+        messages += [
+            {"role": "assistant", "content": None, "tool_calls": [{
+                "id": "call_history", "type": "function", "function": {
+                    "name": "read", "arguments": json.dumps(arguments),
+                },
+            }]},
+            {"role": "tool", "content": result, "tool_call_id": "call_history"},
+        ]
+    return ChatRequest.model_validate({
+        "messages": messages,
+        "tools": [{"type": "function", "function": {
+            "name": "read", "description": description,
+            "parameters": {"type": "object"} if schema is None else schema,
+        }}],
+        "temperature": 0.2, "max_tokens": 37,
+    })
+
+
+@pytest.mark.parametrize("module,settings,value", [
+    ("gateway7.plugins.content_policy", {"terms": ["SECRET-TEST"], "action": "redact"}, "SECRET-TEST"),
+    ("gateway7.plugins.email_mask", {}, "user@example.com"),
+    ("gateway7.plugins.phone_mask", {}, "+79000000000"),
+])
+@pytest.mark.parametrize("location", ["description", "schema-key", "schema-value", "argument-key", "argument-value"])
+async def test_structured_tool_payload_matches_are_blocked_without_rewriting(module, settings, value, location, caplog):
+    options = {
+        "description": {"description": value},
+        "schema-key": {"schema": {"type": "object", "properties": {value: {"type": "string"}}}},
+        "schema-value": {"schema": {"type": "object", "description": value}},
+        "argument-key": {"arguments": {value: "safe"}},
+        "argument-value": {"arguments": {"path": value}},
+    }[location]
+    original = function_request(**options)
+    before = original.model_dump()
+    provider = RecordingProvider()
+    with caplog.at_level("INFO", logger="gateway7"), pytest.raises(GatewayError) as caught:
+        await pipeline(module, settings, provider).run(original, "structured-private")
+    assert caught.value.code == "policy_denied"
+    assert provider.requests == []
+    assert original.model_dump() == before
+    assert value not in caplog.text
+
+
+@pytest.mark.parametrize("module,value,replacement", [
+    ("gateway7.plugins.email_mask", "user@example.com", "[EMAIL]"),
+    ("gateway7.plugins.phone_mask", "+79000000000", "[PHONE]"),
+    ("gateway7.plugins.content_policy", "SECRET-TEST", "[removed]"),
+])
+async def test_tool_result_text_is_redacted_with_identifiers_and_controls_preserved(module, value, replacement):
+    original = function_request(arguments={"path": "agent-fixture.txt"}, result=value)
+    settings = {"terms": ["SECRET-TEST"], "action": "redact"} if "content_policy" in module else {}
+    provider = RecordingProvider()
+    await pipeline(module, settings, provider).run(original, "tool-result")
+    forwarded = provider.requests[0]
+    assert forwarded.messages[1].content is None
+    assert forwarded.messages[1].tool_calls == original.messages[1].tool_calls
+    assert forwarded.messages[2].content == replacement
+    assert forwarded.messages[2].tool_call_id == "call_history"
+    assert forwarded.tools == original.tools
+    assert forwarded.temperature == 0.2 and forwarded.max_tokens == 37
+    assert original.messages[2].content == value
+
+
+@pytest.mark.parametrize("module,value,settings", [
+    ("gateway7.plugins.email_mask", "user@example.com", {"phase": "response"}),
+    ("gateway7.plugins.phone_mask", "+79000000000", {"phase": "response"}),
+    ("gateway7.plugins.content_policy", "SECRET-TEST", {"phase": "response", "terms": ["SECRET-TEST"], "action": "redact"}),
+])
+async def test_tool_argument_masking_denies_the_whole_response_before_delivery(module, value, settings):
+    provider = RecordingProvider()
+    provider.response = ChatResponse.model_validate({
+        "text": "", "finish_reason": "tool_calls", "usage": {"input_tokens": 8, "output_tokens": 5},
+        "tool_calls": [{"id": "call_new", "type": "function", "function": {
+            "name": "read", "arguments": json.dumps({"path": value}),
+        }}],
+    })
+    runner = pipeline(module, settings, provider)
+    from gateway7.metrics import Metrics
+    runner.metrics = Metrics()
+    with pytest.raises(GatewayError) as caught:
+        await runner.run(function_request(), "structured-answer")
+    assert caught.value.code == "policy_denied" and len(provider.requests) == 1
+    assert runner.metrics.provider_tokens.labels("fake", "input")._value.get() == 8
+    assert runner.metrics.provider_tokens.labels("fake", "output")._value.get() == 5
+    assert provider.response.tool_calls[0].function.arguments == json.dumps({"path": value})

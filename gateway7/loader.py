@@ -93,6 +93,7 @@ def load_plugins(config: GatewayConfig) -> LoadedPlugins:
                 or re.fullmatch(r"[A-Za-z][A-Za-z0-9_.-]{0,63}", descriptor.id) is None
                 or type(descriptor.api_version) is not int
                 or descriptor.api_version != API_VERSION
+                or type(descriptor.supports_tools) is not bool
                 or not inspect.isclass(descriptor.settings_model)
                 or not issubclass(descriptor.settings_model, BaseModel)
                 or descriptor.settings_model.model_config.get("strict") is not True

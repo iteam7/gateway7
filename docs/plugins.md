@@ -61,8 +61,8 @@ async def handle(
 
 | Value | Contract |
 | --- | --- |
-| `ChatRequest` | Ordered plain-text messages and validated generation settings |
-| `ChatResponse` | Assistant text, normalized provider usage when known, and a normalized finish reason |
+| `ChatRequest` | Ordered text/tool history, typed function definitions and validated generation settings |
+| `ChatResponse` | Assistant text or typed function calls, normalized provider usage and finish reason |
 | `PluginContext` | Core-owned request identifier, overall monotonic deadline, and mutable state isolated to this request and instance |
 | `NextHandler` | Awaitable call accepting the next validated request and returning the downstream response |
 | `Deny()` | Short-circuit with the core's safe `policy_denied` error |
@@ -81,6 +81,28 @@ Each cleanup hook has the configured cooperative timeout; failures are logged wi
 Cleanup hooks run in an owned task and must not depend on the startup task's identity.
 External cancellation waits for this cleanup and is then re-raised; if startup or the service body already failed, that original failure or cancellation takes precedence over cleanup interruptions.
 Instances are shared across requests; immutable settings and concurrency-safe resources belong on the instance, and temporary mutable data belongs in `context.state`.
+
+## Tool-payload capability
+
+`PluginDescriptor` has an additive `supports_tools: bool = False` field; the middleware API remains version 2.
+A text-only plugin can omit it and continues to work for ordinary chat.
+A request carrying tool definitions or tool history is rejected before the provider if any active middleware has not opted in.
+The pipeline also rejects an unexpected tool response before returning it through an incapable plugin.
+
+Set `supports_tools=True` only after the middleware handles nullable assistant content, `role: tool`, call/result IDs, function definitions and JSON arguments.
+Preserve call IDs, function names and tool identity; validate any argument transformation structurally.
+The core pins provider-owned usage and finish reason, and preserves only the middleware-approved response calls.
+The stream transport preference, selected model and provider credentials remain outside plugin-visible payloads.
+
+The reference phone, email and content-policy middleware opt in.
+They inspect schema keys and string values in function parameters, descriptions and decoded argument objects.
+For configured inspection phases, a mask/redact match in those structured fields denies the turn rather than corrupting JSON or changing an executable argument.
+The content policy's `log` action continues to record only match metadata.
+Ordinary message text and string tool-result content retain their existing masking/redaction behavior.
+Response checks finish before any text or executable call is released, including with upstream streaming.
+
+Generated company middleware remain text-only by default.
+Extend the implementation and add synthetic tool fixtures before opting in; [the authoring guide](authoring.md#function-tool-fixtures) describes the added cases.
 
 ## Order, enable and required
 

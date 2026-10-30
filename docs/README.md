@@ -91,7 +91,8 @@ Follow the [numbered request view](architecture/README.md#sequence-view), then o
 
 ## What to expect
 
-This is a local pilot for **nonstreaming, text-only chat** with one configured provider per instance.
+This local pilot runs one configured provider per instance, with ordinary text chat for every provider.
+The OpenAI provider also supports [guarded function-tool turns and checked SSE](api.md#supported-compatibility-subset); complete-response checks finish before client delivery.
 Python middleware is trusted code in the gateway process; installing or changing it requires a restart.
 The demo proves the local workflow with synthetic answers, while real-provider access depends on your account and model permissions.
 
@@ -101,8 +102,8 @@ The [demonstration guide](demo.md) keeps the longer walkthrough and acceptance e
 ## Project documentation
 
 - **Product:** [features](features.md), [vision](product-vision.md), [threshold of success](threshold-of-success.md), [threshold review proposal](threshold-review.md), [plan](project-plan.md), [risks](risks.md), [glossary](glossary.md).
-- **Requirements:** [functional requirements](functional-requirements/README.md), [FR-012 usage reporting specification](functional-requirements/fr/FR-012.md), [quality requirements and priority matrix](quality-requirements/README.md).
-- **Architecture decisions:** [ADR-001](architecture/adr/ADR-001.md), [ADR-002](architecture/adr/ADR-002.md), [ADR-003](architecture/adr/ADR-003.md), [ADR-004](architecture/adr/ADR-004.md), [ADR template](architecture/adr/TEMPLATE.md), [container source](architecture/container.py), [context source](architecture/context.mmd).
+- **Requirements:** [functional requirements](functional-requirements/README.md), [FR-012 usage reporting specification](functional-requirements/fr/FR-012.md), [guarded function-tool turns](functional-requirements/fr/FR-013.md), [quality requirements and priority matrix](quality-requirements/README.md).
+- **Architecture decisions:** [ADR-001](architecture/adr/ADR-001.md), [ADR-002](architecture/adr/ADR-002.md), [ADR-003](architecture/adr/ADR-003.md), [ADR-004](architecture/adr/ADR-004.md), [ADR-005](architecture/adr/ADR-005.md), [ADR template](architecture/adr/TEMPLATE.md), [container source](architecture/container.py), [context source](architecture/context.mmd).
 - **Project records:** [decisions](decisions.md), [assumptions](assumptions.md), [Definition of Done](definition-of-done.md), [deployment](deployment.md).
 - **Research:** [alternatives](research/alternatives.md), [comparison](research/comparison.md), [gap analysis](research/gap-analysis.md), [value proposition](research/value-proposition.md).
 
