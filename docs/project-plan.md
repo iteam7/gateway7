@@ -180,7 +180,8 @@ The contributor identified `a15b1cd14618ee7b5ac423f4aed5ed2f496f405d` in both Op
 These operational results are member-reported, not an independent image inspection.
 The contributor later explicitly reported `PASS QR-03 QRT-02` on staging and confirmed that this run used the same deployed `a15b1cd14618ee7b5ac423f4aed5ed2f496f405d` revision.
 The [dated operator record](https://github.com/iteam7/gateway7/blob/5d64cf6d96e6842b991df0569f740cf14ce2e382/reports/week-05/quality-checks.md#staging-check) identifies its source and the measured predicate implied by that reported PASS; no raw counter lines or independent VM inspection are claimed.
-Direct campus HTTP access is still unavailable; SSH forwarding and the private access details do not establish compliance with that network-access requirement.
+On 31 October, azamatbayramov subsequently clarified that campus HTTP access is available, superseding the earlier SSH-only description.
+This is a member-reported access clarification, not an independent network check or a substitute for the separately recorded QRT results.
 The published release targets the confirmed production commit `a15b1cd14618ee7b5ac423f4aed5ed2f496f405d` and its actual passing CI; the later QR-01 check on `6d3555247bfe8007a9963b14394434643dde0652` is not an exact-tag execution record.
 The initial automated approval-review blocker was resolved by the contributor's subsequent informed authorisation; the REL-05 block records the actual published tag, not a documentation-only revision.
 

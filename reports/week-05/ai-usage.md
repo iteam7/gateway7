@@ -688,3 +688,23 @@ Formater owns PRE, POST and publication; the update changes maintained definitio
 ### Team evaluation for this quality-result reconciliation
 
 TODO: the team has not yet assessed this new AI-assisted evidence update.
+
+## HTTP access clarification on 31 October
+
+Codex reconciled the current deployment guide, plan and Week 05 report with azamatbayramov's later clarification that HTTP access is available.
+It replaced the current SSH-only restriction with qualified team-reported campus HTTP availability and appended the correction to the contributor follow-up without rewriting earlier statements or the published release record.
+The correction changes documentation only; no network connection, VM reconfiguration, QRT execution, private PDF rewrite or Moodle upload is claimed.
+Private environment addresses and access details remain outside GitHub.
+Formater owns publication and the checks for the resulting pull request; the private PDF/source pair must be refreshed together after the correction merges into main.
+The team's assessment of this new output remains pending review; it is not inferred from acceptance of earlier work.
+
+## PR #161 conflict reconciliation on 31 October
+
+At the contributor's request, Codex reconciled the HTTP-access clarification with the quality-evidence changes merged through PR #163.
+It preserved the four passing QRT rows, their actual CI and contributor-reported staging sources, and the distinction between the runtime tag and later report revisions.
+It retained the existing AI-usage sections from both branches and qualified stale missing-result wording without changing historical meeting or release records.
+Formater owns the normal merge commit, publication and checks on the existing pull-request branch; no force push, runtime change, VM probe or private artifact rewrite is part of this correction.
+
+### Team evaluation for the PR #161 conflict reconciliation
+
+TODO: the team has not yet assessed this new AI-assisted conflict-resolution output.

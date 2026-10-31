@@ -6,7 +6,7 @@ Gateway7 is Team 7's Modular LLM Gateway: company policy middleware checks devel
 Updated on 31 October 2026 for [Assignment 5](https://github.com/inno-itpd/itpd/blob/0173b82dfb82e515457a1074970c116760490c79/assignments/assignment-5.md), due 31 October at 23:59.
 The contributor has confirmed six accepted stories, the team retrospective, human review of AI output and successful OpenAI core checks on the matching staging and production commit.
 [v0.3.0](https://github.com/iteam7/gateway7/releases/tag/v0.3.0) was published on 31 October at the contributor-confirmed production commit.
-The final private PDF and ZIP must identify one common merged report SHA; release publication is not a claim that Moodle upload or the remaining deployment work has been completed.
+The final private PDF and ZIP must identify one common merged report SHA; release publication is not a claim that Moodle upload has been completed.
 
 ## Summary
 
@@ -21,7 +21,8 @@ Its [operator record](quality-checks.md#staging-check) distinguishes that report
 
 The [later 31 October confirmation](meeting-follow-up.md#later-deployment-and-private-submission-confirmation) identifies `a15b1cd14618ee7b5ac423f4aed5ed2f496f405d` in both OpenAI environments and reports successful health, readiness and chat checks.
 The [core-check record](quality-checks.md#reported-vm-core-verification) distinguishes those contributor-reported results from automated QRTs and the older synthetic-provider [PR #147](https://github.com/iteam7/gateway7/pull/147).
-The deployment currently requires SSH and port forwarding; direct HTTP access from the university network remains an unmet requirement, recorded below as a deviation rather than an unavailable-VM exception.
+The contributor [subsequently clarified](meeting-follow-up.md#http-access-clarification-on-31-october) that HTTP access from the university network is available, superseding the earlier SSH-only description.
+This access status is team-reported; no independent network check is claimed, and the separately recorded QRT results are not inferred from HTTP availability.
 The [plan](../../docs/project-plan.md#milestones) contains MLS-05 and MLS-07 with separate sprint runs.
 The known estimated selected SPRINT-05 scope is `8 SP`, US-05 `3` + US-12 `5`, and both stories are accepted under DEC-020.
 The contributor confirms that initial planning happened, but the original selection and point total remain unrecorded; the late forecast is not that historical commitment.
@@ -51,7 +52,7 @@ Identified QRT results were not presented in the supplied meeting record; checks
 | Quality requirement tests | [docs/quality-requirements/README.md](../../docs/quality-requirements/README.md): every active High requirement has its declared test in the linked requirement file. |
 | Testing plan | [docs/project-plan.md#quality-requirement-testing-plan](../../docs/project-plan.md#quality-requirement-testing-plan) and [reports/week-05/quality-checks.md](quality-checks.md): three CI passes including native Windows/Linux reliability, plus the operator-reported staging PASS at the explicitly confirmed deployed revision. |
 | Automated tests and CI | [.github/workflows/](../../.github/workflows/): all six current workflows passed on the main commit linked in the summary. |
-| Deployment | [docs/deployment.md](../../docs/deployment.md), the [reports/week-05/meeting-follow-up.md#later-deployment-and-private-submission-confirmation](meeting-follow-up.md#later-deployment-and-private-submission-confirmation) and [reports/week-05/quality-checks.md#reported-vm-core-verification](quality-checks.md#reported-vm-core-verification); SSH-only access still fails the direct campus-HTTP requirement. |
+| Deployment | [docs/deployment.md](../../docs/deployment.md), the [later operational confirmation](meeting-follow-up.md#later-deployment-and-private-submission-confirmation), the [HTTP access clarification](meeting-follow-up.md#http-access-clarification-on-31-october) and [reported core-check record](quality-checks.md#reported-vm-core-verification); campus HTTP availability is contributor-confirmed. |
 | Feature documentation | [docs/features.md](../../docs/features.md). |
 | Week 4 action points | [reports/week-05/meeting-report.md#previous-action-points](meeting-report.md#previous-action-points) follow the real Week 3 carryover because no Week 4 Customer meeting took place; the [reports/week-05/meeting-follow-up.md#confirmed-follow-up-plan](meeting-follow-up.md#confirmed-follow-up-plan) supply next actions. |
 | Week 4 open questions | [reports/week-05/meeting-report.md#previous-open-questions](meeting-report.md#previous-open-questions) and [reports/week-05/meeting-follow-up.md#requirement-clarification](meeting-follow-up.md#requirement-clarification) distinguish the resolved story/provider questions from unanswered capacity, secrets and execution questions. |
@@ -85,7 +86,6 @@ The later [PR #162](https://github.com/iteam7/gateway7/pull/162) and actual main
 - The contributor selected a private PDF transcript appendix rather than public publication; this later instruction is recorded separately from the original meeting account and does not fabricate a Customer permission quote.
 - Native Windows/Linux reliability was checked after the release cut and is not backdated to the Customer meeting or publication.
 - The matching deployed commit and core checks are confirmed by the contributor, rather than by independent remote inspection or saved command output.
-- Direct HTTP access from the university network is unavailable; SSH forwarding is the current access method, not fulfilment of that course requirement.
 - An initial automated approval review blocked publication over the different runtime and documentation revisions; explicit informed contributor authorisation resolved that blocker, and the actual v0.3.0 publication is recorded in the release checkpoint.
 - Tracker carryover is complete for the two remaining SPRINT-05 tasks, #138 and #139. Automated approval review prevented closing the empty milestone, which remains open pending specific confirmation; no closure is claimed.
 

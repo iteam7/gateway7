@@ -13,7 +13,10 @@ Use [setup](setup.md) for installing and configuring Gateway7 itself; this page 
 | Production | Same university VM, a separate directory and Compose project | Team members on the campus network | Deployment target after staging passes verification |
 
 Staging and production are two independent Compose deployments on the same VM, each in its own checkout directory and its own `docker compose` project name, so their containers, networks and named volumes never overlap.
-Each environment publishes its ports on loopback only (`127.0.0.1:<port>`), so a client reaches them only through an SSH tunnel or a terminal already on the VM — this is the "campus-network access" referenced in the acceptance criteria.
+On 31 October, azamatbayramov clarified that HTTP access from the university network is available.
+This is a team-reported operational fact; no independent network probe is claimed here.
+The tracked Compose defaults bind services to loopback, which can be reached through SSH forwarding; those defaults alone do not establish direct campus access to a deployed environment.
+The operator verifies the deployed network configuration and records the actual campus endpoints in the private submission.
 Staging and production use different host ports for the same three services (gateway, Prometheus, Grafana), so both can run at once without a collision.
 
 ## Configuration and secrets
@@ -36,7 +39,7 @@ Deployment is a manual operator action, run from a terminal with access to the V
    docker compose -p gateway7-staging up --build --detach --wait
    ```
 
-3. Run the core-task check against staging over the campus network (a chat request through the gateway's published loopback port, plus `/health`); record the result.
+3. Run the core-task check against staging from a campus machine using its deployed HTTP endpoint (a chat request plus `/health`); record the result.
 4. Run the deployed quality requirement test [QR-03 QRT-02](quality-requirements/qr/QR-03.md#qrt-02) against staging.
 5. Only once staging passes, check out the same commit in the production checkout directory and repeat the `docker compose up --build --detach --wait` for the `gateway7-production` project.
 6. Run the same core-task check against production over the campus network.

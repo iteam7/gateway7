@@ -2,7 +2,7 @@
 
 Prepared on 30 October and updated on 31 October 2026 under [task #133](https://github.com/iteam7/gateway7/issues/133), using the [contributor confirmation](meeting-follow-up.md).
 **Status: [v0.3.0](https://github.com/iteam7/gateway7/releases/tag/v0.3.0) was published on 31 October 2026 at the confirmed production commit; final report merging and private packaging follow the checked common-SHA workflow below.**
-Direct campus HTTP access remains an explicit deployment deviation, and no Moodle upload is claimed.
+The contributor has clarified that campus HTTP access is available; no Moodle upload is claimed.
 The [Week 05 report](README.md) indexes the public evidence; this file keeps the remaining release handoffs explicit.
 
 ## Verified checkpoint
@@ -19,8 +19,8 @@ The later [cross-platform CI record](quality-checks.md#qr-01-native-ci-execution
 It says the VM was available; lack of access from this preparation environment does not establish the assignment's VM-unavailable exception.
 In the [later 31 October follow-up](meeting-follow-up.md#later-deployment-and-private-submission-confirmation), the contributor identifies `a15b1cd14618ee7b5ac423f4aed5ed2f496f405d` for both OpenAI environments and confirms successful health, readiness and chat checks.
 The [core-check record](quality-checks.md#reported-vm-core-verification) records these as member-reported results; raw remote output and independent image inspection are not claimed.
-Access currently requires SSH forwarding, so direct HTTP access through the VM IPv4 address from the university network is not fulfilled.
-This restriction must remain visible in the release limitation and private access instructions; the VM is not described as unavailable.
+The [subsequent HTTP clarification](meeting-follow-up.md#http-access-clarification-on-31-october) supersedes the earlier SSH-only description: the contributor reports that HTTP access from the university network is available.
+Current private access instructions must reflect that clarification; no independent network inspection or previously unknown time of network configuration is inferred.
 
 ## Handoffs and remaining work
 
@@ -28,7 +28,7 @@ This restriction must remain visible in the release limitation and private acces
 | --- | --- |
 | Review and human records, [#132](https://github.com/iteam7/gateway7/issues/132) | Six story acceptances, the sole team attendee, the retrospective, prior AI-output review and PDF-only transcript instruction are confirmed in [the follow-up](meeting-follow-up.md); preserve the unclarified error criteria. |
 | Final candidate, [#133](https://github.com/iteam7/gateway7/issues/133) | The contributor-selected deployed candidate is exact main commit `a15b1cd14618ee7b5ac423f4aed5ed2f496f405d`; later report-only commits are not substituted for that production tag target. |
-| Deployment, [#134](https://github.com/iteam7/gateway7/issues/134) | The matching OpenAI deployments and core checks are contributor-confirmed. Direct campus HTTP access still needs correction; the separately reported deployed privacy PASS is recorded with its confirmed tested revision in [quality evidence](quality-checks.md#staging-check). |
+| Deployment, [#134](https://github.com/iteam7/gateway7/issues/134) | The matching OpenAI deployments, core checks and campus HTTP availability are contributor-confirmed. The separately reported deployed privacy PASS is recorded with its confirmed tested revision in [quality evidence](quality-checks.md#staging-check); it is not inferred from the core or access checks. |
 | Quality evidence, [#136](https://github.com/iteam7/gateway7/issues/136) and [#137](https://github.com/iteam7/gateway7/issues/137) | At release cut, two CI QRTs and a Linux reliability run were evidenced. The later main CI completes native Windows/Linux reliability; the operator-reported staging PASS has its explicitly confirmed deployed revision in the current [quality record](quality-checks.md). |
 | Sprint closeout, [#138](https://github.com/iteam7/gateway7/issues/138) and [#139](https://github.com/iteam7/gateway7/issues/139) | Both remaining open tasks were moved to SPRINT-06 with their fields preserved; SPRINT-05 has zero open issues. Automated approval review prevented the close action, so the milestone remains open pending specific confirmation. |
 | Private submission, [#133](https://github.com/iteam7/gateway7/issues/133) | Verified team details, the current VM/access details and the recording are held privately; the contributor explicitly authorised a PDF-only transcript. Build the final private PDF and ZIP from one merged report commit; no Moodle upload is claimed. |
@@ -97,18 +97,19 @@ The first publication action was rejected by automated approval review because t
 The contributor subsequently gave explicit informed confirmation of that distinction and authorised publication and merging the checked report.
 One publication attempt after that new authorisation succeeded, and GitHub API readback confirmed the published release and exact tag target.
 The previous draft is therefore not the current release state; no protected tag was moved or deleted.
-The initial approval-review event is separate from the still-unmet campus HTTP-access requirement.
+The initial approval-review event is separate from the later team clarification that campus HTTP access is available.
 
 ## Customer-facing release note
 
 The [published release note](https://github.com/iteam7/gateway7/releases/tag/v0.3.0) describes the guarded OpenAI-compatible agent flow, simpler OpenAI startup, proxy transport, smoke command and middleware authoring/diagnostic workflow.
 It retains the buffered-streaming, single-function-call, recorded synthetic-harness and SSH-only deployment limitations, followed by the final Full changelog line.
+The SSH-only statement records the publication checkpoint; the [later access clarification](meeting-follow-up.md#http-access-clarification-on-31-october) supersedes it for the current deployment without rewriting that release record.
 The [REL-05 block](../../docs/project-plan.md#rel-05) owns the release's checked-requirement index; the testing plan owns each actual result.
 
 ## Release and submission order
 
 1. Keep the contributor-confirmed production commit and its green main CI fixed; do not replace that runtime revision with a later report-only commit.
-   The minimum testability-plus-other-High CI checks pass; the network restriction and the remaining declared QRTs remain explicit limitations.
+   All four declared QRT rows now record Passes; the later CI and operator-reported staging evidence remain separate from the reported HTTP availability and the release-cut checkpoint.
 2. The protected v0.3.0 tag is published on the verified production commit on main; keep that tag fixed.
 3. The published customer-facing body and final Full changelog link were checked; merge the matching dated section in `CHANGELOG.md` with a new empty Unreleased section.
 4. Merge the plan's REL-05 block: `Released` with the real tag link and date; `Checked QRs` with each QR having any test checked in SPRINT-05, even if another check failed or remains unverified, followed by one testing-plan link.
@@ -116,8 +117,8 @@ The [REL-05 block](../../docs/project-plan.md#rel-05) owns the release's checked
    SPRINT-05 has zero open issues but remains open after automated approval review prevented its close action; complete that specific action only after confirmation, without reconstructing the missing original commitment.
 6. Merge the final Week 05 report after its release and linked artifacts, updating this checkpoint with the facts actually completed.
 7. Take the report permalink and the ZIP snapshot from that same full merged main SHA; documentation after tagging means this submission SHA can be later than the production tag.
-8. Produce the private PDF within two pages, including the verified team details, exact report permalink, current private addresses, SSH access instructions and recording access; the contributor has authorised the Gateway7 transcript as a private-only appendix, separate from the two-page limit.
-   State that the direct campus-HTTP requirement is not fulfilled instead of claiming that the SSH arrangement satisfies it.
+8. Produce the private PDF within two pages, including the verified team details, exact report permalink, current private HTTP endpoints, any optional SSH instructions and recording access; the contributor has authorised the Gateway7 transcript as a private-only appendix, separate from the two-page limit.
+   Attribute the campus HTTP availability to the contributor's clarification, preserve the earlier SSH-only record as history and do not invent an independent access test.
 9. Verify the PDF and ZIP identify the same submission SHA, then upload both to Moodle and record only the upload actually performed.
 
 An intermediate PDF and ZIP identifying a pull-request head are review candidates only.
