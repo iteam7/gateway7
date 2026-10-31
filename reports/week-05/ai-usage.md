@@ -664,3 +664,12 @@ The final PDF/source pair must identify its actual common merged-main report sna
 
 The contributor explicitly accepted the explained runtime/documentation revision distinction and authorised release publication and merging the checked records on 31 October.
 That reported approval covers this closeout workflow; no additional human assessment of an unseen private artifact or Moodle upload is invented.
+
+## HTTP access clarification on 31 October
+
+Codex reconciled the current deployment guide, plan and Week 05 report with azamatbayramov's later clarification that HTTP access is available.
+It replaced the current SSH-only restriction with qualified team-reported campus HTTP availability and appended the correction to the contributor follow-up without rewriting earlier statements or the published release record.
+The correction changes documentation only; no network connection, VM reconfiguration, QRT execution, private PDF rewrite or Moodle upload is claimed.
+Private environment addresses and access details remain outside GitHub.
+Formater owns publication and the checks for the resulting pull request; the private PDF/source pair must be refreshed together after the correction merges into main.
+The team's assessment of this new output remains pending review; it is not inferred from acceptance of earlier work.

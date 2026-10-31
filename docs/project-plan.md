@@ -176,7 +176,8 @@ The declared QRT also requires Windows; the full row remains Not verified with C
 The contributor subsequently identified this same main commit in both OpenAI environments and confirmed successful health, readiness and chat checks on 31 October.
 These operational results are member-reported, not an independent image inspection or the deployed privacy QRT.
 The current privacy script expects `fake`, so its passing result is not inferred for the OpenAI staging configuration.
-Direct campus HTTP access is still unavailable; SSH forwarding and the private access details do not establish compliance with that network-access requirement.
+On 31 October, azamatbayramov subsequently clarified that campus HTTP access is available, superseding the earlier SSH-only description.
+This is a member-reported access clarification, not an independent network check or evidence for either unverified QRT.
 The published release targets this exact confirmed production commit and its actual passing CI.
 The initial automated approval-review blocker was resolved by the contributor's subsequent informed authorisation; the REL-05 block records the actual published tag, not a documentation-only revision.
 

@@ -48,5 +48,5 @@ The contributor's [later 31 October confirmation](meeting-follow-up.md#later-dep
 
 No raw remote command output or independent image inspection is claimed by this record.
 These functional checks do not exercise the deployed confidentiality QRT and do not replace its missing result.
-Access currently requires SSH and port forwarding; direct HTTP access from the university network remains an explicit deployment deviation.
-The private submission holds the actual addresses and access instructions.
+The contributor's [later HTTP access clarification](meeting-follow-up.md#http-access-clarification-on-31-october) supersedes the earlier SSH-only description and reports campus HTTP availability.
+This is not an independent network probe or a new QRT result; the private submission holds the actual addresses and access instructions.

@@ -100,3 +100,12 @@ On 31 October, the two remaining open SPRINT-05 tasks, [#138](https://github.com
 SPRINT-05 then had zero open issues.
 Automated approval review prevented the subsequent milestone-close action because it required specific confirmation for that action; the milestone remains open and the action was not repeated.
 This administrative checkpoint is separate from the published v0.3.0 release and does not change any story verdict or QRT result.
+
+## HTTP access clarification on 31 October
+
+After the earlier SSH-only description had been listed as remaining work, azamatbayramov clarified that HTTP access is available.
+In that context, the clarification confirms reported HTTP availability from the university network and supersedes the earlier description of current access as SSH-only.
+The earlier statements above remain the record of the information supplied at those checkpoints; this clarification does not establish when or how the deployed network configuration changed.
+No independent VM connection, network probe or new core/QRT execution was performed for this correction.
+The actual environment addresses and access information remain in the private submission only.
+The Windows reliability procedure and deployed privacy QRT remain unverified; HTTP availability alone is not their evidence.

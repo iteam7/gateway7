@@ -18,7 +18,8 @@ A separate [Linux reliability run](quality-checks.md#qr-01-linux-execution) pass
 
 The [later 31 October confirmation](meeting-follow-up.md#later-deployment-and-private-submission-confirmation) identifies `a15b1cd14618ee7b5ac423f4aed5ed2f496f405d` in both OpenAI environments and reports successful health, readiness and chat checks.
 The [core-check record](quality-checks.md#reported-vm-core-verification) distinguishes those contributor-reported results from automated QRTs and the older synthetic-provider [PR #147](https://github.com/iteam7/gateway7/pull/147).
-The deployment currently requires SSH and port forwarding; direct HTTP access from the university network remains an unmet requirement, recorded below as a deviation rather than an unavailable-VM exception.
+The contributor [subsequently clarified](meeting-follow-up.md#http-access-clarification-on-31-october) that HTTP access from the university network is available, superseding the earlier SSH-only description.
+This access status is team-reported; no independent network check is claimed, and the unverified QRTs remain unchanged.
 The [plan](../../docs/project-plan.md#milestones) contains MLS-05 and MLS-07 with separate sprint runs.
 The known estimated selected SPRINT-05 scope is `8 SP`, US-05 `3` + US-12 `5`, and both stories are accepted under DEC-020.
 The contributor confirms that initial planning happened, but the original selection and point total remain unrecorded; the late forecast is not that historical commitment.
@@ -48,7 +49,7 @@ Identified QRT results were not presented in the supplied meeting record; checks
 | Quality requirement tests | [docs/quality-requirements/README.md](../../docs/quality-requirements/README.md): every active High requirement has its declared test in the linked requirement file. |
 | Testing plan | [docs/project-plan.md#quality-requirement-testing-plan](../../docs/project-plan.md#quality-requirement-testing-plan) and [reports/week-05/quality-checks.md](quality-checks.md): two CI passes, a supporting Linux run, and explicit missing Windows/staging proof. |
 | Automated tests and CI | [.github/workflows/](../../.github/workflows/): all five required checks passed on the main commit linked in the summary. |
-| Deployment | [docs/deployment.md](../../docs/deployment.md), the [reports/week-05/meeting-follow-up.md#later-deployment-and-private-submission-confirmation](meeting-follow-up.md#later-deployment-and-private-submission-confirmation) and [reports/week-05/quality-checks.md#reported-vm-core-verification](quality-checks.md#reported-vm-core-verification); SSH-only access still fails the direct campus-HTTP requirement. |
+| Deployment | [docs/deployment.md](../../docs/deployment.md), the [later operational confirmation](meeting-follow-up.md#later-deployment-and-private-submission-confirmation), the [HTTP access clarification](meeting-follow-up.md#http-access-clarification-on-31-october) and [reported core-check record](quality-checks.md#reported-vm-core-verification); campus HTTP availability is contributor-confirmed. |
 | Feature documentation | [docs/features.md](../../docs/features.md). |
 | Week 4 action points | [reports/week-05/meeting-report.md#previous-action-points](meeting-report.md#previous-action-points) follow the real Week 3 carryover because no Week 4 Customer meeting took place; the [reports/week-05/meeting-follow-up.md#confirmed-follow-up-plan](meeting-follow-up.md#confirmed-follow-up-plan) supply next actions. |
 | Week 4 open questions | [reports/week-05/meeting-report.md#previous-open-questions](meeting-report.md#previous-open-questions) and [reports/week-05/meeting-follow-up.md#requirement-clarification](meeting-follow-up.md#requirement-clarification) distinguish the resolved story/provider questions from unanswered capacity, secrets and execution questions. |
@@ -82,7 +83,6 @@ The task's closure does not establish the unverified scripted or staging results
 - The contributor selected a private PDF transcript appendix rather than public publication; this later instruction is recorded separately from the original meeting account and does not fabricate a Customer permission quote.
 - Windows execution of the full reliability harness and a passing deployed privacy check remain unverified; the existing staging script expects `fake` while the contributor reports OpenAI.
 - The matching deployed commit and core checks are confirmed by the contributor, rather than by independent remote inspection or saved command output.
-- Direct HTTP access from the university network is unavailable; SSH forwarding is the current access method, not fulfilment of that course requirement.
 - An initial automated approval review blocked publication over the different runtime and documentation revisions; explicit informed contributor authorisation resolved that blocker, and the actual v0.3.0 publication is recorded in the release checkpoint.
 - Tracker carryover is complete for the two remaining SPRINT-05 tasks, #138 and #139. Automated approval review prevented closing the empty milestone, which remains open pending specific confirmation; no closure is claimed.
 
