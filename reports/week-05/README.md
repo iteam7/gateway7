@@ -61,7 +61,7 @@ Identified QRT results were not presented in the supplied meeting record; checks
 | Customer validation | [reports/week-05/meeting-report.md](meeting-report.md) plus [reports/week-05/meeting-follow-up.md#customer-verdicts](meeting-follow-up.md#customer-verdicts), [docs/decisions.md#dec-020](../../docs/decisions.md#dec-020) and [docs/decisions.md#dec-021](../../docs/decisions.md#dec-021). |
 | REL-05 | [docs/project-plan.md#rel-05](../../docs/project-plan.md#rel-05) records the published v0.3.0 tag, release date and QR-01/QR-02/QR-03 sprint-wide checked index, including the explicitly later reliability run; [CHANGELOG.md#030---2026-10-31](../../CHANGELOG.md#030---2026-10-31) and [reports/week-05/release-preparation.md#publication-checkpoint](release-preparation.md#publication-checkpoint) retain the release-cut record. |
 | Sprint retrospective | [reports/week-05/sprint-retrospective.md](sprint-retrospective.md): team discussion and observations confirmed on 31 October, four next actions and outcomes for all Week 4 carried actions. |
-| AI usage | [reports/week-05/ai-usage.md#team-assessment-recorded-on-31-october](ai-usage.md#team-assessment-recorded-on-31-october): contributor confirms listed tools were used, and human reading/correction supports accepted-with-changes assessments for the previous work. |
+| AI usage | [reports/week-05/ai-usage.md](ai-usage.md): earlier work was accepted with changes, the contributor has confirmed review and acceptance of the four recent updates, and [this final consolidation](ai-usage.md#final-assignment-5-documentation-closeout-on-31-october) awaits its own human review. |
 
 ## Contributions
 
@@ -76,6 +76,14 @@ These links identify delivered work; they do not assess an individual's performa
 
 Merged [PR #151](https://github.com/iteam7/gateway7/pull/151) closed [task #136](https://github.com/iteam7/gateway7/issues/136); its implementation and the later main CI are distinct from the results recorded in this checkpoint.
 The later [PR #162](https://github.com/iteam7/gateway7/pull/162) and actual main run supply the native Windows/Linux reliability evidence; the staging result is explicitly operator-reported at the separately confirmed deployed revision.
+
+## Remaining submission handoff
+
+The [release handoff](release-preparation.md#handoffs-and-remaining-work) distinguishes the completed release and quality checks from the remaining closeout actions.
+The four recent [AI-output assessments](ai-usage.md#native-cross-platform-reliability-workflow-on-31-october) now record the contributor's explicit review confirmation.
+Review [this prepared consolidation](ai-usage.md#final-assignment-5-documentation-closeout-on-31-october) in the closing pull request and close the empty SPRINT-05 milestone.
+After the final report changes merge into main, refresh the private PDF and ZIP from one common merged commit and upload that pair to Moodle.
+Reconcile [#132](https://github.com/iteam7/gateway7/issues/132) and [#133](https://github.com/iteam7/gateway7/issues/133) against their completed criteria; a merged report or prepared package does not establish a Moodle upload.
 
 ## Deviations
 
