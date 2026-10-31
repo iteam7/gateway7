@@ -95,7 +95,7 @@ An operator can identify a failing or slow company plugin without exposing reque
 - **Due:** 2026-10-31
 - **Sprint Backlog:** [the issues assigned to SPRINT-05](https://github.com/iteam7/gateway7/milestone/3)
 - **Planned Velocity:** The contributor confirms that planning took place, but its original selected scope and point total were not supplied; the 30 October remaining-scope forecast is **8 SP**, calculated by hand as US-05 `3` + US-12 `5` from their current native `Story Points` values.
-- **Actual Velocity:** **8 SP for the currently estimated selected scope**, US-05 `3` + US-12 `5`, accepted under [DEC-020](decisions.md#dec-020); unfinished work is to move to SPRINT-06 under the contributor's 31 October instruction, with the actual tracker moves and release still required before administrative close.
+- **Actual Velocity:** **8 SP for the currently estimated selected scope**, US-05 `3` + US-12 `5`, accepted under [DEC-020](decisions.md#dec-020); tasks [#138](https://github.com/iteam7/gateway7/issues/138) and [#139](https://github.com/iteam7/gateway7/issues/139) were moved from SPRINT-05 to SPRINT-06 on 31 October, with their role, assignee and Priority values preserved.
 
 Planning update: 30 October 2026, through the user's delegated AI-assisted refinement and selection under [task #138](https://github.com/iteam7/gateway7/issues/138) and [task #139](https://github.com/iteam7/gateway7/issues/139).
 The milestone is the selection record; this plan does not duplicate its issue list.
@@ -109,11 +109,19 @@ Unselected refined stories retain their estimates without a milestone, role valu
 
 The [31 October confirmation](https://github.com/iteam7/gateway7/blob/7fa1eced4183c17f2cac9df41bb970a0075ef65f/reports/week-05/meeting-follow-up.md#customer-verdicts) establishes acceptance of both currently estimated selected stories.
 The `8 SP` result is the known SPRINT-05 scope, not a recreated original commitment or a point total for accepted stories still placed in older sprint milestones without estimates.
-Closeout must record each unfinished issue's actual move to SPRINT-06 before closing this milestone; the contributor has authorized the carryover, but this document does not claim that the metadata moves or release already happened.
+The remaining open SPRINT-05 issues, tasks #138 and #139, were explicitly moved to SPRINT-06; SPRINT-05 now has zero open issues.
+Automated approval review prevented the subsequent milestone-close action, so the milestone remains open pending specific confirmation; no second close attempt or completed closure is claimed.
 The [SPRINT-04 actions](https://github.com/iteam7/gateway7/blob/main/reports/week-04/sprint-retrospective.md#actions) still require the tracker and review records to show their outcome, including the Customer review and remaining Windows work.
 The completed [testing-plan task #137](https://github.com/iteam7/gateway7/issues/137) is preserved in the testing rows below; no new result is claimed by the planning update.
 
 #### REL-05
+
+- **Released:** [v0.3.0](https://github.com/iteam7/gateway7/releases/tag/v0.3.0) on 2026-10-31.
+- **Checked QRs:**
+  - [QR-02](quality-requirements/qr/QR-02.md).
+  - [QR-03](quality-requirements/qr/QR-03.md).
+
+The [Quality Requirement Testing Plan](#quality-requirement-testing-plan) records the result and sprint of each test, including the unverified rows.
 
 ### SPRINT-06
 
@@ -169,7 +177,8 @@ The contributor subsequently identified this same main commit in both OpenAI env
 These operational results are member-reported, not an independent image inspection or the deployed privacy QRT.
 The current privacy script expects `fake`, so its passing result is not inferred for the OpenAI staging configuration.
 Direct campus HTTP access is still unavailable; SSH forwarding and the private access details do not establish compliance with that network-access requirement.
-The release proposal targets this exact confirmed production commit and its actual passing CI; publication remains blocked at automated approval review, so REL-05 stays empty.
+The published release targets this exact confirmed production commit and its actual passing CI.
+The initial automated approval-review blocker was resolved by the contributor's subsequent informed authorisation; the REL-05 block records the actual published tag, not a documentation-only revision.
 
 ## Progress Monitoring
 
