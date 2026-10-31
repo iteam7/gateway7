@@ -568,7 +568,7 @@ Accepted with changes, on the [team confirmation recorded on 31 October](#team-a
 
 On 30 October, Codex acted as Formater under the user's instruction to resolve the pull request conflicts.
 PR #154 was already merged; Codex merged current main commit `d57eeb951763c98a6da7773fe16b9a9105e3459d` into PR #155's existing branch without rebasing or rewriting history.
-The only conflict was this report's independently appended accounts: both the delegated story refinement and delegated plan update, including their TODO team evaluations, were retained.
+The only conflict was this report's independently appended accounts: both the delegated story refinement and delegated plan update, including their then-unassessed team evaluations, were retained.
 The incoming project plan was preserved unchanged from main; FR-012 and its index and navigation remained unchanged from PR #155.
 No product decisions, runtime behavior, historical commitments or Customer verdicts were added or inferred.
 
@@ -715,12 +715,14 @@ Accepted after human review: on 31 October, azamatbayramov confirmed that the fo
 ## Final Assignment 5 documentation closeout on 31 October
 
 Codex checked the remaining Assignment 5 requirements against the pinned assignment and current repository records, and prepared one documentation consolidation.
-It recorded the contributor's later 31 October review confirmation in the four corresponding AI-output assessments, without extending that verdict to this new consolidation.
-It preserved the recorded QRT results and their sources while making the remaining tracker closeout, review of this consolidation and private submission order explicit.
+It recorded the contributor's later 31 October review confirmation in the four corresponding AI-output assessments.
+It preserved the recorded QRT results and their sources while making the remaining tracker closeout and private submission order explicit.
 Codex also generated and checked the preceding private PDF/source pairs against their actual merged report commits; private team, access and transcript information remained outside GitHub.
 The pair must be refreshed together after this final documentation merges, before the contributor uploads it to Moodle.
 Formater owns PRE, POST and publication; the report records only tracker and submission actions that have actually completed.
+After PR #164's human review and merge, Codex updated this same entry and the linked report handoffs to record that completed assessment.
 
 ### Team evaluation for this final documentation closeout
 
-TODO: the team has not yet assessed this prepared consolidation.
+Accepted through human review: [DeniBorsh approved the consolidation in PR #164](https://github.com/iteam7/gateway7/pull/164#pullrequestreview-5722722050) on 31 October, and [PR #164 was merged into main](https://github.com/iteam7/gateway7/pull/164) on the same day.
+The merged output records the four contributor-confirmed AI assessments and the remaining submission order while preserving the quality-test results and their sources.
