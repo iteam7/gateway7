@@ -118,10 +118,12 @@ The completed [testing-plan task #137](https://github.com/iteam7/gateway7/issues
 
 - **Released:** [v0.3.0](https://github.com/iteam7/gateway7/releases/tag/v0.3.0) on 2026-10-31.
 - **Checked QRs:**
+  - [QR-01](quality-requirements/qr/QR-01.md).
   - [QR-02](quality-requirements/qr/QR-02.md).
   - [QR-03](quality-requirements/qr/QR-03.md).
 
-The [Quality Requirement Testing Plan](#quality-requirement-testing-plan) records the result and sprint of each test, including the unverified rows.
+The [Quality Requirement Testing Plan](#quality-requirement-testing-plan) records the result and sprint of each test.
+This sprint index includes the 31 October cross-platform reliability check performed after publication; it does not change the published v0.3.0 tag or backdate that check to the release cut.
 
 ### SPRINT-06
 
@@ -164,20 +166,22 @@ Each row is one quality requirement test and what it found at its last check; th
 
 | QR | QRT | Status | Checked | Planned for sprint | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| [QR-01](quality-requirements/qr/QR-01.md) | [QR-01 QRT-01](quality-requirements/qr/QR-01.md#qrt-01) | Not verified | None | [SPRINT-05](#sprint-05) | None |
+| [QR-01](quality-requirements/qr/QR-01.md) | [QR-01 QRT-01](quality-requirements/qr/QR-01.md#qrt-01) | Passes | [SPRINT-05](#sprint-05) | [SPRINT-05](#sprint-05) | [Main native Windows/Linux CI, 31 October](https://github.com/iteam7/gateway7/actions/runs/41193629459) |
 | [QR-02](quality-requirements/qr/QR-02.md) | [QR-02 QRT-01](quality-requirements/qr/QR-02.md#qrt-01) | Passes | [SPRINT-05](#sprint-05) | [SPRINT-05](#sprint-05) | [Main CI check job, 31 October](https://github.com/iteam7/gateway7/actions/runs/41130602373/job/124320199306) |
 | [QR-03](quality-requirements/qr/QR-03.md) | [QR-03 QRT-01](quality-requirements/qr/QR-03.md#qrt-01) | Passes | [SPRINT-05](#sprint-05) | [SPRINT-05](#sprint-05) | [Main CI check job, 31 October](https://github.com/iteam7/gateway7/actions/runs/41130602373/job/124320199306) |
-| [QR-03](quality-requirements/qr/QR-03.md) | [QR-03 QRT-02](quality-requirements/qr/QR-03.md#qrt-02) | Not verified | None | [SPRINT-05](#sprint-05) | None |
+| [QR-03](quality-requirements/qr/QR-03.md) | [QR-03 QRT-02](quality-requirements/qr/QR-03.md#qrt-02) | Passes | [SPRINT-05](#sprint-05) | [SPRINT-05](#sprint-05) | [Operator-reported staging check, 31 October](https://github.com/iteam7/gateway7/blob/5d64cf6d96e6842b991df0569f740cf14ce2e382/reports/week-05/quality-checks.md#staging-check) |
 
-The two CI results were checked on 31 October at `main` commit `a15b1cd14618ee7b5ac423f4aed5ed2f496f405d`.
+The QR-02 and QR-03 CI results were checked on 31 October at `main` commit `a15b1cd14618ee7b5ac423f4aed5ed2f496f405d`.
 The job logs show both testability tests and the confidentiality test passing; the suite completed in 46.82 seconds and the separate HTTP demonstration step in 12 seconds.
 A separate [Linux QR-01 run](https://github.com/iteam7/gateway7/blob/7fa1eced4183c17f2cac9df41bb970a0075ef65f/reports/week-05/quality-checks.md#qr-01-linux-execution) completed 50 repetitions of each of four failure cases, with exit 0 and no upstream calls.
-The declared QRT also requires Windows; the full row remains Not verified with Checked/Evidence None until that procedure is evidenced on both systems.
-The contributor subsequently identified this same main commit in both OpenAI environments and confirmed successful health, readiness and chat checks on 31 October.
-These operational results are member-reported, not an independent image inspection or the deployed privacy QRT.
-The current privacy script expects `fake`, so its passing result is not inferred for the OpenAI staging configuration.
+The later [native Windows/Linux CI record](https://github.com/iteam7/gateway7/blob/5d64cf6d96e6842b991df0569f740cf14ce2e382/reports/week-05/quality-checks.md#qr-01-native-ci-execution-on-31-october) checks the same four cases 50 times on each operating system at `main` commit `6d3555247bfe8007a9963b14394434643dde0652`.
+QR-01 QRT-01 now runs at CI level with the original cross-platform pass criterion; both jobs returned exit 0 and zero upstream calls.
+The contributor identified `a15b1cd14618ee7b5ac423f4aed5ed2f496f405d` in both OpenAI environments and confirmed successful health, readiness and chat checks on 31 October.
+These operational results are member-reported, not an independent image inspection.
+The contributor later explicitly reported `PASS QR-03 QRT-02` on staging and confirmed that this run used the same deployed `a15b1cd14618ee7b5ac423f4aed5ed2f496f405d` revision.
+The [dated operator record](https://github.com/iteam7/gateway7/blob/5d64cf6d96e6842b991df0569f740cf14ce2e382/reports/week-05/quality-checks.md#staging-check) identifies its source and the measured predicate implied by that reported PASS; no raw counter lines or independent VM inspection are claimed.
 Direct campus HTTP access is still unavailable; SSH forwarding and the private access details do not establish compliance with that network-access requirement.
-The published release targets this exact confirmed production commit and its actual passing CI.
+The published release targets the confirmed production commit `a15b1cd14618ee7b5ac423f4aed5ed2f496f405d` and its actual passing CI; the later QR-01 check on `6d3555247bfe8007a9963b14394434643dde0652` is not an exact-tag execution record.
 The initial automated approval-review blocker was resolved by the contributor's subsequent informed authorisation; the REL-05 block records the actual published tag, not a documentation-only revision.
 
 ## Progress Monitoring

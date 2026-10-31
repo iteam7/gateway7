@@ -12,7 +12,8 @@ Its [Python check job](https://github.com/iteam7/gateway7/actions/runs/411306023
 The named `Run tests` step took 48 seconds and `Exercise separate HTTP processes` took 12 seconds, satisfying QR-02's five-minute bounds.
 The [testing plan](../../docs/project-plan.md#quality-requirement-testing-plan) records the two CI results at that commit.
 The [supporting Linux run](quality-checks.md#qr-01-linux-execution) passed 50 repetitions of each of four failure cases with zero upstream requests.
-The full QR-01 still needs the Windows procedure, and QR-03 QRT-02 still needs deployed output; neither is inferred from CI or the Linux-only run.
+At this release-cut checkpoint, the full QR-01 still needed the Windows procedure and QR-03 QRT-02 still needed deployed output; neither was inferred from that CI or Linux-only run.
+The later [cross-platform CI record](quality-checks.md#qr-01-native-ci-execution-on-31-october) and [operator-reported staging result](quality-checks.md#staging-check) are dated follow-ups, not changes to the published tag or release body.
 
 [PR #147](https://github.com/iteam7/gateway7/pull/147) records staging and production health/chat verification at `26dab3122dbc2f4247533d0c57cdb0f83e5073cf` with the synthetic provider.
 It says the VM was available; lack of access from this preparation environment does not establish the assignment's VM-unavailable exception.
@@ -27,8 +28,8 @@ This restriction must remain visible in the release limitation and private acces
 | --- | --- |
 | Review and human records, [#132](https://github.com/iteam7/gateway7/issues/132) | Six story acceptances, the sole team attendee, the retrospective, prior AI-output review and PDF-only transcript instruction are confirmed in [the follow-up](meeting-follow-up.md); preserve the unclarified error criteria. |
 | Final candidate, [#133](https://github.com/iteam7/gateway7/issues/133) | The contributor-selected deployed candidate is exact main commit `a15b1cd14618ee7b5ac423f4aed5ed2f496f405d`; later report-only commits are not substituted for that production tag target. |
-| Deployment, [#134](https://github.com/iteam7/gateway7/issues/134) | The matching OpenAI deployments and core checks are contributor-confirmed. Direct campus HTTP access still needs correction; the deployed privacy QRT remains unverified and is not inferred from the core checks. |
-| Quality evidence, [#136](https://github.com/iteam7/gateway7/issues/136) and [#137](https://github.com/iteam7/gateway7/issues/137) | The actual candidate has two passing CI QRTs and a Linux reliability record; keep the missing Windows and deployed-privacy results explicit in the plan. |
+| Deployment, [#134](https://github.com/iteam7/gateway7/issues/134) | The matching OpenAI deployments and core checks are contributor-confirmed. Direct campus HTTP access still needs correction; the separately reported deployed privacy PASS is recorded with its confirmed tested revision in [quality evidence](quality-checks.md#staging-check). |
+| Quality evidence, [#136](https://github.com/iteam7/gateway7/issues/136) and [#137](https://github.com/iteam7/gateway7/issues/137) | At release cut, two CI QRTs and a Linux reliability run were evidenced. The later main CI completes native Windows/Linux reliability; the operator-reported staging PASS has its explicitly confirmed deployed revision in the current [quality record](quality-checks.md). |
 | Sprint closeout, [#138](https://github.com/iteam7/gateway7/issues/138) and [#139](https://github.com/iteam7/gateway7/issues/139) | Both remaining open tasks were moved to SPRINT-06 with their fields preserved; SPRINT-05 has zero open issues. Automated approval review prevented the close action, so the milestone remains open pending specific confirmation. |
 | Private submission, [#133](https://github.com/iteam7/gateway7/issues/133) | Verified team details, the current VM/access details and the recording are held privately; the contributor explicitly authorised a PDF-only transcript. Build the final private PDF and ZIP from one merged report commit; no Moodle upload is claimed. |
 
