@@ -664,3 +664,15 @@ The final PDF/source pair must identify its actual common merged-main report sna
 
 The contributor explicitly accepted the explained runtime/documentation revision distinction and authorised release publication and merging the checked records on 31 October.
 That reported approval covers this closeout workflow; no additional human assessment of an unseen private artifact or Moodle upload is invented.
+
+## Native cross-platform reliability workflow on 31 October
+
+At the contributor's request to complete the remaining quality checks, Codex prepared an isolated workflow for the existing QR-01 fault-tolerance harness.
+It runs the same four synthetic scenarios 50 times each on native Ubuntu and Windows runners with locked dependencies and Python 3.12.
+The workflow records the actual checkout commit and runtime, preserves failed command exit codes and uses no real provider credentials or paid API requests.
+TechLead reviewed the workflow plan; the pull request records the code review, validation and actual CI results.
+This automation alone does not change the QRT's declared test level or establish a completed scripted development-machine check.
+
+### Team evaluation for the cross-platform reliability workflow
+
+TODO: the team has not yet assessed this new AI-assisted workflow output.
