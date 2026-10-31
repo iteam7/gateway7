@@ -6,6 +6,7 @@ The [testing plan](../../docs/project-plan.md#quality-requirement-testing-plan) 
 ## CI checks
 
 All five required workflows passed on main commit `a15b1cd14618ee7b5ac423f4aed5ed2f496f405d`.
+The published [v0.3.0 tag](https://github.com/iteam7/gateway7/releases/tag/v0.3.0) identifies this same runtime commit.
 The [Python check job](https://github.com/iteam7/gateway7/actions/runs/41130602373/job/124320199306) reports `1088 passed in 46.82s`, including both testability tests and the confidentiality test.
 Its `Run tests` step took 48 seconds and the separate HTTP demo step took 12 seconds.
 Those checks support **Passes** for QR-02 QRT-01 and QR-03 QRT-01 at their declared CI level; they do not establish a university-VM result.

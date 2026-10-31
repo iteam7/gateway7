@@ -86,3 +86,17 @@ The contributor explicitly authorised including the transcript in the private PD
 This later instruction replaces the earlier uncertainty about the team's intended private submission, without attributing an unrecorded permission statement to Customer or authorising a public transcript.
 The private appendix is limited to Gateway7's part of the shared recording; the preceding project team's demonstration is outside this report's scope.
 The recording link, its access information, the team identity table and the transcript remain outside GitHub.
+
+## Release publication after informed confirmation
+
+After the runtime-tag and later-documentation distinction had been explained, the contributor explicitly authorised publication and merging the checked release records on 31 October.
+The [v0.3.0 release](https://github.com/iteam7/gateway7/releases/tag/v0.3.0) was then published and checked to target the previously confirmed production commit `a15b1cd14618ee7b5ac423f4aed5ed2f496f405d`.
+The [publication checkpoint](release-preparation.md#publication-checkpoint) preserves the first automated approval-review event and the successful action under that subsequent authorisation.
+This publication does not change the SSH-only access limitation, fill the unverified QRTs or claim a Moodle upload.
+
+## Tracker closeout checkpoint
+
+On 31 October, the two remaining open SPRINT-05 tasks, [#138](https://github.com/iteam7/gateway7/issues/138) and [#139](https://github.com/iteam7/gateway7/issues/139), were moved to SPRINT-06 with their roles, assignees and Priority values preserved.
+SPRINT-05 then had zero open issues.
+Automated approval review prevented the subsequent milestone-close action because it required specific confirmation for that action; the milestone remains open and the action was not repeated.
+This administrative checkpoint is separate from the published v0.3.0 release and does not change any story verdict or QRT result.
