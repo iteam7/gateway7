@@ -6,7 +6,8 @@ Due dates follow [Assignment 4, Part 1](https://github.com/inno-itpd/itpd/blob/m
 The corrected SPRINT-04–09 dates below match the GitHub milestone due dates, updated and checked on 25 October.
 The monitoring cadence and the unplanned sprint goals remain proposals for team review.
 Updated on 30 October 2026 under [task #138](https://github.com/iteam7/gateway7/issues/138): the user delegated the new milestone choices and the remaining SPRINT-05 scope to AI-assisted planning.
-This late planning update is dated when it was made; it supplies neither a start-of-sprint commitment nor a Customer verdict.
+This late planning update is dated when it was made; it does not reconstruct the original numerical commitment.
+The [31 October contributor follow-up](https://github.com/iteam7/gateway7/blob/7fa1eced4183c17f2cac9df41bb970a0075ef65f/reports/week-05/meeting-follow-up.md) confirms that planning took place and records Customer acceptance separately.
 
 ## Milestones
 
@@ -18,7 +19,8 @@ This late planning update is dated when it was made; it supplies neither a start
 
 A client sends a chat request through a phone-masking plugin and receives an actual model's answer, with company plugins installable without changing the gateway core.
 The candidate is [US-01](https://github.com/iteam7/gateway7/issues/30), [US-02](https://github.com/iteam7/gateway7/issues/31) and [US-03](https://github.com/iteam7/gateway7/issues/32), approved for building by [DEC-012](decisions.md#dec-012).
-The deterministic upstream allowed by [DEC-011](decisions.md#dec-011) supports initial plugin checks; it does not replace US-01 AC-05 or the Customer's story verdicts.
+The deterministic upstream allowed by [DEC-011](decisions.md#dec-011) supports initial plugin checks; the actual-provider choice is clarified by [DEC-021](decisions.md#dec-021).
+The contributor reported Customer acceptance of US-01, US-02 and US-03 in [DEC-020](decisions.md#dec-020), recorded on 31 October for the 30 October demonstration.
 The published release below is delivery evidence, not proof that the milestone's acceptance gates have all passed.
 
 ### MLS-05
@@ -44,7 +46,8 @@ The independent plugin workflow and offline examples provide repeatable evidence
 ## Sprints
 
 The backlog links open the existing GitHub sprint milestones; the 30 October update selects remaining SPRINT-05 work without creating duplicate milestones or closing the ongoing sprint.
-The available repository evidence supplies no pre-work story-point estimates or Customer acceptance verdicts for US-01–US-09.
+The available records do not reconstruct the original story-point estimates for US-01–US-09.
+[DEC-020](decisions.md#dec-020) now records the contributor-reported acceptance of US-01–US-05 and US-12; unmentioned stories receive no inferred verdict.
 The new estimates confirmed by azamatbayramov on 25 October concern remaining future verification and rework; they do not reconstruct earlier estimates or velocity.
 Closed story issues therefore do not establish accepted completion or a measurable velocity under the [Definition of Done](definition-of-done.md#story).
 Unselected future candidates stay in the unscheduled product backlog; legacy milestone placement does not establish that earlier refinement or sprint planning happened.
@@ -56,8 +59,8 @@ A clean checkout runs the candidate's chat flow, phone masking and configurable 
 - **Due:** 2026-10-17
 - **Sprint Backlog:** [the issues assigned to SPRINT-03](https://github.com/iteam7/gateway7/milestone/1)
 
-The candidate's unfinished work remains in this milestone pending explicit rescheduling and Customer review.
-The release records delivery; it does not settle the outstanding story criteria or acceptance verdicts.
+The candidate stories now have the acceptance recorded in [DEC-020](decisions.md#dec-020); their original estimates and earlier sprint velocity are not reconstructed.
+The release date remains delivery evidence, separate from this later validation.
 
 #### REL-03
 
@@ -70,7 +73,7 @@ Proposed goal: a company engineer can run three interacting plugins and follow t
 - **Due:** 2026-10-24
 - **Sprint Backlog:** [the issues assigned to SPRINT-04](https://github.com/iteam7/gateway7/milestone/2)
 - **Planned Velocity:** N/A — missing; the available records supply no pre-work planning or story-point total.
-- **Actual Velocity:** N/A — not established; story estimates and Customer acceptance evidence are missing, and the milestone remains open.
+- **Actual Velocity:** N/A — historical story estimates are missing; the later acceptance of US-04 in DEC-020 does not reconstruct SPRINT-04's original completed-point total.
 
 The proposed outcome advances [TOS-03](threshold-of-success.md#tos-03) and responds to [DEC-014](decisions.md#dec-014) and [DEC-015](decisions.md#dec-015): justify the runner's design, make plugin failures diagnosable, and demonstrate composition beyond one masking plugin.
 The [retrospective's planning finding](https://github.com/iteam7/gateway7/blob/main/reports/week-04/sprint-retrospective.md#what-did-not) reports that SPRINT-04 started without planning, an agreed backlog, planned velocity or agreed owners.
@@ -91,7 +94,8 @@ An operator can identify a failing or slow company plugin without exposing reque
 
 - **Due:** 2026-10-31
 - **Sprint Backlog:** [the issues assigned to SPRINT-05](https://github.com/iteam7/gateway7/milestone/3)
-- **Planned Velocity:** The original commitment is unavailable; the 30 October remaining-scope forecast is **8 SP**, calculated by hand as US-05 `3` + US-12 `5` from their current native `Story Points` values.
+- **Planned Velocity:** The contributor confirms that planning took place, but its original selected scope and point total were not supplied; the 30 October remaining-scope forecast is **8 SP**, calculated by hand as US-05 `3` + US-12 `5` from their current native `Story Points` values.
+- **Actual Velocity:** **8 SP for the currently estimated selected scope**, US-05 `3` + US-12 `5`, accepted under [DEC-020](decisions.md#dec-020); tasks [#138](https://github.com/iteam7/gateway7/issues/138) and [#139](https://github.com/iteam7/gateway7/issues/139) were moved from SPRINT-05 to SPRINT-06 on 31 October, with their role, assignee and Priority values preserved.
 
 Planning update: 30 October 2026, through the user's delegated AI-assisted refinement and selection under [task #138](https://github.com/iteam7/gateway7/issues/138) and [task #139](https://github.com/iteam7/gateway7/issues/139).
 The milestone is the selection record; this plan does not duplicate its issue list.
@@ -103,12 +107,21 @@ All eight Assignment 4 carryover tasks created on 25 October retain their placem
 New selection sets the sprint milestone, distinct native Responsible and Accountable values and exactly those two assignees together; scheduled tasks also carry native Priority.
 Unselected refined stories retain their estimates without a milestone, role values or assignees.
 
-Actual Velocity is added only at the real sprint close, after the Customer verdicts from [task #132](https://github.com/iteam7/gateway7/issues/132) establish which stories were accepted.
-That close-out must record each unfinished issue's actual move to a later sprint before closing this milestone; missing historical estimates or review evidence are not replaced with zero.
+The [31 October confirmation](https://github.com/iteam7/gateway7/blob/7fa1eced4183c17f2cac9df41bb970a0075ef65f/reports/week-05/meeting-follow-up.md#customer-verdicts) establishes acceptance of both currently estimated selected stories.
+The `8 SP` result is the known SPRINT-05 scope, not a recreated original commitment or a point total for accepted stories still placed in older sprint milestones without estimates.
+The remaining open SPRINT-05 issues, tasks #138 and #139, were explicitly moved to SPRINT-06; SPRINT-05 now has zero open issues.
+Automated approval review prevented the subsequent milestone-close action, so the milestone remains open pending specific confirmation; no second close attempt or completed closure is claimed.
 The [SPRINT-04 actions](https://github.com/iteam7/gateway7/blob/main/reports/week-04/sprint-retrospective.md#actions) still require the tracker and review records to show their outcome, including the Customer review and remaining Windows work.
 The completed [testing-plan task #137](https://github.com/iteam7/gateway7/issues/137) is preserved in the testing rows below; no new result is claimed by the planning update.
 
 #### REL-05
+
+- **Released:** [v0.3.0](https://github.com/iteam7/gateway7/releases/tag/v0.3.0) on 2026-10-31.
+- **Checked QRs:**
+  - [QR-02](quality-requirements/qr/QR-02.md).
+  - [QR-03](quality-requirements/qr/QR-03.md).
+
+The [Quality Requirement Testing Plan](#quality-requirement-testing-plan) records the result and sprint of each test, including the unverified rows.
 
 ### SPRINT-06
 
@@ -152,9 +165,20 @@ Each row is one quality requirement test and what it found at its last check; th
 | QR | QRT | Status | Checked | Planned for sprint | Evidence |
 | --- | --- | --- | --- | --- | --- |
 | [QR-01](quality-requirements/qr/QR-01.md) | [QR-01 QRT-01](quality-requirements/qr/QR-01.md#qrt-01) | Not verified | None | [SPRINT-05](#sprint-05) | None |
-| [QR-02](quality-requirements/qr/QR-02.md) | [QR-02 QRT-01](quality-requirements/qr/QR-02.md#qrt-01) | Not verified | None | [SPRINT-05](#sprint-05) | None |
-| [QR-03](quality-requirements/qr/QR-03.md) | [QR-03 QRT-01](quality-requirements/qr/QR-03.md#qrt-01) | Not verified | None | [SPRINT-05](#sprint-05) | None |
+| [QR-02](quality-requirements/qr/QR-02.md) | [QR-02 QRT-01](quality-requirements/qr/QR-02.md#qrt-01) | Passes | [SPRINT-05](#sprint-05) | [SPRINT-05](#sprint-05) | [Main CI check job, 31 October](https://github.com/iteam7/gateway7/actions/runs/41130602373/job/124320199306) |
+| [QR-03](quality-requirements/qr/QR-03.md) | [QR-03 QRT-01](quality-requirements/qr/QR-03.md#qrt-01) | Passes | [SPRINT-05](#sprint-05) | [SPRINT-05](#sprint-05) | [Main CI check job, 31 October](https://github.com/iteam7/gateway7/actions/runs/41130602373/job/124320199306) |
 | [QR-03](quality-requirements/qr/QR-03.md) | [QR-03 QRT-02](quality-requirements/qr/QR-03.md#qrt-02) | Not verified | None | [SPRINT-05](#sprint-05) | None |
+
+The two CI results were checked on 31 October at `main` commit `a15b1cd14618ee7b5ac423f4aed5ed2f496f405d`.
+The job logs show both testability tests and the confidentiality test passing; the suite completed in 46.82 seconds and the separate HTTP demonstration step in 12 seconds.
+A separate [Linux QR-01 run](https://github.com/iteam7/gateway7/blob/7fa1eced4183c17f2cac9df41bb970a0075ef65f/reports/week-05/quality-checks.md#qr-01-linux-execution) completed 50 repetitions of each of four failure cases, with exit 0 and no upstream calls.
+The declared QRT also requires Windows; the full row remains Not verified with Checked/Evidence None until that procedure is evidenced on both systems.
+The contributor subsequently identified this same main commit in both OpenAI environments and confirmed successful health, readiness and chat checks on 31 October.
+These operational results are member-reported, not an independent image inspection or the deployed privacy QRT.
+The current privacy script expects `fake`, so its passing result is not inferred for the OpenAI staging configuration.
+Direct campus HTTP access is still unavailable; SSH forwarding and the private access details do not establish compliance with that network-access requirement.
+The published release targets this exact confirmed production commit and its actual passing CI.
+The initial automated approval-review blocker was resolved by the contributor's subsequent informed authorisation; the REL-05 block records the actual published tag, not a documentation-only revision.
 
 ## Progress Monitoring
 
@@ -165,12 +189,12 @@ Each row is one quality requirement test and what it found at its last check; th
 - **Visible at:** the [Sprints table view](https://github.com/orgs/iteam7/projects/1/views/3) and [GitHub sprint milestones](https://github.com/iteam7/gateway7/milestones), with the table's reported configuration described in [CONTRIBUTING.md](https://github.com/iteam7/gateway7/blob/main/CONTRIBUTING.md#project-views-and-scheduling).
 - **Refinement:** the SPRINT-06/07 horizon retains the previously refined configured-access and offline-plugin candidates, [US-07](https://github.com/iteam7/gateway7/issues/36) at `3 SP` and [US-08](https://github.com/iteam7/gateway7/issues/37) at `5 SP`, and adds [US-13](https://github.com/iteam7/gateway7/issues/141) at `8 SP` for SPRINT-06 consideration on 30 October under [task #139](https://github.com/iteam7/gateway7/issues/139).
   Refinement stays in the issues through runnable criteria, dependencies, owning-specification links and native estimates; none exceeds `13 SP`, so this pass requires no split and produces no separate refinement document.
-  US-13 remains a future candidate while its owning specification is prepared under task #139; that specification must resolve on `main` before the story is selected.
+  US-13 remains a future candidate with its owning [FR-012](functional-requirements/fr/FR-012.md) on main; [task #139](https://github.com/iteam7/gateway7/issues/139) retains the refinement and selection checks.
   The future candidates remain without a milestone, Responsible, Accountable or assignees until selected; a horizon is not a capacity commitment.
 - **Scheduling gate:** actual selection sets the existing sprint milestone, two distinct native Responsible/Accountable values and exactly the same two assignees together, plus Priority for a task.
   The SPRINT-05 backlog preserves the carryover placement while the new US-12 selection and prospective US-05 estimate are recorded on 30 October; this update does not certify every legacy issue's fields.
 - **Velocity check:** sum selected stories' native estimates by hand and distinguish the new remaining-scope forecast from the unavailable original commitment.
   At close, count only completed, Customer-accepted stories with recorded estimates and document actual rescheduling; absent historical estimates or acceptance evidence do not imply zero velocity.
-- **Tracker reconciliation:** the 30 October pass checks the existing SPRINT-05 milestone, native estimates and the new story's scheduling against the plan; the legacy US-06 estimate and Customer verdicts remain unresolved historical evidence gaps.
+- **Tracker reconciliation:** the 30 October pass checks the existing SPRINT-05 milestone, native estimates and the new story's scheduling against the plan; the legacy US-06 estimate and its unreported Customer verdict remain unresolved evidence gaps, while DEC-020 records the accepted stories.
   The Accountable reviewer checks the live tracker before accepting [task #138](https://github.com/iteam7/gateway7/issues/138); a local plan edit alone does not settle those gaps.
 - **Release check:** verify the tag on `main`, changelog, Customer decisions and remaining work before closing a sprint; reschedule unresolved issues explicitly and protect published tags from movement and deletion.

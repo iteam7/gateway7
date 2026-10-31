@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-31
+
 ### Added
 
 - OpenAI upstream SSE consumption and checked client SSE with guarded function-tool turns, plus a reproducible OpenCode V2 tool-cycle smoke check.
@@ -12,9 +14,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - A ready-to-copy OpenAI `.env.example` for one-command live Compose startup and an in-container smoke check.
 - Optional startup transport extensions for provider calls, with an HTTP(S) forward-proxy module and environment-referenced proxy credentials.
 - An installed `gateway7 smoke` command for bounded live readiness, client access and one chat check, with safe diagnostic reports.
-- A features page that links each capability to its stories, behavior and decisions, and a testing plan with each quality requirement test's latest result.
-- Quality requirement tests for fault tolerance, testability and confidentiality, with a repeatable middleware-failure check and a staging confidentiality check.
-- A pinned `actionlint` 1.7.12 workflow check over `.github/workflows/`, required by the Definition of Done with separately named Python formatting and lint steps.
+- A concise features guide linking each capability to its stories, behavior and design decisions.
 
 ### Fixed
 
@@ -91,7 +91,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - The one-command demonstration's plugin-installation check now passes on Windows, where it compared backslash paths with POSIX paths.
 - The documented test command no longer errors on Windows, where one case's generated test ID exceeded the environment-variable size limit.
 
-[Unreleased]: https://github.com/iteam7/gateway7/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/iteam7/gateway7/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/iteam7/gateway7/releases/tag/v0.3.0
 [0.2.0]: https://github.com/iteam7/gateway7/releases/tag/v0.2.0
 [0.1.1]: https://github.com/iteam7/gateway7/releases/tag/v0.1.1
 [0.1.0]: https://github.com/iteam7/gateway7/releases/tag/v0.1.0
