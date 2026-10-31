@@ -1,0 +1,49 @@
+name: Quality requirements
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fault-tolerance:
+    name: Fault tolerance (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-2022]
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          version: "0.12.23"
+          enable-cache: true
+      - name: Install locked dependencies on Python 3.12
+        run: |
+          uv sync --locked --python 3.12
+          $installExitCode = $LASTEXITCODE
+          exit $installExitCode
+      - name: Record checkout and runtime
+        run: |
+          git rev-parse HEAD
+          $checkoutExitCode = $LASTEXITCODE
+          if ($checkoutExitCode -ne 0) { exit $checkoutExitCode }
+          uv run --locked python -c "import platform; print('Python: ' + platform.python_version()); print('Platform: ' + platform.platform())"
+          $runtimeExitCode = $LASTEXITCODE
+          exit $runtimeExitCode
+      - name: Exercise all four synthetic scenarios 50 times
+        run: |
+          uv run --locked python -m demo.fault_tolerance --runs 50
+          $testExitCode = $LASTEXITCODE
+          exit $testExitCode

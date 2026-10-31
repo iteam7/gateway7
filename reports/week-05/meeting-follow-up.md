@@ -108,4 +108,5 @@ In that context, the clarification confirms reported HTTP availability from the 
 The earlier statements above remain the record of the information supplied at those checkpoints; this clarification does not establish when or how the deployed network configuration changed.
 No independent VM connection, network probe or new core/QRT execution was performed for this correction.
 The actual environment addresses and access information remain in the private submission only.
-The Windows reliability procedure and deployed privacy QRT remain unverified; HTTP availability alone is not their evidence.
+HTTP availability alone is not evidence for a QRT result.
+The later [quality record](quality-checks.md) records the native Windows/Linux reliability run and the separately contributor-reported staging confidentiality PASS at its confirmed deployed revision.
