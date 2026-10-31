@@ -676,3 +676,15 @@ This automation alone does not change the QRT's declared test level or establish
 ### Team evaluation for the cross-platform reliability workflow
 
 TODO: the team has not yet assessed this new AI-assisted workflow output.
+
+## Quality-result reconciliation on 31 October
+
+After the contributor confirmed PR #162 was merged, Codex read the actual main CI evidence and maintained QR-01 QRT-01 at CI level with its original Windows/Linux, four-case, 50-repetition criterion.
+It recorded the successful native jobs at their actual checkout revision and distinguished this later check from the published runtime tag and historical Linux-only evidence.
+The REL-05 technical index includes QR-01 because it was checked during SPRINT-05; this does not change the protected tag, released changelog or user-facing release body.
+The contributor separately confirmed the full staging `PASS QR-03 QRT-02` and that it ran on the same deployed v0.3.0 revision; Codex preserved those operator reports and checked the script at that commit without inventing raw counts or independent VM access.
+Formater owns PRE, POST and publication; the update changes maintained definitions and current evidence only, preserving the meeting report, script and earlier decisions.
+
+### Team evaluation for this quality-result reconciliation
+
+TODO: the team has not yet assessed this new AI-assisted evidence update.

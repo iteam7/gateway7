@@ -27,15 +27,53 @@ Those checks support **Passes** for QR-02 QRT-01 and QR-03 QRT-01 at their decla
 
 The harness reported `PASS QR-01: no failure case reached the provider` for this Linux run.
 No real provider, paid API or university VM was contacted.
-The complete declared QRT also requires Windows; the older Windows deadline-test repetitions in #84 are a different test set.
-QR-01 therefore remains **Not verified / Checked: None / Evidence: None** in its plan row until the same required cross-platform procedure is evidenced.
-This supporting Linux record does not substitute for the missing Windows half.
+At this Linux-only checkpoint, the complete declared QRT also required Windows; the older Windows deadline-test repetitions in #84 are a different test set.
+The plan row therefore remained **Not verified / Checked: None / Evidence: None** at that checkpoint.
+The later native CI record below supplies the full cross-platform execution at CI level; this historical Linux run is retained separately.
+
+## QR-01 native CI execution on 31 October
+
+After [PR #162](https://github.com/iteam7/gateway7/pull/162) merged, the [Quality requirements run on main](https://github.com/iteam7/gateway7/actions/runs/41193629459) executed the unchanged fault-tolerance harness on native Windows and Linux.
+QR-01 QRT-01 is maintained at CI level to match this automated execution; its four failure cases, both operating systems, 50 repetitions per case and safe-error/zero-forwarding criterion are unchanged.
+
+- **Source:** both jobs recorded `6d3555247bfe8007a9963b14394434643dde0652`, the actual main checkout under test.
+- **Command:** `uv run --locked python -m demo.fault_tolerance --runs 50` after `uv sync --locked --python 3.12`.
+- **Environment:** the integration environment, using local recording-upstream and gateway processes with synthetic credentials.
+- **Exit:** `0` in both jobs; the workflow preserves the command's exit code.
+
+| Native runner | Observed runtime | Evidence |
+| --- | --- | --- |
+| Ubuntu | Linux, Python 3.12.3 | [Successful Ubuntu job](https://github.com/iteam7/gateway7/actions/runs/41193629459/job/124515294396) |
+| Windows Server 2022 | Windows, Python 3.12.10 | [Successful Windows job](https://github.com/iteam7/gateway7/actions/runs/41193629459/job/124515294656) |
+
+Both jobs printed the following case results:
+
+```text
+PASS raise: upstream requests=0; HTTP 500 plugin_error x50
+PASS deny: upstream requests=0; HTTP 403 policy_denied x50
+PASS overrun: upstream requests=0; HTTP 504 timeout x50
+PASS late: upstream requests=0; HTTP 504 timeout x50
+PASS QR-01: no failure case reached the provider
+```
+
+This is 200 requests per operating system, with no failure-case request reaching the recording upstream.
+No real provider, paid API or university VM was contacted by this workflow.
+The check happened after the v0.3.0 release cut, on the main commit stated above; it does not identify a new deployed VM revision or change the protected runtime tag.
 
 ## Staging check
 
 The contributor reports OpenAI deployments in both staging and production in the [31 October follow-up](meeting-follow-up.md#planning-deployment-and-submission).
-The current `scripts/check_confidentiality.py` scenario requests the model `fake`.
-No passing QR-03 QRT-02 run against that reported deployment has been supplied, so the plan retains **Not verified**; [release preparation](release-preparation.md#operator-evidence-handoff) describes the required output and configuration precondition.
+Later on 31 October, azamatbayramov explicitly confirmed seeing `PASS QR-03 QRT-02` for the full staging confidentiality check.
+
+- **Environment:** the staging deployment on the university VM, run by the contributor.
+- **Tool:** `scripts/check_confidentiality.py`, whose documented command is `python3 scripts/check_confidentiality.py --gateway "$STAGING_URL" --project gateway7-staging`.
+- **Reported output:** `PASS QR-03 QRT-02`; no raw log, run identifier, timestamp suffix or individual search counts were supplied.
+- **Measurement meaning:** the shipped script emits that PASS only when all expected HTTP-status comparisons hold, the combined logs/metrics/error-body search finds zero synthetic values and request metrics are present; it then exits 0.
+- **Tested revision:** `a15b1cd14618ee7b5ac423f4aed5ed2f496f405d`; the contributor explicitly confirmed that the run used the same staging v0.3.0 deployment, rather than the later CI checkout.
+
+The successful result is an operator report; the measurement meaning above follows from the [script at the confirmed tested revision](https://github.com/iteam7/gateway7/blob/a15b1cd14618ee7b5ac423f4aed5ed2f496f405d/scripts/check_confidentiality.py) rather than copied per-surface output.
+The current script requests the model `fake`, and this record does not infer which provider configuration produced the reported result.
+The reported staging PASS and explicit tested revision supply the deployed evidence linked from the plan; [release preparation](release-preparation.md#operator-evidence-handoff) retains the reproducible command and configuration precondition for future runs.
 
 ## Reported VM core verification
 
