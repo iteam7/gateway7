@@ -69,3 +69,20 @@ The contributor suggested that the transcript could be included in Moodle, but d
 Public publication and private instructor sharing are still unconfirmed; no transcript is published from that suggestion.
 The previous private submission PDF is being used only to recover private team details and links, without copying them into GitHub or treating old deployment data as current.
 The contributor confirmed that nothing has been uploaded to Moodle for this assignment.
+
+## Later deployment and private-submission confirmation
+
+In later answers on 31 October, azamatbayramov confirmed that both OpenAI environments run `a15b1cd14618ee7b5ac423f4aed5ed2f496f405d`, the then-current main commit.
+He confirmed successful health, readiness and OpenAI chat checks in both staging and production.
+These are contributor-reported operational results, not a claim that the documentation agent connected to the VM or inspected its images.
+The [quality record](quality-checks.md#reported-vm-core-verification) preserves their scope separately from the automated QRTs.
+
+The contributor relayed the deployment operator's explanation that access currently requires SSH and port forwarding.
+The environment details, recording link and access code are retained only for the private submission.
+Direct HTTP access by the VM's IPv4 address from the university network is therefore an outstanding deployment requirement, not a VM-unavailable exception.
+This SSH arrangement does not fulfil the campus HTTP-access requirement.
+
+The contributor explicitly authorised including the transcript in the private PDF only.
+This later instruction replaces the earlier uncertainty about the team's intended private submission, without attributing an unrecorded permission statement to Customer or authorising a public transcript.
+The private appendix is limited to Gateway7's part of the shared recording; the preceding project team's demonstration is outside this report's scope.
+The recording link, its access information, the team identity table and the transcript remain outside GitHub.

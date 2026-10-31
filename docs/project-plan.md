@@ -165,8 +165,11 @@ The two CI results were checked on 31 October at `main` commit `a15b1cd14618ee7b
 The job logs show both testability tests and the confidentiality test passing; the suite completed in 46.82 seconds and the separate HTTP demonstration step in 12 seconds.
 A separate [Linux QR-01 run](https://github.com/iteam7/gateway7/blob/7fa1eced4183c17f2cac9df41bb970a0075ef65f/reports/week-05/quality-checks.md#qr-01-linux-execution) completed 50 repetitions of each of four failure cases, with exit 0 and no upstream calls.
 The declared QRT also requires Windows; the full row remains Not verified with Checked/Evidence None until that procedure is evidenced on both systems.
-The contributor reports OpenAI in staging and production, while the current deployed privacy script expects `fake`; no passing staging result is inferred from either report.
-These are CI checks of that commit; release evidence must be refreshed against the final verified production commit before tagging.
+The contributor subsequently identified this same main commit in both OpenAI environments and confirmed successful health, readiness and chat checks on 31 October.
+These operational results are member-reported, not an independent image inspection or the deployed privacy QRT.
+The current privacy script expects `fake`, so its passing result is not inferred for the OpenAI staging configuration.
+Direct campus HTTP access is still unavailable; SSH forwarding and the private access details do not establish compliance with that network-access requirement.
+The release proposal targets this exact confirmed production commit and its actual passing CI; publication remains blocked at automated approval review, so REL-05 stays empty.
 
 ## Progress Monitoring
 
@@ -177,7 +180,7 @@ These are CI checks of that commit; release evidence must be refreshed against t
 - **Visible at:** the [Sprints table view](https://github.com/orgs/iteam7/projects/1/views/3) and [GitHub sprint milestones](https://github.com/iteam7/gateway7/milestones), with the table's reported configuration described in [CONTRIBUTING.md](https://github.com/iteam7/gateway7/blob/main/CONTRIBUTING.md#project-views-and-scheduling).
 - **Refinement:** the SPRINT-06/07 horizon retains the previously refined configured-access and offline-plugin candidates, [US-07](https://github.com/iteam7/gateway7/issues/36) at `3 SP` and [US-08](https://github.com/iteam7/gateway7/issues/37) at `5 SP`, and adds [US-13](https://github.com/iteam7/gateway7/issues/141) at `8 SP` for SPRINT-06 consideration on 30 October under [task #139](https://github.com/iteam7/gateway7/issues/139).
   Refinement stays in the issues through runnable criteria, dependencies, owning-specification links and native estimates; none exceeds `13 SP`, so this pass requires no split and produces no separate refinement document.
-  US-13 remains a future candidate; its owning [FR-012](functional-requirements/fr/FR-012.md) is now on main, and task #139 still checks the story's post-merge specification link before selection.
+  US-13 remains a future candidate with its owning [FR-012](functional-requirements/fr/FR-012.md) on main; [task #139](https://github.com/iteam7/gateway7/issues/139) retains the refinement and selection checks.
   The future candidates remain without a milestone, Responsible, Accountable or assignees until selected; a horizon is not a capacity commitment.
 - **Scheduling gate:** actual selection sets the existing sprint milestone, two distinct native Responsible/Accountable values and exactly the same two assignees together, plus Priority for a task.
   The SPRINT-05 backlog preserves the carryover placement while the new US-12 selection and prospective US-05 estimate are recorded on 30 October; this update does not certify every legacy issue's fields.

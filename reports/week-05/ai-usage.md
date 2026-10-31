@@ -639,3 +639,20 @@ The quality follow-up re-used actual main CI and ran the QR-01 harness on Linux 
 The previous private submission PDF was inspected for team details and links, which remain outside GitHub; historical source data was not treated as a current deployment.
 Formater owns the branch, publication and metadata checks; the pull request records validation on its actual published head.
 The contributor's earlier assessment applies to the previous entries; human review of this new revision is recorded by the subsequent review rather than presumed here.
+
+## Release closeout from later 31 October confirmations
+
+Codex prepared the release and report closeout after the contributor confirmed the exact staging/production source commit, successful health/readiness/OpenAI chat checks, the private access details and a PDF-only transcript.
+It retained those operational checks as contributor-reported results rather than claiming independent VM or image inspection, and kept the direct campus-HTTP access failure explicit despite the available SSH workaround.
+The release preparation preserves the two actual passing CI QRTs and the supporting Linux reliability record without inventing Windows or deployed confidentiality results.
+It prepared a customer-facing dated changelog proposal outside the active branch; historical released sections, the original meeting report, its script and the earlier decisions remain unchanged.
+Automated approval review blocked the proposed publication because its protected runtime tag target and prepared changelog link identify different commits.
+The publication was not retried or redirected to another tag target, and no released REL-05 state is manufactured; the release preparation records the concrete proposal and actual blocker.
+Formater used the existing authenticated GitHub interface because the connector has no tag/release write operation, and saved an unpublished draft with the confirmed full production target.
+The draft and tag absence were checked through GitHub API readback; no published-release or moved-tag claim is made.
+Private participant details, VM addresses, recording access and the Gateway7 transcript are used only in the private submission workflow, outside GitHub.
+The final public report and the private PDF/source pair must identify their actual merged main snapshot; an unmerged review candidate is not described as a submitted assignment.
+
+### Team evaluation for this release closeout
+
+Pending team review of this revision; the earlier general assessment does not supply a new review that has not been reported.

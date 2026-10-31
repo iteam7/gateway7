@@ -1,12 +1,13 @@
 # REL-05 preparation
 
 Prepared on 30 October and updated on 31 October 2026 under [task #133](https://github.com/iteam7/gateway7/issues/133), using the [contributor confirmation](meeting-follow-up.md).
-**Status: incomplete; no REL-05 tag, release, final production verification or Moodle upload is claimed.**
+**Status: a concrete v0.3.0 release proposal is prepared, but publication was blocked by automated approval review; no v0.3.0 tag or published REL-05 is claimed.**
+Direct campus HTTP access remains an explicit deployment deviation, and no Moodle upload is claimed.
 The [Week 05 report](README.md) indexes the public evidence; this file keeps the remaining release handoffs explicit.
 
 ## Verified checkpoint
 
-The latest inspected main commit is [`a15b1cd14618ee7b5ac423f4aed5ed2f496f405d`](https://github.com/iteam7/gateway7/commit/a15b1cd14618ee7b5ac423f4aed5ed2f496f405d).
+The confirmed production-code commit on main is [`a15b1cd14618ee7b5ac423f4aed5ed2f496f405d`](https://github.com/iteam7/gateway7/commit/a15b1cd14618ee7b5ac423f4aed5ed2f496f405d).
 Its [Python check job](https://github.com/iteam7/gateway7/actions/runs/41130602373/job/124320199306) reports `1088 passed in 46.82s`, including `tests/test_testability.py` and `tests/test_confidentiality.py`.
 The named `Run tests` step took 48 seconds and `Exercise separate HTTP processes` took 12 seconds, satisfying QR-02's five-minute bounds.
 The [testing plan](../../docs/project-plan.md#quality-requirement-testing-plan) records the two CI results at that commit.
@@ -15,24 +16,27 @@ The full QR-01 still needs the Windows procedure, and QR-03 QRT-02 still needs d
 
 [PR #147](https://github.com/iteam7/gateway7/pull/147) records staging and production health/chat verification at `26dab3122dbc2f4247533d0c57cdb0f83e5073cf` with the synthetic provider.
 It says the VM was available; lack of access from this preparation environment does not establish the assignment's VM-unavailable exception.
-The contributor now reports OpenAI in both staging and production; that later report is recorded in [the 31 October follow-up](meeting-follow-up.md#planning-deployment-and-submission).
-The full matching deployed SHA, date and verification output remain unavailable, so no newer production commit is selected for a protected tag by inference.
+In the [later 31 October follow-up](meeting-follow-up.md#later-deployment-and-private-submission-confirmation), the contributor identifies `a15b1cd14618ee7b5ac423f4aed5ed2f496f405d` for both OpenAI environments and confirms successful health, readiness and chat checks.
+The [core-check record](quality-checks.md#reported-vm-core-verification) records these as member-reported results; raw remote output and independent image inspection are not claimed.
+Access currently requires SSH forwarding, so direct HTTP access through the VM IPv4 address from the university network is not fulfilled.
+This restriction must remain visible in the release limitation and private access instructions; the VM is not described as unavailable.
 
 ## Handoffs before publication
 
 | Handoff | Required completion |
 | --- | --- |
 | Review and human records, [#132](https://github.com/iteam7/gateway7/issues/132) | Six story acceptances, the sole team attendee, the team retrospective and prior AI-output review are now confirmed in [the follow-up](meeting-follow-up.md); preserve the unclarified error criteria and per-meeting permissions. |
-| Final candidate, [#133](https://github.com/iteam7/gateway7/issues/133) | Merge the intended work and identify its exact main commit; record any genuinely agreed rework deferral. |
-| Deployment, [#134](https://github.com/iteam7/gateway7/issues/134) | Deploy the candidate to staging, run the declared staging QRT, then promote the same commit to production and verify the core task from the campus network. |
-| Quality evidence, [#136](https://github.com/iteam7/gateway7/issues/136) and [#137](https://github.com/iteam7/gateway7/issues/137) | Refresh the CI proof on the final candidate; record scripted/deployed output at its declared level and keep every unknown or failed result explicit. |
+| Final candidate, [#133](https://github.com/iteam7/gateway7/issues/133) | The contributor-selected deployed candidate is exact main commit `a15b1cd14618ee7b5ac423f4aed5ed2f496f405d`; later report-only commits are not substituted for that production tag target. |
+| Deployment, [#134](https://github.com/iteam7/gateway7/issues/134) | The matching OpenAI deployments and core checks are contributor-confirmed. Direct campus HTTP access still needs correction; the deployed privacy QRT remains unverified and is not inferred from the core checks. |
+| Quality evidence, [#136](https://github.com/iteam7/gateway7/issues/136) and [#137](https://github.com/iteam7/gateway7/issues/137) | The actual candidate has two passing CI QRTs and a Linux reliability record; keep the missing Windows and deployed-privacy results explicit in the plan. |
 | Sprint closeout, [#138](https://github.com/iteam7/gateway7/issues/138) and [#139](https://github.com/iteam7/gateway7/issues/139) | Verify refinement links and scheduling, record genuine Customer-accepted completed points, and explicitly move unfinished issues before closing the milestone. |
-| Private submission, [#133](https://github.com/iteam7/gateway7/issues/133) | Use verified team details from the previous private PDF, confirm current VM addresses, recording access and transcript permissions, then build the final PDF and source snapshot from the common merged report commit; the contributor confirms no Moodle upload yet. |
+| Private submission, [#133](https://github.com/iteam7/gateway7/issues/133) | Verified team details, the current VM/access details and the recording are held privately; the contributor explicitly authorised a PDF-only transcript. Build the final private PDF and ZIP from one merged report commit; no Moodle upload is claimed. |
 
 ## Operator evidence handoff
 
 Use the existing [manual deployment runbook](../../docs/deployment.md#manual-deployment) and the environment's already prepared checkout and separate ports, configuration and credentials.
-An on-campus operator runs the following commands on the VM; no hostname or checkout directory is supplied here.
+The following commands remain a reproducible operator handoff for future checks or a deployment; they are not presented as raw output of the contributor-confirmed core checks.
+An on-campus operator runs them on the VM; no hostname or checkout directory is supplied here.
 The chosen commit must be the same in both checkouts; record the full output of `git rev-parse HEAD` before starting each stack.
 Keep real credentials and the environment addresses out of the shared evidence.
 
@@ -81,21 +85,33 @@ Return a sanitized record with the date, full matching staging/production commit
 The CI links in the testing plan must identify that final candidate as well.
 If production verification fails, follow the runbook's rollback and record the failed commit and last verified target; do not tag the failed candidate.
 
-## Customer-facing body draft
+## Publication checkpoint
 
-The following two paragraphs are the proposed customer-facing text; this is not a published release body.
-The version and date are selected when the final production commit is verified.
+The proposed protected tag targets the contributor-confirmed production commit `a15b1cd14618ee7b5ac423f4aed5ed2f496f405d`.
+Automated approval review rejected publication because the tag target and the proposed changelog link identify different commits: the runtime commit and a later prepared documentation commit.
+A read-only tree comparison found changes only in nine Markdown files between those commits; runtime, configuration, lockfile, workflow and binary blobs are identical.
+No second publish attempt, alternate tag target or published-release claim is made from that rejection.
+An unpublished GitHub draft was saved for v0.3.0 with the full confirmed production target; its published date is empty and no v0.3.0 tag was created.
+The draft is available to authorised collaborators, while this file supplies the publicly reviewable proposal.
+The [prepared changelog at `ae766927fc8a18a277192491e9376b7a13446526`](https://github.com/iteam7/gateway7/blob/ae766927fc8a18a277192491e9376b7a13446526/CHANGELOG.md#030---2026-10-31) is a review proposal, not a released section on main or evidence that its prospective tag exists.
+The branch's actual changelog retains Unreleased, and the plan's REL-05 heading remains empty until publication, as the course requires.
+This publication blocker is separate from the deployment's unmet campus HTTP-access requirement.
 
-> Gateway7 connects OpenAI-compatible agents through company middleware, with guarded function-tool turns, server-held credentials and configurable policies for both requests and answers. OpenAI startup is simpler, provider calls can use a proxy transport, and middleware diagnostics and examples help operators investigate failures and authors add their own policies.
+## Customer-facing body proposal
+
+The following is the concrete proposed body for v0.3.0, not a claim of publication.
+Its final link resolves to the prepared dated changelog proposal; it will need the actual released record when publication completes.
+
+> Gateway7 connects OpenAI-compatible agents through company middleware, with guarded function-tool turns and policies for requests and answers while provider credentials stay on the server. OpenAI startup is simpler, provider calls can use a proxy transport, and the installed smoke command, middleware diagnostics and authoring walkthrough help operators and plugin authors get started.
 >
-> Streaming delivery is buffered until the complete response passes policy checks, and the supported tool subset permits one function call per turn. The recorded OpenCode integration uses a synthetic upstream; live-account harness verification remains outside that recorded check.
-
-Before publication, update the limitation paragraph to match the verified release state and append the required `Full changelog` Markdown link to its actual dated released section as the final line.
-No prospective tag or nonexistent section is linked here.
+> Streamed delivery is buffered until the complete answer passes policy checks, and the supported tool subset permits one function call per turn. The recorded OpenCode harness check uses a synthetic upstream; live-account harness verification is not recorded. The VM deployment currently requires SSH access and port forwarding; direct HTTP access from the university network is not available.
+>
+> [Full changelog](https://github.com/iteam7/gateway7/blob/ae766927fc8a18a277192491e9376b7a13446526/CHANGELOG.md#030---2026-10-31)
 
 ## Release and submission order
 
-1. Complete the Review/rework and final-candidate handoffs above, with green required CI and actual staging/production evidence naming the same commit.
+1. Keep the contributor-confirmed production commit and its green main CI fixed; do not replace that runtime revision with a later report-only commit.
+   The minimum testability-plus-other-High CI checks pass; the network restriction and the remaining declared QRTs remain explicit limitations.
 2. Choose the SemVer version and create its protected tag on that verified production commit on main.
 3. Publish the short customer-facing body with the final `Full changelog` line, and merge the dated released section in `CHANGELOG.md`; leave a new empty `Unreleased` section.
    Before considering publication complete, confirm that the final changelog link resolves.
@@ -103,7 +119,8 @@ No prospective tag or nonexistent section is linked here.
 5. Use the confirmed retrospective and known accepted `8 SP` scope, explicitly reschedule unfinished sprint issues as instructed by the contributor, and close the milestone after the release; do not reconstruct the missing original commitment.
 6. Merge the final Week 05 report after its release and linked artifacts, updating this checkpoint with the facts actually completed.
 7. Take the report permalink and the ZIP snapshot from that same full merged main SHA; documentation after tagging means this submission SHA can be later than the production tag.
-8. Produce the private PDF within two pages, including the verified team details, exact report permalink, current private addresses and recording/transcript explanation; an appendix requires the actual per-meeting private-sharing permission and is separate from the two-page limit.
+8. Produce the private PDF within two pages, including the verified team details, exact report permalink, current private addresses, SSH access instructions and recording access; the contributor has authorised the Gateway7 transcript as a private-only appendix, separate from the two-page limit.
+   State that the direct campus-HTTP requirement is not fulfilled instead of claiming that the SSH arrangement satisfies it.
 9. Verify the PDF and ZIP identify the same submission SHA, then upload both to Moodle and record only the upload actually performed.
 
 An intermediate PDF and ZIP identifying a pull-request head are review candidates only.

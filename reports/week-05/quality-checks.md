@@ -35,3 +35,17 @@ This supporting Linux record does not substitute for the missing Windows half.
 The contributor reports OpenAI deployments in both staging and production in the [31 October follow-up](meeting-follow-up.md#planning-deployment-and-submission).
 The current `scripts/check_confidentiality.py` scenario requests the model `fake`.
 No passing QR-03 QRT-02 run against that reported deployment has been supplied, so the plan retains **Not verified**; [release preparation](release-preparation.md#operator-evidence-handoff) describes the required output and configuration precondition.
+
+## Reported VM core verification
+
+The contributor's [later 31 October confirmation](meeting-follow-up.md#later-deployment-and-private-submission-confirmation) identifies the same source commit for both environments and confirms that health, readiness and an OpenAI chat request succeeded in each.
+
+| Environment | Source commit | Provider | Core result and source |
+| --- | --- | --- | --- |
+| Staging | `a15b1cd14618ee7b5ac423f4aed5ed2f496f405d` | OpenAI | Passes, reported by azamatbayramov on 31 October. |
+| Production | `a15b1cd14618ee7b5ac423f4aed5ed2f496f405d` | OpenAI | Passes, reported by azamatbayramov on 31 October. |
+
+No raw remote command output or independent image inspection is claimed by this record.
+These functional checks do not exercise the deployed confidentiality QRT and do not replace its missing result.
+Access currently requires SSH and port forwarding; direct HTTP access from the university network remains an explicit deployment deviation.
+The private submission holds the actual addresses and access instructions.
