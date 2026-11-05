@@ -3,9 +3,10 @@
 ## Scope and findings
 
 This checkpoint covers the threshold review in [task #187](https://github.com/iteam7/gateway7/issues/187) and the Customer Review work in [task #188](https://github.com/iteam7/gateway7/issues/188).
-The [preliminary meeting report](meeting-report.md) records the review outline and two named Week 7 follow-ups confirmed by team representative azamatbayramov on 5 November.
-That is the confirmation date, not an established meeting date: actual date, duration, attendees, permission answers and explicit US-14/US-15 verdicts were not provided.
-The report therefore remains a partial source-backed account, not evidence that the complete Assignment 6 increment or its demonstrations have been delivered.
+The [meeting script](meeting-script.md) prepares the Customer Review planned for 7 November 2026.
+On 6 November, azamatbayramov clarified that the meeting was still ahead; the earlier approval of the draft outline confirmed preparation, not a meeting that had already happened.
+No Week 6 meeting report, Customer verdict, permission answer or agreed action is recorded before that meeting.
+The two named Week 7 follow-ups in the script are proposals to discuss, not commitments already agreed by Customer or their proposed owners.
 
 Two threshold measures are already supported by existing evidence: the recorded company-plugin installation and the contributor-reported Customer acceptance of the candidate.
 The two original Week 3 measures still need their historical evidence assessed; later code, a green workflow or a current dashboard cannot establish what happened by their deadline.
@@ -22,7 +23,7 @@ That confirmation supplements the transcript-only account; it does not turn a la
 
 ## Threshold review
 
-All four goals were `Open` when this review began.
+All four goals were `Open` when the threshold-document review began.
 The table preserves each measure as written; the [threshold](../../docs/threshold-of-success.md) owns the settled goals' outcomes.
 
 | Goal | Current measure | New data can settle it | Proposal |
@@ -60,7 +61,8 @@ The table identifies evidence to obtain before presenting a capability as comple
 ## Prior follow-up evidence
 
 This evidence map preserves the preparation sources and does not retrospectively change Week 5.
-The [Week 6 report](meeting-report.md#previous-action-points) now records the confirmed prior outcomes, the endorsed blocking-plugin follow-up and the still-unanswered questions, with their provenance and missing assignments explicit.
+Use the table during the planned meeting to distinguish earlier recorded outcomes from questions that still need an answer.
+The [script](meeting-script.md) includes the proposed blocking-plugin follow-up; it does not turn that proposal into a completed investigation or an agreed assignment.
 
 | Prior item | Work since and evidence | What the Review still needs to settle |
 | --- | --- | --- |
@@ -77,22 +79,22 @@ The [Week 6 report](meeting-report.md#previous-action-points) now records the co
 | Threshold status and evidence-backed outcomes | [docs/threshold-of-success.md](../../docs/threshold-of-success.md) |
 | Earlier clarification proposal context | [docs/threshold-review.md](../../docs/threshold-review.md) |
 | Customer Review preparation | [reports/week-06/meeting-script.md](meeting-script.md) |
-| Member-confirmed Review outline, follow-ups and source limits | [reports/week-06/meeting-report.md](meeting-report.md) |
 | AI disclosure | [reports/week-06/ai-usage.md](ai-usage.md) |
 
 ## Contribution
 
 | Contributor | Recorded contribution |
 | --- | --- |
-| azamatbayramov | Requested [#187](https://github.com/iteam7/gateway7/issues/187) and [#188](https://github.com/iteam7/gateway7/issues/188), then confirmed the proposed review outline and named Week 7 follow-ups on 5 November. AI-assisted preparation and source checking are disclosed in the AI report; no attendance or other members' review is inferred. |
+| azamatbayramov | Requested [#187](https://github.com/iteam7/gateway7/issues/187) and [#188](https://github.com/iteam7/gateway7/issues/188), approved a proposed review outline on 5 November, and clarified on 6 November that the meeting was planned for 7 November. AI-assisted preparation and source checking are disclosed in the AI report; no attendance or prior Customer agreement is inferred. |
 
 ## Completion and remaining evidence
 
 The threshold review is complete against the available repository records.
-The [prepared script](meeting-script.md) is preserved, and the [report](meeting-report.md) now records the member-confirmed narrative and two endorsed actions inside Week 7, 6–12 November 2026.
-Task #188 remains open until the missing meeting metadata, permission answers and explicit Customer verdicts are supplied; the report also identifies unanswered carried actions and questions.
-Complete those facts before merging the preliminary report as the final meeting record; the original script remains unchanged.
-No transcript, new Customer decision, telemetry screenshot, observed test result, deployment or release is inferred from the representative's confirmation.
+The [script](meeting-script.md) prepares the 7 November meeting and two candidate follow-ups inside Week 7, 6–12 November 2026.
+Task #188 remains open: the meeting must take place, and its actual decisions, previous-item outcomes and at least two agreed actions must be recorded afterwards.
+Record the actual date, duration, attendees, three separate permission answers and named story verdicts from the meeting.
+After the call, write `reports/week-06/meeting-report.md` from the actual outcomes and preserve the pre-meeting script; no report of a future meeting is created here.
+No transcript, new Customer decision, telemetry screenshot, observed test result, deployment or release is inferred from approval of the preparation outline.
 
 ## Privacy
 
