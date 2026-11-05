@@ -2,9 +2,10 @@
 
 ## Scope and findings
 
-This checkpoint covers the threshold review in [task #187](https://github.com/iteam7/gateway7/issues/187) and preparation for the Customer Review in [task #188](https://github.com/iteam7/gateway7/issues/188).
-It is a preparation record, not a claim that the Week 6 meeting or the complete Assignment 6 increment has been delivered.
-No Week 6 meeting record was supplied for this work; its date, attendance, permissions, decisions and agreed Week 7 actions are not established here.
+This checkpoint covers the threshold review in [task #187](https://github.com/iteam7/gateway7/issues/187) and the Customer Review work in [task #188](https://github.com/iteam7/gateway7/issues/188).
+The [preliminary meeting report](meeting-report.md) records the review outline and two named Week 7 follow-ups confirmed by team representative azamatbayramov on 5 November.
+That is the confirmation date, not an established meeting date: actual date, duration, attendees, permission answers and explicit US-14/US-15 verdicts were not provided.
+The report therefore remains a partial source-backed account, not evidence that the complete Assignment 6 increment or its demonstrations have been delivered.
 
 Two threshold measures are already supported by existing evidence: the recorded company-plugin installation and the contributor-reported Customer acceptance of the candidate.
 The two original Week 3 measures still need their historical evidence assessed; later code, a green workflow or a current dashboard cannot establish what happened by their deadline.
@@ -56,10 +57,10 @@ The table identifies evidence to obtain before presenting a capability as comple
 | Staging diagnosability QRT | [#185](https://github.com/iteam7/gateway7/issues/185) | Obtain the implemented QR/QRT identifier, command, staging revision, query outputs and sanitized screenshot: log availability within 5 seconds of the failed response and a numeric five-minute P95 failure series within 1 minute. No Passes result is claimed here. |
 | Optional runtime-QRT re-run | [Testing plan](../../docs/project-plan.md#quality-requirement-testing-plan) | Show its actual result at its defined level and name the SLI it read only if it was run. Do not relabel Week 5 evidence as a Week 6 run. |
 
-## Prior follow-up preparation
+## Prior follow-up evidence
 
-This is an evidence map for the next meeting, not its factual report or a retrospective change to Week 5.
-The actual Week 6 report must close or carry these items in its prescribed previous-action and previous-question tables after the meeting source is available.
+This evidence map preserves the preparation sources and does not retrospectively change Week 5.
+The [Week 6 report](meeting-report.md#previous-action-points) now records the confirmed prior outcomes, the endorsed blocking-plugin follow-up and the still-unanswered questions, with their provenance and missing assignments explicit.
 
 | Prior item | Work since and evidence | What the Review still needs to settle |
 | --- | --- | --- |
@@ -76,20 +77,22 @@ The actual Week 6 report must close or carry these items in its prescribed previ
 | Threshold status and evidence-backed outcomes | [docs/threshold-of-success.md](../../docs/threshold-of-success.md) |
 | Earlier clarification proposal context | [docs/threshold-review.md](../../docs/threshold-review.md) |
 | Customer Review preparation | [reports/week-06/meeting-script.md](meeting-script.md) |
+| Member-confirmed Review outline, follow-ups and source limits | [reports/week-06/meeting-report.md](meeting-report.md) |
 | AI disclosure | [reports/week-06/ai-usage.md](ai-usage.md) |
 
 ## Contribution
 
 | Contributor | Recorded contribution |
 | --- | --- |
-| azamatbayramov | Requested the work in [#187](https://github.com/iteam7/gateway7/issues/187) and [#188](https://github.com/iteam7/gateway7/issues/188); AI-assisted preparation and source checking are disclosed in the AI report. This is not a claim that other members have reviewed the new draft or attended a meeting. |
+| azamatbayramov | Requested [#187](https://github.com/iteam7/gateway7/issues/187) and [#188](https://github.com/iteam7/gateway7/issues/188), then confirmed the proposed review outline and named Week 7 follow-ups on 5 November. AI-assisted preparation and source checking are disclosed in the AI report; no attendance or other members' review is inferred. |
 
 ## Completion and remaining evidence
 
 The threshold review is complete against the available repository records.
-Customer Review preparation is ready for team rehearsal; task #188 remains incomplete until an actual meeting source supports its decisions, previous outcomes and at least two agreed Week 7 actions.
-Use [the prepared script](meeting-script.md) to record each action's actual owner and due date inside Week 7, 6–12 November 2026.
-No Week 6 meeting report, transcript, new Customer decision, telemetry screenshot, deployment or release is fabricated by this checkpoint.
+The [prepared script](meeting-script.md) is preserved, and the [report](meeting-report.md) now records the member-confirmed narrative and two endorsed actions inside Week 7, 6–12 November 2026.
+Task #188 remains open until the missing meeting metadata, permission answers and explicit Customer verdicts are supplied; the report also identifies unanswered carried actions and questions.
+Complete those facts before merging the preliminary report as the final meeting record; the original script remains unchanged.
+No transcript, new Customer decision, telemetry screenshot, observed test result, deployment or release is inferred from the representative's confirmation.
 
 ## Privacy
 
