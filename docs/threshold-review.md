@@ -1,9 +1,13 @@
 # Threshold clarification for Customer review
 
-**Status:** Proposal awaiting a Customer decision. No goal, measure, deadline or historical statement in [the current threshold](threshold-of-success.md) is changed by this page.
+**Status:** Earlier, unadopted clarification proposals. No goal, measure, deadline or historical statement in [the current threshold](threshold-of-success.md) is changed by this page.
+
+The Week 6 evidence review settles TOS-03 and TOS-04 against their existing measures.
+In particular, [DEC-020](decisions.md#dec-020) now supplies the member-reported candidate acceptance that was missing when the proposal below was prepared.
+The earlier October dates and wording below are preserved as proposal history, not a current request to change the settled TOS-04 outcome or extend an expired deadline.
 
 The audit found two places where a goal promises more than its measure proves.
-The proposals below are concrete wording for the next review, not new acceptance criteria for the [US-01–03 candidate](project-plan.md#mls-03).
+The wording below is retained from that earlier draft, not a new proposal or new acceptance criteria for the [US-01–03 candidate](project-plan.md#mls-03).
 
 ## Pipeline verification
 
@@ -28,5 +32,6 @@ Its phrase "Week 3 or later" also leaves the final date open.
 - **Proposed success criterion:** All three candidate stories are accepted; a rejection or a missing verdict remains unfinished validation, even when it is correctly documented.
 - **Why:** This aligns the measure with the existing acceptance goal and supplies a finite review date. [DEC-012](decisions.md#dec-012) approved what to build; [DEC-014](decisions.md#dec-014) and [DEC-015](decisions.md#dec-015) requested further architecture/plugin evidence. None accepts the implemented stories or approves this proposed date.
 
-Apply any agreed change through a new Customer DEC-nnn and the goal's `Changed` field, following [the threshold rules](https://github.com/inno-itpd/itpd/blob/main/requirements/planning-requirements.md#the-threshold-of-success).
-Preserve the existing failure/success statement cells as the historical record; this review does not rewrite them or mark either goal achieved.
+Apply any future Customer-agreed change to an open goal through a new DEC-nnn and the goal's `Changed` field, following [the threshold rules](https://github.com/inno-itpd/itpd/blob/main/requirements/planning-requirements.md#the-threshold-of-success).
+A settled goal and its outcome are not rewritten; a later replacement needs a new identifier and Customer decision.
+Preserve the existing failure/success statement cells as the historical record; this earlier proposal draft does not rewrite them or itself settle either goal.

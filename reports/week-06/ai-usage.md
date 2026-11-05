@@ -39,3 +39,12 @@ No runtime source changed during this documentation integration.
 ## Team assessment
 
 TODO: the team records which generated output it accepted, changed or rejected and why after its own review.
+
+## Threshold review and Customer Review preparation
+
+Codex used the GitHub connector and separate Formater, executing and reviewing agents to prepare [task #187](https://github.com/iteam7/gateway7/issues/187) and the evidence-ready parts of [task #188](https://github.com/iteam7/gateway7/issues/188).
+The work compared the four existing threshold measures with dated repository records, preserved the original deadlines and unadopted proposals, and used the recorded plugin-installation run and DEC-020 contributor confirmation for the two supported outcomes.
+It drafted the four-dashboard readiness map and a 30-minute meeting script with explicit per-story verdict questions, Week 5 follow-ups and a request for actual Week 7 actions.
+The output was used as a source-linked preparation record, not as new telemetry, a new test run, a meeting transcript, a Customer decision or evidence of team-wide review.
+No Week 6 meeting report or agreed action points were generated without a supplied meeting source.
+The existing assessment above belongs to the separate guarded-harness work and is not filled by inference from this preparation task.
