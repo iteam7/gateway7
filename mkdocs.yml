@@ -51,6 +51,7 @@ nav:
           - QR-02 Catch a broken gateway change offline: quality-requirements/qr/QR-02.md
           - QR-03 Keep credentials and text out of output: quality-requirements/qr/QR-03.md
           - QR-04 Serve an unmodified OpenAI SDK client: quality-requirements/qr/QR-04.md
+          - QR-05 Find a failed request from the staging signals: quality-requirements/qr/QR-05.md
       - Functional requirements:
           - Index: functional-requirements/README.md
           - FR-001 Answer with the server-held key: functional-requirements/fr/FR-001.md
