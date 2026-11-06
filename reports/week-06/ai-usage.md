@@ -39,3 +39,17 @@ No runtime source changed during this documentation integration.
 ## Team assessment
 
 TODO: the team records which generated output it accepted, changed or rejected and why after its own review.
+
+## Observability signals and the active SLI
+
+Claude Code (a cloud session started from the project chat) prepared [task #181](https://github.com/iteam7/gateway7/issues/181) at DeniBorsh's request.
+It read Assignment 6 and the course's observability requirements, then added `gateway7/telemetry.py`, which exports one structured log record and one request-duration histogram observation per API request over OTLP/HTTP when `TELEMETRY_ENABLED` is true.
+It rewrote `docs/observability.md` as the observability plan with SLI-01, added FR-014, the operation terms in the glossary, the gateway's telemetry configuration in the deployment guide, `.env.example` and live Compose, and the tests in `tests/test_telemetry.py`.
+
+The session checked the export against a local OpenObserve v1.1.2 container with synthetic credentials and the synthetic demo provider.
+That check showed that a cumulative histogram's first failure gives a `NaN` five-minute P95 under `rate`, so the export uses delta temporality and the SLI query sums the window instead.
+The local check is not staging evidence: no university VM, staging organization or dashboard was used, and no QRT result is claimed.
+
+### Team evaluation for the observability signals
+
+TODO: the team records which generated output it accepted, changed or rejected and why after its own review.

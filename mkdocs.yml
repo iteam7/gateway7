@@ -66,6 +66,7 @@ nav:
           - FR-011 Name the failing middleware: functional-requirements/fr/FR-011.md
           - FR-012 Report developer model usage: functional-requirements/fr/FR-012.md
           - FR-013 Exchange guarded function-tool turns: functional-requirements/fr/FR-013.md
+          - FR-014 Expose request quality signals: functional-requirements/fr/FR-014.md
       - Decisions: decisions.md
       - Assumptions: assumptions.md
       - Definition of Done: definition-of-done.md

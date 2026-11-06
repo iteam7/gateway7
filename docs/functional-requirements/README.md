@@ -17,3 +17,4 @@ Each requirement states one behavior of Gateway7, the containers it runs in and 
 | [FR-011](fr/FR-011.md) | Name The Middleware That Failed Or Slowed A Request | `gateway` | Active |
 | [FR-012](fr/FR-012.md) | Report Each Developer's Model Usage Over A Period | `gateway` | Active |
 | [FR-013](fr/FR-013.md) | Exchange guarded function-tool turns | `gateway` | Active |
+| [FR-014](fr/FR-014.md) | Expose Each API Request's Quality Signal To The Observability Backend | `gateway` | Active |

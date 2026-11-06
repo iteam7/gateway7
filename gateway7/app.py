@@ -31,6 +31,7 @@ from gateway7.openai_api import (
 )
 from gateway7.pipeline import Pipeline
 from gateway7.providers import build_provider
+from gateway7.telemetry import Telemetry
 from gateway7.transport_loader import create_transport, validate_transport_config
 
 logger = logging.getLogger("gateway7")
@@ -85,6 +86,7 @@ class GatewayBoundaryMiddleware:
         scope.setdefault("state", {})["request_id"] = request_id
         response_started = False
         status_code = 500
+        error_code: str | None = None
         metrics = self.owner.state.metrics
         route = {
             "/chat": "chat",
@@ -111,6 +113,8 @@ class GatewayBoundaryMiddleware:
             await send(message)
 
         async def fail(code: str) -> None:
+            nonlocal error_code
+            error_code = code
             await _error_response(code, request_id, openai=_openai_path(scope.get("path", "")))(
                 scope, receive, safe_send
             )
@@ -184,15 +188,29 @@ class GatewayBoundaryMiddleware:
             if not response_started:
                 await fail("internal_error")
         finally:
+            # One monotonic measurement feeds the Prometheus histogram, the local log
+            # line and the exported log point and histogram, so they cannot disagree.
+            duration = max(0.0, time.monotonic() - started)
             metrics.http_in_flight.dec()
             metrics.http_requests.labels(route, str(status_code)).inc()
-            metrics.http_duration.labels(route).observe(max(0, time.monotonic() - started))
+            metrics.http_duration.labels(route).observe(duration)
+            if error_code is None:
+                error_code = scope["state"].get("error_code")
             logger.info(
                 "request_id=%s outcome=http_%d component=http duration_ms=%.3f",
                 request_id,
                 status_code,
-                (time.monotonic() - started) * 1000,
+                duration * 1000,
             )
+            telemetry = getattr(self.owner.state, "telemetry", None)
+            if telemetry is not None:
+                telemetry.record(
+                    request_id=request_id,
+                    route=route,
+                    status=status_code,
+                    error_code=error_code,
+                    duration_ms=duration * 1000,
+                )
 
 
 class _PipelineAdmission:
@@ -309,6 +327,7 @@ def create_app(
     config_path: str | Path | None = None,
     *,
     config: GatewayConfig | None = None,
+    telemetry: Telemetry | None = None,
 ) -> FastAPI:
     path = (
         config_path
@@ -318,6 +337,18 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        active_telemetry = telemetry if telemetry is not None else Telemetry.from_environment()
+        app.state.telemetry = active_telemetry
+        try:
+            async with gateway_lifespan(app):
+                yield
+        finally:
+            app.state.telemetry = Telemetry.disabled()
+            # Flushing performs blocking HTTP export with its own timeout.
+            await asyncio.to_thread(active_telemetry.shutdown)
+
+    @asynccontextmanager
+    async def gateway_lifespan(app: FastAPI):
         app.state.ready = False
         active_config = config if config is not None else load_config(path)
         key = provider_key(active_config.provider)
@@ -389,6 +420,7 @@ def create_app(
     app.state.ready = False
     app.state.metrics = Metrics()
     app.state.admission = _PipelineAdmission(app.state.metrics)
+    app.state.telemetry = Telemetry.disabled()
     app.add_middleware(GatewayBoundaryMiddleware, owner=app)
 
     @app.exception_handler(RequestValidationError)
@@ -436,6 +468,7 @@ def create_app(
             if len(location) > 1 and location[1] in safe_parameters:
                 parameter = location[1]
                 break
+        request.state.error_code = "invalid_request"
         return _error_response(
             "invalid_request",
             request.state.request_id,
@@ -445,6 +478,7 @@ def create_app(
 
     @app.exception_handler(GatewayError)
     async def gateway_failure(request: Request, error: GatewayError) -> JSONResponse:
+        request.state.error_code = error.code
         return _error_response(
             error.code, request.state.request_id, openai=_openai_path(request.url.path)
         )
@@ -454,6 +488,7 @@ def create_app(
         code = {404: "not_found", 405: "method_not_allowed"}.get(
             error.status_code, "invalid_request"
         )
+        request.state.error_code = code
         return _error_response(
             code, request.state.request_id, openai=_openai_path(request.url.path)
         )

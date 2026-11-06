@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- Optional OpenTelemetry export of one structured log record and one request-duration histogram observation per API request to an OpenObserve organization per environment, switched by `TELEMETRY_ENABLED`, with the SLI-01 and per-request log queries in the observability plan.
+
 ## [0.3.0] - 2026-10-31
 
 ### Added

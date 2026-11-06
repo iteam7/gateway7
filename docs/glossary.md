@@ -63,6 +63,32 @@ The built-in proxy transport is one such extension.
 
 **Defined by:** [the transport guide](provider-transports.md) and [ADR-004](architecture/adr/ADR-004.md).
 
+## Operation
+
+### Telemetry
+
+The data Gateway7 sends about its own operation to a backend outside the product, which is off unless an operator enables it for a deployed environment.
+
+**Defined by:** [the observability plan](observability.md#collected-data).
+
+### Signal
+
+One kind of telemetry the gateway reports about its own operation, either a metric or a log in this project, from which an operator reads how requests are served.
+
+**Defined by:** [the observability plan](observability.md#the-signals).
+
+### Service Level Indicator
+
+A service level indicator, or SLI, is a numbered quality signal with a fixed definition, unit, window, source and query that a quality requirement test reads, such as [SLI-01](observability.md#sli-01).
+
+**Defined by:** [the observability plan](observability.md#the-slis).
+
+### Observability
+
+The operator's ability to find out from the gateway's signals alone why a request failed or slowed, without reading request content or attaching a debugger.
+
+**Defined by:** [FR-014](functional-requirements/fr/FR-014.md).
+
 ## Demonstration
 
 ### Synthetic Provider
