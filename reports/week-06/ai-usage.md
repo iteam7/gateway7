@@ -53,3 +53,13 @@ The local check is not staging evidence: no university VM, staging organization 
 ### Team evaluation for the observability signals
 
 TODO: the team records which generated output it accepted, changed or rejected and why after its own review.
+
+## Staging diagnosability requirement and check
+
+The same Claude Code session prepared [task #185](https://github.com/iteam7/gateway7/issues/185): QR-05 with its deployed QRT-01, its index and testing-plan rows, and `scripts/check_sli.py` with a test against a scripted gateway and OpenObserve stand-in.
+It ran the script against the synthetic demo gateway and a local OpenObserve v1.1.2 container, where it printed `PASS QR-05 QRT-01`; that run is a development check, not the staging result.
+The testing-plan row stays `Not verified` until a member runs the check against staging from the university network and records its output, commit and screenshot.
+
+### Team evaluation for the diagnosability requirement
+
+TODO: the team records which generated output it accepted, changed or rejected and why after its own review.

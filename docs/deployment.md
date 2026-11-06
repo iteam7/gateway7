@@ -40,7 +40,7 @@ Deployment is a manual operator action, run from a terminal with access to the V
    ```
 
 3. Run the core-task check against staging from a campus machine using its deployed HTTP endpoint (a chat request plus `/health`); record the result.
-4. Run the deployed quality requirement test [QR-03 QRT-02](quality-requirements/qr/QR-03.md#qrt-02) against staging.
+4. Run the deployed quality requirement tests [QR-03 QRT-02](quality-requirements/qr/QR-03.md#qrt-02) and [QR-05 QRT-01](quality-requirements/qr/QR-05.md#qrt-01) against staging.
 5. Only once staging passes, check out the same commit in the production checkout directory and repeat the `docker compose up --build --detach --wait` for the `gateway7-production` project.
 6. Run the same core-task check against production over the campus network.
 7. If any rework lands the same week, redeploy the updated commit to staging, reverify, then repeat the promotion to production before release.
@@ -52,7 +52,7 @@ A deployment counts as verified once, for that environment:
 - `docker compose ps` shows the `gateway`, `prometheus` and `grafana` containers `healthy`.
 - `GET /health` on the gateway's published port returns `{"status":"ok"}`.
 - A chat request against the gateway's published port, with a valid client token, returns a successful completion.
-- For staging, [QR-03 QRT-02](quality-requirements/qr/QR-03.md#qrt-02) passes.
+- For staging, [QR-03 QRT-02](quality-requirements/qr/QR-03.md#qrt-02) and [QR-05 QRT-01](quality-requirements/qr/QR-05.md#qrt-01) pass.
 
 ## Rollback
 

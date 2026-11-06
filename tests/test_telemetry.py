@@ -154,3 +154,90 @@ def test_outcome_labels_are_a_fixed_set():
     assert [outcome_for(status) for status in (200, 304, 401, 499, 502)] == [
         "ok", "ok", "client_error", "cancelled", "server_error"
     ]
+
+
+def load_check_sli():
+    import importlib.util
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parents[1] / "scripts" / "check_sli.py"
+    spec = importlib.util.spec_from_file_location("check_sli", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.mark.parametrize("stored", [True, False], ids=["stored", "missing"])
+def test_diagnosability_check_reads_the_failed_requests_point_and_series(
+    monkeypatch, capsys, stored
+):
+    import json
+    import threading
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    from urllib.parse import parse_qs, urlparse
+
+    check_sli = load_check_sli()
+    monkeypatch.setattr(check_sli, "LOG_LIMIT_SECONDS", 0.2)
+    monkeypatch.setattr(check_sli, "SLI_LIMIT_SECONDS", 0.2)
+    failed_id = "f" * 32
+    seen = {"sql": [], "promql": [], "auth": set()}
+
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            pass
+
+        def reply(self, status, body, headers=()):
+            data = json.dumps(body).encode()
+            self.send_response(status)
+            for name, value in headers:
+                self.send_header(name, value)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+        def do_GET(self):
+            url = urlparse(self.path)
+            if url.path == "/v1/models":
+                return self.reply(200, {"data": [{"id": "model-a"}]})
+            seen["auth"].add(self.headers["Authorization"])
+            seen["promql"].append(parse_qs(url.query)["query"][0])
+            result = [{"metric": {"route": "openai_chat", "outcome": "client_error"},
+                       "value": [0, "4.75" if stored else "NaN"]}]
+            return self.reply(200, {"status": "success", "data": {"result": result}})
+
+        def do_POST(self):
+            body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+            if self.path == "/v1/chat/completions":
+                if body["model"] == "model-a":
+                    return self.reply(200, {"choices": []}, [("X-Request-ID", "a" * 32)])
+                return self.reply(403, {"error": {"code": "model_forbidden"}},
+                                  [("X-Request-ID", failed_id)])
+            seen["auth"].add(self.headers["Authorization"])
+            seen["sql"].append(body["query"]["sql"])
+            hits = [{"request_id": failed_id, "route": "openai_chat", "outcome": "client_error",
+                     "status": 403, "error_code": "model_forbidden", "duration_ms": 0.5}]
+            return self.reply(200, {"hits": hits if stored else []})
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    address = f"http://127.0.0.1:{server.server_address[1]}"
+    for name in ("HTTP_PROXY", "http_proxy", "HTTPS_PROXY", "https_proxy"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("NO_PROXY", "127.0.0.1")
+    monkeypatch.setenv("GATEWAY7_CLIENT_TOKEN", TOKEN)
+    monkeypatch.setenv("OPENOBSERVE_USER", "synthetic-reader")
+    monkeypatch.setenv("OPENOBSERVE_TOKEN", "synthetic-reader-secret")
+    try:
+        code = check_sli.main(["--gateway", address, "--observe", address, "--successes", "1"])
+    finally:
+        server.shutdown()
+    output = capsys.readouterr().out
+
+    assert code == (0 if stored else 1)
+    assert output.splitlines()[-1] == ("PASS QR-05 QRT-01" if stored else "FAIL QR-05 QRT-01")
+    assert f"WHERE request_id = '{failed_id}'" in seen["sql"][0]
+    assert seen["promql"][0] == check_sli.SLI_QUERY
+    assert len(seen["auth"]) == 1 and next(iter(seen["auth"])).startswith("Basic ")
+    for private in (address, TOKEN, "synthetic-reader-secret"):
+        assert private not in output

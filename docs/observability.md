@@ -26,7 +26,7 @@ The log record also carries the HTTP `status` and the gateway's fixed `error_cod
 
 An SLI is a quality signal the gateway emits and the observability pipeline records.
 Its target is the `Response Measure` of the quality requirement whose test reads it; the SLI only records the measured signal.
-SLI-01 is the one this sprint demonstrates.
+SLI-01 is the one this sprint demonstrates, and [QR-05 QRT-01](quality-requirements/qr/QR-05.md#qrt-01) reads it against the staging organization.
 
 ### SLI-01
 
@@ -43,7 +43,7 @@ API request duration by route and outcome.
 The query selects the two chat routes, which carry the core task.
 Each exported histogram point holds only the observations made since the previous export, so the query sums the points in the five-minute window instead of taking a `rate`; a series created by its first request therefore has a P95 at once.
 
-The per-request log query, which the diagnosability test runs against the environment's organization, selects the record by its identifier:
+The per-request log query, which [QR-05 QRT-01](quality-requirements/qr/QR-05.md#qrt-01) runs against the staging organization, selects the record by its identifier:
 
 ```sql
 SELECT request_id, route, outcome, status, error_code, duration_ms
