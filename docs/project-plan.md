@@ -129,7 +129,7 @@ This sprint index includes the 31 October cross-platform reliability check perfo
 
 Provisional goal: a reviewer can verify configured model permissions and assess gateway usage and failures without recording raw prompts, responses or provider secrets.
 
-- **Due:** 2026-11-07
+- **Due:** 2026-11-08
 - **Sprint Backlog:** [SPRINT-06 milestone; selection pending](https://github.com/iteam7/gateway7/milestone/4)
 
 #### REL-06

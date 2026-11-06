@@ -68,6 +68,15 @@ def compose_environment(compose_cli, tmp_path):
     return command, environment
 
 
+# The example ships telemetry disabled, and live Compose forwards only these names.
+EXAMPLE_TELEMETRY = {
+    "TELEMETRY_ENABLED": "false",
+    "GATEWAY7_ENVIRONMENT": "",
+    "OTEL_EXPORTER_OTLP_ENDPOINT": "",
+    "OTEL_EXPORTER_OTLP_HEADERS": "",
+}
+
+
 @pytest.fixture
 def dotenv_project(compose_cli, tmp_path):
     docker, environment = compose_cli
@@ -160,6 +169,7 @@ def test_plain_compose_loads_example_dotenv_and_selects_live_openai(dotenv_proje
         "OPENAI_API_KEY": "gateway7-synthetic-dotenv-provider-key",
         "GATEWAY7_CLIENT_TOKEN": "gateway7-synthetic-dotenv-client-token",
         "GATEWAY7_PROXY_URL": "",
+        **EXAMPLE_TELEMETRY,
     }
     configuration = mounted_configuration(gateway)
     assert configuration["source"] == str(project / "config" / "openai.yaml")
@@ -248,6 +258,7 @@ def test_process_variables_override_dotenv_and_can_select_another_provider(
         key_variable: "synthetic-process-provider-key",
         "GATEWAY7_CLIENT_TOKEN": "synthetic-process-client-token",
         "GATEWAY7_PROXY_URL": "",
+        **EXAMPLE_TELEMETRY,
     }
     assert mounted_configuration(gateway)["source"] == str(project / "config" / f"{provider}.yaml")
 

@@ -7,5 +7,10 @@ services:
       - ${GATEWAY_KEY_ENV:-ANTHROPIC_API_KEY}
       - GATEWAY7_CLIENT_TOKEN
       - ${GATEWAY_PROXY_ENV:-GATEWAY7_PROXY_URL}
+      # Optional telemetry export; see docs/deployment.md#telemetry-pipelines.
+      - TELEMETRY_ENABLED
+      - GATEWAY7_ENVIRONMENT
+      - OTEL_EXPORTER_OTLP_ENDPOINT
+      - OTEL_EXPORTER_OTLP_HEADERS
     volumes:
       - ${GATEWAY_CONFIG_FILE:-./config/claude.yaml}:/etc/gateway7/gateway.yaml:ro
