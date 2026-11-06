@@ -65,3 +65,28 @@ If production verification fails after a promotion:
 4. Record the failed commit, the rollback target commit and the reason in the deployment evidence; do not retry the failed commit in production until the underlying issue is fixed and it has passed staging again.
 
 Staging is never the rollback target for production; it always moves independently to the next candidate commit.
+
+## Telemetry pipelines
+
+The gateway pushes the observability signals described in the [observability plan](observability.md) when collection is enabled; collection stays off on a developer's machine and in CI.
+
+### Observability pipeline
+
+The OpenObserve instance on the VM needs one organization per environment, `staging` and `production`, an ingestion credential for each organization, and a retention of at least seven days.
+Each environment's gateway then receives its own values for these variables through the live Compose file, in the same way as its provider key:
+
+| Variable | Staging value | Production value |
+| --- | --- | --- |
+| `TELEMETRY_ENABLED` | `true` | `true` |
+| `GATEWAY7_ENVIRONMENT` | `staging` | `production` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | The OpenObserve address followed by `/api/staging` | The OpenObserve address followed by `/api/production` |
+| `OTEL_EXPORTER_OTLP_HEADERS` | `Authorization=Basic%20<base64 of user:token>,stream-name=gateway7_requests` with the staging credential | The same shape with the production credential |
+
+The OpenTelemetry exporter appends `/v1/logs` and `/v1/metrics` to the endpoint, and `%20` is the encoded space after `Basic`.
+`stream-name` places the per-request log records in the `gateway7_requests` log stream; the histogram streams are named after the metric.
+The log processor batches every 1,000 ms and the metric reader exports every 10,000 ms; `OTEL_BLRP_SCHEDULE_DELAY` and `OTEL_METRIC_EXPORT_INTERVAL` change them, in milliseconds.
+With `TELEMETRY_ENABLED=true`, the gateway refuses to start until `GATEWAY7_ENVIRONMENT` is `staging` or `production` and the endpoint is set, so a deployment cannot silently send nothing or report under the wrong environment.
+
+The query API used by the diagnosability check is the same organization's OpenObserve address: `_search` for the log query and `prometheus/api/v1/query` for the SLI query.
+The OpenObserve address, the ingestion and query credentials and the dashboard addresses are private-only: they are installed on the VM and recorded in the private submission, never in this repository.
+When the backend is unreachable, requests are served unchanged and the exporter writes a retry warning naming the backend host and signal path to the gateway's own log; it never writes the credential header.
