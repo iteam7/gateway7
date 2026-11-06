@@ -197,10 +197,9 @@ class GatewayBoundaryMiddleware:
             if error_code is None:
                 error_code = scope["state"].get("error_code")
             logger.info(
-                "request_id=%s outcome=http_%d component=http route=%s duration_ms=%.3f",
+                "request_id=%s outcome=http_%d component=http duration_ms=%.3f",
                 request_id,
                 status_code,
-                route,
                 duration * 1000,
             )
             telemetry = getattr(self.owner.state, "telemetry", None)
