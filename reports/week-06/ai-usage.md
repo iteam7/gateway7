@@ -63,3 +63,12 @@ The testing-plan row stays `Not verified` until a member runs the check against 
 ### Team evaluation for the diagnosability requirement
 
 TODO: the team records which generated output it accepted, changed or rejected and why after its own review.
+
+## Staging SLI dashboard definition
+
+For [task #183](https://github.com/iteam7/gateway7/issues/183), the same session built the SLI-01 chart in a local OpenObserve v1.1.2 organization, rendered it with a headless browser to confirm separate `ok` and `client_error` series, and tracked the sanitized definition in `monitoring/openobserve/gateway7-sli-dashboard.json` with a test that keeps its query equal to the plan's.
+The staging dashboard itself, its failure-traffic check and its sanitized screenshot need the university VM and remain for a member to produce; the local rendering is not that evidence and is not committed.
+
+### Team evaluation for the dashboard definition
+
+TODO: the team records which generated output it accepted, changed or rejected and why after its own review.

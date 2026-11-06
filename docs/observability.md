@@ -77,6 +77,9 @@ The page names the dashboards rather than linking them, because their addresses 
 | `Gateway7 SLI (staging)` | `staging` | The SLI-01 query over the staging test traffic |
 | `Gateway7 SLI (production)` | `production` | The same query over production traffic only |
 
+Both dashboards are imported from the tracked definition `monitoring/openobserve/gateway7-sli-dashboard.json`, which carries no address or credential.
+Its chart runs the SLI-01 query above and draws one line per route and outcome, so a failure is its own series; a test checks that the definition, this page and the diagnosability check carry the same query, and a change to the query updates all three in one pull request.
+
 ## Collected Data
 
 The exported log point collects the random request identifier, the fixed route name, the outcome, the HTTP status, the gateway's fixed error code and the duration.

@@ -241,3 +241,24 @@ def test_diagnosability_check_reads_the_failed_requests_point_and_series(
     assert len(seen["auth"]) == 1 and next(iter(seen["auth"])).startswith("Basic ")
     for private in (address, TOKEN, "synthetic-reader-secret"):
         assert private not in output
+
+
+def test_tracked_dashboard_runs_the_sli_query_the_observability_plan_records():
+    import json
+    import re
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    plan = (root / "docs" / "observability.md").read_text(encoding="utf-8")
+    recorded = re.search(r"^- \*\*Query:\*\* `(.+)`$", plan.split("### SLI-01", 1)[1], re.M)
+    dashboard = json.loads(
+        (root / "monitoring" / "openobserve" / "gateway7-sli-dashboard.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    panels = [panel for tab in dashboard["tabs"] for panel in tab["panels"]]
+    assert [panel["title"] for panel in panels] == ["SLI-01 API request P95 by outcome"]
+    assert [query["query"] for query in panels[0]["queries"]] == [recorded.group(1)]
+    assert recorded.group(1) == load_check_sli().SLI_QUERY
+    text = json.dumps(dashboard)
+    assert "http" not in text and "@" not in text and "Authorization" not in text

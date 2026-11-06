@@ -87,6 +87,23 @@ The OpenTelemetry exporter appends `/v1/logs` and `/v1/metrics` to the endpoint,
 The log processor batches every 1,000 ms and the metric reader exports every 10,000 ms; `OTEL_BLRP_SCHEDULE_DELAY` and `OTEL_METRIC_EXPORT_INTERVAL` change them, in milliseconds.
 With `TELEMETRY_ENABLED=true`, the gateway refuses to start until `GATEWAY7_ENVIRONMENT` is `staging` or `production` and the endpoint is set, so a deployment cannot silently send nothing or report under the wrong environment.
 
+Import the SLI dashboard into each organization from the tracked definition, with a query credential of that organization in `OPENOBSERVE_AUTH` as `user:token`:
+
+```sh
+curl --fail --silent --show-error --user "$OPENOBSERVE_AUTH" \
+  --header 'Content-Type: application/json' \
+  --data @monitoring/openobserve/gateway7-sli-dashboard.json \
+  "$OPENOBSERVE_URL/api/staging/dashboards"
+sed 's/Gateway7 SLI (staging)/Gateway7 SLI (production)/' \
+  monitoring/openobserve/gateway7-sli-dashboard.json |
+  curl --fail --silent --show-error --user "$OPENOBSERVE_AUTH" \
+  --header 'Content-Type: application/json' --data @- \
+  "$OPENOBSERVE_URL/api/production/dashboards"
+```
+
+Use the production organization's credential for the second command.
+Re-import both after the SLI-01 query changes, and delete the earlier copy in the dashboard list.
+
 The query API used by the diagnosability check is the same organization's OpenObserve address: `_search` for the log query and `prometheus/api/v1/query` for the SLI query.
 The OpenObserve address, the ingestion and query credentials and the dashboard addresses are private-only: they are installed on the VM and recorded in the private submission, never in this repository.
 When the backend is unreachable, requests are served unchanged and the exporter writes a retry warning naming the backend host and signal path to the gateway's own log; it never writes the credential header.
