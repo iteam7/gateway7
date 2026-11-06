@@ -9,6 +9,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - Optional OpenTelemetry export of one structured log record and one request-duration histogram observation per API request to an OpenObserve organization per environment, switched by `TELEMETRY_ENABLED`, with the SLI-01 and per-request log queries in the observability plan.
 - A staging diagnosability check, `scripts/check_sli.py`, that fails one chat request and reads its log point and the SLI-01 failure series from OpenObserve.
+- A tracked OpenObserve dashboard definition whose chart runs the SLI-01 query, imported into the staging and production organizations.
 
 ## [0.3.0] - 2026-10-31
 
