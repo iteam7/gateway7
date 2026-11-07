@@ -201,6 +201,10 @@ Declaring these gaps does not waive them, and this report claims no course-appro
 
 No private-only material was committed to this repository.
 
+## Analytics deployment after the checkpoint
+
+The deployment runbook records the separate analytics backend and the remaining verification.
+
 ## Staging analytics dashboard evidence
 
 The following evidence was captured after the earlier checkpoint; the checkpoint tables retain their original status until the remaining submission work is integrated.
