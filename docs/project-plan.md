@@ -170,6 +170,7 @@ Each row is one quality requirement test and what it found at its last check; th
 | [QR-02](quality-requirements/qr/QR-02.md) | [QR-02 QRT-01](quality-requirements/qr/QR-02.md#qrt-01) | Passes | [SPRINT-05](#sprint-05) | [SPRINT-05](#sprint-05) | [Main CI check job, 31 October](https://github.com/iteam7/gateway7/actions/runs/41130602373/job/124320199306) |
 | [QR-03](quality-requirements/qr/QR-03.md) | [QR-03 QRT-01](quality-requirements/qr/QR-03.md#qrt-01) | Passes | [SPRINT-05](#sprint-05) | [SPRINT-05](#sprint-05) | [Main CI check job, 31 October](https://github.com/iteam7/gateway7/actions/runs/41130602373/job/124320199306) |
 | [QR-03](quality-requirements/qr/QR-03.md) | [QR-03 QRT-02](quality-requirements/qr/QR-03.md#qrt-02) | Passes | [SPRINT-05](#sprint-05) | [SPRINT-05](#sprint-05) | [Operator-reported staging check, 31 October](https://github.com/iteam7/gateway7/blob/5d64cf6d96e6842b991df0569f740cf14ce2e382/reports/week-05/quality-checks.md#staging-check) |
+| [QR-05](quality-requirements/qr/QR-05.md) | [QR-05 QRT-01](quality-requirements/qr/QR-05.md#qrt-01) | Not verified | None | [SPRINT-06](#sprint-06) | None |
 
 The QR-02 and QR-03 CI results were checked on 31 October at `main` commit `a15b1cd14618ee7b5ac423f4aed5ed2f496f405d`.
 The job logs show both testability tests and the confidentiality test passing; the suite completed in 46.82 seconds and the separate HTTP demonstration step in 12 seconds.

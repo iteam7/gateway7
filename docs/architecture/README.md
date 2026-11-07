@@ -16,7 +16,7 @@ For a working first request, use the [quickstart](../quickstart.md).
 
 The product runs as the containers below, and [ADR-001](adr/ADR-001.md) records their split and stack.
 
-![Gateway7 container view: gateway, prometheus, grafana and the configured external LLM provider](container.svg)
+![Gateway7 container view: three product containers, the provider and two optional external telemetry systems](container.svg)
 
 [Open the full-size container image](container.svg) · [Image source](container.py)
 
@@ -31,6 +31,12 @@ An optional [provider transport](../provider-transports.md) can tunnel that HTTP
 The proxy is external network infrastructure; the shipped Compose stack does not add or manage a proxy container.
 The default Compose command runs `demo` instead: a private synthetic HTTP upstream runs as a child process **inside the gateway's Docker container**.
 It replaces the external call for this demo; it is neither a fourth deployment container nor a fallback provider.
+
+The team self-hosts OpenPanel and OpenObserve to operate the product but does not build them; both are external systems outside the product boundary.
+Optional [product analytics](../analytics.md) goes from `gateway` to OpenPanel over HTTPS, with separate staging and production projects ([ADR-006](adr/ADR-006.md)).
+Optional [operating signals](../observability.md) go to OpenObserve over OTLP/HTTP, with separate staging and production organizations ([ADR-007](adr/ADR-007.md)).
+A backend outage does not prevent the gateway answering a request; collection can lose observations and is not an audit ledger.
+The [deployment runbook](../deployment.md#telemetry-pipelines) describes setup; this view does not attest that a deployment or its four dashboards have been verified.
 
 ### Container Responsibilities
 
@@ -195,7 +201,7 @@ python docs/architecture/sequence-chat.py --check
 ```
 
 Omit `--check` to regenerate the matching SVG, then commit the source and image together.
-Each image includes its own legend; the container view's blue boxes are deployed applications, grey is the external provider, the dashed frame is the product boundary, and amber marks the demo-only child.
+Each image includes its own legend; the container view's blue boxes are deployed applications, grey is an external system, dashed grey boxes are the two self-hosted telemetry systems that the team does not build, the dashed frame is the product boundary, and amber marks the demo-only child.
 The component and sequence views use the same application/provider distinction and label the request, setup and observation relationships they draw.
 An arrow points from the caller to its dependency, with its payload or interface named; replies travel in the opposite direction.
 The sequence numbers indicate order, not elapsed time or a throughput promise.
@@ -210,6 +216,8 @@ The product vision keeps the separate [system context](../product-vision.md#cont
 | [ADR-003](adr/ADR-003.md) | Accepted | [FR-001](../functional-requirements/fr/FR-001.md), [FR-006](../functional-requirements/fr/FR-006.md), [QR-03](../quality-requirements/qr/QR-03.md), [QR-04](../quality-requirements/qr/QR-04.md) | Authorize clients separately and pin permitted models outside plugin payloads |
 | [ADR-004](adr/ADR-004.md) | Proposed | [FR-001](../functional-requirements/fr/FR-001.md), [QR-01](../quality-requirements/qr/QR-01.md), [QR-02](../quality-requirements/qr/QR-02.md), [QR-03](../quality-requirements/qr/QR-03.md) | Configure provider transports through startup modules |
 | [ADR-005](adr/ADR-005.md) | Proposed | [FR-001](../functional-requirements/fr/FR-001.md), [FR-003](../functional-requirements/fr/FR-003.md), [FR-005](../functional-requirements/fr/FR-005.md), [FR-013](../functional-requirements/fr/FR-013.md), [QR-01](../quality-requirements/qr/QR-01.md), [QR-02](../quality-requirements/qr/QR-02.md), [QR-03](../quality-requirements/qr/QR-03.md), [QR-04](../quality-requirements/qr/QR-04.md) | Collect actual provider streams, run full-response policies, then emit agent SSE |
+| [ADR-006](adr/ADR-006.md) | Proposed | [FR-015](../functional-requirements/fr/FR-015.md), [QR-02](../quality-requirements/qr/QR-02.md), [QR-03](../quality-requirements/qr/QR-03.md) | Export a bounded, privacy-safe core-task event stream to OpenPanel |
+| [ADR-007](adr/ADR-007.md) | Proposed | [FR-014](../functional-requirements/fr/FR-014.md), [QR-05](../quality-requirements/qr/QR-05.md) | Read per-request logs and a duration histogram from isolated OpenObserve organizations |
 
 These Accepted records describe choices already in force through [PR #90](https://github.com/iteam7/gateway7/pull/90), approved in [DeniBorsh's implementation review](https://github.com/iteam7/gateway7/pull/90#pullrequestreview-5643522171) and merged on 25 October 2026.
 They are dated when written, not when an undocumented earlier discussion might have happened.

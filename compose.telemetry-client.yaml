@@ -1,0 +1,12 @@
+# Append to the gateway's live Compose files after starting compose.telemetry.yaml.
+# Keep its normal project network for Prometheus; add the shared backend network.
+services:
+  gateway:
+    networks:
+      - default
+      - telemetry
+
+networks:
+  telemetry:
+    external: true
+    name: ${GATEWAY7_TELEMETRY_NETWORK:-gateway7-telemetry_default}

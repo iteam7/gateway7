@@ -83,3 +83,23 @@ A plugin author checks a middleware change against synthetic examples without a 
 - **Stories:** [`US-08`](https://github.com/iteam7/gateway7/issues/37)
 - **Behavior:** [`FR-007`](functional-requirements/fr/FR-007.md)
 - **Decisions:** [`ADR-002`](architecture/adr/ADR-002.md)
+
+## Understand core-task completion
+
+A product analyst can compare chat starts and completions through a privacy-safe [event](glossary.md#event) stream.
+The [analytics plan](analytics.md) defines the focus metric and its counter-metric; every metric excludes [smoke traffic](glossary.md#smoke-traffic).
+Collection is optional, and a backend outage leaves requests usable while observations may be lost.
+
+- **Stories:** [US-14](https://github.com/iteam7/gateway7/issues/174)
+- **Behavior:** [FR-015](functional-requirements/fr/FR-015.md)
+- **Design:** [ADR-006](architecture/adr/ADR-006.md)
+
+## Diagnose a failed request
+
+An operator can look up a request by its random identifier and compare it with [SLI-01](observability.md#sli-01), the five-minute P95 by route and outcome.
+The [observability pipeline](glossary.md#observability-pipeline) exports a per-request log point and a histogram without message content.
+The [staging check](quality-requirements/qr/QR-05.md#qrt-01) verifies the visibility deadlines; deployment and screenshots remain separate evidence from local protocol tests.
+
+- **Stories:** [US-15](https://github.com/iteam7/gateway7/issues/175)
+- **Behavior:** [FR-014](functional-requirements/fr/FR-014.md)
+- **Design:** [ADR-007](architecture/adr/ADR-007.md)
