@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1060" viewBox="0 0 1600 1060" role="img" aria-labelledby="title description">
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1090" viewBox="0 0 1600 1090" role="img" aria-labelledby="title description">
 <title id="title">Gateway7 C4 container view</title>
-<desc id="description">The Gateway7 system contains gateway, prometheus and grafana. The gateway calls one configured external LLM provider over HTTPS in live mode. Prometheus scrapes gateway metrics over HTTP. Grafana queries Prometheus over HTTP using PromQL. In demo mode a synthetic upstream child process runs inside the gateway Docker container over loopback HTTP, instead of calling the external provider. Arrows point from initiator to dependency.</desc>
+<desc id="description">The Gateway7 system contains gateway, prometheus and grafana. The gateway calls one configured external LLM provider over HTTPS in live mode. Prometheus scrapes gateway metrics over HTTP. Grafana queries Prometheus over HTTP using PromQL. In demo mode a synthetic upstream child process runs inside the gateway Docker container over loopback HTTP, instead of calling the external provider. Optional product events go to OpenPanel over HTTPS; logs and the histogram go to OpenObserve over OTLP/HTTP. The team self-hosts these external systems but does not build them. Arrows point from initiator to dependency.</desc>
 <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#52657c"/></marker></defs>
 <g font-family="DejaVu Sans, Arial, sans-serif">
-<rect x="0" y="0" width="1600" height="1060" rx="0" fill="#ffffff" stroke="none" stroke-width="2"/>
+<rect x="0" y="0" width="1600" height="1090" rx="0" fill="#ffffff" stroke="none" stroke-width="2"/>
 <rect x="48" y="48" width="48" height="5" rx="2" fill="#215baf" stroke="none" stroke-width="2"/>
 <text x="48" y="99" font-size="36" fill="#14253d" font-weight="700" text-anchor="start">Gateway7 — container view</text>
 <text x="48" y="136" font-size="19" fill="#52657c" font-weight="400" text-anchor="start">C4 • Running applications and their operational dependencies</text>
@@ -35,6 +35,22 @@
 <path d="M 724 818 H 1096" stroke="#c7d9f1"/>
 <text x="724" y="850" font-size="16" fill="#14253d" font-weight="400" text-anchor="start">Queries metrics for provisioned dashboards.</text>
 <text x="724" y="880" font-size="15" fill="#52657c" font-weight="400" text-anchor="start">State volume: grafana-data</text>
+<rect x="1258" y="110" width="294" height="170" rx="12" fill="#f1f3f6" stroke="#677487" stroke-width="2" stroke-dasharray="6 4"/>
+<text x="1282" y="148" font-size="25" fill="#14253d" font-weight="700" text-anchor="start">OpenPanel</text>
+<text x="1282" y="177" font-size="14" fill="#52657c" font-weight="400" text-anchor="start">External analytics system</text>
+<text x="1282" y="212" font-size="14" fill="#14253d" font-weight="400" text-anchor="start">staging / production projects</text>
+<text x="1282" y="246" font-size="14" fill="#52657c" font-weight="400" text-anchor="start">Self-hosted; not built by Team 7</text>
+<path d="M 616 310 H 1208 V 195 H 1258" fill="none" stroke="#52657c" stroke-width="2.5" marker-end="url(#arrow)"/>
+<text x="936" y="273" font-size="17" fill="#14253d" font-weight="700" text-anchor="middle">HTTPS · product events</text>
+<text x="936" y="298" font-size="16" fill="#52657c" font-weight="400" text-anchor="middle">Optional; no message content</text>
+<rect x="1258" y="662" width="294" height="180" rx="12" fill="#f1f3f6" stroke="#677487" stroke-width="2" stroke-dasharray="6 4"/>
+<text x="1282" y="700" font-size="25" fill="#14253d" font-weight="700" text-anchor="start">OpenObserve</text>
+<text x="1282" y="729" font-size="14" fill="#52657c" font-weight="400" text-anchor="start">External observability system</text>
+<text x="1282" y="767" font-size="14" fill="#14253d" font-weight="400" text-anchor="start">staging / production organizations</text>
+<text x="1282" y="811" font-size="14" fill="#52657c" font-weight="400" text-anchor="start">Self-hosted; not built by Team 7</text>
+<path d="M 616 560 H 1208 V 752 H 1258" fill="none" stroke="#52657c" stroke-width="2.5" marker-end="url(#arrow)"/>
+<text x="936" y="521" font-size="17" fill="#14253d" font-weight="700" text-anchor="middle">OTLP/HTTP · logs + histogram</text>
+<text x="936" y="546" font-size="16" fill="#52657c" font-weight="400" text-anchor="middle">Optional; isolated environment scopes</text>
 <rect x="1258" y="320" width="294" height="222" rx="12" fill="#f1f3f6" stroke="#677487" stroke-width="2"/>
 <text x="1282" y="360" font-size="25" fill="#14253d" font-weight="700" text-anchor="start">LLM provider</text>
 <text x="1282" y="387" font-size="14" fill="#52657c" font-weight="400" text-anchor="start">External software system</text>
@@ -62,4 +78,5 @@
 <path d="M 1200 998 H 1240" stroke="#52657c" stroke-width="2" marker-end="url(#arrow)"/>
 <text x="1254" y="1004" font-size="14" fill="#52657c" font-weight="400" text-anchor="start">Initiator → dependency</text>
 <text x="48" y="1042" font-size="14" fill="#52657c" font-weight="400" text-anchor="start">Arrows name the protocol and exchanged data; response data returns along the same connection.</text>
+<text x="48" y="1070" font-size="14" fill="#52657c" font-weight="400" text-anchor="start">Dashed external boxes: self-hosted telemetry systems; Gateway7 does not build them or require them to answer a request.</text>
 </g></svg>

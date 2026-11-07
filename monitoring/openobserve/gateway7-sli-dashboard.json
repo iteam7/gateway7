@@ -1,0 +1,72 @@
+{
+  "version": 5,
+  "title": "Gateway7 SLI (staging)",
+  "description": "SLI-01 from docs/observability.md#sli-01. Import into each organization and set the title's environment.",
+  "tabs": [
+    {
+      "tabId": "default",
+      "name": "Default",
+      "panels": [
+        {
+          "id": "Panel_ID_SLI01",
+          "type": "line",
+          "title": "SLI-01 API request P95 by outcome",
+          "description": "Runs the SLI-01 query recorded in docs/observability.md#sli-01.",
+          "config": {
+            "show_legends": true,
+            "legends_position": null,
+            "unit": "milliseconds",
+            "decimals": 2,
+            "axis_border_show": false
+          },
+          "queryType": "promql",
+          "queries": [
+            {
+              "query": "histogram_quantile(0.95, sum by (le, route, outcome) (sum_over_time(gateway7_request_duration_ms_bucket{route=~\"chat|openai_chat\"}[5m])))",
+              "customQuery": true,
+              "fields": {
+                "stream": "gateway7_request_duration_ms_bucket",
+                "stream_type": "metrics",
+                "x": [],
+                "y": [],
+                "z": [],
+                "filter": {
+                  "filterType": "group",
+                  "logicalOperator": "AND",
+                  "conditions": []
+                }
+              },
+              "config": {
+                "promql_legend": "{route} {outcome}",
+                "layer_type": "scatter",
+                "weight_fixed": 1,
+                "limit": 0,
+                "min": 0,
+                "max": 100
+              }
+            }
+          ],
+          "layout": {
+            "x": 0,
+            "y": 0,
+            "w": 24,
+            "h": 9,
+            "i": 1
+          },
+          "htmlContent": "",
+          "markdownContent": ""
+        }
+      ]
+    }
+  ],
+  "variables": {
+    "list": [],
+    "showDynamicFilters": false
+  },
+  "defaultDatetimeDuration": {
+    "type": "relative",
+    "relativeTimePeriod": "30m",
+    "startTime": 0,
+    "endTime": 0
+  }
+}

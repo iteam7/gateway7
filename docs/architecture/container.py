@@ -13,7 +13,7 @@ from html import escape
 from pathlib import Path
 
 WIDTH = 1600
-HEIGHT = 1060
+HEIGHT = 1090
 INK = "#14253d"
 MUTED = "#52657c"
 BLUE = "#215baf"
@@ -74,7 +74,7 @@ def build_svg() -> str:
         'The gateway calls one configured external LLM provider over HTTPS in live mode. '
         'Prometheus scrapes gateway metrics over HTTP. Grafana queries Prometheus over HTTP using PromQL. '
         'In demo mode a synthetic upstream child process runs inside the gateway Docker container '
-        'over loopback HTTP, instead of calling the external provider. Arrows point from initiator to dependency.</desc>',
+        'over loopback HTTP, instead of calling the external provider. Optional product events go to OpenPanel over HTTPS; ' 'logs and the histogram go to OpenObserve over OTLP/HTTP. The team self-hosts these external systems but does not build them. ' 'Arrows point from initiator to dependency.</desc>',
         '<defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" '
         'orient="auto" markerUnits="userSpaceOnUse">'
         f'<path d="M 0 0 L 10 5 L 0 10 Z" fill="{EDGE}"/></marker></defs>',
@@ -119,6 +119,24 @@ def build_svg() -> str:
 
     elements.extend(
         [
+            rect(1258, 110, 294, 170, fill="#f1f3f6", stroke="#677487", dash="6 4"),
+            text(1282, 148, "OpenPanel", size=25, weight=700),
+            text(1282, 177, "External analytics system", size=14, fill=MUTED),
+            text(1282, 212, "staging / production projects", size=14),
+            text(1282, 246, "Self-hosted; not built by Team 7", size=14, fill=MUTED),
+            f'<path d="M 616 310 H 1208 V 195 H 1258" fill="none" stroke="{EDGE}" '
+            'stroke-width="2.5" marker-end="url(#arrow)"/>',
+            text(936, 273, "HTTPS · product events", size=17, weight=700, anchor="middle"),
+            text(936, 298, "Optional; no message content", size=16, fill=MUTED, anchor="middle"),
+            rect(1258, 662, 294, 180, fill="#f1f3f6", stroke="#677487", dash="6 4"),
+            text(1282, 700, "OpenObserve", size=25, weight=700),
+            text(1282, 729, "External observability system", size=14, fill=MUTED),
+            text(1282, 767, "staging / production organizations", size=14),
+            text(1282, 811, "Self-hosted; not built by Team 7", size=14, fill=MUTED),
+            f'<path d="M 616 560 H 1208 V 752 H 1258" fill="none" stroke="{EDGE}" '
+            'stroke-width="2.5" marker-end="url(#arrow)"/>',
+            text(936, 521, "OTLP/HTTP · logs + histogram", size=17, weight=700, anchor="middle"),
+            text(936, 546, "Optional; isolated environment scopes", size=16, fill=MUTED, anchor="middle"),
             rect(1258, 320, 294, 222, fill="#f1f3f6", stroke="#677487"),
             text(1282, 360, "LLM provider", size=25, weight=700),
             text(1282, 387, "External software system", size=14, fill=MUTED),
@@ -154,6 +172,7 @@ def build_svg() -> str:
             f'<path d="M 1200 998 H 1240" stroke="{EDGE}" stroke-width="2" marker-end="url(#arrow)"/>',
             text(1254, 1004, "Initiator → dependency", size=14, fill=MUTED),
             text(48, 1042, "Arrows name the protocol and exchanged data; response data returns along the same connection.", size=14, fill=MUTED),
+            text(48, 1070, "Dashed external boxes: self-hosted telemetry systems; Gateway7 does not build them or require them to answer a request.", size=14, fill=MUTED),
             "</g></svg>",
         ]
     )

@@ -12,5 +12,11 @@ services:
       - GATEWAY7_ENVIRONMENT
       - OTEL_EXPORTER_OTLP_ENDPOINT
       - OTEL_EXPORTER_OTLP_HEADERS
+      # Optional product events; credentials select this environment's project.
+      - ANALYTICS_ENABLED
+      - ANALYTICS_SOURCE
+      - OPENPANEL_API_URL
+      - OPENPANEL_CLIENT_ID
+      - OPENPANEL_CLIENT_SECRET
     volumes:
       - ${GATEWAY_CONFIG_FILE:-./config/claude.yaml}:/etc/gateway7/gateway.yaml:ro

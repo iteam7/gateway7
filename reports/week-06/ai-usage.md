@@ -53,3 +53,41 @@ The local check is not staging evidence: no university VM, staging organization 
 ### Team evaluation for the observability signals
 
 TODO: the team records which generated output it accepted, changed or rejected and why after its own review.
+
+## Staging diagnosability requirement and check
+
+The same Claude Code session prepared [task #185](https://github.com/iteam7/gateway7/issues/185): QR-05 with its deployed QRT-01, its index and testing-plan rows, and `scripts/check_sli.py` with a test against a scripted gateway and OpenObserve stand-in.
+It ran the script against the synthetic demo gateway and a local OpenObserve v1.1.2 container, where it printed `PASS QR-05 QRT-01`; that run is a development check, not the staging result.
+The testing-plan row stays `Not verified` until a member runs the check against staging from the university network and records its output, commit and screenshot.
+
+### Team evaluation for the diagnosability requirement
+
+TODO: the team records which generated output it accepted, changed or rejected and why after its own review.
+
+## Staging SLI dashboard definition
+
+For [task #183](https://github.com/iteam7/gateway7/issues/183), the same session built the SLI-01 chart in a local OpenObserve v1.1.2 organization, rendered it with a headless browser to confirm separate `ok` and `client_error` series, and tracked the sanitized definition in `monitoring/openobserve/gateway7-sli-dashboard.json` with a test that keeps its query equal to the plan's.
+The staging dashboard itself, its failure-traffic check and its sanitized screenshot need the university VM and remain for a member to produce; the local rendering is not that evidence and is not committed.
+
+### Team evaluation for the dashboard definition
+
+TODO: the team records which generated output it accepted, changed or rejected and why after its own review.
+
+## Product analytics and telemetry handoff
+
+Codex used Formater, TechLead, analytics, diagnosability and infrastructure agents to prepare [task #177](https://github.com/iteam7/gateway7/issues/177) and the remaining telemetry handoff.
+The GitHub connector supplied the current course rules, main and the team's branches; source review found that [PR #194](https://github.com/iteam7/gateway7/pull/194) and [PR #195](https://github.com/iteam7/gateway7/pull/195) had merged into working branches rather than main.
+The integration preserves their canonical QR-05, `check_sli.py`, dashboard definition, tests and genuine commit history instead of adding parallel versions.
+
+The agents implemented typed start/completion events, the bounded optional OpenPanel exporter, deployment-owned source labels, the analytics plan and FR-015, and prepared the telemetry runbook and architecture records.
+TechLead changed the generated QRT integration to remove automatic paid-provider warmup, validate a forbidden model before the negative request, keep the queries staging-only, bound response sizes and deadlines, and print only known safe result fields.
+The existing dashboard definition was retained byte for byte; the container diagram was rendered and visually checked.
+A final review also moved the QRT clock to the last response bytes, before parsing or stream cleanup; two slow-cleanup regressions verify that neither deadline can be extended.
+The team has not supplied an assessment of this new increment; no member acceptance is inferred from the AI review or automated checks.
+
+Local checks passed: 1,154 automated tests with 11 skips, Python compilation, formatting, linting, type checking, the separate-process synthetic demonstration and wheel build.
+Formatting and lint checks also covered the changed test files and canonical QRT script.
+The strict documentation build and generated-site check passed for 59 maintained pages and 7,022 links/assets; all four Compose files passed the official Compose JSON schema.
+These local results include scripted HTTP protocol tests, not a deployed OpenPanel query, a university-VM QRT pass, four live dashboards or a production deployment.
+Docker was unavailable in the execution environment, so the new backend stack was not started locally.
+No live-provider call, Customer Review, Customer decision, release or Moodle submission was performed by this work.
