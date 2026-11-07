@@ -117,6 +117,12 @@ These local results include scripted HTTP protocol tests, not a deployed OpenPan
 Docker was unavailable in the execution environment, so the new backend stack was not started locally.
 No live-provider call, Customer Review, Customer decision, release or Moodle submission was performed by this work.
 
+## Codex: Sprint planning scope
+
+- Tool: Codex.
+- Use: recorded the current estimated scope while distinguishing it from the unverified planning commitment.
+- Team assessment: TODO.
+
 ## Codex dashboard verification for #180
 
 Codex configured and checked the production OpenPanel chart and captured a sanitized empty view for task #180; no synthetic traffic was sent to the production project.
