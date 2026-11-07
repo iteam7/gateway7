@@ -200,3 +200,8 @@ Declaring these gaps does not waive them, and this report claims no course-appro
 ## Privacy
 
 No private-only material was committed to this repository.
+
+## Production observability dashboard evidence
+
+The following evidence was captured after the earlier checkpoint; the checkpoint tables retain their original status until the remaining submission work is integrated.
+See [production observability dashboard evidence](observability-production.md) for its scope and limitations.
