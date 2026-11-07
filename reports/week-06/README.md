@@ -251,6 +251,9 @@ The supplied candidate observations and screenshots come from their linked opera
 
 ## Deviations
 
+[Task #192](https://github.com/iteam7/gateway7/issues/192) was opened through the GitHub API using the task form's sections and native Task type, rather than by submitting the web form.
+This form-route deviation does not waive the course requirement; the AI-assisted diagnostics work and its checks are disclosed in [AI usage](ai-usage.md).
+
 The Week 6 Customer Review was not held because the team had not prepared the demonstration, as azamatbayramov reported on 7 November.
 There is no meeting transcript, Customer story verdict, threshold response or agreed Week 7 action to substitute for that missing Review.
 The written format is prepared but has not been arranged, sent or executed; it is a possible future route under the course rule, not a completed alternative.

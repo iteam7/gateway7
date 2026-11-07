@@ -257,6 +257,8 @@ Use the paths exactly as shown; trailing slashes return 404.
 On `/v1/*`, errors contain `error.message`, `error.type`, `error.param`, `error.code` and a top-level `request_id`.
 `param` identifies a known invalid or unsupported field when possible; arbitrary field names and submitted values are hidden.
 Native errors contain `error.code`, `error.message` and `request_id`.
+On both APIs, a `policy_denied` error also contains `error.middleware`, the server-configured instance that returned the denial, so the operator can identify the policy without exposing its terms or the message.
+An outer middleware propagating the denial does not replace that instance name.
 Authentication failures also include `WWW-Authenticate: Bearer`.
 
 Gateway7 does not queue or automatically retry requests.
