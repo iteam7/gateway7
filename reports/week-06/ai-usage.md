@@ -123,6 +123,12 @@ No live-provider call, Customer Review, Customer decision, release or Moodle sub
 - Use: recorded the current estimated scope while distinguishing it from the unverified planning commitment.
 - Team assessment: TODO.
 
+## Codex: Analytics deployment
+
+- Tool: Codex.
+- Use: documented the deployed analytics backend, proxy and remaining verification.
+- Team assessment: TODO.
+
 ## Codex observability pipeline verification
 
 Codex configured and inspected the OpenObserve VM instance, organization-scoped credentials and TLS proxy for task #182.

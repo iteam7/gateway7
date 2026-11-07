@@ -201,6 +201,10 @@ Declaring these gaps does not waive them, and this report claims no course-appro
 
 No private-only material was committed to this repository.
 
+## Analytics deployment after the checkpoint
+
+The deployment runbook records the separate analytics backend and the remaining verification.
+
 ## Observability pipeline verification after the checkpoint
 
 The [deployment runbook](../../docs/deployment.md#prepare-the-backends) records the VM backend, tested organization isolation and the limits of the installed query roles.

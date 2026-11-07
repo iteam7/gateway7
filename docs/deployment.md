@@ -115,6 +115,45 @@ The upstream application's `:2` image tags can move: before deployment, record t
 Create two projects named `staging` and `production`, with a different write client and read client in each.
 Retain events for at least seven days and use UTC for both projects.
 
+On 7 November, one OpenPanel 2.x stack was started in the VM's private operator directory with the above pinned upstream configuration, one worker and locally pinned image digests.
+Its database, Redis, ClickHouse, API, dashboard and worker reported healthy; the backend proxy binds to loopback.
+An additional TLS proxy exposes both telemetry backends on the university-network interface; its private operator directory contains an internal CA certificate for clients to trust and its private key stays on the VM.
+The operator and a team member on Windows verified both health endpoints with certificate verification enabled; Customer access is not yet verified.
+The stack has separate `staging` and `production` projects with different write clients, registration disabled after creating the operator, and its bootstrap and project credentials stored in a root-only file outside the repository.
+The operator generated the Compose file from the pinned templates without installing Node on the VM, set a unique database password and cookie secret, and restricted the backend containers' memory.
+The deployed OpenPanel retention policy has not yet been verified against the seven-day metric window.
+The dashboard's server-side API address points to the API container, while its public API address uses the campus TLS proxy.
+The deployed dashboard image logged its process environment during server-side rendering, so the operator rotated the database and cookie secrets and disabled Docker log persistence for that dashboard container.
+The private Compose file and named volumes are the running configuration; do not replace or delete them while promoting a gateway.
+
+An isolated staging preview built from commit `22ecc152f57ad096cd942050cd46d6d3457fb93d` used the staging write client with `ANALYTICS_SOURCE=smoke`.
+Its unauthenticated synthetic request returned HTTP 401, and its `chat_started` and `chat_completed` events appeared in the staging event store; neither appeared in the production project.
+An additional isolated preview used the existing staging configuration and the same commit; its deliberately forbidden-model request generated staging smoke events and passed the SLI preview check.
+The current staging and production gateways have not yet been promoted to this commit or connected to these projects.
+This preview is not a production deployment, a production metric or a completed quality requirement test.
+
+### TLS access to the telemetry backends
+
+The sanitized `monitoring/telemetry-proxy/compose.yaml` configuration uses the OpenPanel and OpenObserve Compose networks described above.
+Its default OpenObserve network is the existing VM project's `gateway7-observability_default`; set `OBSERVABILITY_BACKEND_NETWORK` to the actual network name when deploying a different Compose project.
+Set `TELEMETRY_BIND_ADDRESS` to the VM's private campus interface and `TELEMETRY_TLS_DIR` to a root-only directory outside the checkout.
+On a new installation, create an internal CA and a server certificate with the VM address as its IP subject alternative name; do not replace an existing CA or its private key.
+The private directory must contain `server.crt`, `server.key` and the public `ca.crt`; keep `ca.key` on the VM.
+Configure the OpenPanel dashboard and API public URLs to use the analytics TLS endpoint and its server-side API URL to the internal API service.
+Once both backend networks exist, run:
+
+```sh
+docker compose -f monitoring/telemetry-proxy/compose.yaml config --quiet
+docker compose -f monitoring/telemetry-proxy/compose.yaml up --detach
+curl --fail --cacert "$TELEMETRY_TLS_DIR/ca.crt" \
+  "https://$TELEMETRY_BIND_ADDRESS:18443/api/healthcheck"
+curl --fail --cacert "$TELEMETRY_TLS_DIR/ca.crt" \
+  "https://$TELEMETRY_BIND_ADDRESS:18444/healthz"
+```
+
+Deliver the CA certificate and its fingerprint through the team's private channel so a client can verify the endpoint; never share the CA or server private key.
+The certificate and endpoint contain private deployment details and do not belong in this repository.
+
 **OpenObserve:** supply `OPENOBSERVE_ROOT_USER_EMAIL` and `OPENOBSERVE_ROOT_USER_PASSWORD` through the operator's private environment, then run from the Gateway7 checkout:
 
 ```sh
@@ -216,6 +255,7 @@ Apply changes with `docker compose -p gateway7-staging up --build --detach --wai
 | OpenObserve `production` | `Gateway7 SLI (production)` | Import the identical template into this organization, without injecting test traffic |
 
 In each OpenPanel project's dashboard editor, create a metric report with the two event-count series and the formula above, UTC and `Last 7 days`.
+The OpenPanel API names the property filters `properties.outcome` and `properties.source`; bare names do not filter those custom event properties.
 Display the ratio of the whole period's totals as a fraction, not an average of daily ratios or a percentage.
 Keep a zero denominator as no data, and do not relabel an empty chart as a measured zero.
 The exact metric definitions and source filters remain in the [analytics plan](analytics.md#the-value-and-the-metrics).
