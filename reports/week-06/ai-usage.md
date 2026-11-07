@@ -121,4 +121,8 @@ No live-provider call, Customer Review, Customer decision, release or Moodle sub
 
 - Tool: Codex.
 - Use: documented the release evidence and outstanding dependencies.
+## Codex: Sprint planning scope
+
+- Tool: Codex.
+- Use: recorded the current estimated scope while distinguishing it from the unverified planning commitment.
 - Team assessment: TODO.
