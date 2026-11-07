@@ -124,3 +124,8 @@ Codex configured and checked the staging OpenPanel chart and captured sanitized 
 ### Team assessment
 
 TODO: the team records its assessment of this work.
+## Codex: Sprint planning scope
+
+- Tool: Codex.
+- Use: recorded the current estimated scope while distinguishing it from the unverified planning commitment.
+- Team assessment: TODO.
