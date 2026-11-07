@@ -116,3 +116,12 @@ The strict documentation build and generated-site check passed for 59 maintained
 These local results include scripted HTTP protocol tests, not a deployed OpenPanel query, a university-VM QRT pass, four live dashboards or a production deployment.
 Docker was unavailable in the execution environment, so the new backend stack was not started locally.
 No live-provider call, Customer Review, Customer decision, release or Moodle submission was performed by this work.
+
+## Codex staging QRT preview
+
+Codex ran QR-05 QRT-01 against an isolated staging candidate on the university VM for task #185 and recorded the observed preview timings.
+The regular staging result remains unverified; an unrelated direct provider request returned a country or territory restriction.
+
+### Team assessment
+
+TODO: the team records its assessment of this work.

@@ -200,3 +200,8 @@ Declaring these gaps does not waive them, and this report claims no course-appro
 ## Privacy
 
 No private-only material was committed to this repository.
+
+## Staging diagnosability preview after the checkpoint
+
+The [QR-05 preview evidence](qrt-05-preview.md) records an isolated VM-hosted candidate test and its measured log and P95 query times.
+The regular staging deployment remains unverified; the preview does not change the testing-plan result.
