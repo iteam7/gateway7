@@ -3,7 +3,8 @@
 ## Scope and findings
 
 Gateway7 is Team 7's modular LLM gateway with configurable company policy plugins.
-This checkpoint indexes the merged analytics and observability implementation, the threshold review in [task #187](https://github.com/iteam7/gateway7/issues/187), the unfulfilled Customer Review in [task #188](https://github.com/iteam7/gateway7/issues/188), and the evidence still needed for the Assignment 6 submission.
+This report indexes the implementation at [main checkpoint `5240469925738f9e843c4d42c361e2430acc741e`](https://github.com/iteam7/gateway7/tree/5240469925738f9e843c4d42c361e2430acc741e), the prepared operator evidence from 7 November, the completed threshold review in [task #187](https://github.com/iteam7/gateway7/issues/187), and the unfulfilled Customer Review in [task #188](https://github.com/iteam7/gateway7/issues/188).
+The immutable evidence links below identify the original captures even while the remaining evidence pull requests are reviewed; the source checkpoint is not a claim that the final release or submission is complete.
 On 7 November 2026, azamatbayramov reported that the team had not held its Week 6 Customer Review because the demonstration was not ready.
 This is a team-preparation shortfall, not a claim that Customer was unavailable or refused a meeting or recording.
 The earlier outline approval concerned a plan; it supplies no meeting outcome, Customer verdict, permission answer or agreed action.
@@ -32,18 +33,27 @@ Two threshold measures are already supported by existing evidence: the recorded 
 The two original Week 3 measures still need their historical evidence assessed; later code, a green workflow or a current dashboard cannot establish what happened by their deadline.
 Their deadlines are not extended.
 
-The [analytics plan](../../docs/analytics.md) now defines the focus metric, successful gateway tasks per week, its metric tree, event contract and queries.
-The focus metric has no established production value: it needs the deployed analytics pipeline and a query over ordinary product use, not synthetic fixtures.
-The [task completion rate query](../../docs/analytics.md#task-completion-rate) is written but has not been demonstrated against the deployed backend; the assignment's computed-metric evidence remains missing.
-Merged [PR #196](https://github.com/iteam7/gateway7/pull/196) closes [task #177](https://github.com/iteam7/gateway7/issues/177) for its source-level criteria and brings that plan, typed start/completion events, the optional OpenPanel exporter and FR-015 onto [main revision 22ecc152f57ad096cd942050cd46d6d3457fb93d](https://github.com/iteam7/gateway7/tree/22ecc152f57ad096cd942050cd46d6d3457fb93d).
-It also integrates the team's QR-05, canonical QRT script and dashboard definition from [PR #194](https://github.com/iteam7/gateway7/pull/194) and [PR #195](https://github.com/iteam7/gateway7/pull/195), previously merged into working branches, with the telemetry runbook, proposed ADR-006/007, feature entries and container view.
-Merged [PR #193](https://github.com/iteam7/gateway7/pull/193) supplies OTLP request-duration histogram and structured-log export, FR-014 and the [observability plan](../../docs/observability.md) with Active SLI-01.
-All six CI workflows passed on the inspected main revision; they validate source and the synthetic Compose flow, not the telemetry deployment.
-The [AI disclosure](ai-usage.md#observability-signals-and-the-active-sli) records a local OpenObserve v1.1.2 check using synthetic credentials and the demo provider; it explicitly states that the check did not use the university VM, a staging organization, a dashboard or a deployed QRT.
-The plan's named organizations and dashboards describe the configured target; this report has no supplied operator proof of their current deployment.
-This implementation is real progress, but it is not a staging availability measurement or a Customer verdict.
-The [testing plan](../../docs/project-plan.md#quality-requirement-testing-plan) remains the source of QRT results: QR-05 QRT-01 is `Not verified` until its actual staging run is recorded.
-This report update runs no deployed test and changes no test result.
+The [analytics plan](../../docs/analytics.md) defines the focus metric, successful gateway tasks per week, its metric tree, event contract and queries.
+Merged [PR #196](https://github.com/iteam7/gateway7/pull/196) closed [task #177](https://github.com/iteam7/gateway7/issues/177) for its source-level criteria and brought typed start/completion events, the optional OpenPanel exporter and FR-015 onto main.
+It preserved the team's QR-05, canonical QRT script and dashboard definition from [PR #194](https://github.com/iteam7/gateway7/pull/194) and [PR #195](https://github.com/iteam7/gateway7/pull/195), with the telemetry runbook, proposed ADR-006/007, feature entries and external-backend container view.
+[PR #193](https://github.com/iteam7/gateway7/pull/193) supplies OTLP request-duration histogram and structured-log export, FR-014 and Active SLI-01.
+The six source-check workflows linked below passed on the inspected main revision; they are not deployment measurements.
+
+The operator's [analytics deployment record](https://github.com/iteam7/gateway7/blob/1a4b47e3e88879f45c0bf689989c39d08fcfa0d5/docs/deployment.md#prepare-the-backends) reports a university-VM OpenPanel stack, separate projects and staging smoke delivery from an isolated candidate.
+The [staging analytics check](https://github.com/iteam7/gateway7/blob/5e6f9318f5ba804516da3832000067635defc170/reports/week-06/analytics-staging.md) records two `chat_started` events when unfiltered and no series after applying the smoke exclusion.
+Its task-completion-rate chart is `No data`, not a measured zero; a production focus-metric value or a numeric result for the defined non-smoke metric is not established.
+OpenPanel retention over the full seven-day metric window remains unverified.
+The [observability deployment record](https://github.com/iteam7/gateway7/blob/b68632db58bad62dfe994a39dc722b324c0e5bf4/docs/deployment.md#prepare-the-backends) reports separate organizations, own-organization query success and cross-organization HTTP 401.
+The installed query identities have organization-administrator privileges; they are not claimed to be read-only Customer accounts.
+
+The [VM-hosted candidate QRT record](https://github.com/iteam7/gateway7/blob/f2422900384c78606bcfffa4c730b9e6441b25a8/reports/week-06/qrt-05-preview.md) reports `PASS QR-05 QRT-01` for candidate commit `22ecc152f57ad096cd942050cd46d6d3457fb93d`: the failed request's log was queryable in 1.046 seconds and its five-minute failure P95 in 4.144 seconds.
+A repeat through SSH forwarding reports 1.101 and 6.218 seconds.
+These are actual operator-recorded candidate results, distinct from the earlier local synthetic checks; the candidate's revision and target remain operator assertions.
+The prepared record does not supply the matching request identifier and complete sanitized log-query output, and the regular staging and production gateways have not been promoted and verified.
+The [testing plan](../../docs/project-plan.md#quality-requirement-testing-plan) therefore retains `Not verified` for the regular deployed check until the required evidence is recorded.
+A separate core-task request returned HTTP 502, and the operator's direct provider check reported a country or territory restriction; this does not establish that the key is invalid.
+That outbound provider restriction does not prevent the QRT's deliberately forbidden-model request, which is rejected before a provider call.
+The four sanitized dashboard captures are indexed below; empty production views and a passing candidate check do not complete the regular deployment, Customer Review or REL-06.
 
 The minimum usable product candidate remains US-01, US-02 and US-03, per [DEC-012](../../docs/decisions.md#dec-012).
 Their reported acceptance is recorded separately in [DEC-020](../../docs/decisions.md#dec-020) and the [Week 5 contributor confirmation](../week-05/meeting-follow-up.md#customer-verdicts).
@@ -73,28 +83,73 @@ Any new or revised success bar needs an explicit Customer decision; no such deci
 
 ## Review readiness
 
-Use private environment bookmarks and credentials, verified from the university network, when presenting the deployed product.
-Keep addresses, dashboard/query access details and credentials out of this repository.
-The table distinguishes implemented source, supplied runtime evidence and unfulfilled submission requirements as of 7 November.
-An owner issue, a named environment in a plan or a passing source-level workflow does not prove deployment.
-The inspected main revision is [22ecc152f57ad096cd942050cd46d6d3457fb93d](https://github.com/iteam7/gateway7/tree/22ecc152f57ad096cd942050cd46d6d3457fb93d), after PR #196; this report adds no runtime measurement.
+The table distinguishes merged source, operator-recorded candidate observations and outstanding submission work as of 7 November.
+The source checkpoint is [`5240469925738f9e843c4d42c361e2430acc741e`](https://github.com/iteam7/gateway7/tree/5240469925738f9e843c4d42c361e2430acc741e), after PR #191, the planning update in PR #197 and the backend-access record in PR #198.
+An owner issue, prepared configuration or source-level workflow does not prove a regular deployment.
+Backend, dashboard and query addresses, credentials and the private CA handoff belong in the Moodle PDF.
 
 | Assignment 6 evidence | Source or owner | Status at this checkpoint |
 | --- | --- | --- |
-| Existing gateway product cases | [Demo guide](../../docs/demo.md), [authoring walkthrough](../../docs/authoring.md#try-the-installed-package-without-a-provider-account), [setup](../../docs/setup.md), [DEC-018](../../docs/decisions.md#dec-018) | Existing guides and earlier evidence support rehearsal of client access, configuration-only plugins and policy effects. No fresh live-provider or deployment result is inferred. Earlier Customer verdicts remain DEC-020/021, not Week 6 acceptance. |
-| Sprint goal, selection and velocity | [Project plan](../../docs/project-plan.md#sprint-06), [#176](https://github.com/iteam7/gateway7/issues/176) | This change aligns SPRINT-06 Due with the course deadline, 8 November. The published goal remains provisional and selection pending; Planned/Actual Velocity and the REL-06 record are not established. Do not recreate a pre-work commitment from later estimates. |
-| New stories and traceability | [US-14 #174](https://github.com/iteam7/gateway7/issues/174), [US-15 #175](https://github.com/iteam7/gateway7/issues/175), [#186](https://github.com/iteam7/gateway7/issues/186) | Both stories exist. Main includes FR-014/015, proposed ADR-006/007, the two feature entries and the external-backend container view. The story issues still need their complete specification links and planning evidence checked; there is no Week 6 Customer verdict. |
-| Analytics metric tree, event contract, pipeline and computed query | [Analytics plan](../../docs/analytics.md), [closed #177](https://github.com/iteam7/gateway7/issues/177), [#178](https://github.com/iteam7/gateway7/issues/178) | The four-metric tree, queries, typed start/completion events and optional OpenPanel exporter are on main. A real computed backend query and raw staging smoke events with metric-exclusion proof have not been supplied. No focus-metric value is claimed. |
-| Observability signals and Active SLI | [PR #193](https://github.com/iteam7/gateway7/pull/193), [PR #196](https://github.com/iteam7/gateway7/pull/196), [SLI-01](../../docs/observability.md#sli-01) | Implemented on main: OTLP structured logs and delta request-duration histogram, the SLI plan, configuration and tests. The disclosed local synthetic OpenObserve check is local evidence only. |
-| Analytics backend scopes and two dashboards | [Telemetry runbook](../../docs/deployment.md#telemetry-pipelines), [#178](https://github.com/iteam7/gateway7/issues/178), [#179](https://github.com/iteam7/gateway7/issues/179), [#180](https://github.com/iteam7/gateway7/issues/180) | Deployment steps and the two scoped chart recipes are published. Actual backend deployment, chart execution and the two dashboard views have not been verified or supplied; an uninspected VM is not assumed empty. |
-| Observability backend scopes and two dashboards | [Telemetry runbook](../../docs/deployment.md#telemetry-pipelines), [#182](https://github.com/iteam7/gateway7/issues/182), [#183](https://github.com/iteam7/gateway7/issues/183), [#184](https://github.com/iteam7/gateway7/issues/184) | The backend definition, network override and sanitized dashboard template are on main. Actual VM configuration, query access and scoped dashboard output have not been supplied. Legacy Prometheus/Grafana is separate evidence. |
-| New analysability QR and deployed QRT | [QR-05 QRT-01](../../docs/quality-requirements/qr/QR-05.md#qrt-01), [#185](https://github.com/iteam7/gateway7/issues/185), [testing plan](../../docs/project-plan.md#quality-requirement-testing-plan) | The requirement, canonical script, protocol tests and testing-plan row are on main; the row is `Not verified`. Staging run output, verified deployed revision and screenshot have not been supplied. The 5-second log and 1-minute numeric five-minute P95 criteria are unverified; no `Passes` result is claimed. |
-| Four sanitized dashboard screenshots | [#179](https://github.com/iteam7/gateway7/issues/179), [#180](https://github.com/iteam7/gateway7/issues/180), [#183](https://github.com/iteam7/gateway7/issues/183), [#184](https://github.com/iteam7/gateway7/issues/184) | No four-dashboard screenshot set has been supplied for Week 6. Earlier monitoring screenshots do not establish the new views. |
-| Customer Review and threshold response | [#188](https://github.com/iteam7/gateway7/issues/188), [no-Review record](#customer-review-not-held), [threshold review](#threshold-review) | Not fulfilled. Preparation and historical TOS outcomes exist; no live/written Review, new Customer DEC or accepted/rejected US-14/15 verdict is recorded. |
-| Retrospective and actual completed scope | [#190](https://github.com/iteam7/gateway7/issues/190) | No Week 6 team retrospective, its contribution record or Actual Velocity has been supplied. This status report does not impersonate a retrospective or invent completed points. |
-| REL-06 and upgrade evidence | [#189](https://github.com/iteam7/gateway7/issues/189), [REL-06 plan entry](../../docs/project-plan.md#rel-06) | No REL-06 release is recorded. The prior v0.3.0 release remains Week 5 evidence; it is not relabelled as this increment. The course's after-Review release sequence is not yet evidenced. |
-| Private Moodle wrapper and repository ZIP | [#189](https://github.com/iteam7/gateway7/issues/189) | The implementation is merged, but this report is still pending and the required backend/dashboard/query access material is missing. No final submission revision, completed Week 6 PDF/ZIP pair or upload is claimed. The earlier Week 5 pair remains a separate submission. |
-| Optional runtime-QRT re-run | [Testing plan](../../docs/project-plan.md#quality-requirement-testing-plan) | No new run is claimed. Existing Week 5 results retain their recorded revision, sprint and level. |
+| Existing gateway product cases | [Demo guide](../../docs/demo.md), [authoring walkthrough](../../docs/authoring.md#try-the-installed-package-without-a-provider-account), [DEC-020](../../docs/decisions.md#dec-020) | Earlier acceptance remains separate. The new isolated candidate's core-task check returned 502; successful current provider access is not established. |
+| Sprint goal, selection and velocity | [Project plan](../../docs/project-plan.md#sprint-06), [#176](https://github.com/iteam7/gateway7/issues/176) | Due is 8 November. The plan records 21 SP of currently scheduled scope and 16 SP of future candidates; these later estimates are not original Planned Velocity, Actual Velocity or confirmation of the next two sprints' scope. |
+| New stories and traceability | [US-14 #174](https://github.com/iteam7/gateway7/issues/174), [US-15 #175](https://github.com/iteam7/gateway7/issues/175), [#186](https://github.com/iteam7/gateway7/issues/186) | Stories, FR-014/015, proposed ADR-006/007, feature entries and the external-backend container view exist. Complete planning evidence and Customer verdicts remain separate requirements. |
+| Analytics tree, events and computed query | [Analytics plan](../../docs/analytics.md), [staging check](https://github.com/iteam7/gateway7/blob/5e6f9318f5ba804516da3832000067635defc170/reports/week-06/analytics-staging.md), [#178](https://github.com/iteam7/gateway7/issues/178) | Typed events are merged. The candidate's smoke event and exclusion were inspected; the unfiltered start count was two, while the filtered metric chart had no series. No production focus value or numeric non-smoke metric result is claimed. |
+| Observability signals and Active SLI | [SLI-01](../../docs/observability.md#sli-01), [candidate record](https://github.com/iteam7/gateway7/blob/f2422900384c78606bcfffa4c730b9e6441b25a8/reports/week-06/qrt-05-preview.md) | Native OTLP logs and the delta duration histogram are merged. The candidate exported a matching failure series; the regular deployments' legacy log delivery remains unverified. |
+| Analytics backend and dashboards | [Backend record](https://github.com/iteam7/gateway7/blob/1a4b47e3e88879f45c0bf689989c39d08fcfa0d5/docs/deployment.md#prepare-the-backends), [staging](https://github.com/iteam7/gateway7/blob/5e6f9318f5ba804516da3832000067635defc170/reports/week-06/analytics-staging.md), [production](https://github.com/iteam7/gateway7/blob/8c07840e83d292f7a10ffc943202fc6cb3d54ea4/reports/week-06/analytics-production.md) | Separate OpenPanel projects and the two L1 chart captures are recorded. Regular gateways still need promotion and connection; seven-day retention and Customer access are unverified. |
+| Observability backend and dashboards | [Backend record](https://github.com/iteam7/gateway7/blob/b68632db58bad62dfe994a39dc722b324c0e5bf4/docs/deployment.md#prepare-the-backends), [staging](https://github.com/iteam7/gateway7/blob/f880539b653030c0b29a7e298f84d7f348fe015a/reports/week-06/observability-staging.md), [production](https://github.com/iteam7/gateway7/blob/0f3d1b6f114be3a0adf745e8061e517b65834532/reports/week-06/observability-production.md) | Organization isolation and the two SLI-01 views are recorded. Staging shows the candidate's numeric failure series; production is empty and unexercised. Query identities are not least-privilege read-only accounts. |
+| New analysability QR and QRT | [QR-05](../../docs/quality-requirements/qr/QR-05.md#qrt-01), [candidate record](https://github.com/iteam7/gateway7/blob/f2422900384c78606bcfffa4c730b9e6441b25a8/reports/week-06/qrt-05-preview.md), [#185](https://github.com/iteam7/gateway7/issues/185) | Candidate PASS is recorded at the asserted revision. The complete matching log-query/request-ID evidence and a verified regular-staging run are still needed before changing its testing-plan row. |
+| Four sanitized dashboard captures | [Dashboard evidence](#dashboard-and-candidate-evidence) | All four prepared views are linked by immutable source commit, with an additional staging smoke-detail capture. Their scopes and empty-chart limitations are stated below. |
+| Customer Review and threshold response | [#188](https://github.com/iteam7/gateway7/issues/188), [no-Review record](#customer-review-not-held) | No live or written Week 6 Review, new Customer DEC, story verdict or agreed Week 7 action is established. |
+| Retrospective and completed scope | [#190](https://github.com/iteam7/gateway7/issues/190) | No actual Week 6 team retrospective or Actual Velocity is supplied; current estimates do not reconstruct either. |
+| REL-06 | [Readiness record](https://github.com/iteam7/gateway7/blob/117895df817e44c2d53e27f130eee6652bd8390b/reports/week-06/release-readiness.md), [#189](https://github.com/iteam7/gateway7/issues/189) | This is preparation, not a release. Provider access, final promotion and checks, Customer Review, release notes and the protected final tag remain outstanding. |
+| Private PDF and repository ZIP | [#189](https://github.com/iteam7/gateway7/issues/189) | The final merged-main revision, full private access handoff and matching Week 6 PDF/ZIP are not complete; no Moodle upload is claimed. |
+| Optional runtime-QRT re-run | [Testing plan](../../docs/project-plan.md#quality-requirement-testing-plan) | No optional new run is claimed. Earlier Week 5 results retain their recorded revision, sprint and level. |
+
+## Dashboard and candidate evidence
+
+These are sanitized operator captures from 7 November, not newly generated traffic or measurements by this report update.
+The immutable source links retain the original evidence while the prepared files are integrated into main.
+
+### Analytics staging
+
+[The staging record](https://github.com/iteam7/gateway7/blob/5e6f9318f5ba804516da3832000067635defc170/reports/week-06/analytics-staging.md) describes a smoke request from the isolated candidate and the count query used to inspect its exclusion.
+The chart is the tree's L1 input, `Task completion rate`, over seven days: `No data` after excluding smoke is not a measured zero.
+
+![Staging analytics L1 chart with no non-smoke data](https://raw.githubusercontent.com/iteam7/gateway7/5e6f9318f5ba804516da3832000067635defc170/reports/week-06/images/analytics-staging.png)
+
+The [smoke detail](https://raw.githubusercontent.com/iteam7/gateway7/5e6f9318f5ba804516da3832000067635defc170/reports/week-06/images/analytics-staging-smoke.png) shows `environment=staging`, `source=smoke`, `status=401` and `outcome=client_error`.
+It is not a successful provider request or evidence of production use.
+
+### Analytics production
+
+[The production record](https://github.com/iteam7/gateway7/blob/8c07840e83d292f7a10ffc943202fc6cb3d54ea4/reports/week-06/analytics-production.md) reports the same L1 chart recipe with the production project's own credential and no synthetic traffic.
+The regular production gateway still needs promotion and connection; the empty chart has no measured completion rate.
+
+![Production analytics L1 chart with no data](https://raw.githubusercontent.com/iteam7/gateway7/8c07840e83d292f7a10ffc943202fc6cb3d54ea4/reports/week-06/images/analytics-production.png)
+
+### Observability staging
+
+[The staging record](https://github.com/iteam7/gateway7/blob/f880539b653030c0b29a7e298f84d7f348fe015a/reports/week-06/observability-staging.md) names the VM-hosted candidate and the SLI-01 query.
+Its separate `openai_chat / client_error` series is numeric; it does not assert promotion of the regular staging gateway.
+
+![Staging OpenObserve SLI-01 with a numeric client-error P95 series](https://raw.githubusercontent.com/iteam7/gateway7/f880539b653030c0b29a7e298f84d7f348fe015a/reports/week-06/images/observability-staging.png)
+
+### Observability production
+
+[The production record](https://github.com/iteam7/gateway7/blob/0f3d1b6f114be3a0adf745e8061e517b65834532/reports/week-06/observability-production.md) describes the same SLI-01 chart and query, with no synthetic failure sent to production.
+This empty view is configuration evidence, not a current production availability measurement.
+
+![Production OpenObserve SLI-01 with no data](https://raw.githubusercontent.com/iteam7/gateway7/0f3d1b6f114be3a0adf745e8061e517b65834532/reports/week-06/images/observability-production.png)
+
+### Candidate result and access limits
+
+The [candidate QRT record](https://github.com/iteam7/gateway7/blob/f2422900384c78606bcfffa4c730b9e6441b25a8/reports/week-06/qrt-05-preview.md) retains both measured PASS summaries and their stated limitations.
+A full sanitized matching log-query response with its request identifier and verification after promotion remain outstanding.
+Keep the actual candidate result distinct from that missing final evidence rather than repeating the check solely because the core provider call is blocked.
+
+The [TLS setup](https://github.com/iteam7/gateway7/blob/1a4b47e3e88879f45c0bf689989c39d08fcfa0d5/docs/deployment.md#tls-access-to-the-telemetry-backends) requires the private internal CA certificate and fingerprint for clients.
+A browser or curl health check with that CA is not proof that the [native QRT client](../../scripts/check_sli.py) trusts it: use the documented VM-loopback or SSH-forwarded internal HTTP path for the current operator check.
+Neither disabling certificate verification nor publishing endpoints or credentials is part of this handoff.
 
 ## Prior follow-up evidence
 
@@ -113,31 +168,31 @@ The [script](meeting-script.md) includes the proposed blocking-plugin follow-up;
 ## Coverage
 
 This table follows the Assignment 6 report's required coverage order.
-Existing repository links use paths from the repository root; code-form paths identify missing material without linking to a nonexistent file.
-The [readiness table](#review-readiness) gives the source/runtime distinction and owner issues.
+Maintained artifacts use repository-relative paths; the prepared runtime records use immutable original source commits so the links remain inspectable before every evidence branch is merged.
+The [readiness table](#review-readiness) distinguishes source, candidate evidence and incomplete regular deployment.
 
 | Deliverable | Artifact |
 | --- | --- |
-| Sprint plan and new stories | [docs/project-plan.md#sprint-06](../../docs/project-plan.md#sprint-06), [US-14 #174](https://github.com/iteam7/gateway7/issues/174), [US-15 #175](https://github.com/iteam7/gateway7/issues/175). Due is corrected to 8 November; selection, velocity and complete planning evidence remain unfulfilled. |
-| Analytics plan | [docs/analytics.md](../../docs/analytics.md) contains the four-metric tree, seven-criterion justification and metric queries. The [task completion rate](../../docs/analytics.md#task-completion-rate) query still needs an actual backend result. |
-| Events and instrumentation | [docs/analytics.md#the-events](../../docs/analytics.md#the-events), [gateway7/analytics.py](../../gateway7/analytics.py) and [FR-015](../../docs/functional-requirements/fr/FR-015.md) are merged through PR #196. Raw staging smoke events and their metric-exclusion proof are still missing. |
-| Analytics dashboards | `reports/week-06/images/analytics-staging.png` and `reports/week-06/images/analytics-production.png` are not supplied; #179/#180 own the missing scoped views and sanitized screenshots. |
-| Observability plan and SLIs | [docs/observability.md](../../docs/observability.md), including Active SLI-01, is merged through PR #193. The source and local check are not deployed measurements. |
-| Observability dashboards | [docs/observability.md#the-dashboard](../../docs/observability.md#the-dashboard) and [monitoring/openobserve/gateway7-sli-dashboard.json](../../monitoring/openobserve/gateway7-sli-dashboard.json) define the SLI-01 chart. Actual scoped output and `reports/week-06/images/observability-staging.png` and `reports/week-06/images/observability-production.png` are not supplied by #183/#184. |
+| Sprint plan and new stories | [docs/project-plan.md#sprint-06](../../docs/project-plan.md#sprint-06), [US-14 #174](https://github.com/iteam7/gateway7/issues/174), [US-15 #175](https://github.com/iteam7/gateway7/issues/175). Current scheduled scope is 21 SP; original planning commitment, Actual Velocity and the next two sprints' confirmed selection remain unestablished. |
+| Analytics plan | [docs/analytics.md](../../docs/analytics.md) owns the four-metric tree, seven-criterion justification and queries. [The staging record](https://github.com/iteam7/gateway7/blob/5e6f9318f5ba804516da3832000067635defc170/reports/week-06/analytics-staging.md) demonstrates smoke inspection and exclusion, not a production metric value or numeric non-smoke completion rate. |
+| Events and instrumentation | [docs/analytics.md#the-events](../../docs/analytics.md#the-events), [gateway7/analytics.py](../../gateway7/analytics.py), [FR-015](../../docs/functional-requirements/fr/FR-015.md), and the [staging smoke detail](https://raw.githubusercontent.com/iteam7/gateway7/5e6f9318f5ba804516da3832000067635defc170/reports/week-06/images/analytics-staging-smoke.png). The smoke request used an isolated candidate, not the promoted regular deployment. |
+| Analytics dashboards | [Staging evidence](https://github.com/iteam7/gateway7/blob/5e6f9318f5ba804516da3832000067635defc170/reports/week-06/analytics-staging.md) and [production evidence](https://github.com/iteam7/gateway7/blob/8c07840e83d292f7a10ffc943202fc6cb3d54ea4/reports/week-06/analytics-production.md), with both sanitized captures in [dashboard evidence](#dashboard-and-candidate-evidence). The L1 charts are empty, not measured zeros. |
+| Observability plan and SLIs | [docs/observability.md](../../docs/observability.md) owns Active SLI-01 and its queries; the [candidate record](https://github.com/iteam7/gateway7/blob/f2422900384c78606bcfffa4c730b9e6441b25a8/reports/week-06/qrt-05-preview.md) and [staging view](https://github.com/iteam7/gateway7/blob/f880539b653030c0b29a7e298f84d7f348fe015a/reports/week-06/observability-staging.md) report the VM preview's observations. |
+| Observability dashboards | [Staging evidence](https://github.com/iteam7/gateway7/blob/f880539b653030c0b29a7e298f84d7f348fe015a/reports/week-06/observability-staging.md), [production evidence](https://github.com/iteam7/gateway7/blob/0f3d1b6f114be3a0adf745e8061e517b65834532/reports/week-06/observability-production.md), and [monitoring/openobserve/gateway7-sli-dashboard.json](../../monitoring/openobserve/gateway7-sli-dashboard.json). The candidate's failure P95 is numeric; the regular production view is empty. |
 | Feature documentation | [docs/features.md#understand-core-task-completion](../../docs/features.md#understand-core-task-completion) and [docs/features.md#diagnose-a-failed-request](../../docs/features.md#diagnose-a-failed-request) document both internal capabilities and their specification links. |
-| Functional requirements | [docs/functional-requirements/README.md](../../docs/functional-requirements/README.md), [docs/functional-requirements/fr/FR-014.md](../../docs/functional-requirements/fr/FR-014.md) and [docs/functional-requirements/fr/FR-015.md](../../docs/functional-requirements/fr/FR-015.md) cover observability and analytics. |
-| ADRs and container view | The canonical [docs/architecture/README.md#architectural-decisions](../../docs/architecture/README.md#architectural-decisions) index lists proposed [docs/architecture/adr/ADR-006.md](../../docs/architecture/adr/ADR-006.md) and [docs/architecture/adr/ADR-007.md](../../docs/architecture/adr/ADR-007.md). The updated [docs/architecture/README.md#container-view](../../docs/architecture/README.md#container-view) and [docs/architecture/container.svg](../../docs/architecture/container.svg) show the two self-hosted backends as external systems. |
-| Observability requirement | [docs/quality-requirements/qr/QR-05.md](../../docs/quality-requirements/qr/QR-05.md), [its QRT-01](../../docs/quality-requirements/qr/QR-05.md#qrt-01), [scripts/check_sli.py](../../scripts/check_sli.py), the [docs/quality-requirements/README.md](../../docs/quality-requirements/README.md) index and testing-plan row are merged. The actual deployed staging run remains `Not verified` under #185. |
-| Runtime test re-run | [docs/project-plan.md#quality-requirement-testing-plan](../../docs/project-plan.md#quality-requirement-testing-plan) retains earlier QRT rows. No optional new runtime-QRT run is claimed. |
-| Threshold review | [docs/threshold-of-success.md](../../docs/threshold-of-success.md), [docs/threshold-review.md](../../docs/threshold-review.md) and the [reports/week-06/README.md#threshold-review](README.md#threshold-review) review preserve exact measures, historical deadlines and the evidence-backed statuses. |
-| Week 5 action points | [reports/week-05/meeting-report.md#action-points](../week-05/meeting-report.md#action-points) and [reports/week-06/README.md#prior-follow-up-evidence](README.md#prior-follow-up-evidence) retain the carried work. `reports/week-06/meeting-report.md#previous-action-points` cannot report new outcomes before an actual Review. |
-| Week 5 open questions | [reports/week-05/meeting-report.md#open-questions](../week-05/meeting-report.md#open-questions), [reports/week-05/meeting-follow-up.md](../week-05/meeting-follow-up.md) and [reports/week-06/meeting-script.md#questions](meeting-script.md#questions) preserve recorded answers and unanswered items. `reports/week-06/meeting-report.md#previous-open-questions` is absent for the same reason. |
-| Meeting script | [reports/week-06/meeting-script.md](meeting-script.md) is proposed written preparation, unsent. [reports/week-06/live-review-script.md](live-review-script.md) preserves the earlier unused live preparation. Neither supplies an actual Review. |
-| Meeting transcript | Not available: no live or written Review occurred. `reports/week-06/meeting-transcript.md` is absent; future handling depends on actual permission answers. |
-| Customer validation | [reports/week-06/README.md#customer-review-not-held](README.md#customer-review-not-held) records the unfulfilled requirement and reason. `reports/week-06/meeting-report.md` is intentionally absent for this non-event; no new Customer verdict or decision exists. |
-| REL-06 | [docs/project-plan.md#rel-06](../../docs/project-plan.md#rel-06) has no recorded REL-06. No new release, protected tag or upgrade evidence is supplied. |
-| Sprint retrospective | `reports/week-06/sprint-retrospective.md` is not supplied; #190 still needs the team's actual retrospective and contribution record. |
-| AI usage | [reports/week-06/ai-usage.md](ai-usage.md) discloses preparation, source corrections and local synthetic boundaries. Separate contributors' unfinished assessment entries remain their own work. |
+| Functional requirements | [docs/functional-requirements/README.md](../../docs/functional-requirements/README.md), [FR-014](../../docs/functional-requirements/fr/FR-014.md) and [FR-015](../../docs/functional-requirements/fr/FR-015.md). Runtime verification of all their criteria is not inferred from source tests. |
+| ADRs and container view | [docs/architecture/README.md#architectural-decisions](../../docs/architecture/README.md#architectural-decisions), proposed [ADR-006](../../docs/architecture/adr/ADR-006.md) and [ADR-007](../../docs/architecture/adr/ADR-007.md), and the [container view](../../docs/architecture/README.md#container-view). The two self-hosted backends remain external systems. |
+| Observability requirement | [QR-05 QRT-01](../../docs/quality-requirements/qr/QR-05.md#qrt-01), [scripts/check_sli.py](../../scripts/check_sli.py), [testing plan](../../docs/project-plan.md#quality-requirement-testing-plan), and the [candidate PASS record](https://github.com/iteam7/gateway7/blob/f2422900384c78606bcfffa4c730b9e6441b25a8/reports/week-06/qrt-05-preview.md). Regular staging remains `Not verified` pending promotion and complete matching evidence. |
+| Runtime test re-run | [Testing plan](../../docs/project-plan.md#quality-requirement-testing-plan): no optional new re-run is claimed, and earlier results retain their original scope. |
+| Threshold review | [docs/threshold-of-success.md](../../docs/threshold-of-success.md), [docs/threshold-review.md](../../docs/threshold-review.md) and [this review](#threshold-review) preserve original measures, deadlines and evidence-backed statuses. |
+| Week 5 action points | [Week 5 actions](../week-05/meeting-report.md#action-points) and [prior follow-up evidence](#prior-follow-up-evidence). No new `meeting-report.md#previous-action-points` is invented before an actual Review. |
+| Week 5 open questions | [Week 5 questions](../week-05/meeting-report.md#open-questions), [contributor follow-up](../week-05/meeting-follow-up.md), and [prepared questions](meeting-script.md#questions). Unanswered items remain open. |
+| Meeting script | [Proposed written script](meeting-script.md) and [unused live archive](live-review-script.md). Neither supplies a Customer response or completed Review. |
+| Meeting transcript | Not available: no live or written Week 6 Review is established; `reports/week-06/meeting-transcript.md` is absent. |
+| Customer validation | [No-Review record](#customer-review-not-held). No Week 6 Customer verdict, threshold DEC or agreed Week 7 actions are invented. |
+| REL-06 | [docs/project-plan.md#rel-06](../../docs/project-plan.md#rel-06) and the [release-readiness record](https://github.com/iteam7/gateway7/blob/117895df817e44c2d53e27f130eee6652bd8390b/reports/week-06/release-readiness.md). No final production tag or completed release is claimed. |
+| Sprint retrospective | `reports/week-06/sprint-retrospective.md` is not supplied; [#190](https://github.com/iteam7/gateway7/issues/190) still needs the team's actual retrospective and contribution record. |
+| AI usage | [reports/week-06/ai-usage.md](ai-usage.md) preserves contributors' disclosures and the boundaries of each local or VM activity; no pending human assessment is filled by inference. |
 
 ## Contribution
 
@@ -148,7 +203,7 @@ The roster follows [reports/week-05/README.md#contributions](../week-05/README.m
 | azamatbayramov | Requested [#187](https://github.com/iteam7/gateway7/issues/187) and [#188](https://github.com/iteam7/gateway7/issues/188), approved a proposed outline, reported the missed Review and authored the AI-assisted analytics/telemetry integration in [PR #196](https://github.com/iteam7/gateway7/pull/196). The [reports/week-06/ai-usage.md](ai-usage.md) disclosure distinguishes generated preparation, source checks and missing runtime evidence; no attendance, Customer agreement or team-wide assessment is inferred. |
 | DeniBorsh | Requested the observability implementation in [PR #193](https://github.com/iteam7/gateway7/pull/193) and authored [PR #194](https://github.com/iteam7/gateway7/pull/194) and [PR #195](https://github.com/iteam7/gateway7/pull/195) for the QRT and SLI dashboard work. Their canonical source and local-development disclosures are preserved by PR #196; no staging deployment or QRT pass is inferred. |
 | iceberkut | Merged [PR #196](https://github.com/iteam7/gateway7/pull/196) into main. This source-integration act is not a Customer verdict or independent runtime check. |
-| ExFuseMe | Merged [PR #194](https://github.com/iteam7/gateway7/pull/194) and [PR #195](https://github.com/iteam7/gateway7/pull/195) into their feature-branch bases before PR #196 integrated that history into main. Deployment and dashboard ownership do not establish the unverified runtime results. |
+| ExFuseMe | Merged [PR #194](https://github.com/iteam7/gateway7/pull/194) and [PR #195](https://github.com/iteam7/gateway7/pull/195) into their feature-branch bases before PR #196 integrated them. Authored the backend, dashboard and release-readiness records in PR #198–#205, which attribute the VM observations to the operator and retain their candidate-versus-regular-deployment limits. |
 
 ## Repository evidence
 
@@ -156,11 +211,15 @@ The roster follows [reports/week-05/README.md#contributions](../week-05/README.m
 Its source-level completion does not close the separate deployment, dashboard or deployed-QRT tasks; #183 and #185 remain open.
 The integration preserves the genuine history of PR #194 and PR #195, which had previously merged into working branches rather than main.
 [PR #193](https://github.com/iteam7/gateway7/pull/193) supplies the earlier observability implementation.
-[PR #191](https://github.com/iteam7/gateway7/pull/191) carries this report and intends to close #187; it references the evidence-ready parts of #188 without closing that unfulfilled Review.
+[PR #191](https://github.com/iteam7/gateway7/pull/191) merged the threshold review and this report, closing #187 without closing the unfulfilled Review in #188.
+[PR #197](https://github.com/iteam7/gateway7/pull/197) records the current estimated planning scope without asserting an original commitment.
+[PR #198](https://github.com/iteam7/gateway7/pull/198) merged the analytics-backend and TLS-access record while leaving the full deployment task #178 open.
+Its description used a reference rather than closing a narrow preparation task; subsequent [task #206](https://github.com/iteam7/gateway7/issues/206) records that narrower scope without reconstructing a pre-merge task-closing check.
+The remaining preparation-task metadata and acceptance-checklist review are not claimed complete; the scope records in [#206](https://github.com/iteam7/gateway7/issues/206), [#207](https://github.com/iteam7/gateway7/issues/207) and [#208](https://github.com/iteam7/gateway7/issues/208) do not substitute for those checks or the separate human approvals.
 The final submission must include this report and all linked repository artifacts on the same merged-main revision; the snapshot and private PDF are not complete yet.
 
-For the inspected main revision `22ecc152f57ad096cd942050cd46d6d3457fb93d`, the latest [Markdown](https://github.com/iteam7/gateway7/actions/runs/42376900747), [link-check](https://github.com/iteam7/gateway7/actions/runs/42376900536), [workflow/actionlint](https://github.com/iteam7/gateway7/actions/runs/42376900704), [product-code/Python](https://github.com/iteam7/gateway7/actions/runs/42376900547), [documentation](https://github.com/iteam7/gateway7/actions/runs/42376900644) and [quality-gate](https://github.com/iteam7/gateway7/actions/runs/42376900701) runs passed.
-These linked source checks do not establish deployment, the new deployed QRT or Customer acceptance.
+For main checkpoint `5240469925738f9e843c4d42c361e2430acc741e`, the [Markdown](https://github.com/iteam7/gateway7/actions/runs/42412917234), [link-check](https://github.com/iteam7/gateway7/actions/runs/42412917190), [workflow/actionlint](https://github.com/iteam7/gateway7/actions/runs/42412917189), [product-code/Python](https://github.com/iteam7/gateway7/actions/runs/42412917250), [documentation](https://github.com/iteam7/gateway7/actions/runs/42412917193) and [quality-gate](https://github.com/iteam7/gateway7/actions/runs/42412917185) runs passed.
+These are source and synthetic-environment checks; the separate VM candidate observations are the records linked above, not conclusions inferred from CI.
 
 ## Completion and deadline handoff
 
@@ -171,9 +230,12 @@ Task #188 is unfulfilled: a prepared script and a no-Review explanation do not c
    Obtain actual permission answers, explicit story verdicts against the evidence available, the threshold response and at least two agreed Week 7 actions with owners and dates.
    Retain the timestamped Customer exchange as the transcript under the permissions actually given, declare the written substitution, and write `meeting-report.md` only after a Review occurs.
    A packet sent without a substantive Customer response is not a completed Review; silence is not acceptance.
-2. **Deploy and verify the merged technical increment.** Follow [the telemetry runbook](../../docs/deployment.md#telemetry-pipelines) for the published analytics path, backend scopes, chart recipes and canonical QRT.
-   The owners in the readiness table still supply private backend and dashboard access, an executed analytics query, staging smoke-exclusion proof, four sanitized views and the actual staging QRT result.
-   Record the actual tested revision, environment, commands, query output and measured result; the merged telemetry code and green CI do not supply these runtime facts.
+2. **Integrate the prepared evidence and verify the regular deployments.** The [four views](#dashboard-and-candidate-evidence) and [candidate result](https://github.com/iteam7/gateway7/blob/f2422900384c78606bcfffa4c730b9e6441b25a8/reports/week-06/qrt-05-preview.md) are supplied with their actual limits.
+   Follow the [runbook](../../docs/deployment.md#telemetry-pipelines) to promote a verified revision to regular staging, retain its matching request-ID log query and SLI output, and verify the core task before production promotion.
+   Resolve the provider's regional access failure for that successful core-task verification; the provider-free forbidden-model QRT does not require a successful provider call.
+   The existing [HTTP(S) provider transport](../../docs/provider-transports.md#configure-the-built-in-proxy) can use an operator-supplied proxy; a system VPN is not the only possible network path, and no endpoint or successful provider call is assumed here.
+   Verify the analytics retention and execute the defined non-smoke metric query; an empty chart and the unfiltered smoke count do not establish a production focus value.
+   Deliver the complete backend, dashboard, query and CA access details privately.
 3. **Record the team's actual closeout.** #176 and #190 still need the real selected scope, the evidence for velocity, the retrospective and its contribution record.
    This report does not backfill a planning commitment, invent estimates or replace the team's retrospective.
 4. **Cut REL-06 in the required order.** [Assignment 6 Part 14](https://github.com/inno-itpd/itpd/blob/c2e737f7a16221e9fcdaf4234b045baca9cd0c6e/assignments/assignment-6.md#part-14-cut-the-rel-06-release) places the release after the Review and resulting rework, on the final production commit, with a protected tag.
@@ -185,25 +247,20 @@ Task #188 is unfulfilled: a prepared script and a no-Review explanation do not c
 
 Submit the available, accurately labelled work by **8 November, 23:59**, even if gaps remain.
 The submission must identify every still-unfulfilled requirement above rather than claim a complete increment or a course-approved exception.
-No Customer decision, transcript, telemetry screenshot, measured test result, deployment or release is inferred from approval of the earlier outline.
+The supplied candidate observations and screenshots come from their linked operator records, not approval of the earlier outline; no Customer decision, transcript, regular-deployment pass or release is inferred.
 
 ## Deviations
 
 The Week 6 Customer Review was not held because the team had not prepared the demonstration, as azamatbayramov reported on 7 November.
 There is no meeting transcript, Customer story verdict, threshold response or agreed Week 7 action to substitute for that missing Review.
 The written format is prepared but has not been arranged, sent or executed; it is a possible future route under the course rule, not a completed alternative.
-The expected analytics, deployment and four-dashboard evidence, deployed diagnosability QRT, planning/retrospective closeout, REL-06 and private submission wrapper remain incomplete or unverified as detailed in [Review readiness](#review-readiness).
+The prepared dashboard captures and candidate PASS summaries are now indexed with their actual source and limits.
+The regular deployments, complete deployed-QRT evidence, numeric defined-metric computation, planning/retrospective closeout, REL-06 and private submission wrapper remain incomplete as detailed in [Review readiness](#review-readiness).
 No new runtime-QRT re-run is claimed.
 The source implementation and earlier evidence are retained with their actual scope; they do not satisfy the missing deployed or Customer-validation requirements.
+PR #198 merged with a reference to the unfinished deployment task rather than a closing preparation-task link; later task clarification does not retroactively satisfy the course's pre-merge closing-task rule.
 Declaring these gaps does not waive them, and this report claims no course-approved exception or complete Assignment 6 fulfillment.
 
 ## Privacy
 
 No private-only material was committed to this repository.
-
-## Release readiness after the checkpoint
-
-The [release readiness checkpoint](release-readiness.md) records the candidate evidence and open release dependencies.
-## Analytics deployment after the checkpoint
-
-The deployment runbook records the separate analytics backend and the remaining verification.
