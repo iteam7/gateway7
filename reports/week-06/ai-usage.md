@@ -123,6 +123,12 @@ No live-provider call, Customer Review, Customer decision, release or Moodle sub
 - Use: recorded the current estimated scope while distinguishing it from the unverified planning commitment.
 - Team assessment: TODO.
 
+## Codex: Analytics deployment
+
+- Tool: Codex.
+- Use: documented the deployed analytics backend, proxy and remaining verification.
+- Team assessment: TODO.
+
 ## Codex dashboard verification for #180
 
 Codex configured and checked the production OpenPanel chart and captured a sanitized empty view for task #180; no synthetic traffic was sent to the production project.
