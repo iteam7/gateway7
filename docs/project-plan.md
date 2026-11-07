@@ -131,6 +131,9 @@ Provisional goal: a reviewer can verify configured model permissions and assess 
 
 - **Due:** 2026-11-08
 - **Sprint Backlog:** [SPRINT-06 milestone; selection pending](https://github.com/iteam7/gateway7/milestone/4)
+- **Current scheduled scope:** 21 SP: [US-04](https://github.com/iteam7/gateway7/issues/33) (5), [US-14](https://github.com/iteam7/gateway7/issues/174) (8) and [US-15](https://github.com/iteam7/gateway7/issues/175) (8).
+  This tally is not evidence of the original planning commitment or planned velocity.
+- **Future candidates:** [US-07](https://github.com/iteam7/gateway7/issues/36), [US-08](https://github.com/iteam7/gateway7/issues/37) and [US-13](https://github.com/iteam7/gateway7/issues/141) total 16 SP; the team has not confirmed the scope for the next two sprints.
 
 #### REL-06
 
