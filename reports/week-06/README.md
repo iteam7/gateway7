@@ -200,3 +200,9 @@ Declaring these gaps does not waive them, and this report claims no course-appro
 ## Privacy
 
 No private-only material was committed to this repository.
+
+## Observability pipeline verification after the checkpoint
+
+The [deployment runbook](../../docs/deployment.md#prepare-the-backends) records the VM backend, tested organization isolation and the limits of the installed query roles.
+A staging candidate exported signals, but the regular gateway deployments and their legacy log delivery remain unverified.
+The provider returned a country or territory restriction from the VM; the key itself was not verified.

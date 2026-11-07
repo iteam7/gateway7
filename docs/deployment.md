@@ -124,10 +124,27 @@ docker compose -p gateway7-telemetry -f compose.telemetry.yaml up --detach --wai
 
 The standalone [backend definition](https://github.com/iteam7/gateway7/blob/177-analytics-core-events/compose.telemetry.yaml) pins OpenObserve `v1.1.2`, stores its data in a named volume and retains it for seven days.
 Verify `/healthz` before configuring ingestion; Compose's running state alone is not readiness.
-In the OpenObserve UI, create the `staging` and `production` organizations, with separate ingestion users/tokens and separate read-only query users.
+In the OpenObserve UI, create the `staging` and `production` organizations with separate ingestion and query identities.
 Use bootstrap administrator credentials only to configure the service, not in either gateway.
 Record the deployed image digest, backend access and both scopes' credentials privately.
 Do not run `down --volumes` on either backend when changing a gateway version.
+
+On 7 November, an existing OpenObserve `v1.1.2` instance on the VM was configured with seven-day retention and separate staging and production ingestion and query identities.
+An authenticated stream-list request from each query identity succeeded in its own organization and returned HTTP 401 for the other organization.
+The installed open-source edition grants these accounts the organization administrator role; separate read-only permissions have not been established, so these credentials are not suitable as least-privilege Customer accounts.
+Keep the bootstrap and organization credentials in the private operator directory, not in the repository or gateway logs.
+
+The regular gateway deployments have per-environment Prometheus collectors scraping at five-second intervals and Vector log collectors configured to flush at one second to their corresponding organization.
+The expected legacy log stream was not found in either organization during the operator check, so log delivery from the regular deployments remains unverified.
+Vector has access to the Docker socket, which is effectively privileged even when mounted read-only; remove that access only after both regular gateways have been migrated to native OTLP exporters and verified.
+The current regular staging and production gateways have not yet been promoted to the native OTLP instrumentation.
+An isolated staging candidate using the existing staging configuration passed QR-05 QRT-01, but its separate core-task verification returned HTTP 502.
+A direct provider check from the VM returned a country or territory restriction; it did not establish whether the key itself was valid.
+
+The backend listens on VM loopback and is also available through an internal TLS proxy on the university-network interface.
+The operator verified the proxy's certificate and health endpoint from the deployment machine using the private internal CA certificate; a team member also reported a successful Windows health check.
+Customer access has not been verified; deliver the certificate and access details privately.
+The TLS proxy and its key material are in a separate operator directory outside the checkout.
 
 ### Analytics pipeline
 
