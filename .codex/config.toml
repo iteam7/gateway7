@@ -1,0 +1,12 @@
+
+[agents.formater]
+description = 'Gateway7 formater role migrated from Claude'
+config_file = 'agents/formater.toml'
+
+[agents.orchestrator]
+description = 'Gateway7 orchestrator role migrated from Claude'
+config_file = 'agents/orchestrator.toml'
+
+[agents.techlead]
+description = 'Gateway7 techlead role migrated from Claude'
+config_file = 'agents/techlead.toml'
