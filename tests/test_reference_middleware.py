@@ -226,7 +226,6 @@ async def test_allowed_policy_preserves_request_and_response(caplog):
     ("gateway7.plugins.email_mask", {"replacement": 1}),
     ("gateway7.plugins.phone_mask", {"phase": "after"}),
     ("gateway7.plugins.phone_mask", {"replacement": "x" * 129}),
-    ("gateway7.plugins.content_policy", {"terms": ["SECRET-TEST"], "action": "explode"}),
     ("gateway7.plugins.content_policy", {"terms": []}),
     ("gateway7.plugins.content_policy", {"terms": [""]}),
     ("gateway7.plugins.content_policy", {"terms": [" "]}),

@@ -253,6 +253,9 @@ The supplied candidate observations and screenshots come from their linked opera
 
 ## Deviations
 
+[Task #192](https://github.com/iteam7/gateway7/issues/192) was opened through the GitHub API using the task form's sections and native Task type, rather than by submitting the web form.
+This form-route deviation does not waive the course requirement; the AI-assisted diagnostics work and its checks are disclosed in [AI usage](ai-usage.md).
+
 The Week 6 Customer Review was not held because the team had not prepared the demonstration, as azamatbayramov reported on 7 November.
 On 8 November, the contributor confirmed that the submission would proceed without a Customer Review before the deadline.
 There is no meeting transcript, Customer story verdict, threshold response or agreed Week 7 action to substitute for that missing Review.
@@ -264,7 +267,7 @@ The retrospective records that event and the confirmed actions; it does not mark
 No new runtime-QRT re-run is claimed.
 The source implementation and earlier evidence are retained with their actual scope; they do not satisfy the missing deployed or Customer-validation requirements.
 PR #198 merged with a reference to the unfinished deployment task rather than a closing preparation-task link; later task clarification does not retroactively satisfy the course's pre-merge closing-task rule.
-Tasks [#192](https://github.com/iteam7/gateway7/issues/192) and [#206](https://github.com/iteam7/gateway7/issues/206), [#207](https://github.com/iteam7/gateway7/issues/207) and [#208](https://github.com/iteam7/gateway7/issues/208) were opened through the API using the form's sections rather than the required Issue Form; the later preparation tasks received their native Task type through the UI.
+Preparation tasks [#206](https://github.com/iteam7/gateway7/issues/206), [#207](https://github.com/iteam7/gateway7/issues/207) and [#208](https://github.com/iteam7/gateway7/issues/208) were also opened through the API using the form's sections rather than the required Issue Form; their native Task type was applied through the UI.
 The completed post-merge field and checklist corrections remain process deviations and do not reconstruct the original pre-merge workflow.
 Declaring these gaps does not waive them, and this report claims no course-approved exception or complete Assignment 6 fulfillment.
 

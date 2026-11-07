@@ -11,6 +11,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - A staging analysability check for per-request log visibility and a five-minute P95 failure series, plus telemetry backend and dashboard setup instructions.
 - Optional OpenTelemetry export of one structured log record and one request-duration histogram observation per API request to an OpenObserve organization per environment, switched by `TELEMETRY_ENABLED`, with the SLI-01 and per-request log queries in the observability plan.
 
+### Fixed
+
+- Name the denying middleware in policy errors on both chat APIs and report bounded unsupported content-policy actions before startup.
+
 ## [0.3.0] - 2026-10-31
 
 ### Added

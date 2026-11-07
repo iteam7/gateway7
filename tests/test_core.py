@@ -279,6 +279,7 @@ def test_onion_order_and_provider_usage_are_preserved(monkeypatch):
     (ChatRequest.model_construct(messages=[]), "plugin_error"),
     (RuntimeError(SECRET), "plugin_error"),
     (GatewayError("provider_error"), "plugin_error"),
+    (GatewayError("policy_denied", middleware="spoofed-instance"), "plugin_error"),
     (TimeoutError(SECRET), "plugin_error"),
 ])
 def test_request_failure_never_reaches_provider(monkeypatch, caplog, failure, code):
@@ -292,6 +293,7 @@ def test_request_failure_never_reaches_provider(monkeypatch, caplog, failure, co
     with caplog.at_level("INFO", logger="gateway7"), pytest.raises(GatewayError) as error:
         asyncio.run(runner.run(payload(SECRET), "failure"))
     assert error.value.code == code and provider.calls == []
+    assert error.value.middleware == ("p" if code == "policy_denied" else None)
     assert SECRET not in caplog.text + str(error.value) + str(error.value.body("failure"))
 
 
@@ -314,8 +316,9 @@ def test_response_denial_stops_outer_response_processing(monkeypatch):
     second = module(monkeypatch, lambda _: Never(), "test_never_plugin")
     config = configuration({"deny": {"module": first}, "outer": {"module": second}}, ["outer", "deny"])
     provider = FakeProvider()
-    with pytest.raises(GatewayError, match="denied"):
+    with pytest.raises(GatewayError, match="denied") as error:
         asyncio.run(Pipeline(load_plugins(config), provider, config.limits).run(payload(), "response"))
+    assert error.value.middleware == "deny"
     assert len(provider.calls) == 1 and events == ["deny"]
 
 
