@@ -55,9 +55,14 @@ async def _close_provider_resource(resource: Any, timeout: float) -> None:
 
 
 def _error_response(
-    code: str, request_id: str, *, openai: bool = False, parameter: str | None = None
+    code: str,
+    request_id: str,
+    *,
+    openai: bool = False,
+    parameter: str | None = None,
+    middleware: object = None,
 ) -> JSONResponse:
-    error = GatewayError(code)
+    error = GatewayError(code, middleware=middleware)
     status = 400 if openai and code == "invalid_request" else error.status_code
     headers = {"WWW-Authenticate": "Bearer"} if error.status_code == 401 else None
     return JSONResponse(
@@ -506,7 +511,10 @@ def create_app(
     async def gateway_failure(request: Request, error: GatewayError) -> JSONResponse:
         request.state.error_code = error.code
         return _error_response(
-            error.code, request.state.request_id, openai=_openai_path(request.url.path)
+            error.code,
+            request.state.request_id,
+            openai=_openai_path(request.url.path),
+            middleware=error.middleware,
         )
 
     @app.exception_handler(StarletteHTTPException)

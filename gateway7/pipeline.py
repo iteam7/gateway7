@@ -290,7 +290,7 @@ class Pipeline:
                 if violation:
                     raise GatewayError("plugin_error")
                 if type(result) is Deny:
-                    raise GatewayError("policy_denied")
+                    raise GatewayError("policy_denied", middleware=plugin.name)
                 if not called or not completed:
                     raise GatewayError("plugin_error")
                 try:
