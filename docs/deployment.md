@@ -40,9 +40,10 @@ Deployment is a manual operator action, run from a terminal with access to the V
    ```
 
 3. Run the core-task check against staging from a campus machine using its deployed HTTP endpoint (a chat request plus `/health`); record the result.
-4. Run the deployed quality requirement test [QR-03 QRT-02](quality-requirements/qr/QR-03.md#qrt-02) against staging.
+4. Run the deployed quality requirement tests [QR-03 QRT-02](quality-requirements/qr/QR-03.md#qrt-02) and [QR-05 QRT-01](quality-requirements/qr/QR-05.md#qrt-01) against staging.
 5. Only once staging passes, check out the same commit in the production checkout directory and repeat the `docker compose up --build --detach --wait` for the `gateway7-production` project.
-6. Run the same core-task check against production over the campus network.
+6. Check production readiness and its selected configuration over the campus network, then verify the core task from real traffic.
+   With analytics enabled, keep synthetic requests and smoke tools on staging so production receives no test events.
 7. If any rework lands the same week, redeploy the updated commit to staging, reverify, then repeat the promotion to production before release.
 
 ## Verification
@@ -51,8 +52,8 @@ A deployment counts as verified once, for that environment:
 
 - `docker compose ps` shows the `gateway`, `prometheus` and `grafana` containers `healthy`.
 - `GET /health` on the gateway's published port returns `{"status":"ok"}`.
-- A chat request against the gateway's published port, with a valid client token, returns a successful completion.
-- For staging, [QR-03 QRT-02](quality-requirements/qr/QR-03.md#qrt-02) passes.
+- A chat request against the gateway's published port, with a valid client token, returns a successful completion; use a synthetic task on staging and real traffic in production when analytics is enabled.
+- For staging, [QR-03 QRT-02](quality-requirements/qr/QR-03.md#qrt-02) and [QR-05 QRT-01](quality-requirements/qr/QR-05.md#qrt-01) pass.
 
 ## Rollback
 
@@ -68,7 +69,83 @@ Staging is never the rollback target for production; it always moves independent
 
 ## Telemetry pipelines
 
-The gateway pushes the observability signals described in the [observability plan](observability.md) when collection is enabled; collection stays off on a developer's machine and in CI.
+The [analytics plan](analytics.md) owns product events and metric queries; the [observability plan](observability.md) owns operational signals and SLI queries.
+Both exporters are optional and off by default.
+The following is a deployment runbook, not evidence that the telemetry backends or dashboards have been deployed.
+A completed deployment records its commit, verification output and sanitized dashboard screenshots in the current week's report.
+
+### Prepare the backends
+
+Run one backend instance of each kind, with separate `staging` and `production` scopes and credentials.
+The backends stay outside the product boundary: Gateway7 must keep serving when either is unavailable.
+Keep their listeners and query access on the university network; use a campus reverse proxy or SSH forwarding for the loopback defaults.
+
+**OpenPanel:** use the public 2.x [upstream setup](https://openpanel.dev/docs/self-hosting/v2/get-started), in a separate directory outside the Gateway7 repository:
+
+```sh
+git clone --branch self-hosting https://github.com/Openpanel-dev/openpanel.git gateway7-openpanel
+cd gateway7-openpanel
+git checkout cd24bb838301df1a9087e2e132b344e5b8a99963
+cd self-hosting
+umask 077
+./setup
+docker compose -p gateway7-openpanel config --quiet
+docker compose -p gateway7-openpanel up --detach --wait
+```
+
+Use an installed Docker/Node toolchain, the campus-only backend address, and one worker in the setup prompts.
+Restrict the generated proxy listener to campus access before starting it.
+The pinned setup includes its database migrations and storage services; keep its generated `.env` and credentials outside the product checkout.
+The upstream application's `:2` image tags can move: before deployment, record the pulled image digests privately and pin those digests in the generated Compose file for repeatable restarts.
+Create two projects named `staging` and `production`, with a different write client and read client in each.
+Retain events for at least seven days and use UTC for both projects.
+
+**OpenObserve:** supply `OPENOBSERVE_ROOT_USER_EMAIL` and `OPENOBSERVE_ROOT_USER_PASSWORD` through the operator's private environment, then run from the Gateway7 checkout:
+
+```sh
+docker compose -p gateway7-telemetry -f compose.telemetry.yaml config --quiet
+docker compose -p gateway7-telemetry -f compose.telemetry.yaml up --detach --wait
+```
+
+The standalone [backend definition](https://github.com/iteam7/gateway7/blob/177-analytics-core-events/compose.telemetry.yaml) pins OpenObserve `v1.1.2`, stores its data in a named volume and retains it for seven days.
+Verify `/healthz` before configuring ingestion; Compose's running state alone is not readiness.
+In the OpenObserve UI, create the `staging` and `production` organizations, with separate ingestion users/tokens and separate read-only query users.
+Use bootstrap administrator credentials only to configure the service, not in either gateway.
+Record the deployed image digest, backend access and both scopes' credentials privately.
+Do not run `down --volumes` on either backend when changing a gateway version.
+
+### Analytics pipeline
+
+Each gateway receives its own OpenPanel write client through the live Compose file:
+
+| Variable | Staging | Production |
+| --- | --- | --- |
+| `ANALYTICS_ENABLED` | `true` | `true` |
+| `GATEWAY7_ENVIRONMENT` | `staging` | `production` |
+| `ANALYTICS_SOURCE` | `web`; temporarily `smoke` for the pipeline check | `web` |
+| `OPENPANEL_API_URL` | Self-hosted API base, including `/api` when behind the upstream proxy | Same backend API base |
+| `OPENPANEL_CLIENT_ID` and `OPENPANEL_CLIENT_SECRET` | Staging project's write client | Production project's different write client |
+
+The exporter appends `/track` to the API base and sends only the plan's typed event properties.
+It forwards no client IP address or user agent.
+Set `ANALYTICS_ENABLED=false` and restart the gateway to stop collection.
+The source belongs to server configuration; callers cannot turn their requests into smoke traffic with a header.
+Production refuses any source other than `web`.
+
+After supplying the private staging credentials above, run the pipeline check only against the staging endpoint in `STAGING_URL`:
+
+```sh
+GATEWAY7_ENVIRONMENT=staging ANALYTICS_ENABLED=true ANALYTICS_SOURCE=smoke \
+  docker compose -p gateway7-staging up --build --detach --wait
+curl --include --silent --show-error --request POST "$STAGING_URL/chat" \
+  --header 'Content-Type: application/json' --data '{}'
+GATEWAY7_ENVIRONMENT=staging ANALYTICS_ENABLED=true ANALYTICS_SOURCE=web \
+  docker compose -p gateway7-staging up --detach --wait
+```
+
+The unauthenticated synthetic request must return `401`; it makes no provider call.
+Find its response request identifier in the raw-events view: both `chat_started` and `chat_completed` must carry `source=smoke` and stay out of the default metric chart.
+Restore staging's source before accepting ordinary traffic; never send synthetic traffic to production to fill an empty chart.
 
 ### Observability pipeline
 
@@ -90,3 +167,44 @@ With `TELEMETRY_ENABLED=true`, the gateway refuses to start until `GATEWAY7_ENVI
 The query API used by the diagnosability check is the same organization's OpenObserve address: `_search` for the log query and `prometheus/api/v1/query` for the SLI query.
 The OpenObserve address, the ingestion and query credentials and the dashboard addresses are private-only: they are installed on the VM and recorded in the private submission, never in this repository.
 When the backend is unreachable, requests are served unchanged and the exporter writes a retry warning naming the backend host and signal path to the gateway's own log; it never writes the credential header.
+
+### Connect containers and create the four dashboards
+
+If the gateway runs in Compose, append `compose.telemetry-client.yaml` to its private `COMPOSE_FILE` value, after `compose.live.yaml`.
+This preserves each gateway project's normal network and adds the backend network `gateway7-telemetry_default`.
+Its OTLP endpoint can then use `http://openobserve:5080/api/staging` or `/api/production` respectively; container-local `127.0.0.1` would point at the gateway itself.
+Configure the OpenPanel API base to an address reachable from the gateway container too.
+Apply changes with `docker compose -p gateway7-staging up --build --detach --wait`, and later the corresponding production command after staging verification.
+
+| Backend and scope | Dashboard | Chart configuration |
+| --- | --- | --- |
+| OpenPanel `staging` | `Gateway7 tasks (staging)` | `Task completion rate`: count `chat_completed` with `outcome=ok` as A, count `chat_started` as B, formula `A/B`, aggregate over the last seven days; exclude `source=smoke` on **both** event series |
+| OpenPanel `production` | `Gateway7 tasks (production)` | The same saved report and filters, using only the production project |
+| OpenObserve `staging` | `Gateway7 SLI (staging)` | Import the SLI-01 template into this organization |
+| OpenObserve `production` | `Gateway7 SLI (production)` | Import the identical template into this organization, without injecting test traffic |
+
+In each OpenPanel project's dashboard editor, create a metric report with the two event-count series and the formula above, UTC and `Last 7 days`.
+Display the ratio of the whole period's totals as a fraction, not an average of daily ratios or a percentage.
+Keep a zero denominator as no data, and do not relabel an empty chart as a measured zero.
+The exact metric definitions and source filters remain in the [analytics plan](analytics.md#the-value-and-the-metrics).
+Keep the staging project's raw-events view visible next to its chart when demonstrating the smoke exclusion.
+
+In each OpenObserve organization, use **Dashboards → Import** with the address-free [SLI-01 template](https://github.com/iteam7/gateway7/blob/177-analytics-core-events/monitoring/openobserve/gateway7-sli-dashboard.json), then name the dashboard as above.
+The template uses the OpenObserve v5 dashboard schema and the exact [SLI-01 query](observability.md#sli-01); the organization, not a chart label, selects the environment's data.
+Importing needs dashboard-edit permission; the read-only QRT query credential is not an import credential.
+When the query changes, import the updated definition into both scopes and remove the older dashboard copies after verifying the replacements.
+For [QR-05 QRT-01](quality-requirements/qr/QR-05.md#qrt-01), privately supply `STAGING_URL`, `GATEWAY7_CLIENT_TOKEN`, `OPENOBSERVE_URL`, `OPENOBSERVE_USER` and `OPENOBSERVE_TOKEN`, confirm that both target endpoints belong to staging, and set `DEPLOYED_COMMIT` to the full commit checked out there.
+Then run:
+
+```sh
+GATEWAY7_ENVIRONMENT=staging ANALYTICS_ENABLED=true ANALYTICS_SOURCE=smoke \
+  docker compose -p gateway7-staging up --detach --wait
+python3 scripts/check_sli.py --org staging --confirm-staging --commit "$DEPLOYED_COMMIT"
+GATEWAY7_ENVIRONMENT=staging ANALYTICS_ENABLED=true ANALYTICS_SOURCE=web \
+  docker compose -p gateway7-staging up --detach --wait
+```
+
+The check deliberately requests a forbidden model and must return `403 model_forbidden` without calling a provider.
+Inspect its returned failure series in the staging chart.
+Save four sanitized screenshots from the actual dashboards, with their metric or SLI names and environment scopes; keep addresses, access credentials and query credentials in the private submission.
+A successful local protocol test or a checked-in template does not establish a deployed QRT pass or a working dashboard.

@@ -26,7 +26,7 @@ The log record also carries the HTTP `status` and the gateway's fixed `error_cod
 
 An SLI is a quality signal the gateway emits and the observability pipeline records.
 Its target is the `Response Measure` of the quality requirement whose test reads it; the SLI only records the measured signal.
-SLI-01 is the one this sprint demonstrates.
+SLI-01 is instrumented; [QR-05 QRT-01](quality-requirements/qr/QR-05.md#qrt-01) demonstrates it against the staging organization when an operator runs the deployed check.
 
 ### SLI-01
 
@@ -43,7 +43,7 @@ API request duration by route and outcome.
 The query selects the two chat routes, which carry the core task.
 Each exported histogram point holds only the observations made since the previous export, so the query sums the points in the five-minute window instead of taking a `rate`; a series created by its first request therefore has a P95 at once.
 
-The per-request log query, which the diagnosability test runs against the environment's organization, selects the record by its identifier:
+The per-request log query, which [QR-05 QRT-01](quality-requirements/qr/QR-05.md#qrt-01) runs against the staging organization, selects the record by its identifier:
 
 ```sql
 SELECT request_id, route, outcome, status, error_code, duration_ms
@@ -56,26 +56,30 @@ The request identifier is the `X-Request-ID` response header, and the error body
 ## The Pipeline
 
 The `gateway` container exports both signals itself with the OpenTelemetry SDK over OTLP/HTTP; no collector or other container is added.
-The log processor batches every 1 second and the metric reader exports every 10 seconds, which keeps the log point within the five-second and the histogram point within the one-minute bound of [SLI-01](#sli-01).
+The log processor batches every 1 second and the metric reader exports every 10 seconds, chosen to support the five-second log and one-minute histogram bound of [SLI-01](#sli-01).
+The deployed QRT measures the actual query availability; export intervals alone do not prove those bounds.
 Both intervals can be changed with `OTEL_BLRP_SCHEDULE_DELAY` and `OTEL_METRIC_EXPORT_INTERVAL`, in milliseconds.
 
-One OpenObserve instance on the university VM carries two organizations, `staging` and `production`, and each environment's gateway points at its own organization through its OTLP endpoint and its own credential.
+The deployment design uses one OpenObserve instance on the university VM with two organizations, `staging` and `production`; configure each environment's gateway with its own organization endpoint and credential.
 The staging organization receives the test traffic; the production organization's dashboard runs the same query and is not exercised with test traffic.
 Each exported point also carries the resource attribute `deployment.environment.name`, which the gateway sets from `GATEWAY7_ENVIRONMENT`.
 The backend's retention must cover at least seven days, which covers the five-minute window and the per-request log point the test reads.
 The backend, its dashboards and its query API are reachable from the university network only, and their addresses and credentials are in the private submission.
 
-The gateway's configuration for the pipeline is in [the deployment guide](deployment.md#telemetry-pipelines); `.env.example` carries its shape, and the credentials are installed on the VM.
+The gateway's configuration for the pipeline is in [the deployment guide](deployment.md#telemetry-pipelines); `.env.example` carries its shape, and the operator installs the credentials on the VM.
 
 ## The Dashboard
 
-Each organization has its own dashboard with one chart, `SLI-01 API request P95 by outcome`, which runs the [SLI-01](#sli-01) query.
+Configure each organization's dashboard with one chart, `SLI-01 API request P95 by outcome`, which runs the [SLI-01](#sli-01) query.
 The page names the dashboards rather than linking them, because their addresses are private.
 
 | Dashboard | Organization | What it runs |
 | --- | --- | --- |
 | `Gateway7 SLI (staging)` | `staging` | The SLI-01 query over the staging test traffic |
 | `Gateway7 SLI (production)` | `production` | The same query over production traffic only |
+
+Import both dashboards from the tracked definition `monitoring/openobserve/gateway7-sli-dashboard.json`, which carries no address or credential.
+Its chart runs the SLI-01 query above and draws one line per route and outcome, so a failure is its own series; a test checks that the definition, this page and the diagnosability check carry the same query, and a change to the query updates all three in one pull request.
 
 ## Collected Data
 

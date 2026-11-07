@@ -1,0 +1,28 @@
+# Run once, independently of the staging and production gateway projects.
+# Supply bootstrap credentials from the operator's private environment.
+name: gateway7-telemetry
+services:
+  openobserve:
+    image: openobserve/openobserve:v1.1.2
+    init: true
+    restart: unless-stopped
+    environment:
+      ZO_DATA_DIR: /data
+      ZO_ROOT_USER_EMAIL: ${OPENOBSERVE_ROOT_USER_EMAIL:?Set the private bootstrap email}
+      ZO_ROOT_USER_PASSWORD: ${OPENOBSERVE_ROOT_USER_PASSWORD:?Set the private bootstrap password}
+      ZO_COMPACT_DATA_RETENTION_DAYS: "7"
+    ports:
+      - "127.0.0.1:5080:5080"
+    volumes:
+      - openobserve-data:/data
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 2g
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+volumes:
+  openobserve-data:

@@ -16,6 +16,7 @@ from starlette.responses import JSONResponse, Response
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.types import ASGIApp, Message as ASGIMessage, Receive, Scope, Send
 
+from gateway7.analytics import Analytics
 from gateway7.config import GatewayConfig, load_config, provider_key
 from gateway7.auth import AccessControl
 from gateway7.errors import GatewayError, StartupError
@@ -85,6 +86,8 @@ class GatewayBoundaryMiddleware:
         started = time.monotonic()
         scope.setdefault("state", {})["request_id"] = request_id
         response_started = False
+        response_completed = False
+        analytics_status: int | None = None
         status_code = 500
         error_code: str | None = None
         metrics = self.owner.state.metrics
@@ -96,10 +99,12 @@ class GatewayBoundaryMiddleware:
             "/v1/chat/completions": "openai_chat",
             "/v1/models": "models",
         }.get(scope.get("path", ""), "other")
+        analytics = self.owner.state.analytics
+        analytics.started(request_id=request_id, route=route)
         metrics.http_in_flight.inc()
 
         async def safe_send(message: ASGIMessage) -> None:
-            nonlocal response_started, status_code
+            nonlocal response_started, response_completed, status_code
             if message["type"] == "http.response.start":
                 response_started = True
                 status_code = message["status"]
@@ -111,6 +116,8 @@ class GatewayBoundaryMiddleware:
                     ],
                 }
             await send(message)
+            if message["type"] == "http.response.body" and not message.get("more_body", False):
+                response_completed = True
 
         async def fail(code: str) -> None:
             nonlocal error_code
@@ -177,12 +184,15 @@ class GatewayBoundaryMiddleware:
 
             await self.app(scope, replay_receive, safe_send)
         except asyncio.CancelledError:
+            analytics_status = 499
             status_code = 499
             raise
         except TimeoutError:
+            analytics_status = 504
             if not response_started:
                 await fail("timeout")
         except Exception:
+            analytics_status = 500
             # Framework exceptions and invalid JSON never become traceback,
             # request-body, or provider details in responses or gateway logs.
             if not response_started:
@@ -201,6 +211,12 @@ class GatewayBoundaryMiddleware:
                 request_id,
                 status_code,
                 duration * 1000,
+            )
+            analytics.completed(
+                request_id=request_id,
+                route=route,
+                status=analytics_status or (status_code if response_completed else 499),
+                duration_ms=duration * 1000,
             )
             telemetry = getattr(self.owner.state, "telemetry", None)
             if telemetry is not None:
@@ -328,6 +344,7 @@ def create_app(
     *,
     config: GatewayConfig | None = None,
     telemetry: Telemetry | None = None,
+    analytics: Analytics | None = None,
 ) -> FastAPI:
     path = (
         config_path
@@ -339,13 +356,21 @@ def create_app(
     async def lifespan(app: FastAPI):
         active_telemetry = telemetry if telemetry is not None else Telemetry.from_environment()
         app.state.telemetry = active_telemetry
+        active_analytics = Analytics.disabled()
         try:
+            active_analytics = analytics if analytics is not None else Analytics.from_environment()
+            await active_analytics.start()
+            app.state.analytics = active_analytics
             async with gateway_lifespan(app):
                 yield
         finally:
-            app.state.telemetry = Telemetry.disabled()
-            # Flushing performs blocking HTTP export with its own timeout.
-            await asyncio.to_thread(active_telemetry.shutdown)
+            app.state.analytics = Analytics.disabled()
+            try:
+                await active_analytics.shutdown()
+            finally:
+                app.state.telemetry = Telemetry.disabled()
+                # Flushing performs blocking HTTP export with its own timeout.
+                await asyncio.to_thread(active_telemetry.shutdown)
 
     @asynccontextmanager
     async def gateway_lifespan(app: FastAPI):
@@ -421,6 +446,7 @@ def create_app(
     app.state.metrics = Metrics()
     app.state.admission = _PipelineAdmission(app.state.metrics)
     app.state.telemetry = Telemetry.disabled()
+    app.state.analytics = Analytics.disabled()
     app.add_middleware(GatewayBoundaryMiddleware, owner=app)
 
     @app.exception_handler(RequestValidationError)
