@@ -204,3 +204,6 @@ No private-only material was committed to this repository.
 ## Release readiness after the checkpoint
 
 The [release readiness checkpoint](release-readiness.md) records the candidate evidence and open release dependencies.
+## Analytics deployment after the checkpoint
+
+The deployment runbook records the separate analytics backend and the remaining verification.
