@@ -200,3 +200,8 @@ Declaring these gaps does not waive them, and this report claims no course-appro
 ## Privacy
 
 No private-only material was committed to this repository.
+
+## Staging analytics dashboard evidence
+
+The following evidence was captured after the earlier checkpoint; the checkpoint tables retain their original status until the remaining submission work is integrated.
+See [staging analytics dashboard evidence](analytics-staging.md) for its scope and limitations.
