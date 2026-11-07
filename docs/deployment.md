@@ -33,15 +33,30 @@ The actual VM hostname/address, its login credentials, and any deployed provider
 Deployment is a manual operator action, run from a terminal with access to the VM; it is intentionally outside the product CI (`.github/workflows/`), per the course deployment rules.
 
 1. Identify the candidate commit (normally the tip of `main` after its checks pass).
-2. On the VM, in the staging checkout directory, fetch and check out that commit, then run:
+2. On the VM, in the staging checkout directory, fetch and check out that commit.
+   Build from clean tracked sources, with private configuration supplied separately, then recreate the selected stack and verify the running image's revision:
 
-   ```sh
-   docker compose -p gateway7-staging up --build --detach --wait
+   ```bash
+   set -euo pipefail
+   test -z "$(git status --porcelain)"
+   DEPLOYED_COMMIT=$(git rev-parse HEAD)
+   image=$(docker compose -p gateway7-staging config --format json |
+     python3 -c 'import json, sys; print(json.load(sys.stdin)["services"]["gateway"]["image"])')
+   docker build --pull --no-cache \
+     --label "org.opencontainers.image.revision=$DEPLOYED_COMMIT" \
+     --tag "$image" .
+   docker compose -p gateway7-staging up --no-build --force-recreate --detach --wait
+   container=$(docker compose -p gateway7-staging ps -q gateway)
+   running_image=$(docker inspect --format '{{.Image}}' "$container")
+   test "$running_image" = "$(docker image inspect --format '{{.Id}}' "$image")"
+   test "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$running_image")" = "$DEPLOYED_COMMIT"
+   printf 'Verified deployment: %s\nImage: %s\n' "$DEPLOYED_COMMIT" "$running_image"
    ```
 
+   Keep `DEPLOYED_COMMIT` and the running image ID with the verification result; a checkout's `HEAD` alone does not identify an already running container.
 3. Run the core-task check against staging from a campus machine using its deployed HTTP endpoint (a chat request plus `/health`); record the result.
 4. Run the deployed quality requirement tests [QR-03 QRT-02](quality-requirements/qr/QR-03.md#qrt-02) and [QR-05 QRT-01](quality-requirements/qr/QR-05.md#qrt-01) against staging.
-5. Only once staging passes, check out the same commit in the production checkout directory and repeat the `docker compose up --build --detach --wait` for the `gateway7-production` project.
+5. Only once staging passes, check out the same commit in the production checkout directory and repeat the build, recreation and image-revision verification above with the `gateway7-production` project; keep production's analytics source `web`.
 6. Check production readiness and its selected configuration over the campus network, then verify the core task from real traffic.
    With analytics enabled, keep synthetic requests and smoke tools on staging so production receives no test events.
 7. If any rework lands the same week, redeploy the updated commit to staging, reverify, then repeat the promotion to production before release.
@@ -193,17 +208,35 @@ In each OpenObserve organization, use **Dashboards → Import** with the address
 The template uses the OpenObserve v5 dashboard schema and the exact [SLI-01 query](observability.md#sli-01); the organization, not a chart label, selects the environment's data.
 Importing needs dashboard-edit permission; the read-only QRT query credential is not an import credential.
 When the query changes, import the updated definition into both scopes and remove the older dashboard copies after verifying the replacements.
-For [QR-05 QRT-01](quality-requirements/qr/QR-05.md#qrt-01), privately supply `STAGING_URL`, `GATEWAY7_CLIENT_TOKEN`, `OPENOBSERVE_URL`, `OPENOBSERVE_USER` and `OPENOBSERVE_TOKEN`, confirm that both target endpoints belong to staging, and set `DEPLOYED_COMMIT` to the full commit checked out there.
-Then run:
+For [QR-05 QRT-01](quality-requirements/qr/QR-05.md#qrt-01), confirm that both target endpoints belong to staging and retain the verified `DEPLOYED_COMMIT` from the manual deployment above.
+The checker reads its process environment; Compose reading `.env`, or variables assigned only before a Compose command, do not export values to it.
+In Bash, the following keeps existing private shell values, prompts without echoing for any missing values, and restores normal staging event collection even if the check fails:
 
-```sh
-GATEWAY7_ENVIRONMENT=staging ANALYTICS_ENABLED=true ANALYTICS_SOURCE=smoke \
-  docker compose -p gateway7-staging up --detach --wait
-python3 scripts/check_sli.py --org staging --confirm-staging --commit "$DEPLOYED_COMMIT"
-GATEWAY7_ENVIRONMENT=staging ANALYTICS_ENABLED=true ANALYTICS_SOURCE=web \
-  docker compose -p gateway7-staging up --detach --wait
+```bash
+(
+  set -euo pipefail
+  : "${DEPLOYED_COMMIT:?Verify the staging deployment revision first}"
+  export GATEWAY7_ENVIRONMENT=staging
+  for variable in STAGING_URL GATEWAY7_CLIENT_TOKEN OPENOBSERVE_URL OPENOBSERVE_USER OPENOBSERVE_TOKEN; do
+    if [[ -z ${!variable-} ]]; then
+      read -r -s -p "$variable: " "$variable"
+      printf '\n'
+    fi
+    export "$variable"
+  done
+  restore_staging_source() {
+    ANALYTICS_SOURCE=web docker compose -p gateway7-staging up --no-build --detach --wait gateway
+  }
+  trap 'restore_staging_source || exit 1' EXIT
+  ANALYTICS_SOURCE=smoke docker compose -p gateway7-staging up --no-build --detach --wait gateway
+  uv run --locked python scripts/check_sli.py --org staging --confirm-staging --commit "$DEPLOYED_COMMIT" |
+    tee /tmp/gateway7-qr05-staging-result.txt
+)
 ```
 
+This preserves the environment's analytics-enabled setting; when collection is enabled, smoke events stay out of the normal metrics.
+Check that the restore command succeeds before accepting ordinary staging traffic.
+Keep the plain-text result with the verified commit and image ID; the checker prints a JSON result line followed by a verdict, not a standalone JSON file.
 The check deliberately requests a forbidden model and must return `403 model_forbidden` without calling a provider.
 Inspect its returned failure series in the staging chart.
 Save four sanitized screenshots from the actual dashboards, with their metric or SLI names and environment scopes; keep addresses, access credentials and query credentials in the private submission.

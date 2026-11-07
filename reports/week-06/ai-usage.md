@@ -40,6 +40,29 @@ No runtime source changed during this documentation integration.
 
 TODO: the team records which generated output it accepted, changed or rejected and why after its own review.
 
+## Threshold review and Customer Review preparation
+
+Codex used the GitHub connector and separate Formater, executing and reviewing agents to prepare [task #187](https://github.com/iteam7/gateway7/issues/187) and the evidence-ready parts of [task #188](https://github.com/iteam7/gateway7/issues/188).
+The work compared the four existing threshold measures with dated repository records, preserved the original deadlines and unadopted proposals, and used the recorded plugin-installation run and DEC-020 contributor confirmation for the two supported outcomes.
+It first drafted the four-dashboard readiness map and a live meeting script with explicit per-story verdict questions, Week 5 follow-ups and a request for actual Week 7 actions.
+The representative approved that outline on 5 November and clarified the planned meeting date on 6 November.
+That approval concerned preparation, not a meeting outcome or agreement on its proposed follow-ups.
+The ongoing task removed a prematurely drafted meeting report and retained the distinction between source evidence and Customer validation.
+
+On 7 November the representative reported that no Review had taken place because the demonstration was not ready.
+Codex used that correction to record the unfulfilled Review and its exact reason, preserve the unused live script byte for byte, and prepare the canonical script for a proposed written exchange.
+The written script was not sent and supplies no Customer response or completed Review.
+The weekly report now maps actual merged evidence and the outstanding Assignment 6 requirements to their owner issues, rather than treating an issue, a source-level CI pass or a planned dashboard as proof of deployment.
+After the representative reported PR #196 merged, Codex refreshed the readiness and coverage index against main `22ecc152f57ad096cd942050cd46d6d3457fb93d`, including its analytics plan and events, FR-015, proposed ADR-006/007, feature entries, external-backend container view, canonical QR-05/QRT script and dashboard definition.
+The update links the six successful main-branch workflows and merged task-closing PR #196, while retaining the missing backend-computed metric, four dashboard screenshots and actual staging QRT result.
+It also corrects the operator example so the QRT receives process environment variables and staging smoke mode is restored on exit.
+No staging availability, deployed QRT or analytics value is inferred from the source or CI.
+The only project-plan change aligns SPRINT-06 Due with the course's 8 November deadline; no commitment, velocity or release record is reconstructed.
+
+No attendance, permission answer, dashboard demonstration, measured QRT result, Customer decision, story verdict, agreed Week 7 action or team-wide assessment was inferred from generated preparation or the representative's outline approval.
+A factual meeting report will be written only after an actual Review, using its real exchange and outcomes.
+The existing assessment above belongs to the separate guarded-harness work and is not filled by inference from this preparation task.
+
 ## Observability signals and the active SLI
 
 Claude Code (a cloud session started from the project chat) prepared [task #181](https://github.com/iteam7/gateway7/issues/181) at DeniBorsh's request.
