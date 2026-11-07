@@ -3,18 +3,19 @@
 ## Scope and findings
 
 Gateway7 is Team 7's modular LLM gateway with configurable company policy plugins.
-This report indexes the implementation at [main checkpoint `5240469925738f9e843c4d42c361e2430acc741e`](https://github.com/iteam7/gateway7/tree/5240469925738f9e843c4d42c361e2430acc741e), the prepared operator evidence from 7 November, the completed threshold review in [task #187](https://github.com/iteam7/gateway7/issues/187), and the unfulfilled Customer Review in [task #188](https://github.com/iteam7/gateway7/issues/188).
-The immutable evidence links below identify the original captures even while the remaining evidence pull requests are reviewed; the source checkpoint is not a claim that the final release or submission is complete.
+This report indexes the implementation at [main checkpoint `529ee3529cdf5dec51bb948740e2ed1282261f46`](https://github.com/iteam7/gateway7/tree/529ee3529cdf5dec51bb948740e2ed1282261f46), the operator evidence from 7 November, the completed threshold review in [task #187](https://github.com/iteam7/gateway7/issues/187), and the unfulfilled Customer Review in [task #188](https://github.com/iteam7/gateway7/issues/188).
+The immutable evidence links identify the original captures, whose artifacts are now integrated on main; this checkpoint does not claim that the final release or submission is complete.
 On 7 November 2026, azamatbayramov reported that the team had not held its Week 6 Customer Review because the demonstration was not ready.
 This is a team-preparation shortfall, not a claim that Customer was unavailable or refused a meeting or recording.
 The earlier outline approval concerned a plan; it supplies no meeting outcome, Customer verdict, permission answer or agreed action.
 The [archived live script](live-review-script.md) preserves the unused preparation byte for byte from [the 6 November version](https://github.com/iteam7/gateway7/blob/2b81c3c21e8052066f124ac158c56181fef4d18a/reports/week-06/meeting-script.md).
-The canonical [meeting script](meeting-script.md) now prepares a possible written asynchronous exchange.
+The canonical [meeting script](meeting-script.md) was prepared for a possible written asynchronous exchange and remains unused.
 Neither script is evidence that a Review occurred.
+On 8 November, azamatbayramov confirmed that no Customer Review would take place before the assignment deadline and approved the [team retrospective](sprint-retrospective.md).
 
 ## Customer Review not held
 
-No live or asynchronous Week 6 Customer Review is established at this checkpoint.
+No live or asynchronous Week 6 Customer Review was held, and the contributor confirmed on 8 November that none would take place before the assignment deadline.
 Consequently, meeting date, duration, attendees and per-meeting permission answers are not applicable to a completed Review; no recording or transcript of such a Review is available for this submission record.
 There is no Customer acceptance of US-14 or US-15, no new Customer threshold decision, and no Customer-agreed Week 7 action to report.
 The proposed analytics check by iceberkut on 10 November and the proposed blocking-plugin investigation by DeniBorsh on 12 November remain proposals, not agreed commitments.
@@ -22,7 +23,8 @@ No canonical `meeting-report.md` is created for this non-event.
 
 The [course permits a written asynchronous Review](https://github.com/inno-itpd/itpd/blob/c2e737f7a16221e9fcdaf4234b045baca9cd0c6e/requirements/customer-meetings-requirements.md#every-meeting) when a live meeting is impossible.
 Its timestamped exchange with Customer is the transcript; the substitution must be declared as a deviation.
-The prepared packet is an option for the team to arrange with Customer, not an assertion that an exchange happened or that incomplete demo preparation excuses the missing Review.
+The packet is retained as unused preparation; it will not supply a written Review for this submission.
+The decision to submit without that Review does not satisfy or waive the missing validation requirement.
 Task #188 remains open until an actual Review and its required outcomes are evidenced.
 
 The hard submission deadline remains **8 November 2026, 23:59**, with no soft deadline.
@@ -37,7 +39,7 @@ The [analytics plan](../../docs/analytics.md) defines the focus metric, successf
 Merged [PR #196](https://github.com/iteam7/gateway7/pull/196) closed [task #177](https://github.com/iteam7/gateway7/issues/177) for its source-level criteria and brought typed start/completion events, the optional OpenPanel exporter and FR-015 onto main.
 It preserved the team's QR-05, canonical QRT script and dashboard definition from [PR #194](https://github.com/iteam7/gateway7/pull/194) and [PR #195](https://github.com/iteam7/gateway7/pull/195), with the telemetry runbook, proposed ADR-006/007, feature entries and external-backend container view.
 [PR #193](https://github.com/iteam7/gateway7/pull/193) supplies OTLP request-duration histogram and structured-log export, FR-014 and Active SLI-01.
-The six source-check workflows linked below passed on the inspected main revision; they are not deployment measurements.
+The source-check workflows linked below passed on their recorded main checkpoint; they are not deployment measurements.
 
 The operator's [analytics deployment record](https://github.com/iteam7/gateway7/blob/1a4b47e3e88879f45c0bf689989c39d08fcfa0d5/docs/deployment.md#prepare-the-backends) reports a university-VM OpenPanel stack, separate projects and staging smoke delivery from an isolated candidate.
 The [staging analytics check](https://github.com/iteam7/gateway7/blob/5e6f9318f5ba804516da3832000067635defc170/reports/week-06/analytics-staging.md) records two `chat_started` events when unfiltered and no series after applying the smoke exclusion.
@@ -100,8 +102,8 @@ Backend, dashboard and query addresses, credentials and the private CA handoff b
 | New analysability QR and QRT | [QR-05](../../docs/quality-requirements/qr/QR-05.md#qrt-01), [candidate record](https://github.com/iteam7/gateway7/blob/f2422900384c78606bcfffa4c730b9e6441b25a8/reports/week-06/qrt-05-preview.md), [#185](https://github.com/iteam7/gateway7/issues/185) | Candidate PASS is recorded at the asserted revision. The complete matching log-query/request-ID evidence and a verified regular-staging run are still needed before changing its testing-plan row. |
 | Four sanitized dashboard captures | [Dashboard evidence](#dashboard-and-candidate-evidence) | All four prepared views are linked by immutable source commit, with an additional staging smoke-detail capture. Their scopes and empty-chart limitations are stated below. |
 | Customer Review and threshold response | [#188](https://github.com/iteam7/gateway7/issues/188), [no-Review record](#customer-review-not-held) | No live or written Week 6 Review, new Customer DEC, story verdict or agreed Week 7 action is established. |
-| Retrospective and completed scope | [#190](https://github.com/iteam7/gateway7/issues/190) | No actual Week 6 team retrospective or Actual Velocity is supplied; current estimates do not reconstruct either. |
-| REL-06 | [Readiness record](https://github.com/iteam7/gateway7/blob/117895df817e44c2d53e27f130eee6652bd8390b/reports/week-06/release-readiness.md), [#189](https://github.com/iteam7/gateway7/issues/189) | This is preparation, not a release. Provider access, final promotion and checks, Customer Review, release notes and the protected final tag remain outstanding. |
+| Retrospective and completed scope | [Team retrospective](sprint-retrospective.md), [#190](https://github.com/iteam7/gateway7/issues/190) | The contributor confirmed the held retrospective, its observations and four carried actions on 8 November. Formal closeout and Actual Velocity remain pending; the current estimates are not velocity. |
+| REL-06 | [Readiness record](release-readiness.md), [#189](https://github.com/iteam7/gateway7/issues/189) | This is preparation, not a release. Provider access, final promotion and checks, Customer Review, release notes and the protected final tag remain outstanding. |
 | Private PDF and repository ZIP | [#189](https://github.com/iteam7/gateway7/issues/189) | The final merged-main revision, full private access handoff and matching Week 6 PDF/ZIP are not complete; no Moodle upload is claimed. |
 | Optional runtime-QRT re-run | [Testing plan](../../docs/project-plan.md#quality-requirement-testing-plan) | No optional new run is claimed. Earlier Week 5 results retain their recorded revision, sprint and level. |
 
@@ -168,7 +170,7 @@ The [script](meeting-script.md) includes the proposed blocking-plugin follow-up;
 ## Coverage
 
 This table follows the Assignment 6 report's required coverage order.
-Maintained artifacts use repository-relative paths; the prepared runtime records use immutable original source commits so the links remain inspectable before every evidence branch is merged.
+Maintained artifacts use repository-relative paths; the integrated runtime records retain immutable original source links and their original capture times and environment limits.
 The [readiness table](#review-readiness) distinguishes source, candidate evidence and incomplete regular deployment.
 
 | Deliverable | Artifact |
@@ -190,8 +192,8 @@ The [readiness table](#review-readiness) distinguishes source, candidate evidenc
 | Meeting script | [Proposed written script](meeting-script.md) and [unused live archive](live-review-script.md). Neither supplies a Customer response or completed Review. |
 | Meeting transcript | Not available: no live or written Week 6 Review is established; `reports/week-06/meeting-transcript.md` is absent. |
 | Customer validation | [No-Review record](#customer-review-not-held). No Week 6 Customer verdict, threshold DEC or agreed Week 7 actions are invented. |
-| REL-06 | [docs/project-plan.md#rel-06](../../docs/project-plan.md#rel-06) and the [release-readiness record](https://github.com/iteam7/gateway7/blob/117895df817e44c2d53e27f130eee6652bd8390b/reports/week-06/release-readiness.md). No final production tag or completed release is claimed. |
-| Sprint retrospective | `reports/week-06/sprint-retrospective.md` is not supplied; [#190](https://github.com/iteam7/gateway7/issues/190) still needs the team's actual retrospective and contribution record. |
+| REL-06 | [docs/project-plan.md#rel-06](../../docs/project-plan.md#rel-06) and the [release-readiness record](release-readiness.md). No final production tag or completed release is claimed. |
+| Sprint retrospective | [reports/week-06/sprint-retrospective.md](sprint-retrospective.md) records the confirmed discussion, three positive observations, two problems, four actions and the three Week 5 carried outcomes. [#190](https://github.com/iteam7/gateway7/issues/190) remains open for formal closeout, Actual Velocity and moved work. |
 | AI usage | [reports/week-06/ai-usage.md](ai-usage.md) preserves contributors' disclosures and the boundaries of each local or VM activity; no pending human assessment is filled by inference. |
 
 ## Contribution
@@ -215,10 +217,11 @@ The integration preserves the genuine history of PR #194 and PR #195, which had 
 [PR #197](https://github.com/iteam7/gateway7/pull/197) records the current estimated planning scope without asserting an original commitment.
 [PR #198](https://github.com/iteam7/gateway7/pull/198) merged the analytics-backend and TLS-access record while leaving the full deployment task #178 open.
 Its description used a reference rather than closing a narrow preparation task; subsequent [task #206](https://github.com/iteam7/gateway7/issues/206) records that narrower scope without reconstructing a pre-merge task-closing check.
-The remaining preparation-task metadata and acceptance-checklist review are not claimed complete; the scope records in [#206](https://github.com/iteam7/gateway7/issues/206), [#207](https://github.com/iteam7/gateway7/issues/207) and [#208](https://github.com/iteam7/gateway7/issues/208) do not substitute for those checks or the separate human approvals.
+The contributor authorized the remaining preparation-task fields, objective acceptance-checklist corrections and closure of the completed narrow task on 8 November.
+The updated scope records in [#206](https://github.com/iteam7/gateway7/issues/206), [#207](https://github.com/iteam7/gateway7/issues/207) and [#208](https://github.com/iteam7/gateway7/issues/208) do not reconstruct the original pre-merge workflow or replace separate human approvals.
 The final submission must include this report and all linked repository artifacts on the same merged-main revision; the snapshot and private PDF are not complete yet.
 
-For main checkpoint `5240469925738f9e843c4d42c361e2430acc741e`, the [Markdown](https://github.com/iteam7/gateway7/actions/runs/42412917234), [link-check](https://github.com/iteam7/gateway7/actions/runs/42412917190), [workflow/actionlint](https://github.com/iteam7/gateway7/actions/runs/42412917189), [product-code/Python](https://github.com/iteam7/gateway7/actions/runs/42412917250), [documentation](https://github.com/iteam7/gateway7/actions/runs/42412917193) and [quality-gate](https://github.com/iteam7/gateway7/actions/runs/42412917185) runs passed.
+For main checkpoint `529ee3529cdf5dec51bb948740e2ed1282261f46`, the [Markdown](https://github.com/iteam7/gateway7/actions/runs/42414519640), [link-check](https://github.com/iteam7/gateway7/actions/runs/42414519519), [workflow/actionlint](https://github.com/iteam7/gateway7/actions/runs/42414519647), [product-code/Python](https://github.com/iteam7/gateway7/actions/runs/42414519601), [documentation](https://github.com/iteam7/gateway7/actions/runs/42414519606) and [quality-gate](https://github.com/iteam7/gateway7/actions/runs/42414519445) runs passed.
 These are source and synthetic-environment checks; the separate VM candidate observations are the records linked above, not conclusions inferred from CI.
 
 ## Completion and deadline handoff
@@ -226,18 +229,17 @@ These are source and synthetic-environment checks; the separate VM candidate obs
 The threshold review in #187 is complete against the available repository records; its two remaining historical evidence gaps and original measures are retained.
 Task #188 is unfulfilled: a prepared script and a no-Review explanation do not complete Customer validation.
 
-1. **Arrange a real Review, if possible before submission.** The canonical [script](meeting-script.md) prepares a proposed written exchange; nothing has been sent by this change.
-   Obtain actual permission answers, explicit story verdicts against the evidence available, the threshold response and at least two agreed Week 7 actions with owners and dates.
-   Retain the timestamped Customer exchange as the transcript under the permissions actually given, declare the written substitution, and write `meeting-report.md` only after a Review occurs.
-   A packet sent without a substantive Customer response is not a completed Review; silence is not acceptance.
-2. **Integrate the prepared evidence and verify the regular deployments.** The [four views](#dashboard-and-candidate-evidence) and [candidate result](https://github.com/iteam7/gateway7/blob/f2422900384c78606bcfffa4c730b9e6441b25a8/reports/week-06/qrt-05-preview.md) are supplied with their actual limits.
+1. **Submit the missing Review as an explicit gap.** On 8 November, the contributor confirmed that no live or written Customer Review would take place before the deadline.
+   The [script](meeting-script.md) remains unused preparation; there are no new permission answers, story verdicts, threshold responses or Customer-agreed actions to record.
+   Keep #188 open for an actual Review and report that event in its own week rather than backfilling a Week 6 meeting.
+2. **Verify the regular deployments.** The integrated [four views](#dashboard-and-candidate-evidence) and [candidate result](https://github.com/iteam7/gateway7/blob/f2422900384c78606bcfffa4c730b9e6441b25a8/reports/week-06/qrt-05-preview.md) retain their actual limits.
    Follow the [runbook](../../docs/deployment.md#telemetry-pipelines) to promote a verified revision to regular staging, retain its matching request-ID log query and SLI output, and verify the core task before production promotion.
    Resolve the provider's regional access failure for that successful core-task verification; the provider-free forbidden-model QRT does not require a successful provider call.
    The existing [HTTP(S) provider transport](../../docs/provider-transports.md#configure-the-built-in-proxy) can use an operator-supplied proxy; a system VPN is not the only possible network path, and no endpoint or successful provider call is assumed here.
    Verify the analytics retention and execute the defined non-smoke metric query; an empty chart and the unfiltered smoke count do not establish a production focus value.
    Deliver the complete backend, dashboard, query and CA access details privately.
-3. **Record the team's actual closeout.** #176 and #190 still need the real selected scope, the evidence for velocity, the retrospective and its contribution record.
-   This report does not backfill a planning commitment, invent estimates or replace the team's retrospective.
+3. **Complete the remaining sprint closeout.** The [held retrospective](sprint-retrospective.md) and its four next-sprint actions are confirmed; #176 and #190 still need the original selected scope, the evidence for Actual Velocity and the disposition of unfinished work.
+   Recording that retrospective does not backfill the planning commitment, invent estimates or close the sprint milestone.
 4. **Cut REL-06 in the required order.** [Assignment 6 Part 14](https://github.com/inno-itpd/itpd/blob/c2e737f7a16221e9fcdaf4234b045baca9cd0c6e/assignments/assignment-6.md#part-14-cut-the-rel-06-release) places the release after the Review and resulting rework, on the final production commit, with a protected tag.
    No such release or deployed commit is asserted at this checkpoint.
 5. **Prepare the private submission from the final merged main revision.** #189 owns the eight required PDF items within two main pages and the matching repository ZIP, with the actual private backend/dashboard/query access evidence.
@@ -252,13 +254,18 @@ The supplied candidate observations and screenshots come from their linked opera
 ## Deviations
 
 The Week 6 Customer Review was not held because the team had not prepared the demonstration, as azamatbayramov reported on 7 November.
+On 8 November, the contributor confirmed that the submission would proceed without a Customer Review before the deadline.
 There is no meeting transcript, Customer story verdict, threshold response or agreed Week 7 action to substitute for that missing Review.
-The written format is prepared but has not been arranged, sent or executed; it is a possible future route under the course rule, not a completed alternative.
+The written format remains unused preparation, not a completed alternative.
 The prepared dashboard captures and candidate PASS summaries are now indexed with their actual source and limits.
-The regular deployments, complete deployed-QRT evidence, numeric defined-metric computation, planning/retrospective closeout, REL-06 and private submission wrapper remain incomplete as detailed in [Review readiness](#review-readiness).
+The regular deployments, complete deployed-QRT evidence, numeric defined-metric computation, formal sprint closeout, REL-06 and private submission wrapper remain incomplete as detailed in [Review readiness](#review-readiness).
+The contributor confirmed a held [retrospective](sprint-retrospective.md) before formal sprint closeout and Actual Velocity were recorded, differing from the [course ceremony order](https://github.com/inno-itpd/itpd/blob/c2e737f7a16221e9fcdaf4234b045baca9cd0c6e/requirements/sprint-ceremonies-requirements.md#retrospective).
+The retrospective records that event and the confirmed actions; it does not mark REL-06 or the sprint milestone complete.
 No new runtime-QRT re-run is claimed.
 The source implementation and earlier evidence are retained with their actual scope; they do not satisfy the missing deployed or Customer-validation requirements.
 PR #198 merged with a reference to the unfinished deployment task rather than a closing preparation-task link; later task clarification does not retroactively satisfy the course's pre-merge closing-task rule.
+Tasks [#192](https://github.com/iteam7/gateway7/issues/192) and [#206](https://github.com/iteam7/gateway7/issues/206), [#207](https://github.com/iteam7/gateway7/issues/207) and [#208](https://github.com/iteam7/gateway7/issues/208) were opened through the API using the form's sections rather than the required Issue Form; the later preparation tasks received their native Task type through the UI.
+The completed post-merge field and checklist corrections remain process deviations and do not reconstruct the original pre-merge workflow.
 Declaring these gaps does not waive them, and this report claims no course-approved exception or complete Assignment 6 fulfillment.
 
 ## Privacy
