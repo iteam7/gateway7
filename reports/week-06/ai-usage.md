@@ -85,8 +85,10 @@ The existing dashboard definition was retained byte for byte; the container diag
 A final review also moved the QRT clock to the last response bytes, before parsing or stream cleanup; two slow-cleanup regressions verify that neither deadline can be extended.
 The team has not supplied an assessment of this new increment; no member acceptance is inferred from the AI review or automated checks.
 
-Local checks passed: 1,154 automated tests with 11 skips, Python compilation, formatting, linting, type checking, the separate-process synthetic demonstration and wheel build.
+Local checks passed: 1,154 automated tests with Docker-dependent cases skipped, Python compilation, formatting, linting, type checking, the separate-process synthetic demonstration and wheel build.
 Formatting and lint checks also covered the changed test files and canonical QRT script.
+GitHub CI exposed four stale exact Compose environment expectations for the five optional analytics variables; the correction preserves those strict comparisons, isolates the fixture environment and adds a staging process-override regression.
+That correction requires the Docker-dependent checks in CI because Docker is unavailable locally.
 The strict documentation build and generated-site check passed for 59 maintained pages and 7,022 links/assets; all four Compose files passed the official Compose JSON schema.
 These local results include scripted HTTP protocol tests, not a deployed OpenPanel query, a university-VM QRT pass, four live dashboards or a production deployment.
 Docker was unavailable in the execution environment, so the new backend stack was not started locally.
