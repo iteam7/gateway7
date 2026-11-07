@@ -200,3 +200,7 @@ Declaring these gaps does not waive them, and this report claims no course-appro
 ## Privacy
 
 No private-only material was committed to this repository.
+
+## Release readiness after the checkpoint
+
+The [release readiness checkpoint](release-readiness.md) records the candidate evidence and open release dependencies.
