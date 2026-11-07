@@ -122,3 +122,9 @@ No live-provider call, Customer Review, Customer decision, release or Moodle sub
 - Tool: Codex.
 - Use: recorded the current estimated scope while distinguishing it from the unverified planning commitment.
 - Team assessment: TODO.
+
+## Codex: Analytics deployment
+
+- Tool: Codex.
+- Use: documented the deployed analytics backend, proxy and remaining verification.
+- Team assessment: TODO.

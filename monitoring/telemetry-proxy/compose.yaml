@@ -1,0 +1,21 @@
+name: gateway7-telemetry-https
+services:
+  proxy:
+    image: nginx@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de
+    restart: unless-stopped
+    ports:
+      - "${TELEMETRY_BIND_ADDRESS:?Set the private VM interface}:18443:8443"
+      - "${TELEMETRY_BIND_ADDRESS:?Set the private VM interface}:18444:8444"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ${TELEMETRY_TLS_DIR:?Set the private TLS directory}/server.crt:/etc/gateway7/server.crt:ro
+      - ${TELEMETRY_TLS_DIR:?Set the private TLS directory}/server.key:/etc/gateway7/server.key:ro
+    networks: [analytics, observability]
+    mem_limit: 128m
+networks:
+  analytics:
+    external: true
+    name: ${ANALYTICS_BACKEND_NETWORK:-gateway7-openpanel_default}
+  observability:
+    external: true
+    name: ${OBSERVABILITY_BACKEND_NETWORK:-gateway7-observability_default}
