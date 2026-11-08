@@ -264,11 +264,3 @@ The report and plan now distinguish 5 completed SP from the later 21-SP schedule
 The remaining-story carryover is a proposal; no issue milestone, sprint state, release tag, VM deployment or Moodle submission is changed by the document.
 The upgrade-note draft retains the missing Customer Review and operator evidence as outstanding facts, not a course-approved waiver.
 No raw telemetry, private access information, numerical analytics result or new deployed-QRT outcome was generated for this preparation.
-
-## Task 138 tracker correction
-
-Codex corrected the current plan and Week 6 report from the live closed Sprint 05 milestone without rewriting Week 5 history or inventing the original commitment.
-Local links and whitespace passed; Markdown lint could not start because of a temporary dependency error. Site and external-link checks remain for PR CI.
-TechLead approved the narrow factual correction; human Accountable review remains pending.
-Team assessment: TODO.
-

@@ -212,9 +212,6 @@ The roster follows [reports/week-05/README.md#contributions](../week-05/README.m
 
 ## Repository evidence
 
-On 8 November, the live [SPRINT-05 milestone](https://github.com/iteam7/gateway7/milestone/3) check confirmed its 31 October closure, with zero open and 11 closed issues.
-[Task #138](https://github.com/iteam7/gateway7/issues/138) corrects the stale closure statement in the [maintained plan](../../docs/project-plan.md#sprint-05); the Week 5 evidence, known selected-scope Actual Velocity and missing original commitment are preserved.
-
 [PR #196](https://github.com/iteam7/gateway7/pull/196) is the merged Week 6 task-closing PR: it closed native Task [#177](https://github.com/iteam7/gateway7/issues/177) for the analytics plan and instrumentation.
 The post-merge criteria audit completed the narrow source/documentation tasks #181/#183/#186; the separate regular-pipeline tasks #178/#182 and deployed-QRT task #185 remain open.
 The integration preserves the genuine history of PR #194 and PR #195, which had previously merged into working branches rather than main.
