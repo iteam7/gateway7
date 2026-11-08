@@ -3,7 +3,7 @@
 ## Scope and findings
 
 Gateway7 is Team 7's modular LLM gateway with configurable company policy plugins.
-This report indexes the implementation at [main checkpoint `529ee3529cdf5dec51bb948740e2ed1282261f46`](https://github.com/iteam7/gateway7/tree/529ee3529cdf5dec51bb948740e2ed1282261f46), the operator evidence from 7 November, the completed threshold review in [task #187](https://github.com/iteam7/gateway7/issues/187), and the unfulfilled Customer Review in [task #188](https://github.com/iteam7/gateway7/issues/188).
+This report indexes the implementation at [main checkpoint `8c01844489eff52b3211869a68e9f7f6576cb019`](https://github.com/iteam7/gateway7/tree/8c01844489eff52b3211869a68e9f7f6576cb019), the operator evidence from 7 November, the completed threshold review in [task #187](https://github.com/iteam7/gateway7/issues/187), and the unfulfilled Customer Review in [task #188](https://github.com/iteam7/gateway7/issues/188).
 The immutable evidence links identify the original captures, whose artifacts are now integrated on main; this checkpoint does not claim that the final release or submission is complete.
 On 7 November 2026, azamatbayramov reported that the team had not held its Week 6 Customer Review because the demonstration was not ready.
 This is a team-preparation shortfall, not a claim that Customer was unavailable or refused a meeting or recording.
@@ -12,6 +12,8 @@ The [archived live script](live-review-script.md) preserves the unused preparati
 The canonical [meeting script](meeting-script.md) was prepared for a possible written asynchronous exchange and remains unused.
 Neither script is evidence that a Review occurred.
 On 8 November, azamatbayramov confirmed that no Customer Review would take place before the assignment deadline and approved the [team retrospective](sprint-retrospective.md).
+The subsequent source/acceptance reconciliation completed US-04 and the narrow tasks #181/#183/#186; the completed-story snapshot is 5 SP, separate from the 21-SP later scope estimate and pending formal Actual Velocity.
+The [release preparation](release-preparation.md) proposes a consistent `0.4.0` package/runtime/OpenAPI version and an upgrade note; it does not publish REL-06.
 
 ## Customer Review not held
 
@@ -85,25 +87,26 @@ Any new or revised success bar needs an explicit Customer decision; no such deci
 
 ## Review readiness
 
-The table distinguishes merged source, operator-recorded candidate observations and outstanding submission work as of 7 November.
-The source checkpoint is [`5240469925738f9e843c4d42c361e2430acc741e`](https://github.com/iteam7/gateway7/tree/5240469925738f9e843c4d42c361e2430acc741e), after PR #191, the planning update in PR #197 and the backend-access record in PR #198.
+The table distinguishes source completion, the original operator-recorded candidate observations and outstanding submission work at the 8 November reconciliation.
+The source checkpoint is [`8c01844489eff52b3211869a68e9f7f6576cb019`](https://github.com/iteam7/gateway7/tree/8c01844489eff52b3211869a68e9f7f6576cb019), including the policy reconciliation in PR #209 and confirmed retrospective in PR #211.
+The original capture dates and their candidate scope are retained.
 An owner issue, prepared configuration or source-level workflow does not prove a regular deployment.
 Backend, dashboard and query addresses, credentials and the private CA handoff belong in the Moodle PDF.
 
 | Assignment 6 evidence | Source or owner | Status at this checkpoint |
 | --- | --- | --- |
 | Existing gateway product cases | [Demo guide](../../docs/demo.md), [authoring walkthrough](../../docs/authoring.md#try-the-installed-package-without-a-provider-account), [DEC-020](../../docs/decisions.md#dec-020) | Earlier acceptance remains separate. The new isolated candidate's core-task check returned 502; successful current provider access is not established. |
-| Sprint goal, selection and velocity | [Project plan](../../docs/project-plan.md#sprint-06), [#176](https://github.com/iteam7/gateway7/issues/176) | Due is 8 November. The plan records 21 SP of currently scheduled scope and 16 SP of future candidates; these later estimates are not original Planned Velocity, Actual Velocity or confirmation of the next two sprints' scope. |
-| New stories and traceability | [US-14 #174](https://github.com/iteam7/gateway7/issues/174), [US-15 #175](https://github.com/iteam7/gateway7/issues/175), [#186](https://github.com/iteam7/gateway7/issues/186) | Stories, FR-014/015, proposed ADR-006/007, feature entries and the external-backend container view exist. Complete planning evidence and Customer verdicts remain separate requirements. |
+| Sprint goal, selection and velocity | [Project plan](../../docs/project-plan.md#sprint-06), [#176](https://github.com/iteam7/gateway7/issues/176) | Due is 8 November. US-04 supplies 5 completed SP after source and acceptance reconciliation; US-14/US-15 remain open at 8 SP each. The 21-SP later scope estimate is not original Planned Velocity or final Actual Velocity; carryover remains a proposal. |
+| New stories and traceability | [US-14 #174](https://github.com/iteam7/gateway7/issues/174), [US-15 #175](https://github.com/iteam7/gateway7/issues/175), [#186](https://github.com/iteam7/gateway7/issues/186) | Task #186 is completed against its documentation criteria, with FR-014/015, proposed ADR-006/007, feature entries and the external-backend container view. US-14/US-15 still need their runtime criteria and Customer verdicts. |
 | Analytics tree, events and computed query | [Analytics plan](../../docs/analytics.md), [staging check](https://github.com/iteam7/gateway7/blob/5e6f9318f5ba804516da3832000067635defc170/reports/week-06/analytics-staging.md), [#178](https://github.com/iteam7/gateway7/issues/178) | Typed events are merged. The candidate's smoke event and exclusion were inspected; the unfiltered start count was two, while the filtered metric chart had no series. No production focus value or numeric non-smoke metric result is claimed. |
-| Observability signals and Active SLI | [SLI-01](../../docs/observability.md#sli-01), [candidate record](https://github.com/iteam7/gateway7/blob/f2422900384c78606bcfffa4c730b9e6441b25a8/reports/week-06/qrt-05-preview.md) | Native OTLP logs and the delta duration histogram are merged. The candidate exported a matching failure series; the regular deployments' legacy log delivery remains unverified. |
+| Observability signals and Active SLI | [SLI-01](../../docs/observability.md#sli-01), [candidate record](https://github.com/iteam7/gateway7/blob/f2422900384c78606bcfffa4c730b9e6441b25a8/reports/week-06/qrt-05-preview.md) | Task #181 is completed for native OTLP logs, the delta histogram and specification links; #183 is completed for the staging SLI view. The candidate exported a numeric failure series; regular deployment verification remains separate. |
 | Analytics backend and dashboards | [Backend record](https://github.com/iteam7/gateway7/blob/1a4b47e3e88879f45c0bf689989c39d08fcfa0d5/docs/deployment.md#prepare-the-backends), [staging](https://github.com/iteam7/gateway7/blob/5e6f9318f5ba804516da3832000067635defc170/reports/week-06/analytics-staging.md), [production](https://github.com/iteam7/gateway7/blob/8c07840e83d292f7a10ffc943202fc6cb3d54ea4/reports/week-06/analytics-production.md) | Separate OpenPanel projects and the two L1 chart captures are recorded. Regular gateways still need promotion and connection; seven-day retention and Customer access are unverified. |
 | Observability backend and dashboards | [Backend record](https://github.com/iteam7/gateway7/blob/b68632db58bad62dfe994a39dc722b324c0e5bf4/docs/deployment.md#prepare-the-backends), [staging](https://github.com/iteam7/gateway7/blob/f880539b653030c0b29a7e298f84d7f348fe015a/reports/week-06/observability-staging.md), [production](https://github.com/iteam7/gateway7/blob/0f3d1b6f114be3a0adf745e8061e517b65834532/reports/week-06/observability-production.md) | Organization isolation and the two SLI-01 views are recorded. Staging shows the candidate's numeric failure series; production is empty and unexercised. Query identities are not least-privilege read-only accounts. |
 | New analysability QR and QRT | [QR-05](../../docs/quality-requirements/qr/QR-05.md#qrt-01), [candidate record](https://github.com/iteam7/gateway7/blob/f2422900384c78606bcfffa4c730b9e6441b25a8/reports/week-06/qrt-05-preview.md), [#185](https://github.com/iteam7/gateway7/issues/185) | Candidate PASS is recorded at the asserted revision. The complete matching log-query/request-ID evidence and a verified regular-staging run are still needed before changing its testing-plan row. |
 | Four sanitized dashboard captures | [Dashboard evidence](#dashboard-and-candidate-evidence) | All four prepared views are linked by immutable source commit, with an additional staging smoke-detail capture. Their scopes and empty-chart limitations are stated below. |
 | Customer Review and threshold response | [#188](https://github.com/iteam7/gateway7/issues/188), [no-Review record](#customer-review-not-held) | No live or written Week 6 Review, new Customer DEC, story verdict or agreed Week 7 action is established. |
-| Retrospective and completed scope | [Team retrospective](sprint-retrospective.md), [#190](https://github.com/iteam7/gateway7/issues/190) | The contributor confirmed the held retrospective, its observations and four carried actions on 8 November. Formal closeout and Actual Velocity remain pending; the current estimates are not velocity. |
-| REL-06 | [Readiness record](release-readiness.md), [#189](https://github.com/iteam7/gateway7/issues/189) | This is preparation, not a release. Provider access, final promotion and checks, Customer Review, release notes and the protected final tag remain outstanding. |
+| Retrospective and completed scope | [Team retrospective](sprint-retrospective.md), [#190](https://github.com/iteam7/gateway7/issues/190) | The contributor confirmed the held retrospective and four carried actions. The completed-story snapshot is 5 SP from US-04; formal Actual Velocity, carryover and sprint closeout remain pending. |
+| REL-06 | [Readiness record](release-readiness.md), [#189](https://github.com/iteam7/gateway7/issues/189) | The 0.4.0 candidate and upgrade-note draft are prepared. Provider access, complete final deployment/query evidence, release decision and protected final tag remain outstanding; Customer Review is explicitly unfulfilled. |
 | Private PDF and repository ZIP | [#189](https://github.com/iteam7/gateway7/issues/189) | The final merged-main revision, full private access handoff and matching Week 6 PDF/ZIP are not complete; no Moodle upload is claimed. |
 | Optional runtime-QRT re-run | [Testing plan](../../docs/project-plan.md#quality-requirement-testing-plan) | No optional new run is claimed. Earlier Week 5 results retain their recorded revision, sprint and level. |
 
@@ -175,7 +178,7 @@ The [readiness table](#review-readiness) distinguishes source, candidate evidenc
 
 | Deliverable | Artifact |
 | --- | --- |
-| Sprint plan and new stories | [docs/project-plan.md#sprint-06](../../docs/project-plan.md#sprint-06), [US-14 #174](https://github.com/iteam7/gateway7/issues/174), [US-15 #175](https://github.com/iteam7/gateway7/issues/175). Current scheduled scope is 21 SP; original planning commitment, Actual Velocity and the next two sprints' confirmed selection remain unestablished. |
+| Sprint plan and new stories | [docs/project-plan.md#sprint-06](../../docs/project-plan.md#sprint-06), [US-14 #174](https://github.com/iteam7/gateway7/issues/174), [US-15 #175](https://github.com/iteam7/gateway7/issues/175). The later scheduled scope is 21 SP, with a current 5-SP completed-story snapshot from US-04. Original planning commitment, final Actual Velocity and the next two sprints' confirmed selection remain unestablished. |
 | Analytics plan | [docs/analytics.md](../../docs/analytics.md) owns the four-metric tree, seven-criterion justification and queries. [The staging record](https://github.com/iteam7/gateway7/blob/5e6f9318f5ba804516da3832000067635defc170/reports/week-06/analytics-staging.md) demonstrates smoke inspection and exclusion, not a production metric value or numeric non-smoke completion rate. |
 | Events and instrumentation | [docs/analytics.md#the-events](../../docs/analytics.md#the-events), [gateway7/analytics.py](../../gateway7/analytics.py), [FR-015](../../docs/functional-requirements/fr/FR-015.md), and the [staging smoke detail](https://raw.githubusercontent.com/iteam7/gateway7/5e6f9318f5ba804516da3832000067635defc170/reports/week-06/images/analytics-staging-smoke.png). The smoke request used an isolated candidate, not the promoted regular deployment. |
 | Analytics dashboards | [Staging evidence](https://github.com/iteam7/gateway7/blob/5e6f9318f5ba804516da3832000067635defc170/reports/week-06/analytics-staging.md) and [production evidence](https://github.com/iteam7/gateway7/blob/8c07840e83d292f7a10ffc943202fc6cb3d54ea4/reports/week-06/analytics-production.md), with both sanitized captures in [dashboard evidence](#dashboard-and-candidate-evidence). The L1 charts are empty, not measured zeros. |
@@ -192,7 +195,7 @@ The [readiness table](#review-readiness) distinguishes source, candidate evidenc
 | Meeting script | [Proposed written script](meeting-script.md) and [unused live archive](live-review-script.md). Neither supplies a Customer response or completed Review. |
 | Meeting transcript | Not available: no live or written Week 6 Review is established; `reports/week-06/meeting-transcript.md` is absent. |
 | Customer validation | [No-Review record](#customer-review-not-held). No Week 6 Customer verdict, threshold DEC or agreed Week 7 actions are invented. |
-| REL-06 | [docs/project-plan.md#rel-06](../../docs/project-plan.md#rel-06) and the [release-readiness record](release-readiness.md). No final production tag or completed release is claimed. |
+| REL-06 | [docs/project-plan.md#rel-06](../../docs/project-plan.md#rel-06) and the [release-readiness record](release-readiness.md). The [candidate and upgrade-note draft](release-preparation.md) are prepared; no final production tag or completed release is claimed. |
 | Sprint retrospective | [reports/week-06/sprint-retrospective.md](sprint-retrospective.md) records the confirmed discussion, three positive observations, two problems, four actions and the three Week 5 carried outcomes. [#190](https://github.com/iteam7/gateway7/issues/190) remains open for formal closeout, Actual Velocity and moved work. |
 | AI usage | [reports/week-06/ai-usage.md](ai-usage.md) preserves contributors' disclosures and the boundaries of each local or VM activity; no pending human assessment is filled by inference. |
 
@@ -210,7 +213,7 @@ The roster follows [reports/week-05/README.md#contributions](../week-05/README.m
 ## Repository evidence
 
 [PR #196](https://github.com/iteam7/gateway7/pull/196) is the merged Week 6 task-closing PR: it closed native Task [#177](https://github.com/iteam7/gateway7/issues/177) for the analytics plan and instrumentation.
-Its source-level completion does not close the separate deployment, dashboard or deployed-QRT tasks; #183 and #185 remain open.
+The post-merge criteria audit completed the narrow source/documentation tasks #181/#183/#186; the separate regular-pipeline tasks #178/#182 and deployed-QRT task #185 remain open.
 The integration preserves the genuine history of PR #194 and PR #195, which had previously merged into working branches rather than main.
 [PR #193](https://github.com/iteam7/gateway7/pull/193) supplies the earlier observability implementation.
 [PR #191](https://github.com/iteam7/gateway7/pull/191) merged the threshold review and this report, closing #187 without closing the unfulfilled Review in #188.
@@ -221,7 +224,7 @@ The contributor authorized the remaining preparation-task fields, objective acce
 The updated scope records in [#206](https://github.com/iteam7/gateway7/issues/206), [#207](https://github.com/iteam7/gateway7/issues/207) and [#208](https://github.com/iteam7/gateway7/issues/208) do not reconstruct the original pre-merge workflow or replace separate human approvals.
 The final submission must include this report and all linked repository artifacts on the same merged-main revision; the snapshot and private PDF are not complete yet.
 
-For main checkpoint `529ee3529cdf5dec51bb948740e2ed1282261f46`, the [Markdown](https://github.com/iteam7/gateway7/actions/runs/42414519640), [link-check](https://github.com/iteam7/gateway7/actions/runs/42414519519), [workflow/actionlint](https://github.com/iteam7/gateway7/actions/runs/42414519647), [product-code/Python](https://github.com/iteam7/gateway7/actions/runs/42414519601), [documentation](https://github.com/iteam7/gateway7/actions/runs/42414519606) and [quality-gate](https://github.com/iteam7/gateway7/actions/runs/42414519445) runs passed.
+For main checkpoint `8c01844489eff52b3211869a68e9f7f6576cb019`, the [Markdown](https://github.com/iteam7/gateway7/actions/runs/42454230898), [link-check](https://github.com/iteam7/gateway7/actions/runs/42454230839), [workflow/actionlint](https://github.com/iteam7/gateway7/actions/runs/42454230857), [product-code/Python](https://github.com/iteam7/gateway7/actions/runs/42454230884), [documentation](https://github.com/iteam7/gateway7/actions/runs/42454230889) and [quality-gate](https://github.com/iteam7/gateway7/actions/runs/42454230871) runs passed.
 These are source and synthetic-environment checks; the separate VM candidate observations are the records linked above, not conclusions inferred from CI.
 
 ## Completion and deadline handoff
@@ -238,10 +241,11 @@ Task #188 is unfulfilled: a prepared script and a no-Review explanation do not c
    The existing [HTTP(S) provider transport](../../docs/provider-transports.md#configure-the-built-in-proxy) can use an operator-supplied proxy; a system VPN is not the only possible network path, and no endpoint or successful provider call is assumed here.
    Verify the analytics retention and execute the defined non-smoke metric query; an empty chart and the unfiltered smoke count do not establish a production focus value.
    Deliver the complete backend, dashboard, query and CA access details privately.
-3. **Complete the remaining sprint closeout.** The [held retrospective](sprint-retrospective.md) and its four next-sprint actions are confirmed; #176 and #190 still need the original selected scope, the evidence for Actual Velocity and the disposition of unfinished work.
-   Recording that retrospective does not backfill the planning commitment, invent estimates or close the sprint milestone.
-4. **Cut REL-06 in the required order.** [Assignment 6 Part 14](https://github.com/inno-itpd/itpd/blob/c2e737f7a16221e9fcdaf4234b045baca9cd0c6e/assignments/assignment-6.md#part-14-cut-the-rel-06-release) places the release after the Review and resulting rework, on the final production commit, with a protected tag.
-   No such release or deployed commit is asserted at this checkpoint.
+3. **Complete the remaining sprint closeout.** The [held retrospective](sprint-retrospective.md) and four next-sprint actions are confirmed. US-04 is completed at 5 SP; the unfinished US-14/US-15 work is a 16-SP carryover proposal.
+   Record the final completed-story sum and actual rescheduling at closeout; #176/#190 do not become complete merely from this checkpoint, and the missing original planning commitment is not reconstructed.
+4. **Finalize the prepared release.** The [0.4.0 candidate, upgrade-note draft and publication checklist](release-preparation.md) are concrete preparation.
+   [Assignment 6 Part 14](https://github.com/inno-itpd/itpd/blob/c2e737f7a16221e9fcdaf4234b045baca9cd0c6e/assignments/assignment-6.md#part-14-cut-the-rel-06-release) places the release after Review and rework, on the final production commit with a protected tag.
+   Publishing before an actual Review would be an explicit chronology deviation, not fulfillment of that sequence; this checkpoint publishes no tag or release.
 5. **Prepare the private submission from the final merged main revision.** #189 owns the eight required PDF items within two main pages and the matching repository ZIP, with the actual private backend/dashboard/query access evidence.
    Repository links in that PDF must resolve on the submitted main revision; the ZIP and permalink must identify the same revision.
    Keep the Week 5 files separate.
