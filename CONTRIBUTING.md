@@ -129,6 +129,22 @@ Once the reviewed documentation changes reach `main`, that push can build and pu
 To retry, open **Actions → Documentation site → Run workflow** and select `main`; a manual run becomes available once the workflow exists on the default branch.
 After the **Publish documentation** job succeeds, open its deployment URL and check the home page and navigation, then keep the root README's published site link aligned with that verified URL.
 
+### Prepare a package version
+
+Keep `[project].version` in `pyproject.toml` and `gateway7.__version__` aligned when preparing a release candidate.
+The HTTP application's OpenAPI metadata reads the runtime version; the release-version test checks it against the project and installed distribution metadata.
+After changing the version, regenerate the project lock without upgrading dependencies:
+
+```sh
+uv lock
+uv sync --locked
+uv run --locked pytest -q tests/test_release_version.py
+uv build --wheel
+```
+
+Inspect `uv.lock` to confirm only the root `gateway7` version changed.
+A version bump prepares the package; it does not publish a tag, mark a release as cut or verify a deployment.
+
 ### Update documentation dependencies
 
 Edit the exact MkDocs version in `requirements-docs.in`, then regenerate its complete hash lock:

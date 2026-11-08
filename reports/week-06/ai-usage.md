@@ -243,3 +243,24 @@ The preparation-task fields and objective checklists were corrected under the co
 No original planning commitment, formal Actual Velocity, Customer verdict, meeting transcript, final deployment or release is inferred from those confirmations.
 This documentation work performs no additional VM check or provider request; the earlier candidate observations retain their recorded scope.
 The retrospective wording confirmation is not treated as a team-wide assessment of all generated work, and no such additional assessment is supplied here.
+
+## Task #212: source completion and release preparation
+
+Codex used Formater, an implementing agent and independent review to complete the remaining repository work that could be verified without new operator evidence.
+The source/acceptance audit reconciled US-04 against the three exact policy tests in PR #209 and its existing DEC-020 Customer acceptance, then completed #33 and the narrow tasks #181/#183/#186 with their actual FR/ADR links.
+The published implementation reviews and original acceptance remain separate from this later tracking correction; no new Customer verdict or pre-merge review is invented.
+
+The version audit found that package, runtime and public API metadata still reported 0.1.0 despite the published v0.3.0 tag.
+The preparation aligns the next candidate at 0.4.0, derives the public OpenAPI version from the runtime constant and tests it against both installed distribution and project metadata.
+The project lock was regenerated using the documented `uv lock` command; only the root package version changed, with no transitive upgrades.
+The generated company-plugin package version, plugin API version 2 and historical release sections retain their original meaning.
+
+The focused version regression passed, and the local full suite passed 1,176 tests with 12 Docker-dependent checks skipped because Docker was unavailable locally.
+Compile, format, lint, type checks and the HTTP demo passed.
+The hash-locked 0.4.0 wheel was installed in an isolated environment and checked outside the checkout with isolated Python and no source-path override: distribution, runtime, API and OpenAPI versions all reported 0.4.0.
+These automated and AI review results do not supply a new team assessment of the generated output; that assessment remains for a member's review of this preparation.
+
+The report and plan now distinguish 5 completed SP from the later 21-SP scheduled estimate and pending final Actual Velocity.
+The remaining-story carryover is a proposal; no issue milestone, sprint state, release tag, VM deployment or Moodle submission is changed by the document.
+The upgrade-note draft retains the missing Customer Review and operator evidence as outstanding facts, not a course-approved waiver.
+No raw telemetry, private access information, numerical analytics result or new deployed-QRT outcome was generated for this preparation.

@@ -130,10 +130,18 @@ This sprint index includes the 31 October cross-platform reliability check perfo
 Provisional goal: a reviewer can verify configured model permissions and assess gateway usage and failures without recording raw prompts, responses or provider secrets.
 
 - **Due:** 2026-11-08
-- **Sprint Backlog:** [SPRINT-06 milestone; selection pending](https://github.com/iteam7/gateway7/milestone/4)
+- **Sprint Backlog:** [Current SPRINT-06 milestone](https://github.com/iteam7/gateway7/milestone/4)
+- **Planned Velocity:** The original planning commitment was not recorded; the later scheduled-scope estimate below does not reconstruct it.
 - **Current scheduled scope:** 21 SP: [US-04](https://github.com/iteam7/gateway7/issues/33) (5), [US-14](https://github.com/iteam7/gateway7/issues/174) (8) and [US-15](https://github.com/iteam7/gateway7/issues/175) (8).
   This tally is not evidence of the original planning commitment or planned velocity.
+- **Completed-story checkpoint, 8 November:** 5 SP, US-04 (5), following its unchanged-criterion reconciliation in [PR #209](https://github.com/iteam7/gateway7/pull/209) and the earlier Customer acceptance in [DEC-020](decisions.md#dec-020).
+  US-14 and US-15 remain open at 8 SP each; this checkpoint is not final Actual Velocity or closure of the sprint.
+- **Carryover proposal:** move the unfinished US-14/US-15 work to SPRINT-07 if it remains incomplete at closeout, preserving the source estimates and the actually assigned owners.
+  This is a proposal; no issue milestone or sprint state is changed by this document.
 - **Future candidates:** [US-07](https://github.com/iteam7/gateway7/issues/36), [US-08](https://github.com/iteam7/gateway7/issues/37) and [US-13](https://github.com/iteam7/gateway7/issues/141) total 16 SP; the team has not confirmed the scope for the next two sprints.
+
+The [Week 6 readiness record](https://github.com/iteam7/gateway7/blob/main/reports/week-06/release-readiness.md) links the prepared package candidate, upgrade note and remaining operator handoff.
+Formal Actual Velocity is recorded when the sprint closes, after the release and the disposition of unfinished work; this source checkpoint supplies neither a release nor a retrospective planning commitment.
 
 #### REL-06
 

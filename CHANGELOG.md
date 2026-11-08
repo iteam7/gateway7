@@ -14,6 +14,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ### Fixed
 
 - Name the denying middleware in policy errors on both chat APIs and report bounded unsupported content-policy actions before startup.
+- Align the package, runtime and public OpenAPI version with the next release candidate instead of reporting `0.1.0` for newer release tags.
 
 ## [0.3.0] - 2026-10-31
 

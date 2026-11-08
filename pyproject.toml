@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "gateway7"
-version = "0.1.0"
+version = "0.4.0"
 description = "A minimal ordered-plugin LLM gateway with a deterministic HTTP demo"
 requires-python = ">=3.11,<3.14"
 dependencies = [

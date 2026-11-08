@@ -16,6 +16,7 @@ from starlette.responses import JSONResponse, Response
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.types import ASGIApp, Message as ASGIMessage, Receive, Scope, Send
 
+from gateway7 import __version__
 from gateway7.analytics import Analytics
 from gateway7.config import GatewayConfig, load_config, provider_key
 from gateway7.auth import AccessControl
@@ -446,7 +447,7 @@ def create_app(
                 if not failed:
                     raise
 
-    app = FastAPI(title="Gateway7", version="0.1.0", lifespan=lifespan, redirect_slashes=False)
+    app = FastAPI(title="Gateway7", version=__version__, lifespan=lifespan, redirect_slashes=False)
     app.state.ready = False
     app.state.metrics = Metrics()
     app.state.admission = _PipelineAdmission(app.state.metrics)
