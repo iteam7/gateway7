@@ -1,4 +1,4 @@
-"""Explicit OpenAI Chat Completions subset with checked, buffered SSE output."""
+"""Explicit OpenAI Chat Completions subset and route-specific SSE encoding."""
 
 import json
 import time
@@ -236,6 +236,70 @@ def completion_sse(
         )
         + b"data: [DONE]\n\n"
     )
+
+
+class EarlyChatEncoder:
+    """Release only text early; executable calls and completion require validation."""
+
+    def __init__(self, model: str, request_id: str, *, include_usage: bool = False) -> None:
+        self.identity = {
+            "id": "chatcmpl-" + request_id,
+            "object": "chat.completion.chunk",
+            "created": int(time.time()),
+            "model": model,
+        }
+        self.request_id = request_id
+        self.include_usage = include_usage
+        self.started = False
+
+    @staticmethod
+    def _packet(event: dict[str, Any]) -> bytes:
+        return (
+            b"data: "
+            + json.dumps(event, ensure_ascii=True, allow_nan=False).encode("ascii")
+            + b"\n\n"
+        )
+
+    def _choice(self, delta: dict[str, Any], finish: str | None = None) -> bytes:
+        return self._packet(
+            {
+                **self.identity,
+                "choices": [
+                    {"index": 0, "delta": delta, "finish_reason": finish, "logprobs": None}
+                ],
+                "usage": None,
+            }
+        )
+
+    def _role(self) -> bytes:
+        if self.started:
+            return b""
+        self.started = True
+        return self._choice({"role": "assistant", "content": ""})
+
+    def text(self, text: str) -> bytes:
+        if not text:
+            return b""
+        return self._role() + self._choice({"content": text})
+
+    def complete(self, response: ChatResponse) -> bytes:
+        packets = [self._role()]
+        packets.extend(
+            self._choice({"tool_calls": [{"index": index, **call.model_dump()}]})
+            for index, call in enumerate(response.tool_calls)
+        )
+        packets.append(self._choice({}, response.finish_reason))
+        if self.include_usage:
+            packets.append(
+                self._packet({**self.identity, "choices": [], "usage": _usage(response)})
+            )
+        packets.append(b"data: [DONE]\n\n")
+        return b"".join(packets)
+
+    def error(self, error: GatewayError) -> bytes:
+        # A top-level error is recognized by the OpenAI SDK's SSE reader.
+        # It is terminal, never followed by a successful finish or [DONE].
+        return self._packet(error_body(error, self.request_id))
 
 
 def error_body(

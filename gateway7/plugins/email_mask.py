@@ -12,7 +12,17 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from gateway7.models import ChatRequest, ChatResponse, tool_text
-from gateway7.plugin_api import Deny, NextHandler, PluginContext, PluginDescriptor
+from gateway7.plugin_api import (
+    Deny,
+    EarlyStreamUnsupported,
+    NextHandler,
+    PluginContext,
+    PluginDescriptor,
+    ResponsesContext,
+    ResponsesUnsupported,
+)
+from gateway7.responses_models import ResponsesRequest, ResponsesResponse
+from gateway7.responses_policy import apply_policy
 
 
 # Every repetition is bounded. Unicode word boundaries prevent partial matches
@@ -50,9 +60,7 @@ class Settings(BaseModel):
 class EmailMaskPlugin:
     settings: Settings
 
-    async def handle(
-        self, request: ChatRequest, context: PluginContext, call_next: NextHandler
-    ) -> ChatResponse | Deny:
+    def _prepare_request(self, request: ChatRequest) -> ChatRequest | Deny:
         if self.settings.phase in ("request", "both"):
             if any(mask_email(text, "") != text for text in tool_text(request)):
                 return Deny()
@@ -70,6 +78,22 @@ class EmailMaskPlugin:
                     ]
                 }
             )
+        return request
+
+    async def prepare_early_stream(
+        self, request: ChatRequest, context: PluginContext
+    ) -> ChatRequest | Deny:
+        if self.settings.phase != "request":
+            raise EarlyStreamUnsupported
+        return self._prepare_request(request)
+
+    async def handle(
+        self, request: ChatRequest, context: PluginContext, call_next: NextHandler
+    ) -> ChatResponse | Deny:
+        prepared = self._prepare_request(request)
+        if isinstance(prepared, Deny):
+            return prepared
+        request = prepared
         response = await call_next(request)
         if self.settings.phase in ("response", "both"):
             if any(mask_email(text, "") != text for text in tool_text(response)):
@@ -78,6 +102,30 @@ class EmailMaskPlugin:
                 update={"text": mask_email(response.text, self.settings.replacement)}
             )
         return response
+
+    def _native_mask(self, text: str) -> tuple[str, int]:
+        return mask_email(text, self.settings.replacement), int(mask_email(text, "") != text)
+
+    async def prepare_responses(
+        self, request: ResponsesRequest, context: ResponsesContext
+    ) -> ResponsesRequest | Deny:
+        if self.settings.phase not in ("request", "both"):
+            return request
+        return apply_policy(request, self._native_mask)[0]
+
+    async def check_responses(
+        self, response: ResponsesResponse, context: ResponsesContext
+    ) -> ResponsesResponse | Deny:
+        if self.settings.phase not in ("response", "both"):
+            return response
+        return apply_policy(response, self._native_mask)[0]
+
+    async def prepare_early_responses(
+        self, request: ResponsesRequest, context: ResponsesContext
+    ) -> ResponsesRequest | Deny:
+        if self.settings.phase != "request":
+            raise ResponsesUnsupported
+        return await self.prepare_responses(request, context)
 
 
 def create(settings: Settings) -> EmailMaskPlugin:

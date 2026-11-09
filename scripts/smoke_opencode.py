@@ -13,6 +13,7 @@ import importlib
 import json
 import os
 from pathlib import Path
+import secrets
 import shutil
 import socket
 import subprocess
@@ -28,9 +29,11 @@ from gateway7.config import GatewayConfig
 from gateway7.providers import HTTPProvider
 
 MARKER = "GATEWAY7_AGENT_OK"
-CLIENT_TOKEN = "gateway7-synthetic-opencode-client"
 PROVIDER_KEY = "gateway7-synthetic-opencode-provider"
 BLOCKED_TERM = "GATEWAY7_BLOCKED_ARGUMENT"
+DEFAULT_MODEL = "gpt-4.1"
+MODELS = (DEFAULT_MODEL, "gpt-4.1-mini")
+ISOLATION_ERROR = "OpenCode smoke cannot exclude inherited configuration"
 
 
 class Fragments(httpx.AsyncByteStream):
@@ -44,22 +47,44 @@ class Fragments(httpx.AsyncByteStream):
             yield self.body[offset : offset + 17]
 
 
-def fixture_transport(fixture: Path, captured: list[dict[str, Any]]) -> httpx.MockTransport:
+def assert_tool_result_replayed(body: dict[str, Any], fixture: Path, output: str) -> None:
+    messages = body["messages"]
+    results = [message for message in messages if message["role"] == "tool"]
+    assert len(results) == 1, "Expected exactly one replayed tool result"
+    result = results[0]
+    assert result["tool_call_id"] == "call_gateway7_read", "Tool result lost its call ID"
+    assert output and output in result["content"], "Actual read output was not replayed"
+    calls = [message for message in messages if message.get("tool_calls")]
+    assert len(calls) == 1, "Expected the original assistant tool call in replay"
+    assert calls[0]["role"] == "assistant"
+    assert len(calls[0]["tool_calls"]) == 1
+    call = calls[0]["tool_calls"][0]
+    assert call["id"] == result["tool_call_id"] and call["type"] == "function"
+    assert call["function"]["name"] == "read"
+    assert json.loads(call["function"]["arguments"]) == {"path": str(fixture)}
+    assert messages.index(calls[0]) < messages.index(result), "Tool result preceded its call"
+
+
+def fixture_transport(
+    fixture: Path, captured: list[dict[str, Any]], model: str = DEFAULT_MODEL
+) -> httpx.MockTransport:
     def respond(request: httpx.Request) -> httpx.Response:
         assert str(request.url) == "https://api.openai.com/v1/chat/completions"
         assert request.headers["authorization"] == "Bearer " + PROVIDER_KEY
         body = json.loads(request.content)
         captured.append(body)
+        assert len(captured) <= 2, "Unexpected extra provider request"
+        assert body["model"] == model
         assert body["stream"] is True
         assert body["stream_options"] == {"include_usage": True}
+        assert body["parallel_tool_calls"] is False
         results = [message for message in body["messages"] if message["role"] == "tool"]
-        if results:
-            assert len(results) == 1
-            assert results[0]["tool_call_id"] == "call_gateway7_read"
-            assert MARKER in results[0]["content"]
-            content = {"content": MARKER}
+        if len(captured) == 2:
+            assert_tool_result_replayed(body, fixture, MARKER)
+            content: dict[str, Any] = {"content": MARKER}
             finish = "stop"
         else:
+            assert not results, "The first request must not contain a tool result"
             read = next(tool for tool in body["tools"] if tool["function"]["name"] == "read")
             assert "path" in read["function"]["parameters"]["properties"]
             # Tool arguments arrive across multiple deltas, as real providers send them.
@@ -83,7 +108,7 @@ def fixture_transport(fixture: Path, captured: list[dict[str, Any]]) -> httpx.Mo
             "id": "chatcmpl-gateway7-synthetic",
             "object": "chat.completion.chunk",
             "created": int(time.time()),
-            "model": "gpt-4.1",
+            "model": model,
         }
 
         def event(delta: dict[str, Any], reason: str | None = None) -> dict[str, Any]:
@@ -93,7 +118,7 @@ def fixture_transport(fixture: Path, captured: list[dict[str, Any]]) -> httpx.Mo
             }
 
         events = [event({"role": "assistant"}), event(content)]
-        if not results:
+        if len(captured) == 1:
             events.append(event(remainder))
         events.extend(
             [
@@ -117,82 +142,120 @@ def fixture_transport(fixture: Path, captured: list[dict[str, Any]]) -> httpx.Mo
     return httpx.MockTransport(respond)
 
 
-def opencode_config(base_url: str) -> dict[str, Any]:
-    # The V1-compatible syntax is accepted by the tested V2 CLI and maps to its
-    # OpenAI-compatible Chat route. Model limits keep the gateway contract bounded.
+def opencode_config(base_url: str, model: str = DEFAULT_MODEL) -> dict[str, Any]:
+    # Use the native V2 Chat runtime; limits keep the gateway contract bounded.
+    selector = f"gateway7/{model}"
+    permissions = [
+        {"action": "*", "resource": "*", "effect": "deny"},
+        {"action": "read", "resource": "*", "effect": "allow"},
+    ]
     return {
         "$schema": "https://opencode.ai/config.json",
-        "model": "gateway7/gpt-4.1",
-        "small_model": "gateway7/gpt-4.1",
-        "enabled_providers": ["gateway7"],
-        "provider": {
+        "model": selector,
+        "policies": [
+            {"action": "provider.use", "resource": "*", "effect": "deny"},
+            {"action": "provider.use", "resource": "gateway7", "effect": "allow"},
+        ],
+        "providers": {
             "gateway7": {
-                "npm": "@ai-sdk/openai-compatible",
+                "package": "@opencode/ai/providers/openai-compatible",
                 "name": "Gateway7 synthetic",
-                "options": {
+                "settings": {
                     "baseURL": base_url,
                     "apiKey": "{env:GATEWAY7_CLIENT_TOKEN}",
-                    "parallelToolCalls": False,
                 },
+                "body": {"parallel_tool_calls": False},
                 "models": {
-                    "gpt-4.1": {
+                    model: {
                         "name": "Gateway7 fixture",
                         "limit": {"context": 32768, "output": 1024},
-                        "tool_call": True,
-                        "reasoning": False,
-                        "temperature": False,
+                        "capabilities": {"tools": True, "input": ["text"], "output": ["text"]},
                     }
                 },
             }
         },
-        "agent": {
+        "agents": {
+            "title": {"model": selector},
             "gateway7-smoke": {
                 "mode": "primary",
-                "model": "gateway7/gpt-4.1",
-                "prompt": "Read the requested local file with read, then return its control string.",
-                "tools": {"*": False, "read": True},
-                "permission": {"*": "deny", "read": "allow"},
+                "model": selector,
+                "system": "Read the requested local file with read, then return its control string.",
+                "permissions": permissions,
                 "steps": 3,
-            }
+            },
         },
-        "permission": {"*": "deny", "read": "allow"},
-        "autoupdate": False,
-        "share": "disabled",
-        "plugin": [],
+        "permissions": permissions,
+        "plugins": [],
     }
 
 
-def isolated_environment(directory: Path) -> dict[str, str]:
-    environment = dict(os.environ)
-    # The CLI prefers PWD over process.cwd(); a subprocess must use its actual cwd.
-    environment.pop("PWD", None)
-    for key in list(environment):
-        if key.startswith("OPENCODE_") or key in {
-            "OPENAI_API_KEY",
-            "ANTHROPIC_API_KEY",
-            "GEMINI_API_KEY",
-        }:
-            environment.pop(key)
+def isolated_environment(directory: Path, client_token: str | None = None) -> dict[str, str]:
+    # Inherit nothing: do not even inspect provider credentials, proxy values,
+    # config overrides or PWD from the caller's environment.
+    environment = {"PATH": os.defpath}
     for key, name in (
+        ("HOME", "home"),
         ("XDG_CONFIG_HOME", "config"),
         ("XDG_DATA_HOME", "data"),
         ("XDG_CACHE_HOME", "cache"),
         ("XDG_STATE_HOME", "state"),
         ("OPENCODE_TEST_HOME", "home"),
+        ("TMPDIR", "tmp"),
     ):
         target = directory / name
-        target.mkdir()
+        target.mkdir(parents=True, exist_ok=True)
         environment[key] = str(target)
+    # Update controls are global-only in V2, not project settings.
+    global_config = directory / "config" / "opencode"
+    global_config.mkdir(exist_ok=True)
+    (global_config / "opencode.json").write_text(
+        json.dumps({"$schema": "https://opencode.ai/config.json", "update": "disable"}),
+        encoding="utf-8",
+    )
     environment["OPENCODE_DISABLE_MODELS_FETCH"] = "1"
+    environment["OPENCODE_DISABLE_FREE_MODELS"] = "1"
     environment["OPENCODE_DISABLE_CLAUDE_CODE"] = "1"
-    environment["GATEWAY7_CLIENT_TOKEN"] = CLIENT_TOKEN
+    if client_token is not None:
+        environment["GATEWAY7_CLIENT_TOKEN"] = client_token
     return environment
 
 
-def run_scenario(binary: str, directory: Path, *, denied: bool) -> dict[str, Any]:
+def ensure_no_ancestor_configs(directory: Path) -> None:
+    """Reject discovered ancestor configuration using metadata, never file contents.
+
+    This preflight requires stable, trusted ancestors and a trusted CLI/system
+    configuration. It is not a filesystem or network sandbox.
+    """
+    try:
+        # V2 discovers configs through the filesystem root, not just the repo root.
+        for ancestor in directory.resolve(strict=True).parents:
+            for name in (
+                "opencode.json",
+                "opencode.jsonc",
+                ".opencode/opencode.json",
+                ".opencode/opencode.jsonc",
+                # File-based plugins and agents can also be discovered here.
+                ".opencode",
+            ):
+                try:
+                    (ancestor / name).lstat()
+                except FileNotFoundError:
+                    continue
+                raise SystemExit(ISOLATION_ERROR)
+    except (OSError, RuntimeError):
+        # Missing access or unresolved symlinks cannot establish isolation either.
+        raise SystemExit(ISOLATION_ERROR) from None
+
+
+def run_scenario(
+    binary: str, directory: Path, *, denied: bool, model: str = DEFAULT_MODEL
+) -> dict[str, Any]:
+    directory = directory.resolve()
     directory.mkdir()
+    client_token = secrets.token_urlsafe(32)
     project = directory / "project"
     project.mkdir()
+    ensure_no_ancestor_configs(project)
     filename = f"{BLOCKED_TERM}.txt" if denied else "agent-fixture.txt"
     fixture = project / filename
     fixture.write_text(MARKER + "\n", encoding="utf-8")
@@ -201,12 +264,12 @@ def run_scenario(binary: str, directory: Path, *, denied: bool) -> dict[str, Any
         {
             "provider": {
                 "kind": "openai",
-                "model": "gpt-4.1",
+                "model": model,
                 "key_env": "GATEWAY7_SMOKE_PROVIDER",
             },
             "auth": {
                 "enabled": True,
-                "clients": {"smoke": {"token_env": "GATEWAY7_SMOKE_CLIENT", "models": ["gpt-4.1"]}},
+                "clients": {"smoke": {"token_env": "GATEWAY7_SMOKE_CLIENT", "models": [model]}},
             },
             "limits": {"request_timeout_seconds": 30.0},
             "plugins": {
@@ -223,11 +286,15 @@ def run_scenario(binary: str, directory: Path, *, denied: bool) -> dict[str, Any
     original_provider_env = os.environ.get("GATEWAY7_SMOKE_PROVIDER")
     original_client_env = os.environ.get("GATEWAY7_SMOKE_CLIENT")
     os.environ["GATEWAY7_SMOKE_PROVIDER"] = PROVIDER_KEY
-    os.environ["GATEWAY7_SMOKE_CLIENT"] = CLIENT_TOKEN
+    os.environ["GATEWAY7_SMOKE_CLIENT"] = client_token
     # Injection is only in this local verification process. The production config
     # keeps the fixed HTTPS OpenAI origin and never permits arbitrary upstream URLs.
-    app_module.build_provider = lambda provider_config, key: HTTPProvider(
-        provider_config, key, transport=fixture_transport(fixture, captured)
+    setattr(
+        app_module,
+        "build_provider",
+        lambda provider_config, key: HTTPProvider(
+            provider_config, key, transport=fixture_transport(fixture, captured, model)
+        ),
     )
     server = None
     thread = None
@@ -255,14 +322,14 @@ def run_scenario(binary: str, directory: Path, *, denied: bool) -> dict[str, Any
             else:
                 raise AssertionError("Gateway failed to start")
         (project / "opencode.json").write_text(
-            json.dumps(opencode_config(base_url + "/v1"), indent=2), encoding="utf-8"
+            json.dumps(opencode_config(base_url + "/v1", model), indent=2), encoding="utf-8"
         )
         command = [
             binary,
             "--standalone",
             "run",
             "--model",
-            "gateway7/gpt-4.1",
+            f"gateway7/{model}",
             "--agent",
             "gateway7-smoke",
             "--format",
@@ -271,10 +338,12 @@ def run_scenario(binary: str, directory: Path, *, denied: bool) -> dict[str, Any
             "Gateway7 synthetic tool cycle",
             f"Read {filename} using read, then return only the exact control string inside the file.",
         ]
+        environment = isolated_environment(directory, client_token)
+        ensure_no_ancestor_configs(project)
         result = subprocess.run(
             command,
             cwd=project,
-            env=isolated_environment(directory),
+            env=environment,
             capture_output=True,
             text=True,
             timeout=60,
@@ -304,15 +373,20 @@ def run_scenario(binary: str, directory: Path, *, denied: bool) -> dict[str, Any
             assert len(captured) == 2, "Expected tool-call and final-answer provider requests"
             assert len(calls) == 1 and calls[0]["part"]["tool"] == "read"
             assert calls[0]["part"]["state"]["status"] == "completed"
-            assert MARKER in calls[0]["part"]["state"]["output"]
+            tool_output = calls[0]["part"]["state"]["output"]
+            assert MARKER in tool_output
+            assert_tool_result_replayed(captured[1], fixture, tool_output)
             assert texts == [MARKER], "The final answer did not match the file's control string"
+            assert policy_denials == 0, "Allowed response unexpectedly triggered the policy"
         return {
             "scenario": "policy_denies_before_tool_execution" if denied else "read_tool_round_trip",
+            "model": model,
             "passed": True,
             "provider_requests": len(captured),
             "provider_stream": all(body["stream"] is True for body in captured),
             "fragment_bytes": 17,
             "tools_executed": len(calls),
+            "tool_result_replayed": not denied,
             "final_text": texts,
             "client_errors": len(errors),
             "response_policy_denials": int(policy_denials),
@@ -323,7 +397,7 @@ def run_scenario(binary: str, directory: Path, *, denied: bool) -> dict[str, Any
         if thread is not None:
             thread.join(timeout=10)
             assert not thread.is_alive(), "Gateway server did not stop"
-        app_module.build_provider = original_builder
+        setattr(app_module, "build_provider", original_builder)
         for key, original in (
             ("GATEWAY7_SMOKE_PROVIDER", original_provider_env),
             ("GATEWAY7_SMOKE_CLIENT", original_client_env),
@@ -342,27 +416,41 @@ def main() -> None:
     parser.add_argument(
         "--report", type=Path, help="Optional path for the synthetic verification report"
     )
+    parser.add_argument(
+        "--model", choices=MODELS, default=DEFAULT_MODEL, help="Synthetic upstream model ID"
+    )
     arguments = parser.parse_args()
     binary = shutil.which(arguments.opencode)
     if binary is None:
-        raise SystemExit("OpenCode V2 executable was not found; install @opencode/cli first")
+        raise SystemExit("OpenCode V2 executable was not found; supply --opencode with its path")
     binary = str(Path(binary).absolute())
-    version = subprocess.run(
-        [binary, "--version"], capture_output=True, text=True, timeout=10, check=True
-    ).stdout.strip()
-    if not version.startswith("opencode v2."):
-        raise SystemExit("This smoke scenario requires OpenCode V2")
     with Path(binary).resolve().open("rb") as executable:
         digest = hashlib.file_digest(executable, "sha256").hexdigest()
     with tempfile.TemporaryDirectory(prefix="gateway7-opencode-") as temporary:
-        directory = Path(temporary)
+        directory = Path(temporary).resolve()
+        version_directory = directory / "version"
+        version_directory.mkdir()
+        environment = isolated_environment(version_directory)
+        ensure_no_ancestor_configs(version_directory)
+        version = subprocess.run(
+            [binary, "--version"],
+            cwd=version_directory,
+            env=environment,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=True,
+        ).stdout.strip()
+        if not version.startswith("opencode v2."):
+            raise SystemExit("This smoke scenario requires OpenCode V2")
         report = {
             "opencode_version": version,
             "binary_sha256": digest,
+            "model": arguments.model,
             "external_provider_called": False,
             "scenarios": [
-                run_scenario(binary, directory / "allowed", denied=False),
-                run_scenario(binary, directory / "denied", denied=True),
+                run_scenario(binary, directory / "allowed", denied=False, model=arguments.model),
+                run_scenario(binary, directory / "denied", denied=True, model=arguments.model),
             ],
         }
     output = json.dumps(report, indent=2)

@@ -28,6 +28,10 @@ class LoadedPlugin:
     handle: AsyncHook
     startup: AsyncHook | None
     shutdown: AsyncHook | None
+    prepare_early_stream: AsyncHook | None = None
+    prepare_responses: AsyncHook | None = None
+    check_responses: AsyncHook | None = None
+    prepare_early_responses: AsyncHook | None = None
 
 
 @dataclass(frozen=True)
@@ -43,7 +47,13 @@ def _hook(instance: object, name: str, instance_name: str) -> AsyncHook | None:
             return None
         if not callable(value) or not inspect.iscoroutinefunction(value):
             raise ValueError
-        arguments = (None, None, None) if name == "handle" else ()
+        arguments = {
+            "handle": (None, None, None),
+            "prepare_early_stream": (None, None),
+            "prepare_responses": (None, None),
+            "check_responses": (None, None),
+            "prepare_early_responses": (None, None),
+        }.get(name, ())
         inspect.signature(value).bind(*arguments)
     except Exception:
         raise StartupError(
@@ -137,6 +147,10 @@ def load_plugins(config: GatewayConfig) -> LoadedPlugins:
             handle=handle,
             startup=_hook(instance, "startup", name),
             shutdown=_hook(instance, "shutdown", name),
+            prepare_early_stream=_hook(instance, "prepare_early_stream", name),
+            prepare_responses=_hook(instance, "prepare_responses", name),
+            check_responses=_hook(instance, "check_responses", name),
+            prepare_early_responses=_hook(instance, "prepare_early_responses", name),
         )
         instances[name] = plugin
 

@@ -76,10 +76,10 @@ Chat authentication does not protect `/health`, `/ready` or `/metrics`.
 
 ## OpenCode V2
 
-The checked scenario uses the exact package `@opencode/cli@2.2.2`, whose executable is `opencode2` and whose version output is `opencode v2.2.2`.
+The checked scenario uses the exact package `@opencode/cli@2.2.5`, whose executable is `opencode2` and whose version output is `opencode v2.2.5`.
 The `opencode-ai` package is a different release line and is not the tested V2 harness.
 Gateway7 supports its OpenAI-compatible Chat route with function tools and serial calls.
-Upstream generation is streamed, but OpenCode receives SSE only after the gateway has checked the complete model response.
+The checked profile leaves the stream-mode header unset: upstream generation is streamed, but OpenCode receives SSE only after the gateway has checked the complete model response.
 
 ### Reproduce the harness check without a provider account
 
@@ -87,61 +87,92 @@ From a prepared Python checkout, install the pinned CLI into a disposable direct
 
 ```sh
 gateway7_opencode_tools="$(mktemp -d)"
-npm install --prefix "$gateway7_opencode_tools" --no-audit --no-fund @opencode/cli@2.2.2
+npm install --prefix "$gateway7_opencode_tools" --no-audit --no-fund @opencode/cli@2.2.5
 uv run --locked python scripts/smoke_opencode.py \
-  --opencode "$gateway7_opencode_tools/node_modules/.bin/opencode2"
+  --opencode "$gateway7_opencode_tools/node_modules/.bin/opencode2" \
+  --model gpt-4.1-mini
 ```
 
-The check creates its own loopback Gateway7 server, isolated OpenCode config/data directories and synthetic text file.
+The check creates its own loopback Gateway7 server, isolated `HOME`, XDG config/data/cache/state and temporary directories, and a synthetic text file.
+It writes a private global OpenCode config with `update: "disable"` and constructs the child environment from scratch, including a random gateway client token as its only credential.
+It does not inherit the caller's provider credentials, proxy variables, OpenCode environment overrides or working-directory variable, and it disables remote model-catalog fetching and free models.
+Before version detection and each scenario's CLI launch, a metadata-only preflight checks every ancestor through the filesystem root for `opencode.json`, `opencode.jsonc`, `.opencode/opencode.json`, `.opencode/opencode.jsonc` and `.opencode` directories.
+Existing candidates, including symbolic links, or inspection failures stop the check with a static error; candidate contents are never opened.
+This preflight is not a filesystem or network sandbox: it requires stable, trusted ancestor directories and a trusted CLI and system configuration.
+Filesystem changes between inspection and CLI startup create a time-of-check/time-of-use (TOCTOU) limitation; the check does not permanently exclude all malicious configuration.
 It runs the real OpenCode binary through the production OpenAI adapter with an injected local transport; no request is sent to external OpenAI.
 The provider fixture sends 17-byte HTTP fragments and splits function arguments across SSE events.
-The allowed case executes `read` once, replays its result in a second provider request, and returns `GATEWAY7_AGENT_OK`.
-The denied case puts a policy term in the returned tool argument and verifies one provider request, zero tool executions and a client error.
+The observed 2.2.5 run with `gpt-4.1-mini` made two streamed provider requests, completed `read` once, replayed its complete actual tool output in the second request, and returned `GATEWAY7_AGENT_OK`.
+The denied case put a policy term in the returned tool argument and produced one streamed provider request, zero tool executions, one client error and one response-policy denial, with no final text.
 The report records the CLI version and binary hash, actual provider-stream flags and both scenario verdicts, without credentials or raw request bodies.
 
-This check passed on 30 October 2026 with the version above.
 It verifies a real harness against synthetic upstream responses; it does not verify access to a real OpenAI model or every OpenCode release and feature.
-The complete checked profile is the `opencode_config` function in `scripts/smoke_opencode.py`.
-It sets primary and small models to `gateway7/gpt-4.1`, output limit 1024, no reasoning or temperature control, and `parallelToolCalls: false`.
-Its primary agent allows file reading and denies other tool permissions; V2 also advertises its built-in `skill` definition.
+The script accepts `--model gpt-4.1` (the default) or `--model gpt-4.1-mini`; the command above selects the observed mini scenario explicitly.
+The complete native V2 profile is the `opencode_config(base_url, model)` helper in `scripts/smoke_opencode.py`.
+It selects `gateway7/<model>`, sets the primary and title agents' models under `agents`, limits output to 1024 tokens, and sets provider `body.parallel_tool_calls: false`.
+Provider-use policies allow only `gateway7`, and its primary agent allows file reading while denying other tool permissions.
+The profile uses the native V2 `providers`, `package`, `settings`, `capabilities`, `agents` and ordered `permissions` shapes from the official [configuration](https://opencode.ai/v2/docs/config), [provider](https://opencode.ai/v2/docs/providers) and [agent](https://opencode.ai/v2/docs/agents) guides.
+The [migration guide](https://opencode.ai/v2/docs/migrate-v1) maps legacy `small_model` to `agents.title.model`; new profiles should use that native field.
 
 ### Point the checked profile at your OpenAI gateway
 
 First start the [real OpenAI configuration](#openai-with-a-env-file).
-To reuse the checked model ID, set both `provider.model` and `auth.clients.developer.models` in `config/openai.yaml` to `gpt-4.1`, then recreate the gateway.
+The unchanged `config/openai.yaml` already selects and allows `gpt-4.1-mini`.
+If you choose `gpt-4.1` instead, change both `provider.model` and `auth.clients.developer.models`, recreate the gateway, and select the same model in the profile and CLI command.
 Your OpenAI account must have access to that model.
-This live account/model combination was not exercised by the synthetic check and can incur charges.
+This optional live account/model check was not exercised by the synthetic check and can incur charges, including if it fails.
+Set and monitor your own per-run request/token and spending budget; the profile's output limit applies per model request, and the gateway does not enforce a run-wide billing cap.
 
 Keep `gateway7_opencode_tools` from the installation above and run the following from the Gateway7 checkout:
 
 ```sh
-export GATEWAY7_OPENCODE_PROJECT="$(mktemp -d)"
-uv run --locked python - <<'PYCONFIG'
-import json
-import os
-from pathlib import Path
-from scripts.smoke_opencode import opencode_config
-
-project = Path(os.environ["GATEWAY7_OPENCODE_PROJECT"])
-profile = opencode_config("http://127.0.0.1:8000/v1")
-(project / "opencode.json").write_text(json.dumps(profile, indent=2), encoding="utf-8")
-(project / "agent-fixture.txt").write_text("GATEWAY7_AGENT_OK\n", encoding="utf-8")
-PYCONFIG
+export GATEWAY7_OPENCODE_HOME="$(mktemp -d)"
+export GATEWAY7_OPENCODE_TOOLS="$gateway7_opencode_tools"
 read -r -s -p 'Gateway client token: ' GATEWAY7_CLIENT_TOKEN
 printf '\n'
 export GATEWAY7_CLIENT_TOKEN
-cd "$GATEWAY7_OPENCODE_PROJECT"
-"$gateway7_opencode_tools/node_modules/.bin/opencode2" --standalone run \
-  --model gateway7/gpt-4.1 --agent gateway7-smoke --format json \
-  --title 'Gateway7 file-read check' \
-  'Read agent-fixture.txt with the read tool and return its control string.'
+uv run --locked python - <<'PY'
+import json
+import os
+from pathlib import Path
+import subprocess
+from scripts.smoke_opencode import (
+    ensure_no_ancestor_configs,
+    isolated_environment,
+    opencode_config,
+)
+
+root = Path(os.environ["GATEWAY7_OPENCODE_HOME"]).resolve()
+project = root / "project"
+project.mkdir()
+profile = opencode_config("http://127.0.0.1:8000/v1", model="gpt-4.1-mini")
+(project / "opencode.json").write_text(json.dumps(profile, indent=2), encoding="utf-8")
+(project / "agent-fixture.txt").write_text("GATEWAY7_AGENT_OK\n", encoding="utf-8")
+binary = Path(os.environ["GATEWAY7_OPENCODE_TOOLS"]).resolve() / "node_modules/.bin/opencode2"
+environment = isolated_environment(root, os.environ["GATEWAY7_CLIENT_TOKEN"])
+ensure_no_ancestor_configs(project)
+subprocess.run(
+    [
+        str(binary), "--standalone", "run",
+        "--model", "gateway7/gpt-4.1-mini", "--agent", "gateway7-smoke",
+        "--format", "json", "--title", "Gateway7 file-read check",
+        "Read agent-fixture.txt with the read tool and return its control string.",
+    ],
+    cwd=project,
+    env=environment,
+    check=True,
+)
+PY
 ```
 
 Enter the gateway client token, not `OPENAI_API_KEY`.
 The generated file references `{env:GATEWAY7_CLIENT_TOKEN}` and contains no secret.
+The child uses the same environment construction and ancestor-config preflight as the synthetic check, with the same trust and TOCTOU limitations; the provider key remains only on the gateway server.
+The explicit model selector and standalone CLI invocation follow the V2 [models](https://opencode.ai/v2/docs/models) and [CLI](https://opencode.ai/v2/docs/cli) guides.
 Check the JSON events for a completed `read` and the final marker; a text answer alone does not prove a tool round trip.
 The underlying model decides whether to call a tool, so live output can differ from the deterministic fixture.
 For longer coding sessions, deliberately configure sufficient request-body and overall timeout limits; the bounded profile above is a read-only integration check.
+It covers only the documented buffered Chat Completions subset, not the Responses API, opt-in early text or a full coding-agent profile.
 
 ## Real providers
 
@@ -304,10 +335,49 @@ docker compose -f compose.yaml -f compose.live.yaml down
 ```
 
 The samples allow 60 seconds for a whole request and 30 seconds for provider transport operations.
-Provider failures return a safe HTTP 502; the gateway's overall deadline returns HTTP 504.
+Before response headers are sent, provider failures return a safe HTTP 502 and the gateway's overall deadline returns HTTP 504.
+Opt-in early delivery can instead fail after HTTP 200 has started; see [early-text error handling](api.md#opt-in-to-early-chat-completions-text).
 Some models can use tokens without producing a supported final answer, especially with a small output budget.
 Missing or invalid usage is returned as `null`.
 Use the [provider failure reasons](observability.md#provider-failure-reasons) to diagnose errors.
+
+### Choose streaming delivery mode
+
+Buffered delivery remains the default for `POST /v1/chat/completions` with `stream: true`; omitting `X-Gateway7-Stream-Mode` or setting it to `buffered` retains full-response checks.
+The implemented `X-Gateway7-Stream-Mode: early` path is under independent review and requires a separately reviewed request-only configuration, not merely a client header change.
+Every active middleware must explicitly support its early request hook, and the reference middleware require `phase: request`; a missing hook returns HTTP 400 before provider work.
+With hooks present, a reached `phase: response` or `phase: both` hook refuses early mode with HTTP 400 unless an earlier request hook has already denied with HTTP 403 (`policy_denied`); neither outcome invokes the provider.
+The convenient `config/openai.yaml` includes `phase: both` phone/email masking and response redaction: an otherwise allowed early request returns HTTP 400, while `BLOCK-ME-TEST` is denied first by its request guard with HTTP 403 (`policy_denied`).
+Both paths make zero provider calls.
+Keep that protected sample unchanged for normal use; do not remove required policies or weaken privacy across shared clients to obtain earlier text.
+If response blocking, masking, redaction or returned-tool-argument inspection is required, use buffered mode rather than early delivery.
+
+For a deliberate request-only deployment, review its policy boundary separately, keep provider keys server-side, validate the configuration and restart as described above.
+Configuration validation does not prove early compatibility or provider access.
+Clients must handle a late SSE error or aborted HTTP 200 stream without treating an already received prefix as successful completion; tool calls still wait for complete validation.
+The [API contract](api.md#opt-in-to-early-chat-completions-text) describes selection, rejection, backpressure and error behavior.
+This Chat mode does not establish early OpenCode integration or a full Codex profile; the separate native HTTP subset is described below.
+
+### Native Responses setup boundary
+
+The OpenAI configuration also serves the [native `/v1/responses` HTTP subset](api.md#native-responses-http) as JSON or default checked native SSE, with the same gateway token, model allowlist and server-held provider key.
+The shipped reference email, phone and content-policy middleware implement native request preparation and reverse response checking; keep their configured privacy phases rather than removing policies for a client.
+A company plugin needs the separate [native API v2 hooks](plugins.md#native-responses-hooks); a valid Chat-only plugin or passing generated Chat fixtures does not make it compatible.
+Missing native hooks, unsupported fields and unconsented opaque/hosted requests reject before provider work.
+The native default is 1024 output tokens, explicitly bounded to 1–4096, and the existing 65,536-byte default request-body limit still includes history, metadata and inline media.
+
+Consent is per request: `X-Gateway7-Allow-Opaque` and `X-Gateway7-Allow-Hosted-Tools` are separate, default-denied headers with exact `true`/`false` values, not YAML settings or provider keys.
+Review the [inspection and execution limitations](api.md#explicit-opaque-and-hosted-tool-consent) before enabling either: opaque bytes are not inspected, and hosted search can execute before response policy sees a result.
+Consent does not replace plaintext policy checks or weaken another client's configuration.
+
+The implemented [native early-text contract](api.md#opt-in-to-native-early-text) requires `X-Gateway7-Stream-Mode: early`, `stream: true`, OpenAI and compatible request-only native hooks; the two independent consent headers remain unchanged.
+The protected sample is not early-compatible: a reached response-dependent hook refuses with HTTP 400 unless an earlier request guard has already denied with HTTP 403, with zero provider calls in either case.
+Only the uninterrupted assistant message/output-text part at output/content indices `0/0` is eligible for an early prefix; supported complex profiles can hold text until final validation without losing native order or identity.
+The same backpressure, admission, deadlines and owned-job cleanup apply; no all-profile first-token or throughput improvement is promised.
+The app/parser/encoder/pipeline seams have landed, but production typed-provider integration and end-to-end early acceptance remain separate; no gateway/container, live or paid early verification is claimed.
+The existing native default HTTP checks are synthetic evidence, not proof of real Codex or provider-account readiness.
+No Codex installation command or version-specific runner profile is prescribed here until actual gateway/container harness evidence is available.
+For an optional billable plaintext check, use the bounded API example and monitor your own per-run request/token and spending budget; no consent grants or run-wide billing cap are implied.
 
 ### Rehearse the live demonstration
 
@@ -351,7 +421,7 @@ Use the [architecture](architecture/README.md#customer-view), [middleware author
 | `limits.max_concurrent_requests` | Active pipelines per process; default 64, configurable from 1 to 10,000 |
 | `auth` | Client token environment names and model allowlists |
 | `plugins` | Named middleware instances and their validated settings |
-| `middleware` | Request order; responses pass through the chain in reverse |
+| `middleware` | Request order; buffered responses pass through the chain in reverse; early mode requires explicit request-only compatibility |
 
 Unknown fields, invalid settings and missing required middleware stop startup.
 `serve` also loads credentials and runs plugin startup hooks before becoming ready.

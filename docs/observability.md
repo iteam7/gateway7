@@ -42,17 +42,26 @@ Is the last gateway scrape healthy? Expect `1`:
 up{job="gateway7"}
 ```
 
-Chat requests per second, by HTTP status, across both APIs:
+Application requests per second, by HTTP status, across `/chat`, Chat Completions and Responses:
 
 ```promql
-sum by (status) (rate(gateway7_http_requests_total{route=~"chat|openai_chat"}[1m]))
+sum by (status) (rate(gateway7_http_requests_total{route=~"chat|openai_chat|openai_responses"}[1m]))
 ```
 
-Chat p95 latency in seconds, below which about 95% of requests fall:
+Terminal application outcomes over five minutes, including late stream failures and requests that end without a response:
+
+```promql
+sum by (route, outcome) (increase(gateway7_http_request_outcomes_total{route=~"chat|openai_chat|openai_responses"}[5m]))
+```
+
+Use terminal outcomes when designing stream alerts: HTTP 200 alone does not establish successful completion.
+These are query examples, not installed alert rules or new Grafana panels.
+
+Application p95 latency in seconds, below which about 95% of requests fall:
 
 ```promql
 histogram_quantile(0.95,
-  sum by (le) (rate(gateway7_http_request_duration_seconds_bucket{route=~"chat|openai_chat"}[5m])))
+  sum by (le) (rate(gateway7_http_request_duration_seconds_bucket{route=~"chat|openai_chat|openai_responses"}[5m])))
 ```
 
 Middleware p95 work time, excluding waits for nested handlers and the provider:
@@ -86,9 +95,9 @@ sum by (provider) (increase(gateway7_provider_usage_unknown_total[5m]))
 ## Diagnose a failing request
 
 1. Check `/ready`, then `up{job="gateway7"}` to separate gateway startup from a scrape problem.
-2. Find the request's HTTP status in the table below.
+2. Compare the sent HTTP status, if any, with the terminal outcome; HTTP 200 can accompany a failed stream.
 3. Compare provider latency with middleware work time; these measure different parts of the request.
-4. For a 502, inspect the provider `reason` counter and use the returned request ID to find the matching gateway log event.
+4. For `provider_error`, including a stream that began with HTTP 200, inspect the provider `reason` counter and use a returned request ID to find the matching gateway log event when available.
 
 ```sh
 docker compose logs --tail=100 gateway
@@ -98,6 +107,8 @@ For the live override, use `docker compose -f compose.yaml -f compose.live.yaml 
 Gateway events include request IDs, component/outcome codes and timings.
 Provider failure events also include a fixed `reason` value.
 Request IDs stay in logs and response headers/bodies; they are not metric labels.
+
+Before response headers, failures can still use the ordinary JSON error statuses below.
 
 | HTTP status | What to check |
 | --- | --- |
@@ -115,12 +126,13 @@ A denied response may follow a completed provider call, so check both HTTP and p
 
 `GET /metrics` exports Prometheus text, with a separate registry for each application instance.
 Labels contain no prompts, answers, policy terms, credentials, URLs, request IDs, client names or model IDs.
-Routes use the fixed names `chat`, `openai_chat`, `models`, `health`, `ready`, `metrics` and `other`.
+Routes use the fixed names `chat`, `openai_chat`, `openai_responses`, `models`, `health`, `ready`, `metrics` and `other`.
 Provider and middleware names come from validated server configuration.
 
 | Metric | Labels | Meaning |
 | --- | --- | --- |
-| `gateway7_http_requests_total` | `route`, `status` | Completed HTTP requests, including failures |
+| `gateway7_http_requests_total` | `route`, `status` | Requests by the response status actually sent; counted after the request finishes |
+| `gateway7_http_request_outcomes_total` | `route`, `outcome` | One observation per request at HTTP-boundary exit, including late stream failures and requests with no response |
 | `gateway7_http_request_duration_seconds` | `route` | Histogram of HTTP duration |
 | `gateway7_http_requests_in_flight` | None | Active HTTP requests, including health checks and the current scrape |
 | `gateway7_active_pipelines` | None | Pipeline tasks still running, including cancellation cleanup |
@@ -139,6 +151,15 @@ The active-pipeline gauge drops only when a task finishes: a plugin that ignores
 Health and scrape requests do not use pipeline slots.
 The rejection counter separates a capacity-related 503 from a not-ready 503.
 
+Terminal-outcome instrumentation is under re-review; this description does not claim deployment or alert-rule verification.
+`gateway7_http_requests_total` records only a status actually sent: an SSE response that later fails still has wire status `200`.
+`gateway7_http_request_outcomes_total` records the terminal result independently, so that same request can have outcome `provider_error`, `cancelled` or `timeout` rather than `success`.
+The outcome is counted once when the HTTP boundary exits; it does not certify that all pipeline or background cleanup has finished.
+The early-stream path awaits its owned job and cleanup before that boundary exits; use `gateway7_active_pipelines` to track outstanding admitted work.
+A disconnect before any response records `cancelled` without inventing an HTTP 500 observation in the status counter.
+`Metrics.observe_http_outcome` restricts the labels to the fixed route names and the bounded `HTTPRequestOutcome` categories in [gateway7/metrics.py](https://github.com/iteam7/gateway7/blob/main/gateway7/metrics.py); an unrecognized outcome becomes `internal_error`.
+The new counter adds no exception text, request IDs, model IDs, prompts or other arbitrary label details.
+
 Middleware metrics count processing segments, not distinct requests.
 One inner failure can give several outer middleware a `downstream_error` result.
 Use HTTP 403 counts for combined policy/model denials instead of adding middleware failure counts.
@@ -146,18 +167,21 @@ Use HTTP 403 counts for combined policy/model denials instead of adding middlewa
 A request denied before forwarding adds no provider attempt.
 A response denied after forwarding still counts the call and any known token usage.
 Complete valid usage from a decoded HTTP 200 response is counted even when answer validation then fails.
-The client still gets a safe 502 without the rejected answer or its usage fields.
+Before response headers, the client gets a safe 502 without the rejected answer or its usage fields.
+After early text has been delivered, a later failure instead produces a safe SSE error or an aborted stream; the terminal outcome records failure without changing the sent HTTP status or retracting the prefix.
 HTTP error bodies and incomplete or undecodable responses supply no usage.
 
 Both token counts must be integers from 0 through 2^63−1.
 Missing, incomplete, boolean, negative, fractional or overflowing counts stay unknown; reported `0/0` is known usage.
+That paired-count rule applies to the existing Prometheus input/output accounting: a native Responses usage object can still retain valid partial counts, cache details or reasoning details without inventing absent counts or zeroes.
+The native API preserves provider response/item IDs in content, but they do not become metric labels; use `openai_responses` for its bounded route series.
 For Gemini, output usage includes reported thinking tokens even though hidden thoughts are not delivered.
 A failed or canceled call can still cost tokens that the gateway never receives in a usage report.
 Treat these metrics as operational observations, not a billing ledger.
 
 ### Provider failure reasons
 
-All provider failures keep the public HTTP 502 / `provider_error` response.
+Before response headers, provider failures keep the public HTTP 502 / `provider_error` response.
 The failure counter and log event use only these fixed reasons:
 
 | Reason | Observed condition |
@@ -174,7 +198,8 @@ The failure counter and log event use only these fixed reasons:
 These categories describe observations, not the provider's underlying cause.
 Logs and metrics do not expose upstream error bodies, exception strings, headers or URLs.
 No category triggers a retry or fallback.
-A provider timeout returns 502; a whole-request deadline returns 504.
+Before response headers, a provider timeout returns 502 and a whole-request deadline returns 504.
+After headers, inspect the terminal request outcome instead of expecting a replacement HTTP status.
 If a provider call is active when the gateway deadline or caller cancellation occurs, its outcome is `cancelled` and the failure counter is not incremented.
 
 ## Storage and verification

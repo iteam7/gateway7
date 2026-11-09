@@ -1,8 +1,63 @@
 """Per-application Prometheus metrics with bounded, content-free labels."""
 
+from enum import StrEnum
+
 from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram
 
 from gateway7.errors import ProviderErrorReason
+
+
+class HTTPRequestOutcome(StrEnum):
+    """Terminal request results, independent of the status already sent on the wire."""
+
+    SUCCESS = "success"
+    CANCELLED = "cancelled"
+    TIMEOUT = "timeout"
+    PROVIDER_ERROR = "provider_error"
+    POLICY_DENIED = "policy_denied"
+    PLUGIN_ERROR = "plugin_error"
+    INVALID_REQUEST = "invalid_request"
+    UNAUTHORIZED = "unauthorized"
+    MODEL_FORBIDDEN = "model_forbidden"
+    BODY_TOO_LARGE = "body_too_large"
+    OVERLOADED = "overloaded"
+    UNAVAILABLE = "unavailable"
+    NOT_FOUND = "not_found"
+    METHOD_NOT_ALLOWED = "method_not_allowed"
+    INTERNAL_ERROR = "internal_error"
+
+    @classmethod
+    def normalize(cls, value: object) -> "HTTPRequestOutcome":
+        if isinstance(value, cls):
+            return value
+        if type(value) is str:
+            if value == "complete":
+                return cls.SUCCESS
+            try:
+                return cls(value)
+            except ValueError:
+                pass
+        return cls.INTERNAL_ERROR
+
+    @classmethod
+    def from_status(cls, status: int | None) -> "HTTPRequestOutcome":
+        if status is None:
+            return cls.INTERNAL_ERROR
+        if 200 <= status < 400:
+            return cls.SUCCESS
+        return {
+            400: cls.INVALID_REQUEST,
+            401: cls.UNAUTHORIZED,
+            403: cls.POLICY_DENIED,
+            404: cls.NOT_FOUND,
+            405: cls.METHOD_NOT_ALLOWED,
+            413: cls.BODY_TOO_LARGE,
+            422: cls.INVALID_REQUEST,
+            499: cls.CANCELLED,
+            502: cls.PROVIDER_ERROR,
+            503: cls.UNAVAILABLE,
+            504: cls.TIMEOUT,
+        }.get(status, cls.INTERNAL_ERROR)
 
 
 class Metrics:
@@ -10,8 +65,14 @@ class Metrics:
         self.registry = CollectorRegistry()
         self.http_requests = Counter(
             "gateway7_http_requests_total",
-            "Completed HTTP requests.",
+            "HTTP requests by the response status actually sent.",
             ("route", "status"),
+            registry=self.registry,
+        )
+        self.http_outcomes = Counter(
+            "gateway7_http_request_outcomes_total",
+            "Terminal HTTP request outcomes, including streaming failures and requests without a response.",
+            ("route", "outcome"),
             registry=self.registry,
         )
         self.http_duration = Histogram(
@@ -80,6 +141,25 @@ class Metrics:
             registry=self.registry,
             buckets=(0.0001, 0.001, 0.005, 0.01, 0.025, 0.1, 0.5, 1, 2.5, 5, 10),
         )
+
+    def observe_http_outcome(self, route: str, outcome: object) -> None:
+        safe_route = (
+            route
+            if type(route) is str
+            and route
+            in {
+                "chat",
+                "openai_chat",
+                "openai_responses",
+                "health",
+                "ready",
+                "metrics",
+                "models",
+                "other",
+            }
+            else "other"
+        )
+        self.http_outcomes.labels(safe_route, HTTPRequestOutcome.normalize(outcome).value).inc()
 
     def observe_provider(
         self,

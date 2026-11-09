@@ -10,6 +10,7 @@ from __future__ import annotations
 import ipaddress
 import json
 import re
+from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any, Literal
 from urllib.parse import urlsplit
 
@@ -18,10 +19,13 @@ import httpx
 from gateway7.errors import ProviderError, ProviderErrorReason
 from gateway7.models import ChatResponse, ToolCall
 from gateway7.openai_stream import OpenAIStream
+from gateway7.responses_models import ResponsesConsent
 
 if TYPE_CHECKING:
     from gateway7.config import ProviderConfig
     from gateway7.models import ChatRequest
+    from gateway7.responses_events import ResponsesTextSink
+    from gateway7.responses_models import ResponsesRequest, ResponsesResponse
 
 
 MAX_RESPONSE_BYTES = 1_048_576
@@ -174,10 +178,14 @@ def _openai_response(data: dict[str, Any]) -> tuple[str, FinishReason, list[Tool
     except (TypeError, ValueError):
         raise ProviderError(ProviderErrorReason.INVALID_RESPONSE) from None
     text = message.get("content")
-    if text is None and calls:
+    if text is None and (calls or (reason == "length" and "content" in message)):
         text = ""
-    if not isinstance(text, str) or (not text and not calls):
+    if not isinstance(text, str) or (not text and not calls and reason != "length"):
         raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
+    if calls and reason == "stop":
+        # Forced function choices can finish with stop despite a complete call.
+        # Keep the domain's tool-call finish invariant after strict call parsing.
+        return text, "tool_calls", calls
     if bool(calls) != (reason == "tool_calls"):
         raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
     return text, reason, calls
@@ -261,6 +269,38 @@ class HTTPProvider:
 
     async def aclose(self) -> None:
         await self._client.aclose()
+
+    async def complete_responses(
+        self,
+        request: ResponsesRequest,
+        *,
+        model: str | None = None,
+        stream: bool = False,
+        consent: ResponsesConsent = ResponsesConsent(),
+    ) -> ResponsesResponse:
+        from gateway7.responses_provider import complete_responses
+
+        return await complete_responses(self, request, model=model, stream=stream, consent=consent)
+
+    async def complete_responses_early(
+        self,
+        request: ResponsesRequest,
+        *,
+        model: str | None = None,
+        consent: ResponsesConsent = ResponsesConsent(),
+        on_text: Callable[[str], Awaitable[None]] | None = None,
+        on_text_delta: ResponsesTextSink | None = None,
+    ) -> ResponsesResponse:
+        from gateway7.responses_provider import complete_responses_early
+
+        return await complete_responses_early(
+            self,
+            request,
+            model=model,
+            consent=consent,
+            on_text=on_text,
+            on_text_delta=on_text_delta,
+        )
 
     def _request(
         self, request: ChatRequest, model: str | None = None, *, stream: bool = False
@@ -371,43 +411,88 @@ class HTTPProvider:
     async def complete(
         self, request: ChatRequest, *, model: str | None = None, stream: bool = False
     ) -> ChatResponse:
+        return await self._complete(request, model=model, stream=stream)
+
+    async def complete_early(
+        self,
+        request: ChatRequest,
+        *,
+        model: str | None = None,
+        on_text: Callable[[str], Awaitable[None]],
+    ) -> ChatResponse:
+        """Await each checked OpenAI text delta; return tools only after validation.
+
+        This always streams upstream. Callback exceptions and cancellation pass
+        through unchanged; provider failures retain sanitized reasons and usage.
+        """
+        if self._kind != "openai":
+            raise ProviderError(ProviderErrorReason.REJECTED)
+        answer = await self._complete(request, model=model, stream=True, on_text=on_text)
+        previous_ids = {call.id for message in request.messages for call in message.tool_calls}
+        if any(call.id in previous_ids for call in answer.tool_calls):
+            raise ProviderError(ProviderErrorReason.INVALID_RESPONSE, usage=answer.usage)
+        return answer
+
+    async def _complete(
+        self,
+        request: ChatRequest,
+        *,
+        model: str | None = None,
+        stream: bool = False,
+        on_text: Callable[[str], Awaitable[None]] | None = None,
+    ) -> ChatResponse:
         usage = None
         streamed = OpenAIStream(MAX_RESPONSE_BYTES) if stream else None
+        callback_active = False
+        primary_error: BaseException | None = None
         try:
             path, payload = self._request(request, model, stream=stream)
             # A single request: retries and redirects are intentionally absent.
             async with self._client.stream(
                 "POST", self._origin + path, json=payload, headers=self._headers
             ) as response:
-                if response.status_code != 200:
-                    if response.status_code in (401, 403):
-                        reason = ProviderErrorReason.AUTHENTICATION
-                    elif response.status_code == 429:
-                        reason = ProviderErrorReason.RATE_LIMIT
-                    elif 500 <= response.status_code < 600:
-                        reason = ProviderErrorReason.UNAVAILABLE
-                    else:
-                        reason = ProviderErrorReason.REJECTED
-                    raise ProviderError(reason)
-                if streamed is not None:
-                    content_type = response.headers.get("content-type", "").split(";", 1)[0].strip()
-                    if content_type.lower() != "text/event-stream":
-                        raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
-                    async for chunk in response.aiter_bytes():
-                        streamed.feed(chunk)
-                    data = streamed.finish()
-                else:
-                    body = bytearray()
-                    async for chunk in response.aiter_bytes():
-                        if len(chunk) > MAX_RESPONSE_BYTES - len(body):
+                try:
+                    if response.status_code != 200:
+                        if response.status_code in (401, 403):
+                            reason = ProviderErrorReason.AUTHENTICATION
+                        elif response.status_code == 429:
+                            reason = ProviderErrorReason.RATE_LIMIT
+                        elif 500 <= response.status_code < 600:
+                            reason = ProviderErrorReason.UNAVAILABLE
+                        else:
+                            reason = ProviderErrorReason.REJECTED
+                        raise ProviderError(reason)
+                    if streamed is not None:
+                        content_type = (
+                            response.headers.get("content-type", "").split(";", 1)[0].strip()
+                        )
+                        if content_type.lower() != "text/event-stream":
                             raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
-                        body.extend(chunk)
-                    try:
-                        data = json.loads(body)
-                    except (ValueError, UnicodeError, RecursionError):
-                        raise ProviderError(ProviderErrorReason.INVALID_RESPONSE) from None
-                    if not isinstance(data, dict):
-                        raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
+                        async for chunk in response.aiter_bytes():
+                            streamed.feed(chunk)
+                            if on_text is not None:
+                                for text_delta in streamed.drain_text():
+                                    if text_delta:
+                                        callback_active = True
+                                        await on_text(text_delta)
+                                        callback_active = False
+                        data = streamed.finish()
+                    else:
+                        body = bytearray()
+                        async for chunk in response.aiter_bytes():
+                            if len(chunk) > MAX_RESPONSE_BYTES - len(body):
+                                raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
+                            body.extend(chunk)
+                        try:
+                            data = json.loads(body)
+                        except (ValueError, UnicodeError, RecursionError):
+                            raise ProviderError(ProviderErrorReason.INVALID_RESPONSE) from None
+                        if not isinstance(data, dict):
+                            raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
+                except BaseException as body_error:
+                    # HTTPX closes on context exit; cleanup must not replace this failure.
+                    primary_error = body_error
+                    raise
             usage = _response_usage(self._kind, data)
             calls: list[ToolCall] = []
             if self._kind == "fake":
@@ -426,44 +511,50 @@ class HTTPProvider:
                 ):
                     raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
                 if isinstance(request.tool_choice, str):
-                    if request.tool_choice == "required" and not calls:
+                    if (
+                        request.tool_choice == "required"
+                        and not calls
+                        and finish_reason != "length"
+                    ):
                         raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
                 elif request.tool_choice is not None:
-                    if not calls or calls[0].function.name != request.tool_choice.function.name:
+                    if (calls and calls[0].function.name != request.tool_choice.function.name) or (
+                        not calls and finish_reason != "length"
+                    ):
                         raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
             else:
                 text, finish_reason = _gemini_response(data)
             if (
                 not isinstance(text, str)
-                or (not text and not calls)
+                or (
+                    not text
+                    and not calls
+                    and not (self._kind == "openai" and finish_reason == "length")
+                )
                 or finish_reason not in ("stop", "length", "tool_calls")
             ):
                 raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
             return ChatResponse(
                 text=text, usage=usage, finish_reason=finish_reason, tool_calls=calls
             )
-        except ProviderError as error:
+        except BaseException as caught_error:
+            error = primary_error if primary_error is not None else caught_error
+            if callback_active or not isinstance(error, Exception):
+                raise error from None
+            if isinstance(error, ProviderError):
+                reason = error.reason
+            elif isinstance(error, httpx.TimeoutException):
+                reason = ProviderErrorReason.TIMEOUT
+            elif isinstance(error, httpx.DecodingError):
+                reason = ProviderErrorReason.INVALID_RESPONSE
+            elif isinstance(error, httpx.TransportError):
+                reason = ProviderErrorReason.TRANSPORT
+            else:
+                # Never include bodies, URLs, headers or raw exceptions in diagnostics.
+                reason = ProviderErrorReason.UNKNOWN
             raise ProviderError(
-                error.reason, usage=streamed.usage if streamed is not None else usage
+                reason, usage=streamed.usage if streamed is not None else usage
             ) from None
-        except httpx.TimeoutException:
-            raise ProviderError(
-                ProviderErrorReason.TIMEOUT, usage=streamed.usage if streamed is not None else usage
-            ) from None
-        except httpx.DecodingError:
-            raise ProviderError(
-                ProviderErrorReason.INVALID_RESPONSE,
-                usage=streamed.usage if streamed is not None else usage,
-            ) from None
-        except httpx.TransportError:
-            raise ProviderError(
-                ProviderErrorReason.TRANSPORT,
-                usage=streamed.usage if streamed is not None else usage,
-            ) from None
-        except Exception:
-            # Unexpected failures retain a bounded fallback. Never include
-            # bodies, URLs, headers or raw exceptions in diagnostics.
-            raise ProviderError(usage=streamed.usage if streamed is not None else usage) from None
 
 
 def build_provider(

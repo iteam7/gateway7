@@ -944,3 +944,545 @@ async def test_other_provider_capabilities_are_rejected_before_transport(kind, p
             await provider.complete(payload, stream=stream)
     assert caught.value.reason is ProviderErrorReason.REJECTED
     assert not seen
+
+
+def openai_output_response(message, reason, *, stream, done=True):
+    if not stream:
+        return httpx.Response(
+            200,
+            json=openai_reply(
+                choices=[
+                    {
+                        "message": message,
+                        "finish_reason": reason,
+                    }
+                ]
+            ),
+        )
+    delta = dict(message)
+    if "tool_calls" in delta:
+        delta["tool_calls"] = [
+            {"index": index, **call} for index, call in enumerate(delta["tool_calls"])
+        ]
+    return streaming_response(
+        sse_body(
+            stream_chunk(delta),
+            stream_chunk(finish_reason=reason),
+            {"choices": [], "usage": {"prompt_tokens": 3, "completion_tokens": 1}},
+            done=done,
+        ),
+        size=3,
+    )
+
+
+@pytest.mark.parametrize("stream", [False, True])
+@pytest.mark.parametrize(
+    "choice",
+    [
+        "auto",
+        "required",
+        {"type": "function", "function": {"name": "read"}},
+    ],
+    ids=["auto", "required", "named"],
+)
+@pytest.mark.parametrize("text", ["partial", "", None], ids=["partial", "empty", "null"])
+async def test_openai_length_without_call_preserves_partial_or_empty_text_and_usage(
+    stream, choice, text
+):
+    response = openai_output_response(
+        {"role": "assistant", "content": text},
+        "length",
+        stream=stream,
+    )
+    async with mocked_provider(lambda _: response, kind="openai") as provider:
+        answer = await provider.complete(function_request(tool_choice=choice), stream=stream)
+    assert answer.text == (text or "")
+    assert answer.finish_reason == "length" and not answer.tool_calls
+    assert answer.usage == {"input_tokens": 3, "output_tokens": 1}
+    assert response.is_closed
+
+
+@pytest.mark.parametrize("stream", [False, True])
+@pytest.mark.parametrize(
+    "choice",
+    [
+        "auto",
+        "required",
+        {"type": "function", "function": {"name": "read"}},
+    ],
+    ids=["auto", "required", "named"],
+)
+@pytest.mark.parametrize("reason", ["stop", "tool_calls"])
+async def test_openai_valid_call_normalizes_stop_without_changing_identity_arguments_or_usage(
+    stream, choice, reason
+):
+    call = read_call(arguments='{ "path": "agent-fixture.txt" }')
+    response = openai_output_response(
+        {"role": "assistant", "content": None, "tool_calls": [call]},
+        reason,
+        stream=stream,
+    )
+    async with mocked_provider(lambda _: response, kind="openai") as provider:
+        answer = await provider.complete(function_request(tool_choice=choice), stream=stream)
+    assert answer.text == "" and answer.finish_reason == "tool_calls"
+    assert [item.model_dump() for item in answer.tool_calls] == [call]
+    assert answer.usage == {"input_tokens": 3, "output_tokens": 1}
+
+
+@pytest.mark.parametrize("stream", [False, True])
+@pytest.mark.parametrize(
+    "case",
+    [
+        "none-choice",
+        "unadvertised",
+        "named-mismatch",
+        "malformed-arguments",
+        "nonobject-arguments",
+        "duplicate-arguments",
+        "extra-calls",
+        "length-call",
+        "length-incomplete-call",
+        "empty-stop",
+        "missing-call",
+        "refusal",
+        "audio",
+        "legacy-call",
+    ],
+)
+async def test_openai_finish_normalization_keeps_invalid_tools_and_output_rejected(stream, case):
+    choice = {"type": "function", "function": {"name": "read"}}
+    request = function_request(tool_choice="none" if case == "none-choice" else choice)
+    call = read_call()
+    message = {"role": "assistant", "content": None, "tool_calls": [call]}
+    reason = "stop"
+    if case == "unadvertised":
+        call["function"]["name"] = "undeclared"
+    elif case == "named-mismatch":
+        tool = request.tools[0].model_dump()
+        tool["function"]["name"] = "write"
+        request = function_request(tool_choice=choice, tools=[request.tools[0].model_dump(), tool])
+        call["function"]["name"] = "write"
+    elif case in ("malformed-arguments", "length-incomplete-call"):
+        call["function"]["arguments"] = '{"path":'
+    elif case == "nonobject-arguments":
+        call["function"]["arguments"] = "[]"
+    elif case == "duplicate-arguments":
+        call["function"]["arguments"] = '{"path":"one","path":"two"}'
+    elif case == "extra-calls":
+        message["tool_calls"].append({**read_call(), "id": "call_second"})
+    elif case in ("empty-stop", "missing-call"):
+        message = {"role": "assistant", "content": "" if case == "empty-stop" else "pong"}
+    elif case in ("refusal", "audio", "legacy-call"):
+        field = "function_call" if case == "legacy-call" else case
+        message[field] = "private-upstream-output"
+    if case.startswith("length-"):
+        reason = "length"
+    elif case == "missing-call":
+        reason = "tool_calls"
+    response = openai_output_response(message, reason, stream=stream)
+    async with mocked_provider(lambda _: response, kind="openai") as provider:
+        with pytest.raises(ProviderError) as caught:
+            await provider.complete(request, stream=stream)
+    assert caught.value.reason is ProviderErrorReason.INVALID_RESPONSE
+    assert caught.value.usage == {"input_tokens": 3, "output_tokens": 1}
+    assert str(caught.value) == "Provider request failed"
+    assert "private-upstream-output" not in repr(caught.value)
+    assert response.is_closed
+
+
+async def test_openai_named_stop_call_without_sse_done_is_not_delivered():
+    response = openai_output_response(
+        {"role": "assistant", "content": None, "tool_calls": [read_call()]},
+        "stop",
+        stream=True,
+        done=False,
+    )
+    async with mocked_provider(lambda _: response, kind="openai") as provider:
+        with pytest.raises(ProviderError) as caught:
+            await provider.complete(
+                function_request(
+                    tool_choice={"type": "function", "function": {"name": "read"}},
+                ),
+                stream=True,
+            )
+    assert caught.value.reason is ProviderErrorReason.INVALID_RESPONSE
+    assert caught.value.usage == {"input_tokens": 3, "output_tokens": 1}
+    assert response.is_closed
+
+
+class EarlyParts(httpx.AsyncByteStream):
+    def __init__(self, *parts, close_failure=None):
+        self.parts = parts
+        self.reads = 0
+        self.eof = False
+        self.closed = False
+        self.close_failure = close_failure
+        self.close_attempts = 0
+
+    async def __aiter__(self):
+        for part in self.parts:
+            self.reads += 1
+            yield part
+        self.eof = True
+
+    async def aclose(self):
+        self.close_attempts += 1
+        self.closed = True
+        if self.close_failure is not None:
+            raise self.close_failure
+
+
+async def test_openai_early_text_arrives_before_eof_and_callback_blocks_the_next_read():
+    entered = asyncio.Event()
+    release = asyncio.Event()
+    delivered = []
+    attempts = []
+    stream = EarlyParts(
+        sse_body(
+            stream_chunk({"role": "assistant", "content": ""}),
+            stream_chunk({"content": "po"}),
+            stream_chunk({"content": "n"}),
+            done=False,
+        ),
+        sse_body(
+            stream_chunk({"content": "g"}),
+            stream_chunk(finish_reason="stop"),
+            {"choices": [], "usage": {"prompt_tokens": 7, "completion_tokens": 3}},
+        ),
+    )
+
+    async def on_text(text):
+        delivered.append(text)
+        if text == "po":
+            entered.set()
+            await release.wait()
+
+    def handle(wire):
+        attempts.append(wire)
+        payload = json.loads(wire.content)
+        assert payload["model"] == "routed-model"
+        assert payload["stream"] is True and payload["store"] is False
+        assert payload["stream_options"] == {"include_usage": True}
+        return httpx.Response(200, headers={"content-type": "text/event-stream"}, stream=stream)
+
+    async with mocked_provider(handle, kind="openai") as provider:
+        task = asyncio.create_task(
+            provider.complete_early(REQUEST, model="routed-model", on_text=on_text)
+        )
+        try:
+            await asyncio.wait_for(entered.wait(), 1)
+            assert delivered == ["po"]
+            assert stream.reads == 1 and not stream.eof and not stream.closed
+            assert not task.done()
+            release.set()
+            answer = await asyncio.wait_for(task, 1)
+        finally:
+            release.set()
+            if not task.done():
+                task.cancel()
+                with pytest.raises(asyncio.CancelledError):
+                    await task
+    assert delivered == ["po", "n", "g"]
+    assert answer.text == "pong" and answer.finish_reason == "stop"
+    assert answer.usage == {"input_tokens": 7, "output_tokens": 3}
+    assert not answer.tool_calls
+    assert stream.eof and stream.closed and len(attempts) == 1
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        RuntimeError,
+        ValueError,
+        ProviderError,
+        httpx.ReadTimeout,
+        httpx.ReadError,
+        httpx.DecodingError,
+    ],
+)
+@pytest.mark.parametrize("cleanup_fails", [False, True])
+async def test_openai_early_callback_exceptions_propagate_unchanged_and_close_the_stream(
+    failure, cleanup_fails
+):
+    original = failure("synthetic callback failure")
+    attempts = []
+    stream = EarlyParts(
+        sse_body(stream_chunk({"content": "first"}), done=False),
+        sse_body(stream_chunk(finish_reason="stop")),
+        close_failure=httpx.ReadError("private-cleanup-failure") if cleanup_fails else None,
+    )
+
+    async def on_text(_):
+        raise original
+
+    def handle(wire):
+        attempts.append(wire)
+        return httpx.Response(200, headers={"content-type": "text/event-stream"}, stream=stream)
+
+    async with mocked_provider(handle, kind="openai") as provider:
+        with pytest.raises(failure) as caught:
+            await provider.complete_early(REQUEST, on_text=on_text)
+        assert not provider._client.is_closed
+    assert caught.value is original
+    assert stream.closed and stream.reads == 1 and not stream.eof
+    assert stream.close_attempts == 1 and len(attempts) == 1
+    assert provider._client.is_closed
+
+
+@pytest.mark.parametrize("waiting_at", ["callback", "transport"])
+@pytest.mark.parametrize("cleanup_fails", [False, True])
+async def test_openai_early_cancellation_closes_the_active_upstream_without_retry(
+    waiting_at, cleanup_fails
+):
+    entered = asyncio.Event()
+    attempts = []
+
+    class ActiveStream(EarlyParts):
+        async def __aiter__(self):
+            self.reads += 1
+            yield sse_body(stream_chunk({"content": "first"}), done=False)
+            if waiting_at == "transport":
+                entered.set()
+                await asyncio.Event().wait()
+
+    stream = ActiveStream(
+        close_failure=httpx.ReadError("private-cleanup-failure") if cleanup_fails else None,
+    )
+
+    async def on_text(_):
+        if waiting_at == "callback":
+            entered.set()
+            await asyncio.Event().wait()
+
+    def handle(wire):
+        attempts.append(wire)
+        return httpx.Response(200, headers={"content-type": "text/event-stream"}, stream=stream)
+
+    async with mocked_provider(handle, kind="openai") as provider:
+        task = asyncio.create_task(provider.complete_early(REQUEST, on_text=on_text))
+        try:
+            await asyncio.wait_for(entered.wait(), 1)
+        finally:
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+        assert task.cancelled() and not provider._client.is_closed
+    assert stream.closed and stream.reads == 1 and len(attempts) == 1
+    assert stream.close_attempts == 1 and provider._client.is_closed
+
+
+@pytest.mark.parametrize("early", [False, True])
+@pytest.mark.parametrize(
+    "primary",
+    ["authentication", "invalid_response", None],
+    ids=["http-primary", "parse-primary", "cleanup-only"],
+)
+async def test_openai_cleanup_failure_preserves_provider_primary_or_is_safely_classified(
+    early, primary
+):
+    usage = {"choices": [], "usage": {"prompt_tokens": 5, "completion_tokens": 2}}
+    if primary == "authentication":
+        body = b"private-upstream-failure"
+    elif primary == "invalid_response":
+        body = sse_body(usage, done=False) + b"data: \xff\n\n"
+    else:
+        body = sse_body(stream_chunk({"content": "pong"}, "stop"), usage)
+    stream = EarlyParts(body, close_failure=httpx.ReadError("private-cleanup-failure"))
+    attempts = []
+
+    async def on_text(_):
+        pass
+
+    def handle(wire):
+        attempts.append(wire)
+        return httpx.Response(
+            401 if primary == "authentication" else 200,
+            headers={"content-type": "text/event-stream"},
+            stream=stream,
+        )
+
+    async with mocked_provider(handle, kind="openai") as provider:
+        with pytest.raises(ProviderError) as caught:
+            if early:
+                await provider.complete_early(REQUEST, on_text=on_text)
+            else:
+                await provider.complete(REQUEST, stream=True)
+        assert not provider._client.is_closed
+    assert caught.value.reason == (primary or "transport")
+    assert caught.value.usage == (
+        None
+        if primary == "authentication"
+        else {
+            "input_tokens": 5,
+            "output_tokens": 2,
+        }
+    )
+    assert str(caught.value) == "Provider request failed" and caught.value.__suppress_context__
+    assert "private-cleanup-failure" not in repr(caught.value)
+    assert stream.closed and stream.close_attempts == 1 and len(attempts) == 1
+    assert provider._client.is_closed
+
+
+@pytest.mark.parametrize(
+    "failure", ["utf8", "event-limit", "body-limit", "invalid-event", "missing-done"]
+)
+async def test_openai_early_late_invalid_output_never_returns_success_and_retains_usage(failure):
+    delivered = []
+    attempts = []
+    usage = {"choices": [], "usage": {"prompt_tokens": 5, "completion_tokens": 2}}
+    if failure == "utf8":
+        tail = sse_body(usage, done=False) + b"data: \xff\n\n"
+    elif failure == "event-limit":
+        tail = sse_body(usage, stream_chunk({"content": "x" * 65_536}, "stop"))
+    elif failure == "body-limit":
+        tail = sse_body(usage, done=False) + b": bounded-heartbeat\n\n" * (MAX_RESPONSE_BYTES // 10)
+    elif failure == "invalid-event":
+        tail = b"data: not-json\n\n" + sse_body(stream_chunk({"content": "must-not-leak"}), usage)
+    else:
+        tail = sse_body(stream_chunk(finish_reason="stop"), usage, done=False)
+    stream = EarlyParts(sse_body(stream_chunk({"content": "first"}), done=False), tail)
+
+    async def on_text(text):
+        delivered.append(text)
+
+    def handle(wire):
+        attempts.append(wire)
+        return httpx.Response(200, headers={"content-type": "text/event-stream"}, stream=stream)
+
+    async with mocked_provider(handle, kind="openai") as provider:
+        with pytest.raises(ProviderError) as caught:
+            await provider.complete_early(REQUEST, on_text=on_text)
+    assert caught.value.reason is ProviderErrorReason.INVALID_RESPONSE
+    assert caught.value.usage == {"input_tokens": 5, "output_tokens": 2}
+    assert delivered == ["first"] and len(attempts) == 1 and stream.closed
+
+
+@pytest.mark.parametrize(
+    "choice",
+    ["auto", "required", {"type": "function", "function": {"name": "read"}}],
+    ids=["auto", "required", "named"],
+)
+@pytest.mark.parametrize("reason", ["stop", "tool_calls"])
+async def test_openai_early_tool_fragments_are_only_returned_as_a_validated_final_call(
+    choice, reason
+):
+    delivered = []
+    call = read_call()
+    first = {**call, "index": 0, "function": {"name": "read", "arguments": '{"path":'}}
+    second = {"index": 0, "function": {"arguments": '"agent-fixture.txt"}'}}
+    response = streaming_response(
+        sse_body(
+            stream_chunk({"tool_calls": [first]}),
+            stream_chunk({"tool_calls": [second]}),
+            stream_chunk(finish_reason=reason),
+            {"choices": [], "usage": {"prompt_tokens": 3, "completion_tokens": 1}},
+        ),
+        size=3,
+    )
+
+    async def on_text(text):
+        delivered.append(text)
+
+    async with mocked_provider(lambda _: response, kind="openai") as provider:
+        answer = await provider.complete_early(
+            function_request(tool_choice=choice), on_text=on_text
+        )
+    assert delivered == []
+    assert [item.model_dump() for item in answer.tool_calls] == [call]
+    assert answer.finish_reason == "tool_calls" and answer.text == ""
+    assert answer.usage == {"input_tokens": 3, "output_tokens": 1} and response.is_closed
+
+
+@pytest.mark.parametrize(
+    "choice",
+    ["auto", "required", {"type": "function", "function": {"name": "read"}}],
+    ids=["auto", "required", "named"],
+)
+@pytest.mark.parametrize("text", ["partial", "", None], ids=["partial", "empty", "null"])
+async def test_openai_early_length_preserves_text_usage_and_required_choice_exception(choice, text):
+    delivered = []
+    response = openai_output_response({"role": "assistant", "content": text}, "length", stream=True)
+
+    async def on_text(part):
+        delivered.append(part)
+
+    async with mocked_provider(lambda _: response, kind="openai") as provider:
+        answer = await provider.complete_early(
+            function_request(tool_choice=choice), on_text=on_text
+        )
+    assert (
+        answer.text == (text or "") and answer.finish_reason == "length" and not answer.tool_calls
+    )
+    assert delivered == ([text] if text else [])
+    assert answer.usage == {"input_tokens": 3, "output_tokens": 1} and response.is_closed
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "none-choice",
+        "unadvertised",
+        "named-mismatch",
+        "arguments",
+        "id",
+        "reused-id",
+        "extra-calls",
+    ],
+)
+async def test_openai_early_final_tool_contract_stays_strict(case):
+    choice = {"type": "function", "function": {"name": "read"}}
+    request = function_request(tool_choice="none" if case == "none-choice" else choice)
+    call = read_call()
+    if case == "unadvertised":
+        call["function"]["name"] = "undeclared"
+    elif case == "named-mismatch":
+        tool = request.tools[0].model_dump()
+        tool["function"]["name"] = "write"
+        request = function_request(tool_choice=choice, tools=[request.tools[0].model_dump(), tool])
+        call["function"]["name"] = "write"
+    elif case == "arguments":
+        call["function"]["arguments"] = '{"path":'
+    elif case == "id":
+        call["id"] = "unsafe.id"
+    elif case == "reused-id":
+        request = function_request(
+            tool_choice=choice,
+            messages=[
+                {"role": "user", "content": "first"},
+                {"role": "assistant", "content": None, "tool_calls": [read_call()]},
+                {"role": "tool", "content": "fixture", "tool_call_id": call["id"]},
+                {"role": "user", "content": "again"},
+            ],
+        )
+    calls = [call] if case != "extra-calls" else [call, {**read_call(), "id": "call_second"}]
+    response = openai_output_response(
+        {"role": "assistant", "content": None, "tool_calls": calls},
+        "stop",
+        stream=True,
+    )
+    delivered = []
+
+    async def on_text(text):
+        delivered.append(text)
+
+    async with mocked_provider(lambda _: response, kind="openai") as provider:
+        with pytest.raises(ProviderError) as caught:
+            await provider.complete_early(request, on_text=on_text)
+    assert caught.value.reason is ProviderErrorReason.INVALID_RESPONSE
+    assert caught.value.usage == {"input_tokens": 3, "output_tokens": 1}
+    assert delivered == [] and response.is_closed
+
+
+@pytest.mark.parametrize("kind", ["fake", "claude", "gemini"])
+async def test_openai_early_mode_rejects_other_providers_before_transport(kind):
+    attempts = []
+    delivered = []
+
+    async def on_text(text):
+        delivered.append(text)
+
+    async with mocked_provider(lambda wire: attempts.append(wire), kind=kind) as provider:
+        with pytest.raises(ProviderError) as caught:
+            await provider.complete_early(REQUEST, on_text=on_text)
+    assert caught.value.reason is ProviderErrorReason.REJECTED
+    assert not attempts and not delivered

@@ -5,6 +5,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- Opt-in early Chat Completions text via `X-Gateway7-Stream-Mode: early` for compatible request-only middleware, with backpressure and delayed validated tool calls; full-response checked delivery remains the default.
+- A bounded `gateway7_http_request_outcomes_total` counter separates terminal stream failures and cancellations from the HTTP status sent, including requests ending without a response.
+- A closed native `/v1/responses` HTTP subset with native policy hooks, ordered structured tool turns, default checked JSON/SSE and independent opaque-content/hosted-tool consent; this does not establish full Responses or live Codex compatibility.
+- A typed native early-text opt-in contract preserves native identity/order for a bounded leading assistant prefix; complex profiles retain final checked output without an all-profile first-token latency promise, and end-to-end/container verification remains pending.
+
+### Fixed
+
+- Normalize valid OpenAI `stop` tool turns to `tool_calls`, preserve call-free `length` responses and usage, accept nullable optional SSE tool fields, and use a native OpenCode V2 compatibility profile for the bounded Chat Completions subset.
+
 ## [0.3.0] - 2026-10-31
 
 ### Added

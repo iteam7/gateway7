@@ -85,14 +85,19 @@ Use a [provider transport](provider-transports.md) when the gateway must connect
 ## How it works
 
 The gateway checks the client token and model before running middleware.
-One ordered chain wraps the configured provider: request processing follows the list, and response processing runs in reverse.
-A denied request never reaches the provider; a denied answer is not delivered to the client.
+With default buffered delivery, one ordered chain wraps the configured provider: request processing follows the list, and response processing runs in reverse.
+A denied request never reaches the provider; a buffered answer denied by response policy is not delivered to the client.
+Compatible [early text](api.md#opt-in-to-early-chat-completions-text) runs request-only hooks, not whole-response policies; a later failure cannot retract text already sent.
 Follow the [numbered request view](architecture/README.md#sequence-view), then open the [component and code map](architecture/README.md#component-view) to find the implementation.
 
 ## What to expect
 
 This local pilot runs one configured provider per instance, with ordinary text chat for every provider.
-The OpenAI provider also supports [guarded function-tool turns and checked SSE](api.md#supported-compatibility-subset); complete-response checks finish before client delivery.
+The OpenAI provider also supports [guarded function-tool turns and checked SSE](api.md#supported-compatibility-subset); protected buffered delivery is the default, with complete-response checks before client delivery.
+[Early text](api.md#opt-in-to-early-chat-completions-text) requires explicit opt-in and a compatible request-only chain; a response-policy incompatibility returns HTTP 400 unless an earlier request hook denies with HTTP 403, with zero provider calls in either case.
+The separate [native Responses HTTP subset](api.md#native-responses-http) preserves structured items through native policies and checked JSON/SSE; opaque content and provider-hosted tools require independent explicit consent with documented inspection/execution limits.
+The [native early-text opt-in contract](api.md#opt-in-to-native-early-text) preserves a bounded leading assistant prefix; complex supported profiles can hold text until final validation without losing their native order or IDs.
+Production typed-provider wiring and end-to-end/container/live early verification remain separate; this overview claims neither all-profile first-token improvement nor full Responses or live Codex readiness.
 Python middleware is trusted code in the gateway process; installing or changing it requires a restart.
 The demo proves the local workflow with synthetic answers, while real-provider access depends on your account and model permissions.
 

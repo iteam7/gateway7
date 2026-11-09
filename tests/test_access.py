@@ -119,7 +119,7 @@ def test_runtime_keeps_digests_and_requires_restart_for_rotation(credentials, mo
     [("authorization", "Bearer " + TOKEN_A), ("authorization", "Bearer " + TOKEN_A)],
     [("x-api-key", TOKEN_A)],
 ])
-@pytest.mark.parametrize("path", ["/chat", "/v1/chat/completions", "/v1/models"])
+@pytest.mark.parametrize("path", ["/chat", "/v1/chat/completions", "/v1/responses", "/v1/models"])
 def test_missing_invalid_duplicate_tokens_never_run_middleware(credentials, provider, monkeypatch, headers, path):
     from gateway7.plugins.phone_mask import PhoneMaskPlugin
 
@@ -193,7 +193,7 @@ async def test_concurrent_clients_cannot_change_each_others_model_permissions(cr
     assert all(request.messages[0].content == selected for request, selected in provider.calls)
 
 
-@pytest.mark.parametrize("path", ["/chat/", "/v1/chat/completions/", "/v1/models/"])
+@pytest.mark.parametrize("path", ["/chat/", "/v1/chat/completions/", "/v1/responses/", "/v1/models/"])
 @pytest.mark.parametrize("authenticated", [False, True])
 def test_trailing_slashes_never_redirect_or_forward(credentials, provider, path, authenticated):
     app = create_app(config=access_config())

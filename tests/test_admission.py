@@ -448,3 +448,224 @@ async def test_authentication_and_model_permissions_precede_full_capacity(monkey
             assert (await asyncio.wait_for(pending, 1)).status_code == 200
         assert sample(app, "active_pipelines") == 0
         assert len(provider.calls) == 1
+
+
+@pytest.mark.parametrize(
+    "path,stream,route",
+    [
+        ("/v1/responses", False, "openai_responses"),
+        ("/v1/responses", True, "openai_responses"),
+        ("/v1/chat/completions", True, "openai_chat"),
+    ],
+    ids=["native-json", "native-checked-sse", "chat-checked-sse"],
+)
+@pytest.mark.parametrize("disconnect_at", ["http.response.start", "http.response.body"])
+async def test_checked_delivery_disconnect_is_cancelled_after_owned_cleanup(
+    monkeypatch, caplog, path, stream, route, disconnect_at
+):
+    from gateway7.responses_models import ResponsesConsent, ResponsesResponse
+
+    token = "synthetic-checked-delivery-client-token"
+    monkeypatch.setenv("OPENAI_API_KEY", "synthetic-checked-delivery-provider-key")
+    monkeypatch.setenv("CHECKED_DELIVERY_CLIENT_TOKEN", token)
+    provider_closing, provider_release, provider_cleaned = (
+        asyncio.Event(),
+        asyncio.Event(),
+        asyncio.Event(),
+    )
+    send_closing, send_release, send_cleaned = asyncio.Event(), asyncio.Event(), asyncio.Event()
+    calls = []
+
+    class CheckedProvider:
+        async def finish(self, response):
+            try:
+                return response
+            finally:
+                provider_closing.set()
+                await provider_release.wait()
+                provider_cleaned.set()
+
+        async def complete(self, request, *, model=None, stream=False):
+            calls.append(("chat", stream))
+            return await self.finish(ChatResponse(text="synthetic answer"))
+
+        async def complete_responses(
+            self, request, *, model=None, stream=False, consent=ResponsesConsent()
+        ):
+            calls.append(("responses", stream))
+            return await self.finish(
+                ResponsesResponse.model_validate(
+                    {
+                        "id": "resp_checked_delivery",
+                        "object": "response",
+                        "created_at": 1.0,
+                        "model": "model-a",
+                        "status": "completed",
+                        "output": [
+                            {
+                                "type": "message",
+                                "id": "msg_checked_delivery",
+                                "role": "assistant",
+                                "status": "completed",
+                                "content": [
+                                    {
+                                        "type": "output_text",
+                                        "text": "synthetic answer",
+                                        "annotations": [],
+                                    }
+                                ],
+                            }
+                        ],
+                    }
+                )
+            )
+
+        async def aclose(self):
+            pass
+
+    monkeypatch.setattr(app_module, "build_provider", lambda *_: CheckedProvider())
+    app = create_app(
+        config=GatewayConfig.model_validate(
+            {
+                "provider": {"kind": "openai", "model": "model-a"},
+                "auth": {
+                    "enabled": True,
+                    "clients": {
+                        "test": {
+                            "token_env": "CHECKED_DELIVERY_CLIENT_TOKEN",
+                            "models": ["model-a"],
+                        }
+                    },
+                },
+                "limits": {"max_concurrent_requests": 1},
+            }
+        )
+    )
+    payload = {"model": "model-a", "stream": stream}
+    payload.update(
+        {"input": "hello"}
+        if route == "openai_responses"
+        else {
+            "messages": [{"role": "user", "content": "hello"}],
+        }
+    )
+    incoming = asyncio.Queue()
+    incoming.put_nowait(
+        {
+            "type": "http.request",
+            "body": json.dumps(payload).encode(),
+            "more_body": False,
+        }
+    )
+    scope = {
+        "type": "http",
+        "asgi": {"version": "3.0"},
+        "http_version": "1.1",
+        "method": "POST",
+        "scheme": "http",
+        "path": path,
+        "raw_path": path.encode(),
+        "query_string": b"",
+        "root_path": "",
+        "headers": [
+            (b"content-type", b"application/json"),
+            (b"authorization", ("Bearer " + token).encode()),
+        ],
+        "server": ("gateway.test", 80),
+        "client": ("synthetic", 1000),
+    }
+    sent, attempted = [], []
+
+    async def send(message):
+        assert provider_cleaned.is_set()
+        attempted.append(message["type"])
+        if message["type"] == disconnect_at:
+            try:
+                raise OSError(SENTINEL)
+            finally:
+                send_closing.set()
+                await send_release.wait()
+                send_cleaned.set()
+        sent.append(message)
+
+    with caplog.at_level("INFO", logger="gateway7"):
+        async with app.router.lifespan_context(app):
+            pending = asyncio.create_task(app(scope, incoming.get, send))
+            try:
+                await asyncio.wait_for(provider_closing.wait(), 1)
+                assert app.state.admission.active == 1 and sample(app, "active_pipelines") == 1
+                assert not sent and not attempted and not pending.done()
+                provider_release.set()
+                await asyncio.wait_for(send_closing.wait(), 1)
+                assert provider_cleaned.is_set() and not pending.done()
+                assert not app.state.metrics.http_outcomes.collect()[0].samples
+            finally:
+                provider_release.set()
+                send_release.set()
+                await asyncio.wait_for(pending, 1)
+            assert send_cleaned.is_set() and app.state.admission.active == 0
+            assert len(calls) == 1
+            assert attempted.count("http.response.start") == 1
+            assert [message["status"] for message in sent] == (
+                [200] if disconnect_at == "http.response.body" else []
+            )
+            outcomes = [
+                item
+                for item in app.state.metrics.http_outcomes.collect()[0].samples
+                if item.name.endswith("_total")
+            ]
+            assert [(item.labels, item.value) for item in outcomes] == [
+                ({"route": route, "outcome": "cancelled"}, 1),
+            ]
+            statuses = [
+                item
+                for item in app.state.metrics.http_requests.collect()[0].samples
+                if item.name.endswith("_total")
+            ]
+            assert [(item.labels, item.value) for item in statuses] == (
+                [({"route": route, "status": "200"}, 1)]
+                if disconnect_at == "http.response.body"
+                else []
+            )
+    assert SENTINEL not in caplog.text and "outcome=http_500" not in caplog.text
+
+
+@pytest.mark.parametrize("termination", ["deadline", "cancel", "send-timeout"])
+async def test_checked_disconnect_preserves_cancellation_and_timeout_precedence(termination):
+    entered, cleaned = asyncio.Event(), asyncio.Event()
+    sent = []
+    scope = {"type": "http", "state": {}}
+
+    async def receive():
+        await asyncio.Event().wait()
+
+    async def send(message):
+        if message["type"] == "http.response.start":
+            sent.append(message)
+            return
+        entered.set()
+        try:
+            if termination == "send-timeout":
+                raise TimeoutError(SENTINEL)
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                raise OSError(SENTINEL) from None
+        finally:
+            cleaned.set()
+
+    gc.collect()
+    response = app_module._CheckedBody(
+        b"{}",
+        time.monotonic() + (0.05 if termination == "deadline" else 1),
+        media_type="application/json",
+    )
+    pending = asyncio.create_task(response(scope, receive, send))
+    await asyncio.wait_for(entered.wait(), 1)
+    if termination == "cancel":
+        pending.cancel()
+    expected = asyncio.CancelledError if termination == "cancel" else TimeoutError
+    with pytest.raises(expected):
+        await asyncio.wait_for(pending, 1)
+    assert cleaned.is_set() and [message["status"] for message in sent] == [200]
+    assert "http_outcome" not in scope["state"]

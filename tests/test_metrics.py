@@ -1,7 +1,9 @@
 """Metrics describe attempts and owned work without exposing request content."""
 
 import asyncio
+import gc
 import importlib
+import json
 
 import pytest
 from fastapi.testclient import TestClient
@@ -10,7 +12,7 @@ from gateway7.app import create_app
 from gateway7.config import GatewayConfig
 from gateway7.errors import GatewayError, ProviderError
 from gateway7.loader import load_plugins
-from gateway7.metrics import Metrics
+from gateway7.metrics import HTTPRequestOutcome, Metrics
 from gateway7.models import ChatRequest, ChatResponse, Message
 from gateway7.pipeline import Pipeline
 from gateway7.plugin_api import Deny
@@ -195,10 +197,14 @@ def test_http_metrics_fixed_route_labels_and_app_registry_isolation(monkeypatch)
         assert sample(app.state.metrics, "http_requests_total", route="chat", status="200") == 1
         assert sample(app.state.metrics, "http_requests_total", route="chat", status="422") == 1
         assert sample(app.state.metrics, "http_requests_total", route="other", status="404") == 1
+        assert sample(app.state.metrics, "http_request_outcomes_total", route="chat", outcome="success") == 1
+        assert sample(app.state.metrics, "http_request_outcomes_total", route="chat", outcome="invalid_request") == 1
+        assert sample(app.state.metrics, "http_request_outcomes_total", route="other", outcome="not_found") == 1
         assert sample(app.state.metrics, "http_requests_in_flight") == 0
     assert app.state.ready is False
     separate = create_app(config=GatewayConfig())
     assert sample(separate.state.metrics, "http_requests_total", route="chat", status="200") is None
+    assert not separate.state.metrics.http_outcomes.collect()[0].samples
 
 
 @pytest.mark.parametrize("kind", ["claude", "openai", "gemini"])
@@ -399,3 +405,103 @@ def test_oversized_provider_usage_does_not_prevent_answer(monkeypatch):
         assert response.json()["usage"] is None
         assert sample(app.state.metrics, "provider_usage_unknown_total", provider="fake") == 1
         assert sample(app.state.metrics, "provider_calls_total", provider="fake", outcome="complete") == 1
+
+
+@pytest.mark.parametrize("outcome", list(HTTPRequestOutcome))
+def test_http_outcomes_accept_only_the_fixed_terminal_values(outcome):
+    metrics = Metrics()
+    metrics.observe_http_outcome("openai_chat", outcome)
+    assert sample(metrics, "http_request_outcomes_total", route="openai_chat", outcome=outcome.value) == 1
+    totals = [value for value in metrics.http_outcomes.collect()[0].samples if value.name.endswith("_total")]
+    assert len(totals) == 1
+
+
+@pytest.mark.parametrize("outcome", [SECRET, None, [], {"untrusted": SECRET}, RuntimeError(SECRET)])
+def test_http_outcomes_never_use_arbitrary_values_as_labels(outcome):
+    from prometheus_client import generate_latest
+
+    metrics = Metrics()
+    metrics.observe_http_outcome(SECRET, outcome)
+    assert sample(metrics, "http_request_outcomes_total", route="other", outcome="internal_error") == 1
+    assert SECRET not in generate_latest(metrics.registry).decode()
+
+
+def test_completed_stream_maps_to_success_without_a_second_observation():
+    metrics = Metrics()
+    metrics.observe_http_outcome("openai_chat", "complete")
+    assert sample(metrics, "http_request_outcomes_total", route="openai_chat", outcome="success") == 1
+    assert sample(metrics, "http_request_outcomes_total", route="openai_chat", outcome="complete") is None
+    totals = [value for value in metrics.http_outcomes.collect()[0].samples if value.name.endswith("_total")]
+    assert sum(value.value for value in totals) == 1
+
+
+@pytest.mark.parametrize("stream,failure,outcome", [
+    (True, "deadline", "timeout"),
+    (False, "send-error", "internal_error"),
+], ids=["buffered-sse-deadline", "json-send-error"])
+async def test_post_header_boundary_failure_is_not_counted_as_success(
+    monkeypatch, caplog, stream, failure, outcome
+):
+    token = "synthetic-terminal-metrics-client-token"
+    monkeypatch.setenv("OPENAI_API_KEY", "synthetic-terminal-metrics-provider-key")
+    monkeypatch.setenv("TERMINAL_METRICS_CLIENT_TOKEN", token)
+    calls = []
+
+    class BufferedProvider(Provider):
+        async def complete(self, request, *, model=None, stream=False):
+            calls.append(stream)
+            return ChatResponse(text="synthetic answer")
+
+    app_module = importlib.import_module("gateway7.app")
+    monkeypatch.setattr(app_module, "build_provider", lambda *_: BufferedProvider())
+    app = create_app(config=GatewayConfig.model_validate({
+        "provider": {"kind": "openai", "model": "model-a"},
+        "auth": {"enabled": True, "clients": {"test": {
+            "token_env": "TERMINAL_METRICS_CLIENT_TOKEN", "models": ["model-a"],
+        }}},
+        "limits": {"request_timeout_seconds": 0.1},
+    }))
+    incoming = asyncio.Queue()
+    incoming.put_nowait({"type": "http.request", "more_body": False, "body": json.dumps({
+        "model": "model-a", "messages": [{"role": "user", "content": "hello"}],
+        "stream": stream,
+    }).encode()})
+    scope = {
+        "type": "http", "asgi": {"version": "3.0"}, "http_version": "1.1",
+        "method": "POST", "scheme": "http", "path": "/v1/chat/completions",
+        "raw_path": b"/v1/chat/completions", "query_string": b"", "root_path": "",
+        "headers": [(b"content-type", b"application/json"),
+                    (b"authorization", ("Bearer " + token).encode())],
+        "server": ("gateway.test", 80), "client": ("synthetic", 1000),
+    }
+    sent = []
+    body_attempted = asyncio.Event()
+
+    async def send(message):
+        if message["type"] == "http.response.body":
+            body_attempted.set()
+            if failure == "deadline":
+                await asyncio.Event().wait()
+            raise OSError(SECRET)
+        sent.append(message)
+
+    with caplog.at_level("INFO", logger="gateway7"):
+        async with app.router.lifespan_context(app):
+            gc.collect()
+            pending = asyncio.create_task(app(scope, incoming.get, send))
+            await asyncio.wait_for(body_attempted.wait(), 1)
+            await asyncio.wait_for(pending, 1)
+            assert calls == [stream]
+            assert scope["state"]["stream_mode"] == "buffered"
+            assert "stream_outcome" not in scope["state"]
+            assert [message["status"] for message in sent] == [200]
+            metrics = app.state.metrics
+            assert sample(metrics, "http_requests_total", route="openai_chat", status="200") == 1
+            totals = [item for item in metrics.http_outcomes.collect()[0].samples
+                      if item.name.endswith("_total")]
+            assert [(item.labels, item.value) for item in totals] == [
+                ({"route": "openai_chat", "outcome": outcome}, 1),
+            ]
+            assert sample(metrics, "http_request_outcomes_total", route="openai_chat", outcome="success") is None
+            assert app.state.admission.active == 0
+    assert SECRET not in caplog.text

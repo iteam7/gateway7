@@ -9,6 +9,7 @@ from pathlib import Path
 import socket
 import ssl
 
+import anyio
 import httpx
 import pytest
 
@@ -368,13 +369,17 @@ def assert_wire_request(proxy, kind):
     assert PROXY_USER not in str(headers) and PROXY_PASSWORD not in str(headers)
     assert KEY.encode() not in body
     assert proxy.sni == [HOSTS[kind]]
-    conversation = [{"role": message.role, "content": message.content} for message in REQUEST.messages[1:]]
+    conversation = [
+        {"role": message.role, "content": message.content} for message in REQUEST.messages[1:]
+    ]
     if kind == "openai":
         assert line == "POST /v1/chat/completions HTTP/1.1"
         assert headers["authorization"] == "Bearer " + KEY
         assert json.loads(body) == {
             "model": MODEL,
-            "messages": [{"role": message.role, "content": message.content} for message in REQUEST.messages],
+            "messages": [
+                {"role": message.role, "content": message.content} for message in REQUEST.messages
+            ],
             "max_completion_tokens": 32,
             "stream": False,
             "store": False,
@@ -448,18 +453,58 @@ async def test_proxy_failure_is_safe_without_retry_or_direct_fallback(monkeypatc
         assert proxy.requests == [] and proxy.tunnel_bytes == b""
 
 
+@pytest.mark.parametrize(
+    "failure, reason",
+    [
+        pytest.param(
+            ConnectionRefusedError, ProviderErrorReason.TRANSPORT, id="connection-refused"
+        ),
+        pytest.param(TimeoutError, ProviderErrorReason.TIMEOUT, id="connect-timeout"),
+    ],
+)
 async def test_unavailable_proxy_is_attempted_once_without_fallback(
-    monkeypatch, test_ca, loopback_only
+    monkeypatch, test_ca, loopback_only, failure, reason
 ):
+    attempts, transports, closed = [], [], []
+    transport_factory = httpx.AsyncHTTPTransport
+
+    def tracked_transport(**kwargs):
+        inner = transport_factory(**kwargs)  # Keep test_ca's production wiring checks.
+        aclose = inner.aclose
+
+        async def close():
+            await aclose()
+            closed.append(inner)
+
+        monkeypatch.setattr(inner, "aclose", close)
+        transports.append(inner)
+        return inner
+
+    monkeypatch.setattr(httpx, "AsyncHTTPTransport", tracked_transport)
     with socket.socket() as reserved:
-        reserved.bind(("127.0.0.1", 0))  # A reserved, non-listening port refuses connections.
+        reserved.bind(("127.0.0.1", 0))
         port = reserved.getsockname()[1]
         url = f"http://{PROXY_USER}:{PROXY_PASSWORD}@127.0.0.1:{port}"
+
+        async def fail_connect(*, remote_host, remote_port, **kwargs):
+            attempts.append((remote_host, remote_port))
+            assert (remote_host, remote_port) == ("127.0.0.1", port)
+            raise failure(f"synthetic TCP failure: {KEY} {url}")
+
+        # A bound, non-listening port may time out on macOS instead of refusing.
+        # Inject only TCP failure; retain HTTPcore/HTTPX exception mapping and cleanup.
+        monkeypatch.setattr(anyio, "connect_tcp", fail_connect)
         async with proxied_provider(monkeypatch, url) as provider:
             with pytest.raises(ProviderError) as caught:
                 await provider.complete(REQUEST)
-        assert_safe_error(caught.value, ProviderErrorReason.TRANSPORT, url)
-        assert loopback_only == [("127.0.0.1", port)]
+            assert not provider._client.is_closed
+            assert len(transports) == len(test_ca) == 1
+            assert closed == transports  # The failed request closes its real pool immediately.
+        assert_safe_error(caught.value, reason, url)
+        assert attempts == [("127.0.0.1", port)]
+        assert loopback_only == []  # No actual socket connection or direct fallback.
+        assert closed == transports  # Provider shutdown must not close that pool twice.
+    assert reserved.fileno() == -1
 
 
 @pytest.mark.parametrize("mode", ["handshake", "body"])
@@ -608,6 +653,8 @@ async def test_default_direct_transport_ignores_proxy_and_ca_environment(monkeyp
         assert headers["authorization"] == "Bearer " + KEY
         assert "proxy-authorization" not in headers
         assert json.loads(body) == {
-            "messages": [{"role": message.role, "content": message.content} for message in REQUEST.messages],
+            "messages": [
+                {"role": message.role, "content": message.content} for message in REQUEST.messages
+            ],
             "max_tokens": REQUEST.max_tokens,
         }

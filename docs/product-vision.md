@@ -10,13 +10,19 @@ A corporate IT team can send its applications' chat requests through gateway7 to
 
 **Threshold of success:** [docs/threshold-of-success.md](threshold-of-success.md).
 
+The explicitly user-requested [native Responses HTTP increment](api.md#native-responses-http) extends this gateway to bounded structured items with default whole-response checks, not unrestricted OpenAI or live Codex compatibility.
+Its independent opaque-content consent acknowledges that encrypted/media fields cannot receive plaintext inspection; its separate hosted-tool consent acknowledges upstream execution before response policy.
+The implemented native early contract is an explicit request-only opt-in for an eligible leading assistant prefix, retaining full native profiles when later text must be held for final validation.
+Production typed-provider integration and end-to-end/container/live early verification remain separate; there is no all-profile first-token latency or Codex-readiness claim.
+These implementation-scope notes record the user's request, not a new Customer or team decision or a completed independent review.
+
 ## Stakeholders
 
 - **Customer**: the corporate IT team piloting gateway7. Confirmed the plugin-host direction at the [October 2 kickoff](https://github.com/iteam7/gateway7/blob/main/reports/week-01/meeting-report.md#decisions) and decides the product's scope.
 - **Caller application / its developer**: sends chat requests through gateway7 and receives its filtered response; the primary user of the running system.
 - **IT / policy administrator**: operates gateway7, authors or installs the request and response plugins, and sets each plugin's policy action.
 - **End user of the caller application**: affected without using gateway7 directly — their chat text is what a plugin may mask or block.
-- **LLM provider**: affected without choosing the product — receives only the text the policy allows through, and meters its own usage.
+- **LLM provider**: affected without choosing the product — receives payloads admitted by configured policies and explicit native consent, and meters its own usage.
 - **gateway7 team (course team 7)**: builds and maintains the product for the course.
 
 ## Constraints
@@ -46,8 +52,9 @@ Single-term course, with the MVP-0 estimate at two to three weeks once CI and li
 
 - **Status:** Active
 - **Source:** Environmental
-- **What it costs:** token-by-token caller delivery, multi-provider routing, and governance features remain outside the bounded implementation; see [Boundary](#boundary).
-  The provider-streaming extension in [ADR-005](architecture/adr/ADR-005.md) collects a complete response before client delivery and does not remove that boundary.
+- **What it costs:** token-by-token caller delivery under whole-response policies, multi-provider routing, and governance features remain outside the bounded implementation; see [Boundary](#boundary).
+  The provider-streaming extension in [ADR-005](architecture/adr/ADR-005.md) describes the default buffered path.
+  The separately requested [early mode](plugins.md#early-stream-preparation) requires a compatible request-only chain and does not provide whole-response blocking.
 
 ### CON-04
 
@@ -61,11 +68,12 @@ Provider access uses one server-configured key (for example, an uncommitted `.en
 
 ### BND-01
 
-Stream a response back to the caller token-by-token.
+Stream a response back to the caller token-by-token while retaining whole-response policy checks.
 
 - **Status:** Active
 - **Handled by:** Nobody
 - **Why:** [`CON-03`](#con-03): the MVP-0 estimate covers one synchronous forward-and-return call; streaming reopens plugin-ordering and buffering questions the estimate does not budget for.
+- **Changed:** 2026-11-05: scoped the exclusion to whole-response policies after the user's explicit request for a separate opt-in early mode; that request-only mode can expose a prefix before a late failure and does not weaken the buffered default.
 
 ### BND-02
 

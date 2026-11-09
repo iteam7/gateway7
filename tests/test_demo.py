@@ -51,7 +51,7 @@ REQUEST_ID = "a" * 32
 
 
 def _failure_log(*, phase="request", calls=0):
-    rows = [
+    rows: list[tuple[str, str, str | None]] = [
         ("start", "mask", "request"),
         ("continue", "mask", "request"),
         ("start", "fault", "request"),
@@ -75,6 +75,7 @@ def _failure_log(*, phase="request", calls=0):
     return "\n".join(
         f"request_id={REQUEST_ID} outcome={outcome} component={component} "
         + (f"phase={event_phase} " if event_phase else "")
+        + ("route=chat " if component == "http" else "")
         + "duration_ms=1.250"
         for outcome, component, event_phase in rows
     )
@@ -201,6 +202,57 @@ def test_trace_parser_rejects_raw_exception_or_request_text_outside_structured_e
             {"mask", "fault"},
             forbidden=("synthetic raw request text",),
         )
+
+
+@pytest.mark.parametrize("outcome", ["http_200", "http_403", "http_500", "http_504"])
+def test_trace_parser_http_events_require_chat_route(outcome):
+    line = f"request_id={REQUEST_ID} outcome={outcome} component=http route=chat duration_ms=1.250"
+    events = _trace_events(line, REQUEST_ID, {"mask", "fault"})
+    assert len(events) == 1
+    assert events[0].component == "http" and events[0].phase is None
+    assert events[0].route == "chat" and events[0].outcome == outcome
+
+
+@pytest.mark.parametrize(
+    "route_fields",
+    ["", "route=other ", "route=openai_chat ", "route=chat route=chat ", "route=chat route=other "],
+    ids=["missing", "wrong", "wrong-bound-route", "duplicate", "duplicate-wrong"],
+)
+def test_trace_parser_rejects_missing_wrong_or_duplicate_http_route(route_fields):
+    line = (
+        f"request_id={REQUEST_ID} outcome=http_200 component=http "
+        + route_fields
+        + "duration_ms=1.250"
+    )
+    with pytest.raises(AssertionError):
+        _trace_events(line, REQUEST_ID, {"mask", "fault"})
+
+
+@pytest.mark.parametrize(
+    "component,phase,outcome",
+    [
+        ("provider", "provider", "complete"),
+        ("mask", "request", "continue"),
+        ("fault", "response", "plugin_error"),
+    ],
+)
+@pytest.mark.parametrize("route", ["chat", "other"])
+def test_trace_parser_rejects_any_route_on_provider_or_middleware(component, phase, outcome, route):
+    line = (
+        f"request_id={REQUEST_ID} outcome={outcome} component={component} "
+        f"phase={phase} route={route} duration_ms=1.250"
+    )
+    with pytest.raises(AssertionError):
+        _trace_events(line, REQUEST_ID, {"mask", "fault"})
+
+
+def test_trace_parser_http_route_does_not_allow_a_middleware_phase():
+    line = (
+        f"request_id={REQUEST_ID} outcome=http_200 component=http "
+        "phase=request route=chat duration_ms=1.250"
+    )
+    with pytest.raises(AssertionError):
+        _trace_events(line, REQUEST_ID, {"mask", "fault"})
 
 
 def test_fault_tolerance_check_passes_every_case_without_upstream_requests(capsys):
