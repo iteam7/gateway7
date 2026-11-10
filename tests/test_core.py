@@ -1182,3 +1182,131 @@ def test_middleware_cannot_change_tool_identity_or_return_invalid_arguments(monk
     with pytest.raises(GatewayError) as error:
         asyncio.run(Pipeline(load_plugins(config), Provider(), config.limits).run(tool_request(), "bad-tools"))
     assert error.value.code == "plugin_error"
+
+
+@pytest.mark.parametrize("path", ["/chat", "/v1/chat/completions"])
+@pytest.mark.parametrize(
+    "raw",
+    [
+        pytest.param(
+            b'{"model":"forbidden","model":"fake",'
+            b'"messages":[{"role":"user","content":"hello"}]}',
+            id="duplicate-model",
+        ),
+        pytest.param(
+            b'{"model":"fake","messages":[],"messages":[{"role":"user","content":"hello"}]}',
+            id="duplicate-messages",
+        ),
+        pytest.param(
+            b'{"model":"fake","messages":[{"role":"user",'
+            b'"content":"SYNTHETIC_PRIVATE_FIRST","content":"SYNTHETIC_PRIVATE_SECOND"}]}',
+            id="duplicate-nested-content",
+        ),
+        *[
+            pytest.param(
+                b'{"model":"fake","messages":[{"role":"user","content":"hello"}],'
+                b'"max_tokens":' + constant + b'}',
+                id=constant.decode(),
+            )
+            for constant in (b"NaN", b"Infinity", b"-Infinity", b"1e1000", b"-1e1000")
+        ],
+        pytest.param(
+            b'{"model":"fake","messages":[{"role":"user","content":"\xff"}]}',
+            id="invalid-utf8",
+        ),
+        *[
+            pytest.param(
+                b'{"model":"fake","messages":[{"role":"user","content":"'
+                + escaped + b'"}]}',
+                id=escaped.decode(),
+            )
+            for escaped in (b"\\ud800", b"\\udfff")
+        ],
+        *[
+            pytest.param(
+                '{"model":"fake","messages":[{"role":"user","content":"hello"}]}'.encode(
+                    encoding
+                ),
+                id=encoding,
+            )
+            for encoding in ("utf-16", "utf-32")
+        ],
+        pytest.param(b"[" * 1100 + b"0" + b"]" * 1100, id="excessive-json-nesting"),
+    ],
+)
+def test_chat_json_rejects_ambiguous_members_and_nonstandard_input(monkeypatch, caplog, path, raw):
+    monkeypatch.setenv("GATEWAY7_TEST_KEY", SECRET)
+    provider = FakeProvider()
+    monkeypatch.setattr(app_module, "build_provider", lambda *_: provider)
+    app = create_app(config=configuration())
+    with caplog.at_level("INFO", logger="gateway7"), TestClient(app) as client:
+        response = client.post(path, headers={"content-type": "application/json"}, content=raw)
+        metrics = client.get("/metrics").text
+    assert response.status_code == (400 if path.startswith("/v1/") else 422)
+    assert response.json()["error"]["code"] == "invalid_request"
+    assert response.json()["request_id"] == response.headers["x-request-id"]
+    assert "SYNTHETIC_PRIVATE" not in response.text + caplog.text + metrics
+    assert provider.calls == []
+
+
+@pytest.mark.parametrize("path", ["/chat", "/v1/chat/completions"])
+@pytest.mark.parametrize("content_type", [None, "application/json", "application/synthetic+json"])
+def test_strict_chat_json_preserves_utf8_payloads_and_documented_schemas(
+    monkeypatch, path, content_type
+):
+    monkeypatch.setenv("GATEWAY7_TEST_KEY", SECRET)
+    provider = FakeProvider()
+    monkeypatch.setattr(app_module, "build_provider", lambda *_: provider)
+    app = create_app(config=configuration())
+    headers = {} if content_type is None else {"content-type": content_type}
+    raw = json.dumps(
+        {"model": "fake", "messages": [{"role": "user", "content": "Привет 🌍"}]},
+        ensure_ascii=False,
+    ).encode("utf-8")
+    with TestClient(app) as client:
+        response = client.post(path, headers=headers, content=raw)
+    if content_type is None:
+        assert response.status_code == (400 if path.startswith("/v1/") else 422)
+        assert provider.calls == []
+    else:
+        assert response.status_code == 200
+        assert provider.calls[0].messages[0].content == "Привет 🌍"
+    schema = app.openapi()["paths"][path]["post"]["requestBody"]["content"]["application/json"]
+    assert schema["schema"]["$ref"].startswith("#/components/schemas/")
+
+
+@pytest.mark.parametrize("path", ["/chat", "/v1/chat/completions"])
+def test_strict_chat_json_does_not_parse_unauthenticated_input(monkeypatch, path):
+    monkeypatch.setenv("GATEWAY7_TEST_KEY", SECRET)
+    monkeypatch.setenv("GATEWAY7_JSON_TEST_TOKEN", "synthetic-json-boundary-token")
+    provider = FakeProvider()
+    monkeypatch.setattr(app_module, "build_provider", lambda *_: provider)
+
+    async def unexpected_parse(self):
+        pytest.fail("Unauthenticated input reached the JSON parser")
+
+    monkeypatch.setattr(app_module._StrictJSONRequest, "json", unexpected_parse)
+    config = GatewayConfig.model_validate({
+        **configuration().model_dump(),
+        "auth": {"enabled": True, "clients": {
+            "test": {"token_env": "GATEWAY7_JSON_TEST_TOKEN", "models": ["fake"]},
+        }},
+    })
+    with TestClient(create_app(config=config)) as client:
+        response = client.post(path, content=b'{"messages":"SYNTHETIC_PRIVATE_INVALID')
+    assert response.status_code == 401 and provider.calls == []
+
+
+@pytest.mark.parametrize("path", ["/chat", "/v1/chat/completions"])
+def test_strict_chat_json_accepts_escaped_unicode_surrogate_pairs(monkeypatch, path):
+    monkeypatch.setenv("GATEWAY7_TEST_KEY", SECRET)
+    provider = FakeProvider()
+    monkeypatch.setattr(app_module, "build_provider", lambda *_: provider)
+    with TestClient(create_app(config=configuration())) as client:
+        response = client.post(
+            path,
+            headers={"content-type": "application/json"},
+            content=b'{"model":"fake","messages":[{"role":"user","content":"\\ud83c\\udf0d"}]}',
+        )
+    assert response.status_code == 200
+    assert provider.calls[0].messages[0].content == "🌍"

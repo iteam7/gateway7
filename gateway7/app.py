@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+import math
 import os
 import time
 from collections.abc import Awaitable, Callable, Coroutine
@@ -13,6 +14,7 @@ from uuid import uuid4
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.routing import APIRoute
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from starlette.responses import JSONResponse, Response
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -120,6 +122,51 @@ def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 def _reject_json_constant(_: str) -> None:
     raise ValueError("Invalid JSON number")
+
+
+def _validate_json_scalars(value: Any) -> None:
+    pending = [value]
+    while pending:
+        item = pending.pop()
+        if isinstance(item, dict):
+            pending.extend(item)
+            pending.extend(item.values())
+        elif isinstance(item, list):
+            pending.extend(item)
+        elif isinstance(item, str):
+            item.encode("utf-8")
+        elif isinstance(item, float) and not math.isfinite(item):
+            raise ValueError("Invalid JSON number")
+
+
+class _StrictJSONRequest(Request):
+    """Parse the DTO routes once without ambiguous members or JSON extensions."""
+
+    async def json(self) -> Any:
+        if not hasattr(self, "_json"):
+            try:
+                value = json.loads(
+                    (await self.body()).decode("utf-8"),
+                    object_pairs_hook=_unique_json_object,
+                    parse_constant=_reject_json_constant,
+                )
+                _validate_json_scalars(value)
+                self._json = value
+            except (ValueError, UnicodeError, RecursionError):
+                # FastAPI normally handles malformed JSON; our stricter parser
+                # also rejects duplicate members and unsupported byte encodings.
+                raise StarletteHTTPException(status_code=400) from None
+        return self._json
+
+
+class _StrictJSONRoute(APIRoute):
+    def get_route_handler(self) -> Callable[[Request], Coroutine[Any, Any, Response]]:
+        handle = super().get_route_handler()
+
+        async def strict_json(request: Request) -> Response:
+            return await handle(_StrictJSONRequest(request.scope, request.receive))
+
+        return strict_json
 
 
 class GatewayBoundaryMiddleware:
@@ -775,6 +822,7 @@ def create_app(
                     raise
 
     app = FastAPI(title="Gateway7", version=__version__, lifespan=lifespan, redirect_slashes=False)
+    app.router.route_class = _StrictJSONRoute
     app.state.ready = False
     app.state.metrics = Metrics()
     app.state.admission = _PipelineAdmission(app.state.metrics)
