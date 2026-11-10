@@ -116,6 +116,53 @@ Both commands load trusted middleware code, as described in [setup](setup.md#sel
 Authentication may be disabled only for the fake provider, as in legacy `config/demo.yaml` and `config/reference.yaml` fixtures.
 The packaged demo and default Compose stack enable it.
 
+## Apply additional client policies
+
+Use `additional_middleware` to append configured middleware instances after the complete global chain for one account.
+The field defaults to an empty list and accepts at most 64 distinct enabled instances.
+The server chooses the account from its authenticated token; a request cannot select a different chain.
+
+For example, merge these sections into a provider configuration and supply the two token variables through its server environment:
+
+```yaml
+plugins:
+  global_guard:
+    module: gateway7.plugins.content_policy
+    required: true
+    settings:
+      terms: [SYNTHETIC-GLOBAL-BLOCK]
+      phase: request
+      action: block
+  worker_guard:
+    module: gateway7.plugins.content_policy
+    settings:
+      terms: [SYNTHETIC-WORKER-BLOCK]
+      phase: request
+      action: block
+middleware: [global_guard]
+auth:
+  enabled: true
+  clients:
+    chat_app:
+      token_env: GATEWAY7_APP_TOKEN
+      models: [gpt-4.1-mini]
+    worker:
+      token_env: GATEWAY7_WORKER_TOKEN
+      models: [gpt-4.1-mini]
+      additional_middleware: [worker_guard]
+```
+
+Both clients are denied for `SYNTHETIC-GLOBAL-BLOCK`; only `worker` is denied for `SYNTHETIC-WORKER-BLOCK`.
+Global middleware always runs first, and buffered response checks unwind the effective chain in reverse order.
+An additional entry cannot name an unknown, disabled, repeated or already-global instance; these checks also apply to suspended client entries and run before plugin factories.
+Configured instances are shared and started/stopped once, while each request has fresh private hook state.
+
+The effective chain covers native chat, Chat Completions and Responses, including checked SSE and explicit early delivery.
+Missing native/early hooks or response-dependent early policies reject before provider work instead of skipping an additional policy.
+Keep response inspection in buffered delivery unless every selected middleware explicitly supports request-only early processing.
+See [FR-018](functional-requirements/fr/FR-018.md) for the behavior and technical acceptance criteria.
+Policy changes take effect after validation and restart; selection adds no raw-prompt retention or client-identity fields to ordinary telemetry.
+
 ## Use the CLI
 
 From the checkout, using the demo variables above:

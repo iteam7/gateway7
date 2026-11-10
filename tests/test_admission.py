@@ -966,7 +966,7 @@ async def test_http_creation_failure_releases_delivery_owned_client_lease(monkey
     async with app.router.lifespan_context(app), client_for(app) as client:
         with monkeypatch.context() as patch:
             if failure == "operation":
-                patch.setattr(app.state.pipeline, "run", fail_operation)
+                patch.setattr(app.state.client_pipelines["alpha"], "run", fail_operation)
             else:
                 patch.setattr(app_module.asyncio, "create_task", fail_creation)
             failed = await client.post("/chat", headers=client_headers(), json=body())
@@ -1091,7 +1091,7 @@ async def test_rate_debit_is_refunded_when_admission_setup_fails(monkeypatch, ea
     async with app.router.lifespan_context(app), client_for(app) as client:
         with monkeypatch.context() as patch:
             if failure == "operation":
-                patch.setattr(app.state.pipeline, "run", fail_operation)
+                patch.setattr(app.state.client_pipelines["alpha"], "run", fail_operation)
             else:
                 patch.setattr(app_module.asyncio, "create_task", fail_creation)
             failed = await client.post(path, headers=client_headers(early=early),

@@ -47,6 +47,8 @@ The [demo guide](demo.md) explains the checks and their safe traces.
 
 Each module exports `PLUGIN`, with `api_version=2`, a strict frozen Pydantic settings model, and a synchronous factory returning the middleware instance.
 The descriptor `id` names the plugin type; YAML keys name configured instances.
+An authenticated client's `additional_middleware` appends enabled configured instances to the global chain without replacing it; see [additional client policies](authentication.md#apply-additional-client-policies).
+Instances share one lifecycle across chains, and per-request hook state remains separate.
 Several instances can share one module with different settings.
 The complete runnable example is [examples/sample_plugin.py](https://github.com/iteam7/gateway7/blob/main/examples/sample_plugin.py).
 

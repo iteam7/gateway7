@@ -69,6 +69,17 @@ def load_plugins(config: GatewayConfig) -> LoadedPlugins:
     for name in chain:
         if name not in config.plugins:
             raise StartupError(f"Unknown plugin instance {name} in middleware chain")
+    for client in config.auth.clients.values():
+        additional = client.additional_middleware
+        if len(additional) != len(set(additional)):
+            raise StartupError("Duplicate additional middleware in client policy")
+        for name in additional:
+            if name not in config.plugins:
+                raise StartupError(f"Unknown additional middleware {name} in client policy")
+            if not config.plugins[name].enabled:
+                raise StartupError(f"Disabled additional middleware {name} in client policy")
+            if name in chain:
+                raise StartupError(f"Additional middleware {name} is already global")
 
     # Validate all descriptors/settings first, including disabled modules. No
     # factory runs until all configuration-level checks have passed.

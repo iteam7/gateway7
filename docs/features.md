@@ -48,10 +48,10 @@ A security officer keeps customers' phone numbers out of the prompts that reach 
 
 ## Add company middleware by configuration
 
-An operator adds the company's own [middleware](glossary.md#middleware) to the gateway and sets its order without changing the gateway's code.
+An operator adds the company's own [middleware](glossary.md#middleware) and configures shared and additional per-client policies without changing the gateway's code.
 
 - **Stories:** [`US-03`](https://github.com/iteam7/gateway7/issues/32)
-- **Behavior:** [`FR-003`](functional-requirements/fr/FR-003.md)
+- **Behavior:** [`FR-003`](functional-requirements/fr/FR-003.md), [`FR-018`](functional-requirements/fr/FR-018.md)
 - **Decisions:** [`ADR-001`](architecture/adr/ADR-001.md), [`ADR-002`](architecture/adr/ADR-002.md)
 
 ## Block or log a flagged request

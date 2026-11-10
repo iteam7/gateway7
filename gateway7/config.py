@@ -91,6 +91,7 @@ class ClientConfig(StrictConfig):
     enabled: bool = True
     limits: ClientLimitsConfig = Field(default_factory=ClientLimitsConfig)
     models: list[ModelId] = Field(min_length=1, max_length=64)
+    additional_middleware: list[InstanceName] = Field(default_factory=list, max_length=64)
 
     @model_validator(mode="after")
     def unique_models(self) -> "ClientConfig":

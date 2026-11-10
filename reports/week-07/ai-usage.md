@@ -103,3 +103,12 @@
 - Review: Independent TechLead code review approved the implementation; this is technical review, not team or Customer acceptance.
 - Boundary: Synthetic local checks only; no external provider calls, deployment or merge.
 - Team assessment: TODO
+
+## 2026-11-11 — Task #241
+
+- Tool: Codex.
+- Work: Apply additional content-policy chains per client.
+- Verification: Combined full suite passed: 3357 passed, 12 Docker-dependent skips; 134 focused policy/admission tests and 5 INFO privacy cases passed. Ruff format/lint, mypy for all 37 production modules, synthetic demo, wheel, Markdown, strict MkDocs and site checker (62 pages, 7681 links/assets) passed.
+- Review: Independent TechLead code review approved the implementation; this is technical review, not team or Customer acceptance.
+- Boundary: Synthetic local checks only; no external provider calls, deployment or merge.
+- Team assessment: TODO

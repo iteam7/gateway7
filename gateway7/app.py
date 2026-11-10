@@ -22,6 +22,7 @@ from starlette.types import ASGIApp, Message as ASGIMessage, Receive, Scope, Sen
 
 from gateway7 import __version__
 from gateway7.analytics import Analytics
+from gateway7.client_policies import build_client_pipelines
 from gateway7.config import GatewayConfig, load_config, provider_key
 from gateway7.auth import AccessControl
 from gateway7.errors import GatewayError, StartupError
@@ -505,10 +506,21 @@ async def _watch_disconnect(request: Request) -> None:
             return
 
 
+def _client_pipeline(request: Request) -> Pipeline:
+    if not request.app.state.config.auth.enabled:
+        return request.app.state.pipeline
+    client_id = request.state.principal.client_id
+    pipeline = request.app.state.client_pipelines.get(client_id)
+    if pipeline is None:
+        # An authenticated client must never fall back to a less restrictive chain.
+        raise GatewayError("unavailable")
+    return pipeline
+
+
 async def _run_connected(
     request: Request, payload: ChatRequest, selected_model: str, *, provider_stream: bool = False
 ) -> Any:
-    pipeline = request.app.state.pipeline
+    pipeline = _client_pipeline(request)
 
     def operation() -> Coroutine[Any, Any, ChatResponse]:
         return pipeline.run(
@@ -896,6 +908,9 @@ def create_app(
                 metrics=app.state.metrics,
                 provider_name=active_config.provider.kind,
             )
+            app.state.client_pipelines = build_client_pipelines(
+                active_config, plugins, app.state.pipeline
+            )
             app.state.ready = True
             yield
         except BaseException:
@@ -904,6 +919,7 @@ def create_app(
         finally:
             app.state.ready = False
             app.state.pipeline = None
+            app.state.client_pipelines = {}
             app.state.access = None
 
             async def cleanup() -> None:
@@ -928,6 +944,7 @@ def create_app(
     app.state.admission = _PipelineAdmission(app.state.metrics)
     app.state.telemetry = Telemetry.disabled()
     app.state.analytics = Analytics.disabled()
+    app.state.client_pipelines = {}
     app.add_middleware(GatewayBoundaryMiddleware, owner=app)
 
     @app.exception_handler(RequestValidationError)
@@ -1045,7 +1062,7 @@ def create_app(
         if app.state.config.provider.kind != "openai" and payload.needs_openai_provider():
             raise GatewayError("invalid_request")
         if request.state.stream_mode == "early":
-            pipeline = app.state.pipeline
+            pipeline = _client_pipeline(request)
             if (
                 not payload.stream
                 or app.state.config.provider.kind != "openai"
@@ -1120,8 +1137,8 @@ def create_app(
         )
         if app.state.config.provider.kind != "openai":
             raise GatewayError("invalid_request")
+        pipeline = _client_pipeline(request)
         if request.state.stream_mode == "early":
-            pipeline = app.state.pipeline
             if (
                 not payload.stream
                 or not callable(getattr(pipeline, "run_responses_early", None))
@@ -1154,7 +1171,7 @@ def create_app(
         try:
             response = await _run_connected_operation(
                 request,
-                lambda: app.state.pipeline.run_responses(
+                lambda: pipeline.run_responses(
                     core,
                     request.state.request_id,
                     deadline=request.state.deadline,
