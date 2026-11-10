@@ -17,6 +17,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- Retain observed provider-reported Chat usage when response cleanup fails, with strict JSON validation and unknown usage for malformed or oversized bodies.
 - Reject ambiguous buffered provider JSON with duplicate members, invalid UTF-8, nonfinite numbers or excessive nesting before Chat response delivery.
 - Normalize valid OpenAI `stop` tool turns to `tool_calls`, preserve call-free `length` responses and usage, accept nullable optional SSE tool fields, and use a native OpenCode V2 compatibility profile for the bounded Chat Completions subset.
 - Name the denying middleware in policy errors on both chat APIs and report bounded unsupported content-policy actions before startup.

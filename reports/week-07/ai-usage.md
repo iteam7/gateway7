@@ -85,3 +85,13 @@
 - Review: Independent TechLead code review approved the implementation; this is technical review, not team or Customer acceptance.
 - Boundary: Synthetic local checks only; no external provider calls, deployment or merge.
 - Team assessment: TODO
+
+## 2026-11-11 — Task #236
+
+- Tool: Codex.
+- Work: Retain observed Chat usage when response cleanup fails, on top of the strict decoder from task #226.
+- Verification: 628 affected provider, transport and usage-metric tests passed; Ruff format/lint and mypy for all 36 production files passed.
+- Review: Independent TechLead code review approved the implementation; this is technical review, not team or Customer acceptance.
+- Boundary: Source-reported counts are observed accounting, not proof of transport completion, successful output or monetary cost.
+  Synthetic local checks only; no external provider calls, deployment or merge.
+- Team assessment: TODO

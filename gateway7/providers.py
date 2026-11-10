@@ -497,6 +497,7 @@ class HTTPProvider:
         streamed = OpenAIStream(MAX_RESPONSE_BYTES) if stream else None
         callback_active = False
         primary_error: BaseException | None = None
+        body = bytearray()
         try:
             path, payload = self._request(request, model, stream=stream)
             # A single request: retries and redirects are intentionally absent.
@@ -530,9 +531,10 @@ class HTTPProvider:
                                         callback_active = False
                         data = streamed.finish()
                     else:
-                        body = bytearray()
                         async for chunk in response.aiter_bytes():
                             if len(chunk) > MAX_RESPONSE_BYTES - len(body):
+                                # An over-limit document cannot supply trusted accounting.
+                                body.clear()
                                 raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
                             body.extend(chunk)
                         data = _json_body(body)
@@ -588,6 +590,15 @@ class HTTPProvider:
             error = primary_error if primary_error is not None else caught_error
             if callback_active or not isinstance(error, Exception):
                 raise error from None
+            if streamed is None and usage is None and body:
+                try:
+                    # HTTPX can close at EOF before aiter_bytes returns. Preserve
+                    # source-reported counts from an observed valid JSON object
+                    # even when cleanup fails; this is not a successful answer
+                    # or proof that the transport completed without truncation.
+                    usage = _response_usage(self._kind, _json_body(body))
+                except ProviderError:
+                    pass
             if isinstance(error, ProviderError):
                 reason = error.reason
             elif isinstance(error, httpx.TimeoutException):
