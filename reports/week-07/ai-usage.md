@@ -55,3 +55,24 @@
 - Publication boundary: This entry records verification and publication preparation, not a PR merge, release or human acceptance; the request remains Draft.
 - Live boundary: The last named request returned HTTP 403 in the authentication category; cause, usage and cost are unknown, replay/final were not run, and the 17 NEW implementation attempts remain closed with no additional provider calls or live-runtime allocation.
 - Team assessment: TODO
+
+## 2026-11-10 — Bounded proxy verification
+
+- Tool: OpenCode.
+- Work: Verified the current Gateway/Pipeline/HTTPProvider native Responses path with gpt-4.1-mini through the selected second distinct valid HTTP proxy.
+- Route: The first nonbillable models probe timed out before any HTTP status; a separately allocated second-proxy probe returned HTTP 200 with verified production CONNECT routing.
+  Each generation call matched the current selected proxy and verified official-target SNI/TLS; the two calls used two TCP connections, two CONNECTs and two POST-header transmissions, without retries, extra probes or direct fallback.
+- Result: Both gateway/upstream POSTs returned HTTP 200; forced named function, deterministic lookup, replay of the complete actual ordered output plus its correlated function result, and exact final marker passed, including strict SDK/native identity, argument, distinct call/item identity and source/client usage checks.
+- Usage: First call 65 input/6 output/71 total; second call 86 input/10 output/96 total; aggregate 151 input/16 output/167 total, with monetary cost unknown.
+- Isolation: Python 3.12.14, HTTPX 0.28.1 and OpenAI SDK 3.41; 52 locked dependencies and source/configuration bindings were unchanged, exporters were disabled, owned responses/apps/provider clients/transports were closed and the worker was reaped with no owned runtime remaining.
+- Accounting: These two NEW generation calls are closed separately from the historical 17 implementation attempts, with no allocations remaining.
+- Scope: The previously blocked named/result/final acceptance passed for this current proxy route and these two calls; the historical HTTP 403 cause remains unknown, and the first timeout does not establish key invalidity or a dead proxy.
+  Proxy continuity uses only the ordinal/selection rule, not historical secret-value equality; this is not universal OpenAI compatibility, custom/media/hosted execution, production rollout or required human PR acceptance.
+- Team assessment: TODO
+
+## 2026-11-10 — Proxy verification publication preparation
+
+- Tool: OpenCode.
+- Use: Checked repository/course rules, the report-only diff, source/configuration preservation, remote branch and Task/PR mapping, and prepared publication of the completed proxy verification in the existing Draft PR.
+- Boundary: No product source or configuration changed and no tests, harnesses or provider calls were repeated; the bounded proxy PASS does not establish the historical HTTP 403 cause or universal compatibility.
+- Team assessment: TODO
