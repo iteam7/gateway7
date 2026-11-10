@@ -10,7 +10,7 @@ from gateway7.config import LimitsConfig
 from gateway7.errors import GatewayError, ProviderError, ProviderErrorReason
 from gateway7.loader import LoadedPlugin, LoadedPlugins
 from gateway7.metrics import Metrics
-from gateway7.models import ChatRequest, ChatResponse, NamedToolChoice
+from gateway7.models import ChatRequest, ChatResponse, NamedToolChoice, StrictPayload
 from gateway7.plugin_api import (
     Deny,
     EarlyStreamUnsupported,
@@ -41,16 +41,30 @@ def _checkpoint(deadline: float) -> None:
         raise GatewayError("timeout")
 
 
+def _payload_state(value: Any, ancestors: frozenset[int] = frozenset()) -> Any:
+    """Read recursive actual DTO state without serializers or dropped extras."""
+    if not isinstance(value, (StrictPayload, dict, list, tuple)):
+        return value
+    if id(value) in ancestors:
+        raise ValueError("Cyclic payload state")
+    ancestors = ancestors | {id(value)}
+    if isinstance(value, StrictPayload):
+        actual = vars(value)
+        if set(actual) - type(value).model_fields.keys() or value.__pydantic_extra__:
+            raise ValueError("Unexpected payload fields")
+        return {name: _payload_state(child, ancestors) for name, child in actual.items()}
+    if isinstance(value, dict):
+        return {key: _payload_state(child, ancestors) for key, child in value.items()}
+    if isinstance(value, tuple):
+        return tuple(_payload_state(child, ancestors) for child in value)
+    return [_payload_state(child, ancestors) for child in value]
+
+
 def _validated(payload: object, expected: type[Payload]) -> Payload:
     if not isinstance(payload, expected):
         raise ValueError("Invalid payload type")
-    # model_copy(update=...) can add undeclared attributes even with extra=forbid;
-    # model_dump omits them. Reject such edits instead of silently discarding a
-    # plugin's attempted model/control-field injection.
-    if set(vars(payload)) - expected.model_fields.keys():
-        raise ValueError("Unexpected payload fields")
-    # model_copy/model_construct can bypass validation, including mutable children.
-    return expected.model_validate(payload.model_dump(mode="python", warnings=False), strict=True)
+    # Copies, constructed instances and mutable children bypass normal validation.
+    return expected.model_validate(_payload_state(payload), strict=True)
 
 
 def _response_contract(incoming: ChatRequest, outgoing: ChatResponse) -> None:

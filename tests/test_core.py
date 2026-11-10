@@ -12,7 +12,7 @@ from types import ModuleType
 import pytest
 import yaml
 from fastapi.testclient import TestClient
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_serializer
 
 from gateway7.app import create_app
 from gateway7.config import GatewayConfig, LimitsConfig, load_config, provider_key
@@ -1182,3 +1182,94 @@ def test_middleware_cannot_change_tool_identity_or_return_invalid_arguments(monk
     with pytest.raises(GatewayError) as error:
         asyncio.run(Pipeline(load_plugins(config), Provider(), config.limits).run(tool_request(), "bad-tools"))
     assert error.value.code == "plugin_error"
+
+
+@pytest.mark.parametrize("boundary", ["input", "middleware"])
+@pytest.mark.parametrize("forgery", ["copied-extra", "extra-state", "invalid-child", "cycle"])
+def test_nested_chat_request_state_is_rejected_before_provider(monkeypatch, boundary, forgery):
+    forged = payload()
+    if forgery == "copied-extra":
+        forged.messages[0] = forged.messages[0].model_copy(update={"private_control": SECRET})
+    elif forgery == "extra-state":
+        object.__setattr__(forged.messages[0], "__pydantic_extra__", {"private_control": SECRET})
+    elif forgery == "invalid-child":
+        forged.messages[0] = Message.model_construct(role="user", content=12)
+    else:
+        forged.messages.append(forged.messages)
+
+    class Forging:
+        async def handle(self, request, context, call_next):
+            return await call_next(forged)
+
+    runner, provider = pipeline_for(monkeypatch, Forging() if boundary == "middleware" else PassThrough())
+    with pytest.raises(GatewayError) as caught:
+        asyncio.run(runner.run(forged if boundary == "input" else payload(), "nested-request"))
+    assert caught.value.code == ("invalid_request" if boundary == "input" else "plugin_error")
+    assert provider.calls == [] and SECRET not in str(caught.value)
+
+
+@pytest.mark.parametrize("boundary", ["provider", "middleware"])
+@pytest.mark.parametrize("forgery", ["call-extra", "function-extra", "extra-state"])
+def test_nested_chat_response_state_cannot_be_discarded_by_serialization(
+    monkeypatch, boundary, forgery
+):
+    call = tool_call()
+    if forgery == "call-extra":
+        call = call.model_copy(update={"private_control": SECRET})
+    elif forgery == "function-extra":
+        call = call.model_copy(
+            update={"function": call.function.model_copy(update={"private_control": SECRET})}
+        )
+    else:
+        object.__setattr__(call.function, "__pydantic_extra__", {"private_control": SECRET})
+    forged = ChatResponse(text="", tool_calls=[call], finish_reason="tool_calls")
+    valid = ChatResponse(text="", tool_calls=[tool_call()], finish_reason="tool_calls")
+
+    class Provider(FakeProvider):
+        async def complete(self, request):
+            self.calls.append(request)
+            return forged if boundary == "provider" else valid
+
+    class Inspect:
+        async def handle(self, request, context, call_next):
+            result = await call_next(request)
+            return forged if boundary == "middleware" else result
+
+    name = module(monkeypatch, descriptor=PluginDescriptor(
+        id="state-inspector", api_version=API_VERSION, settings_model=Settings,
+        create=lambda _: Inspect(), supports_tools=True,
+    ))
+    config = configuration({"inspect": {"module": name}}, ["inspect"])
+    provider = Provider()
+    runner = Pipeline(load_plugins(config), provider, config.limits)
+    with pytest.raises(GatewayError) as caught:
+        asyncio.run(runner.run(tool_request(), "nested-response"))
+    assert caught.value.code == ("provider_error" if boundary == "provider" else "plugin_error")
+    assert len(provider.calls) == 1 and SECRET not in str(caught.value)
+
+
+def test_chat_revalidation_does_not_invoke_serializers_that_hide_actual_state(monkeypatch):
+    serialized = []
+
+    class MisleadingRequest(ChatRequest):
+        @model_serializer
+        def hide_invalid_state(self):
+            serialized.append(True)
+            return {"messages": [{"role": "user", "content": "safe"}]}
+
+    runner, provider = pipeline_for(monkeypatch, PassThrough())
+    with pytest.raises(GatewayError) as caught:
+        asyncio.run(runner.run(MisleadingRequest.model_construct(messages=[]), "serializer"))
+    assert caught.value.code == "invalid_request"
+    assert provider.calls == [] and serialized == []
+
+
+def test_valid_shared_chat_children_are_detached_without_becoming_cycles(monkeypatch):
+    message = Message(role="user", content="synthetic")
+    original = ChatRequest(messages=[message, message])
+    runner, provider = pipeline_for(monkeypatch, PassThrough())
+    result = asyncio.run(runner.run(original, "shared-child"))
+    forwarded = provider.calls[0]
+    assert result.text == "answer" and len(forwarded.messages) == 2
+    assert forwarded is not original and forwarded.messages[0] is not message
+    assert forwarded.messages[0] is not forwarded.messages[1]
