@@ -7,6 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- Optional per-client request-rate quotas with monotonic refill, safe Retry-After responses and no charge for pre-admission rejects or task-creation rollback.
 - Optional per-client concurrency limits with isolated 429 admission and leases held through response delivery and cancellation cleanup.
 - Stable configured client identities independent of token rotation and restart-based account suspension with enabled: false.
 - Opt-in early Chat Completions text via `X-Gateway7-Stream-Mode: early` for compatible request-only middleware, with backpressure and delayed validated tool calls; full-response checked delivery remains the default.

@@ -421,6 +421,7 @@ Use the [architecture](architecture/README.md#customer-view), [middleware author
 | `limits.max_concurrent_requests` | Active pipelines per process; default 64, configurable from 1 to 10,000 |
 | `auth` | Client token environment names and model allowlists |
 | `auth.clients.<name>.limits.max_concurrent_requests` | Optional client request capacity, including delivery and cleanup; integer 1–10,000, absent/null means no additional client limit |
+| `auth.clients.<name>.limits.requests_per_minute` | Optional per-client token-bucket request rate; integer 1–1,000,000, absent/null means unlimited |
 | `plugins` | Named middleware instances and their validated settings |
 | `middleware` | Request order; buffered responses pass through the chain in reverse; early mode requires explicit request-only compatibility |
 

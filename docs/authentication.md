@@ -156,10 +156,38 @@ Client names are not added to logs or public metric labels.
 Limits apply to one gateway process and reset on restart; separate workers or replicas do not share counters.
 Changing client limits requires a configuration change and restart.
 
+## Limit a client's request rate
+
+Set `limits.requests_per_minute` on a client to add a request-rate quota:
+
+```yaml
+chat_app:
+  token_env: GATEWAY7_APP_TOKEN
+  models: [gpt-4.1-mini]
+  limits:
+    max_concurrent_requests: 2
+    requests_per_minute: 30
+```
+
+The rate must be an integer from 1 to 1,000,000; absent or `null` leaves it unlimited.
+Each enabled client has its own token bucket, initially full with that many request tokens.
+It refills continuously at the configured rate using monotonic time, up to that capacity; this permits an initial burst rather than imposing a fixed calendar-minute window.
+Native `/chat`, Chat Completions and Responses share that client's bucket, including buffered and early delivery.
+A depleted bucket returns HTTP 429 with `error.code: rate_limited` before middleware or a provider call, and `Retry-After` gives the rounded-up wait for one request token, from 1 to 60 seconds.
+
+Authentication, payload/model validation and global/client concurrency checks run before the rate debit.
+Requests those checks reject and operation/task-creation failures that roll back admission consume no request token.
+Once a request is admitted, later policy denial, unsupported pipeline capability or provider failure still consumes its token.
+Health, readiness, metrics and model-list requests consume none.
+
+Buckets belong to one gateway process and reset on restart; multiple workers or replicas each have their own quota.
+This controls admitted request rate, without establishing a hard model-token, monetary or distributed budget.
+The public `gateway7_rate_limit_rejections_total` counter has no client identity label.
+
 ## Deployment boundary
 
 Change clients, permissions or tokens through server configuration/environment and restart.
-There is no token-management API, user database, billing or per-client request-rate limit.
+There is no token-management API, user database or billing.
 
 The supplied live Compose override forwards the provider key and `GATEWAY7_CLIENT_TOKEN` for the single-client samples.
 Using the two-client section above with Compose also requires forwarding `GATEWAY7_APP_TOKEN` and `GATEWAY7_WORKER_TOKEN`; see [setup](setup.md#real-providers).

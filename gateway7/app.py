@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+import math
 import os
 import time
 from collections.abc import Awaitable, Callable, Coroutine
@@ -335,10 +336,17 @@ class _AdmissionLease:
     client_id: str | None
 
 
+@dataclass
+class _RateBucket:
+    capacity: int
+    tokens: float
+    updated: float
+
+
 class _PipelineAdmission:
     """App-local, event-loop-owned capacity; no waiting queue or early release."""
 
-    def __init__(self, metrics: Metrics) -> None:
+    def __init__(self, metrics: Metrics, *, clock: Callable[[], float] = time.monotonic) -> None:
         self.limit = 64
         self.active = 0
         self.metrics = metrics
@@ -350,6 +358,9 @@ class _PipelineAdmission:
         self._client_limits: dict[str, int | None] = {}
         self._client_active: dict[str, int] = {}
         self._authenticated = False
+        self._clock = clock
+        self._rate_buckets: dict[str, _RateBucket] = {}
+        self._rate_debits: set[_AdmissionLease] = set()
 
     def configure(self, config: GatewayConfig) -> None:
         if self._leases:
@@ -362,6 +373,29 @@ class _PipelineAdmission:
             if client.enabled
         }
         self._client_active = {name: 0 for name in self._client_limits}
+        now = self._clock()
+        self._rate_buckets = {
+            name: _RateBucket(limit, float(limit), now)
+            for name, client in config.auth.clients.items()
+            if client.enabled and (limit := client.limits.requests_per_minute) is not None
+        }
+
+    def _debit_rate(self, client_id: str | None) -> bool:
+        bucket = self._rate_buckets.get(client_id) if client_id is not None else None
+        if bucket is None:
+            return False
+        now = max(bucket.updated, self._clock())
+        bucket.tokens = min(
+            float(bucket.capacity),
+            bucket.tokens + (now - bucket.updated) * bucket.capacity / 60,
+        )
+        bucket.updated = now
+        if bucket.tokens < 1:
+            self.metrics.rate_limit_rejections.inc()
+            retry_after = max(1, min(60, math.ceil((1 - bucket.tokens) * 60 / bucket.capacity)))
+            raise GatewayError("rate_limited", retry_after=retry_after)
+        bucket.tokens -= 1
+        return True
 
     def acquire(
         self, client_id: str | None = None, *, hold_delivery: bool = False
@@ -382,11 +416,14 @@ class _PipelineAdmission:
             if limit is not None and self._client_active[client_id] >= limit:
                 self.metrics.admission_rejections.inc()
                 raise GatewayError("client_overloaded")
+        rate_debited = self._debit_rate(client_id)
         lease = _AdmissionLease(client_id)
         self._leases.add(lease)
         self._global_pending.add(lease)
         if hold_delivery:
             self._delivery_pending.add(lease)
+        if rate_debited:
+            self._rate_debits.add(lease)
         if client_id is not None:
             self._client_active[client_id] += 1
         self.active += 1
@@ -397,11 +434,22 @@ class _PipelineAdmission:
         # Only task-creation failure uses this rollback: no pipeline exists yet.
         if lease not in self._global_pending or lease in self._tracked:
             raise ValueError("Admission lease is not an unstarted owned request")
+        self.rollback_start(lease)
         self._global_pending.remove(lease)
         self._delivery_pending.discard(lease)
         self.active -= 1
         self.metrics.active_pipelines.dec()
         self._release_client(lease)
+
+    def rollback_start(self, lease: _AdmissionLease) -> None:
+        """Refund admission setup failure, without releasing running cleanup."""
+        if lease not in self._leases:
+            raise ValueError("Admission lease is not owned by this application")
+        if lease in self._rate_debits:
+            self._rate_debits.remove(lease)
+            assert lease.client_id is not None
+            bucket = self._rate_buckets[lease.client_id]
+            bucket.tokens = min(float(bucket.capacity), bucket.tokens + 1)
 
     def track(self, task: asyncio.Task[Any], lease: _AdmissionLease) -> None:
         # Retain tasks even if their HTTP caller has already been cancelled.
@@ -430,6 +478,7 @@ class _PipelineAdmission:
         if not task.cancelled():
             task.exception()
         lease = self._tasks.pop(task)
+        self._rate_debits.discard(lease)
         self._tracked.remove(lease)
         self._global_pending.remove(lease)
         self.active -= 1
@@ -507,6 +556,10 @@ async def _run_connected_operation(
         # hooks must cooperate with cancellation; this is not a process sandbox.
         job.cancel()
         return None
+    except BaseException:
+        if disconnected is None:
+            admission.rollback_start(lease)
+        raise
     finally:
         if disconnected is None and disconnect_work is not None:
             disconnect_work.close()
@@ -746,6 +799,10 @@ class _EarlySSE(Response, Generic[StreamResult]):
                 job.result()
             elif job not in done:
                 request.state.stream_outcome = "cancelled"
+        except BaseException:
+            if disconnected is None:
+                admission.rollback_start(lease)
+            raise
         finally:
             # Pin closure before cancellation: resistant in-process code must
             # never resume forwarding or sending after a dead connection.

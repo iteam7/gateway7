@@ -232,7 +232,8 @@ Provider and middleware names come from validated server configuration.
 | `gateway7_http_request_duration_seconds` | `route` | Histogram of HTTP duration |
 | `gateway7_http_requests_in_flight` | None | Active HTTP requests, including health checks and the current scrape |
 | `gateway7_active_pipelines` | None | Pipeline tasks still running, including cancellation cleanup |
-| `gateway7_admission_rejections_total` | None | Requests refused because pipeline capacity is full |
+| `gateway7_admission_rejections_total` | None | Requests refused because global pipeline or client request capacity is full |
+| `gateway7_rate_limit_rejections_total` | None | Requests refused because a configured client's request-rate bucket is depleted |
 | `gateway7_provider_calls_total` | `provider`, `outcome` | One observation per provider attempt |
 | `gateway7_provider_duration_seconds` | `provider`, `outcome` | Histogram of provider attempt duration |
 | `gateway7_provider_errors_total` | `provider`, `reason` | Failed attempts by safe reason; excludes cancellation |

@@ -94,3 +94,12 @@
 - Review: Independent TechLead code review approved the implementation; this is technical review, not team or Customer acceptance.
 - Boundary: Synthetic local checks only; no external provider calls, deployment or merge.
 - Team assessment: TODO
+
+## 2026-11-11 — Task #240
+
+- Tool: Codex.
+- Work: Enforce per-client request-rate quotas.
+- Verification: Full suite passed: 3311 passed, 12 Docker-dependent skips; 481 affected tests, Ruff format/lint, mypy for all 36 production modules, Markdown, strict MkDocs and site checker (61 pages, 7504 links/assets) passed.
+- Review: Independent TechLead code review approved the implementation; this is technical review, not team or Customer acceptance.
+- Boundary: Synthetic local checks only; no external provider calls, deployment or merge.
+- Team assessment: TODO

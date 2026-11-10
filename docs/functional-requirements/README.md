@@ -20,3 +20,4 @@ Each requirement states one behavior of Gateway7, the containers it runs in and 
 | [FR-014](fr/FR-014.md) | Expose Each API Request's Quality Signal To The Observability Backend | `gateway` | Active |
 | [FR-015](fr/FR-015.md) | Record Privacy-Safe Chat Task Events For Product Analytics | `gateway` | Active |
 | [FR-016](fr/FR-016.md) | Limit Each Client's Active Requests | `gateway` | Active |
+| [FR-017](fr/FR-017.md) | Limit Each Client's Request Rate | `gateway` | Active |

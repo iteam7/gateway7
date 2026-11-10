@@ -83,6 +83,7 @@ class PluginConfig(StrictConfig):
 
 class ClientLimitsConfig(StrictConfig):
     max_concurrent_requests: int | None = Field(default=None, ge=1, le=10000)
+    requests_per_minute: int | None = Field(default=None, ge=1, le=1_000_000)
 
 
 class ClientConfig(StrictConfig):

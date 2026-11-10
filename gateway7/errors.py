@@ -74,6 +74,7 @@ class GatewayError(Exception):
         "unavailable": (503, "Gateway is not ready"),
         "overloaded": (503, "Gateway active request capacity is full"),
         "client_overloaded": (429, "Client active request capacity is full"),
+        "rate_limited": (429, "Client request rate quota is exhausted"),
         "internal_error": (500, "Request processing failed"),
     }
 

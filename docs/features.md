@@ -29,6 +29,16 @@ The [client guide](authentication.md#limit-concurrent-client-requests) explains 
 - **Behavior:** [`FR-016`](functional-requirements/fr/FR-016.md)
 - **Decisions:** [`ADR-003`](architecture/adr/ADR-003.md)
 
+## Control each client's request rate
+
+An operator can assign each [client](glossary.md#client) an optional request-rate bucket shared across chat APIs.
+Requests rejected before admission consume no quota, while admitted requests consume one token even if a later policy or provider fails.
+The [rate guide](authentication.md#limit-a-clients-request-rate) explains continuous refill, safe retry headers and process-local restart behavior.
+
+- **Stories:** [`US-07`](https://github.com/iteam7/gateway7/issues/36), extended by the operator request in [task #240](https://github.com/iteam7/gateway7/issues/240).
+- **Behavior:** [`FR-017`](functional-requirements/fr/FR-017.md)
+- **Decisions:** [`ADR-003`](architecture/adr/ADR-003.md)
+
 ## Mask phone numbers before they leave
 
 A security officer keeps customers' phone numbers out of the prompts that reach the provider.
