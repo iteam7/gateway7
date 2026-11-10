@@ -259,3 +259,134 @@ async def test_non_200_closes_stream_without_reading_body_or_retrying(status, re
     assert not stream.exhausted
     assert stream.close_calls == 1
     assert len(requests) == 1
+
+
+class DeferredCloseStream(ObservedStream):
+    def __init__(self, chunks, *, close_failure=None, **options):
+        super().__init__(chunks, **options)
+        self.close_failure = close_failure
+        self.close_entered = asyncio.Event()
+        self.close_release = asyncio.Event()
+        self.close_finished = asyncio.Event()
+        self.close_interrupted = False
+        self.close_tasks = set()
+
+    async def aclose(self):
+        self.close_calls += 1
+        self.close_tasks.add(asyncio.current_task())
+        self.close_entered.set()
+        try:
+            await self.close_release.wait()
+        except asyncio.CancelledError:
+            self.close_interrupted = True
+            raise
+        self.close_finished.set()
+        if self.close_failure is not None:
+            raise self.close_failure
+
+
+@pytest.mark.parametrize("mode", ["json-eof", "sse-eof", "read-error", "callback-error", "cancel"])
+@pytest.mark.parametrize("cleanup_fails", [False, True])
+async def test_repeated_cancellation_awaits_chat_cleanup_and_preserves_primary(mode, cleanup_fails):
+    events = [
+        {"choices": [{"index": 0, "delta": {"content": "pong"}, "finish_reason": "stop"}]},
+        {"choices": [], "usage": {"prompt_tokens": 3, "completion_tokens": 1}},
+    ]
+    sse = (
+        "".join("data: " + json.dumps(event) + "\n\n" for event in events) + "data: [DONE]\n\n"
+    ).encode()
+    streaming = mode in ("sse-eof", "callback-error")
+    stream = DeferredCloseStream(
+        [sse if streaming else REPLY],
+        failure=httpx.ReadError(PRIVATE) if mode == "read-error" else None,
+        block=mode == "cancel",
+        close_failure=httpx.ReadError(PRIVATE) if cleanup_fails else None,
+    )
+    original = ValueError("synthetic callback failure")
+
+    async def on_text(_):
+        raise original
+
+    async def checkpoint():
+        reached = asyncio.get_running_loop().create_future()
+        asyncio.get_running_loop().call_soon(reached.set_result, None)
+        await reached
+
+    headers = {"content-type": "text/event-stream"} if streaming else None
+    async with streamed_provider(stream, headers=headers) as (provider, requests, response):
+        before = asyncio.all_tasks()
+        task = asyncio.create_task(
+            provider.complete_early(REQUEST, on_text=on_text)
+            if mode == "callback-error"
+            else provider.complete(REQUEST, stream=streaming)
+        )
+        caught = None
+        try:
+            if mode == "cancel":
+                await asyncio.wait_for(stream.blocked.wait(), 1)
+                task.cancel("primary cancellation")
+            await asyncio.wait_for(stream.close_entered.wait(), 1)
+            task.cancel("cancellation during close")
+            await checkpoint()
+            assert not task.done() and not stream.close_finished.is_set()
+            assert not stream.close_interrupted
+            task.cancel("repeated cancellation during close")
+            await checkpoint()
+            assert not task.done() and not stream.close_finished.is_set()
+            assert not stream.close_interrupted
+        finally:
+            stream.close_release.set()
+            try:
+                await task
+            except BaseException as error:
+                caught = error
+        if mode == "callback-error":
+            assert caught is original
+        elif mode == "read-error":
+            assert_safe_error(caught, ProviderErrorReason.TRANSPORT)
+        else:
+            assert isinstance(caught, asyncio.CancelledError)
+            assert str(caught) == (
+                "primary cancellation" if mode == "cancel" else "cancellation during close"
+            )
+        assert task.cancelled() is (mode not in ("read-error", "callback-error"))
+        assert stream.close_calls == 1 and stream.close_finished.is_set()
+        assert not stream.close_interrupted and response.is_closed
+        assert len(stream.close_tasks) == 1
+        assert all(owner is not task and owner.done() for owner in stream.close_tasks)
+        assert not (asyncio.all_tasks() - before)
+        assert len(requests) == 1
+
+
+async def test_one_request_waiting_for_cleanup_does_not_close_or_block_another_request():
+    waiting = DeferredCloseStream([REPLY])
+    healthy = ObservedStream([REPLY])
+    attempts = []
+
+    def handle(request):
+        attempts.append(request)
+        return httpx.Response(200, stream=waiting if len(attempts) == 1 else healthy)
+
+    provider = build_provider(
+        ProviderConfig(kind="openai", model="configured-test-model"),
+        KEY,
+        transport=httpx.MockTransport(handle),
+    )
+    task = asyncio.create_task(provider.complete(REQUEST))
+    try:
+        await asyncio.wait_for(waiting.close_entered.wait(), 1)
+        answer = await asyncio.wait_for(provider.complete(REQUEST), 1)
+        assert answer.text == "pong" and answer.usage == {"input_tokens": 3, "output_tokens": 1}
+        assert healthy.close_calls == 1 and healthy.exhausted
+        assert not task.done() and not waiting.close_finished.is_set()
+        task.cancel("cancel first request only")
+    finally:
+        waiting.close_release.set()
+        try:
+            await task
+        except asyncio.CancelledError as error:
+            assert str(error) == "cancel first request only"
+        await provider.aclose()
+    assert task.cancelled() and waiting.close_finished.is_set()
+    assert waiting.close_calls == 1 and not waiting.close_interrupted
+    assert healthy.close_calls == 1 and len(attempts) == 2

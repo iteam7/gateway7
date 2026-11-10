@@ -19,6 +19,7 @@ import httpx
 from gateway7.errors import ProviderError, ProviderErrorReason
 from gateway7.models import ChatResponse, ToolCall
 from gateway7.openai_stream import OpenAIStream
+from gateway7.provider_stream import OwnedCloseStream
 from gateway7.responses_models import ResponsesConsent
 
 if TYPE_CHECKING:
@@ -452,6 +453,9 @@ class HTTPProvider:
                 "POST", self._origin + path, json=payload, headers=self._headers
             ) as response:
                 try:
+                    if not isinstance(response.stream, httpx.AsyncByteStream):
+                        raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
+                    response.stream = OwnedCloseStream(response.stream)
                     if response.status_code != 200:
                         if response.status_code in (401, 403):
                             reason = ProviderErrorReason.AUTHENTICATION
