@@ -121,3 +121,12 @@
 - Review: Independent TechLead code review approved the implementation; this is technical review, not team or Customer acceptance.
 - Boundary: Synthetic local checks only; no external provider calls, deployment or merge.
 - Team assessment: TODO
+
+## 2026-11-11 — Task #257
+
+- Tool: Codex.
+- Work: Add a read-only operator web console.
+- Verification: Final full suite passed: 3478 passed, 12 Docker-dependent skips; 23 console API cases, Ruff format/lint, mypy for all 39 production modules, demo, wheel and extracted-wheel assets passed. JavaScript syntax, Markdown, strict MkDocs and site checker (64 pages, 8061 links/assets) passed. Actual Gateway browser verification covered separate operator authentication, refresh, logout, suspended clients, limits, policy order and known/unknown usage; owned preview servers were stopped.
+- Review: Independent TechLead code review approved the implementation; this is technical review, not team or Customer acceptance.
+- Boundary: Synthetic local checks only; no external provider calls, deployment or merge.
+- Team assessment: TODO

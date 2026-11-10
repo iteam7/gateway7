@@ -37,6 +37,7 @@ from gateway7.openai_api import (
     completion_sse,
     error_body,
 )
+from gateway7.operator_console import CONSOLE_HEADERS, OPERATOR_PATHS, console_asset, operator_state
 from gateway7.pipeline import Pipeline
 from gateway7.plugin_api import EarlyStreamUnsupported, ResponsesUnsupported
 from gateway7.providers import build_provider
@@ -147,6 +148,7 @@ class GatewayBoundaryMiddleware:
         response_started = False
         status_code: int | None = None
         response_completed = False
+        operator_path = scope.get("path", "").startswith("/operator/")
         error_code: str | None = None
         metrics = self.owner.state.metrics
         route = {
@@ -166,10 +168,19 @@ class GatewayBoundaryMiddleware:
             nonlocal response_started, response_completed, status_code
             if message["type"] == "http.response.start":
                 response_started = True
+                headers = message.get("headers", [])
+                if operator_path:
+                    owned = {
+                        name.lower().encode("ascii"): value.encode("ascii")
+                        for name, value in CONSOLE_HEADERS.items()
+                    }
+                    headers = [
+                        (name, value) for name, value in headers if name.lower() not in owned
+                    ] + list(owned.items())
                 message = {
                     **message,
                     "headers": [
-                        *message.get("headers", []),
+                        *headers,
                         (b"x-request-id", request_id.encode()),
                     ],
                 }
@@ -194,9 +205,13 @@ class GatewayBoundaryMiddleware:
             if not getattr(self.owner.state, "ready", False):
                 await fail("unavailable")
                 return
-            if scope.get("path") == "/operator/usage":
+            if scope.get("path") in OPERATOR_PATHS:
                 try:
-                    self.owner.state.operator_access.authenticate(scope.get("headers", []))
+                    access = self.owner.state.operator_access
+                    if scope.get("path") in {"/operator/usage", "/operator/state"}:
+                        access.authenticate(scope.get("headers", []))
+                    elif not access.enabled:
+                        raise GatewayError("not_found")
                 except GatewayError as error:
                     await fail(error.code)
                     return
@@ -1062,6 +1077,29 @@ def create_app(
         return JSONResponse(
             app.state.usage_ledger.snapshot(), headers={"Cache-Control": "no-store"}
         )
+
+    @app.get("/operator/state", include_in_schema=False)
+    async def operator_snapshot() -> JSONResponse:
+        snapshot = operator_state(
+            app.state.config,
+            app.state.pipeline,
+            app.state.client_pipelines,
+            ready=app.state.ready,
+        )
+        snapshot["usage"] = app.state.usage_ledger.snapshot()
+        return JSONResponse(snapshot, headers=CONSOLE_HEADERS)
+
+    @app.get("/operator/console", include_in_schema=False)
+    async def operator_console() -> Response:
+        return console_asset("index.html")
+
+    @app.get("/operator/assets/console.css", include_in_schema=False)
+    async def operator_console_styles() -> Response:
+        return console_asset("console.css")
+
+    @app.get("/operator/assets/console.js", include_in_schema=False)
+    async def operator_console_script() -> Response:
+        return console_asset("console.js")
 
     @app.post("/chat")
     async def chat(payload: NativeChatRequest, request: Request) -> Response:

@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Gateway7 · Operator console</title>
+    <link rel="stylesheet" href="./assets/console.css" />
+    <script src="./assets/console.js" defer></script>
+  </head>
+  <body>
+    <aside class="sidebar">
+      <a class="brand" href="./console" aria-label="Gateway7 operator console"
+        ><span class="brand-mark">7</span>Gateway7</a
+      >
+      <div class="sidebar-label">WORKSPACE</div>
+      <nav aria-label="Console sections">
+        <a class="nav-link selected" href="#overview"
+          ><span aria-hidden="true">◫</span> Overview</a
+        >
+        <a class="nav-link" href="#clients"
+          ><span aria-hidden="true">◉</span> Clients</a
+        >
+        <a class="nav-link" href="#policies"
+          ><span aria-hidden="true">≋</span> Middleware</a
+        >
+      </nav>
+      <div class="sidebar-bottom">
+        <span class="sidebar-dot"></span> Operator access<br /><small
+          >Read-only workspace</small
+        >
+      </div>
+    </aside>
+    <div class="workspace">
+      <header class="topbar">
+        <span>Gateway administration</span
+        ><span class="quiet-badge">READ ONLY</span>
+      </header>
+      <main id="overview">
+        <div class="page-heading">
+          <div>
+            <div class="eyebrow">YOUR GATEWAY, AT A GLANCE</div>
+            <h1>Operator overview</h1>
+            <p class="subtitle">
+              Client access, provider usage and the policies behind every
+              request.
+            </p>
+          </div>
+          <div class="page-actions" id="connected-actions" hidden>
+            <button class="button secondary" id="refresh" type="button">
+              ↻ Refresh</button
+            ><button class="text-button" id="disconnect" type="button">
+              Disconnect
+            </button>
+          </div>
+        </div>
+        <section
+          class="connection panel"
+          id="connection-panel"
+          aria-labelledby="connection-title"
+        >
+          <div class="connection-icon" aria-hidden="true">⌑</div>
+          <div class="connection-copy">
+            <div class="eyebrow">PRIVATE OPERATOR SESSION</div>
+            <h2 id="connection-title">Connect to your gateway</h2>
+            <p>Use the separate operator token to open this workspace.</p>
+          </div>
+          <form id="connect-form" class="connection-form" autocomplete="off">
+            <label for="operator-token">Operator token</label>
+            <div class="input-row">
+              <input
+                id="operator-token"
+                type="password"
+                autocomplete="off"
+                autocapitalize="none"
+                spellcheck="false"
+                minlength="16"
+                maxlength="512"
+                required
+                placeholder="Enter your operator token"
+                aria-describedby="token-note"
+              /><button class="button primary" id="connect" type="submit">
+                Connect <span aria-hidden="true">→</span>
+              </button>
+            </div>
+            <small id="token-note"
+              >Kept in memory for this page. Never saved in browser
+              storage.</small
+            >
+          </form>
+        </section>
+        <p id="message" class="message" role="status" aria-live="polite"></p>
+        <div id="dashboard" hidden>
+          <div class="status-line">
+            <span class="status-tag"
+              ><span class="status-dot"></span> Configuration loaded</span
+            ><span id="refreshed-at"></span>
+          </div>
+          <section class="summary-grid" aria-label="Gateway summary">
+            <article class="summary-card">
+              <div class="card-label">
+                Configured clients <span aria-hidden="true">◉</span>
+              </div>
+              <strong id="client-count">—</strong>
+              <p id="client-summary"></p>
+            </article>
+            <article class="summary-card">
+              <div class="card-label">
+                Provider attempts <span aria-hidden="true">↗</span>
+              </div>
+              <strong id="attempt-count">—</strong>
+              <p>Since this process started</p>
+            </article>
+            <article class="summary-card">
+              <div class="card-label">
+                Known tokens <span aria-hidden="true">◇</span>
+              </div>
+              <strong id="token-count">—</strong>
+              <p id="token-summary"></p>
+            </article>
+            <article class="summary-card">
+              <div class="card-label">
+                Middleware in chains <span aria-hidden="true">≋</span>
+              </div>
+              <strong id="plugin-count">—</strong>
+              <p id="plugin-summary"></p>
+            </article>
+          </section>
+          <section class="panel" id="clients" aria-labelledby="clients-title">
+            <div class="panel-heading">
+              <div>
+                <div class="eyebrow">ACCESS & CAPACITY</div>
+                <h2 id="clients-title">Clients</h2>
+                <p>Configured permissions and limits for each account.</p>
+              </div>
+              <span class="small-tag" id="shared-limit"></span>
+            </div>
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Client</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Model permissions</th>
+                    <th scope="col">Concurrent requests</th>
+                    <th scope="col">Requests / minute</th>
+                  </tr>
+                </thead>
+                <tbody id="clients-body"></tbody>
+              </table>
+            </div>
+          </section>
+          <section class="panel" aria-labelledby="usage-title">
+            <div class="panel-heading">
+              <div>
+                <div class="eyebrow">PROCESS LIFETIME</div>
+                <h2 id="usage-title">Provider usage</h2>
+                <p id="usage-window"></p>
+              </div>
+              <span class="small-tag">Resets on restart</span>
+            </div>
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Client</th>
+                    <th scope="col">Attempts</th>
+                    <th scope="col">Provider outcomes</th>
+                    <th scope="col">Known input / output tokens</th>
+                    <th scope="col">Unknown usage attempts</th>
+                  </tr>
+                </thead>
+                <tbody id="usage-body"></tbody>
+              </table>
+            </div>
+            <p class="panel-note">
+              Counts include terminal provider observations; in-flight calls are
+              not yet included. Provider completion records generation,
+              including answers later blocked by policy. Unknown usage is shown
+              separately; these counters are not a billing ledger.
+            </p>
+          </section>
+          <section class="panel" id="policies" aria-labelledby="policies-title">
+            <div class="panel-heading">
+              <div>
+                <div class="eyebrow">POLICY ORDER</div>
+                <h2 id="policies-title">Middleware chains</h2>
+                <p>Each client's extra policies follow the shared baseline.</p>
+              </div>
+            </div>
+            <div class="chains" id="chains"></div>
+          </section>
+          <section class="panel" aria-labelledby="plugins-title">
+            <div class="panel-heading">
+              <div>
+                <div class="eyebrow">REGISTERED MIDDLEWARE</div>
+                <h2 id="plugins-title">Capabilities & validation</h2>
+                <p>
+                  Configuration was validated at startup. Hook presence does not
+                  guarantee compatibility with every request.
+                </p>
+              </div>
+              <span class="small-tag">Startup snapshot</span>
+            </div>
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Instance</th>
+                    <th scope="col">Configuration</th>
+                    <th scope="col">Tool inspection</th>
+                    <th scope="col">Native Responses hooks</th>
+                    <th scope="col">Early text hooks</th>
+                  </tr>
+                </thead>
+                <tbody id="plugins-body"></tbody>
+              </table>
+            </div>
+            <p class="panel-note">
+              Disabled instances have validated configuration but are not
+              instantiated. This view does not run health probes or execute
+              plugin checks.
+            </p>
+          </section>
+          <footer class="footer-note">
+            <div class="footer-icon" aria-hidden="true">i</div>
+            <p>
+              <strong>Review a change before restarting.</strong><br />Update
+              server configuration, run the existing validation and isolated
+              plugin tests, then restart to apply account, limit or middleware
+              changes.
+            </p>
+            <a
+              href="https://github.com/iteam7/gateway7/blob/main/docs/cli.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              >Validation guide ↗</a
+            >
+          </footer>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

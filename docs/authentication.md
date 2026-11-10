@@ -222,6 +222,32 @@ Restarting the application resets its ledger, and separate workers have separate
 This bounded view is not durable accounting, an arbitrary-period or per-model usage report, a distributed budget, a hard token or currency cap, or a monetary cost estimate.
 [FR-019](functional-requirements/fr/FR-019.md) specifies this increment; [FR-012](functional-requirements/fr/FR-012.md) and its broader US-13 history requirement remain separate.
 
+## Open the read-only operator console
+
+After configuring the separate operator credential above, open `/operator/console` on your gateway and enter that token.
+The shell and its packaged stylesheet/script contain no configured client, policy or usage data.
+The dashboard loads a protected `GET /operator/state` snapshot only after connecting, using an authorization header to the same gateway.
+The token stays in page memory; the console does not place it in URLs, cookies or browser storage.
+Disconnect clears the token and displayed data, and leaving the page ends that browser session.
+Shell, asset and operator state responses prohibit caching, including authentication errors.
+Without configured operator access, the shell, assets and state endpoint return HTTP 404.
+
+The workspace shows enabled and suspended clients, their configured model permissions and request limits, process-lifetime provider usage, and global and additional middleware order.
+Known input/output tokens and attempts with unknown usage remain separate.
+Counts reflect terminal provider observations; in-flight calls have not yet been included.
+A provider completion is not a guarantee that a response passed all policies or reached its caller, and the counters are not a monetary ledger.
+Refresh reads another snapshot from the current process; counters reset on restart and separate workers keep separate ledgers.
+
+Middleware metadata identifies configuration validated at startup, required/enabled instances and registered hook presence.
+A hook can reject a particular request or configuration, so its presence is not a live health or universal compatibility claim.
+Disabled middleware has validated configuration but no instantiated hooks.
+Policy terms/settings, provider origins, credential references and conversations are excluded from the snapshot.
+
+The console changes no account, permission, limit or middleware setting.
+Update the server configuration, run the existing [configuration validation](cli.md#validate-configuration) and appropriate [isolated middleware fixtures](cli.md#generate-and-test-middleware), then restart to apply a change.
+Malformed configuration prevents startup, while runtime policy/plugin failures retain their existing fail-closed behavior.
+[FR-020](functional-requirements/fr/FR-020.md) specifies the console boundary.
+
 ## Use the CLI
 
 From the checkout, using the demo variables above:

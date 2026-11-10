@@ -103,6 +103,14 @@ An operator finds which [middleware](glossary.md#middleware) failed or slowed a 
 - **Behavior:** [`FR-011`](functional-requirements/fr/FR-011.md)
 - **Decisions:** [`ADR-002`](architecture/adr/ADR-002.md)
 
+## Inspect client access and middleware
+
+An operator can review each [client](glossary.md#client)'s access, configured limits, observed provider usage and middleware order in a read-only browser workspace.
+
+- **Stories:** [US-07](https://github.com/iteam7/gateway7/issues/36), [US-13](https://github.com/iteam7/gateway7/issues/141), [US-03](https://github.com/iteam7/gateway7/issues/32)
+- **Behavior:** [FR-020](functional-requirements/fr/FR-020.md), [FR-019](functional-requirements/fr/FR-019.md)
+- **Decisions:** [ADR-003](architecture/adr/ADR-003.md)
+
 ## Start a middleware package
 
 A plugin author or a coding agent gets a working middleware package to edit, with a configuration and examples that already pass.
