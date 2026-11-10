@@ -24,9 +24,9 @@ logger = logging.getLogger("gateway7")
 
 Source = Literal["web", "usability-test", "smoke"]
 Environment = Literal["staging", "production"]
-Route = Literal["chat", "openai_chat"]
+Route = Literal["chat", "openai_chat", "openai_responses"]
 Outcome = Literal["ok", "client_error", "cancelled", "server_error"]
-CHAT_ROUTES = frozenset({"chat", "openai_chat"})
+CHAT_ROUTES = frozenset({"chat", "openai_chat", "openai_responses"})
 QUEUE_CAPACITY = 256
 EXPORT_TIMEOUT_SECONDS = 1.0
 SHUTDOWN_TIMEOUT_SECONDS = 2.0

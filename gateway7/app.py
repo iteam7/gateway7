@@ -1,12 +1,14 @@
 """FastAPI application with bounded input, sanitized failures, and safe lifecycle."""
 
 import asyncio
+import json
 import logging
 import os
 import time
+from collections.abc import Awaitable, Callable, Coroutine
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, Generic, Literal, Protocol, TypeVar
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
@@ -22,9 +24,10 @@ from gateway7.config import GatewayConfig, load_config, provider_key
 from gateway7.auth import AccessControl
 from gateway7.errors import GatewayError, StartupError
 from gateway7.loader import complete_cleanup, load_plugins, start_plugins, stop_plugins
-from gateway7.models import ChatRequest
-from gateway7.metrics import Metrics
+from gateway7.models import ChatRequest, ChatResponse
+from gateway7.metrics import HTTPRequestOutcome, Metrics
 from gateway7.openai_api import (
+    EarlyChatEncoder,
     NativeChatRequest,
     OpenAIChatRequest,
     completion_response,
@@ -32,11 +35,16 @@ from gateway7.openai_api import (
     error_body,
 )
 from gateway7.pipeline import Pipeline
+from gateway7.plugin_api import EarlyStreamUnsupported, ResponsesUnsupported
 from gateway7.providers import build_provider
+from gateway7.responses_api import EarlyResponsesEncoder, response_json, response_sse
+from gateway7.responses_events import ResponsesTextDelta
+from gateway7.responses_models import ResponsesConsent, ResponsesCreateRequest, ResponsesResponse
 from gateway7.telemetry import Telemetry
 from gateway7.transport_loader import create_transport, validate_transport_config
 
 logger = logging.getLogger("gateway7")
+_TIMEOUT_RESPONSE_GRACE_SECONDS = 0.1
 
 
 async def _close_provider_resource(resource: Any, timeout: float) -> None:
@@ -77,6 +85,43 @@ def _openai_path(path: str) -> bool:
     return path.startswith("/v1/")
 
 
+def _stream_mode(headers: list[tuple[bytes, bytes]]) -> Literal["buffered", "early"]:
+    values = [value for name, value in headers if name.lower() == b"x-gateway7-stream-mode"]
+    if not values:
+        return "buffered"
+    if len(values) != 1 or values[0] not in (b"buffered", b"early"):
+        raise GatewayError("invalid_request")
+    return "early" if values[0] == b"early" else "buffered"
+
+
+def _responses_consent(headers: list[tuple[bytes, bytes]]) -> ResponsesConsent:
+    def allowed(name: bytes) -> bool:
+        values = [value for key, value in headers if key.lower() == name]
+        if not values:
+            return False
+        if len(values) != 1 or values[0] not in (b"true", b"false"):
+            raise GatewayError("invalid_request")
+        return values[0] == b"true"
+
+    return ResponsesConsent(
+        allow_opaque=allowed(b"x-gateway7-allow-opaque"),
+        allow_hosted=allowed(b"x-gateway7-allow-hosted-tools"),
+    )
+
+
+def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for name, value in pairs:
+        if name in result:
+            raise ValueError("Duplicate JSON member")
+        result[name] = value
+    return result
+
+
+def _reject_json_constant(_: str) -> None:
+    raise ValueError("Invalid JSON number")
+
+
 class GatewayBoundaryMiddleware:
     """Bound bytes before JSON parsing, including bodies without Content-Length."""
 
@@ -92,9 +137,8 @@ class GatewayBoundaryMiddleware:
         started = time.monotonic()
         scope.setdefault("state", {})["request_id"] = request_id
         response_started = False
+        status_code: int | None = None
         response_completed = False
-        analytics_status: int | None = None
-        status_code = 500
         error_code: str | None = None
         metrics = self.owner.state.metrics
         route = {
@@ -103,6 +147,7 @@ class GatewayBoundaryMiddleware:
             "/ready": "ready",
             "/metrics": "metrics",
             "/v1/chat/completions": "openai_chat",
+            "/v1/responses": "openai_responses",
             "/v1/models": "models",
         }.get(scope.get("path", ""), "other")
         analytics = self.owner.state.analytics
@@ -113,7 +158,6 @@ class GatewayBoundaryMiddleware:
             nonlocal response_started, response_completed, status_code
             if message["type"] == "http.response.start":
                 response_started = True
-                status_code = message["status"]
                 message = {
                     **message,
                     "headers": [
@@ -122,12 +166,15 @@ class GatewayBoundaryMiddleware:
                     ],
                 }
             await send(message)
+            if message["type"] == "http.response.start":
+                status_code = message["status"]
             if message["type"] == "http.response.body" and not message.get("more_body", False):
                 response_completed = True
 
         async def fail(code: str) -> None:
             nonlocal error_code
             error_code = code
+            scope["state"]["http_outcome"] = code
             await _error_response(code, request_id, openai=_openai_path(scope.get("path", "")))(
                 scope, receive, safe_send
             )
@@ -139,13 +186,30 @@ class GatewayBoundaryMiddleware:
             if not getattr(self.owner.state, "ready", False):
                 await fail("unavailable")
                 return
-            if route in ("chat", "openai_chat", "models"):
+            if route in ("chat", "openai_chat", "openai_responses", "models"):
                 try:
                     scope["state"]["principal"] = self.owner.state.access.authenticate(
                         scope.get("headers", [])
                     )
                 except GatewayError as error:
                     await fail(error.code)
+                    return
+            if route in ("chat", "openai_chat", "openai_responses"):
+                try:
+                    mode = _stream_mode(scope.get("headers", []))
+                    if mode == "early" and route == "chat":
+                        raise GatewayError("invalid_request")
+                    scope["state"]["stream_mode"] = mode
+                    if route == "openai_responses":
+                        scope["state"]["responses_consent"] = _responses_consent(
+                            scope.get("headers", [])
+                        )
+                except GatewayError:
+                    response = _error_response(
+                        "invalid_request", request_id, openai=_openai_path(scope.get("path", ""))
+                    )
+                    response.status_code = 400
+                    await response(scope, receive, safe_send)
                     return
             limits = self.owner.state.config.limits
             deadline = started + limits.request_timeout_seconds
@@ -170,7 +234,7 @@ class GatewayBoundaryMiddleware:
                 while True:
                     message = await receive()
                     if message["type"] == "http.disconnect":
-                        status_code = 499
+                        scope["state"]["http_outcome"] = "cancelled"
                         return
                     chunk = message.get("body", b"")
                     if len(body) + len(chunk) > limits.max_body_bytes:
@@ -190,15 +254,14 @@ class GatewayBoundaryMiddleware:
 
             await self.app(scope, replay_receive, safe_send)
         except asyncio.CancelledError:
-            analytics_status = 499
-            status_code = 499
+            scope["state"]["http_outcome"] = "cancelled"
             raise
         except TimeoutError:
-            analytics_status = 504
+            scope["state"]["http_outcome"] = "timeout"
             if not response_started:
                 await fail("timeout")
         except Exception:
-            analytics_status = 500
+            scope["state"]["http_outcome"] = "internal_error"
             # Framework exceptions and invalid JSON never become traceback,
             # request-body, or provider details in responses or gateway logs.
             if not response_started:
@@ -208,20 +271,44 @@ class GatewayBoundaryMiddleware:
             # line and the exported log point and histogram, so they cannot disagree.
             duration = max(0.0, time.monotonic() - started)
             metrics.http_in_flight.dec()
-            metrics.http_requests.labels(route, str(status_code)).inc()
+            if status_code is not None:
+                metrics.http_requests.labels(route, str(status_code)).inc()
+            outcome = HTTPRequestOutcome.normalize(
+                scope["state"].get(
+                    "stream_outcome",
+                    scope["state"].get("http_outcome", HTTPRequestOutcome.from_status(status_code)),
+                )
+            )
+            if outcome == HTTPRequestOutcome.SUCCESS and not response_completed:
+                outcome = HTTPRequestOutcome.CANCELLED
+            metrics.observe_http_outcome(route, outcome)
             metrics.http_duration.labels(route).observe(duration)
             if error_code is None:
                 error_code = scope["state"].get("error_code")
+            terminal_status = status_code if response_completed and status_code is not None else 499
+            if outcome == HTTPRequestOutcome.CANCELLED:
+                terminal_status = 499
+            elif outcome != HTTPRequestOutcome.SUCCESS:
+                error_code = outcome.value
+                terminal_status = (
+                    400
+                    if outcome == HTTPRequestOutcome.INVALID_REQUEST and status_code == 400
+                    else GatewayError(outcome.value).status_code
+                )
             logger.info(
-                "request_id=%s outcome=http_%d component=http duration_ms=%.3f",
+                "request_id=%s outcome=%s component=http route=%s duration_ms=%.3f",
                 request_id,
-                status_code,
+                scope["state"].get(
+                    "stream_outcome",
+                    "http_" + str(status_code) if status_code is not None else outcome.value,
+                ),
+                route,
                 duration * 1000,
             )
             analytics.completed(
                 request_id=request_id,
                 route=route,
-                status=analytics_status or (status_code if response_completed else 499),
+                status=terminal_status,
                 duration_ms=duration * 1000,
             )
             telemetry = getattr(self.owner.state, "telemetry", None)
@@ -229,7 +316,7 @@ class GatewayBoundaryMiddleware:
                 telemetry.record(
                     request_id=request_id,
                     route=route,
-                    status=status_code,
+                    status=terminal_status,
                     error_code=error_code,
                     duration_ms=duration * 1000,
                 )
@@ -285,11 +372,9 @@ async def _run_connected(
     request: Request, payload: ChatRequest, selected_model: str, *, provider_stream: bool = False
 ) -> Any:
     pipeline = request.app.state.pipeline
-    admission = request.app.state.admission
-    admission.acquire()
-    work = None
-    try:
-        work = pipeline.run(
+
+    def operation() -> Coroutine[Any, Any, ChatResponse]:
+        return pipeline.run(
             payload,
             request.state.request_id,
             deadline=request.state.deadline,
@@ -298,6 +383,22 @@ async def _run_connected(
             else None,
             **({"provider_stream": True} if provider_stream else {}),
         )
+
+    return await _run_connected_operation(request, operation)
+
+
+PipelineResult = TypeVar("PipelineResult")
+
+
+async def _run_connected_operation(
+    request: Request, operation: Callable[[], Coroutine[Any, Any, PipelineResult]]
+) -> PipelineResult | None:
+    """Share one admission lease and disconnect guard across native API shapes."""
+    admission = request.app.state.admission
+    admission.acquire()
+    work = None
+    try:
+        work = operation()
         job = asyncio.create_task(work)
     except BaseException:
         admission.release_unstarted()
@@ -327,22 +428,248 @@ async def _run_connected(
         await asyncio.gather(*tasks, return_exceptions=True)
 
 
-class _CheckedSSE(Response):
-    """A fully serialized, policy-approved SSE body with a bounded send."""
+class _CheckedBody(Response):
+    """A fully serialized, policy-approved body with a bounded send."""
 
-    def __init__(self, body: bytes, deadline: float) -> None:
-        super().__init__(
-            body,
-            media_type="text/event-stream",
-            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-        )
+    def __init__(
+        self,
+        body: bytes,
+        deadline: float,
+        *,
+        media_type: str,
+        headers: dict[str, str] | None = None,
+    ) -> None:
+        super().__init__(body, media_type=media_type, headers=headers)
         self.deadline = deadline
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if time.monotonic() >= self.deadline:
             raise TimeoutError
-        async with asyncio.timeout_at(self.deadline):
-            await super().__call__(scope, receive, send)
+        timer = asyncio.timeout_at(self.deadline)
+        try:
+            async with timer:
+                await super().__call__(scope, receive, send)
+        except TimeoutError:
+            raise
+        except OSError:
+            # ASGI reports a closed downstream connection through send(). Do
+            # not replace an already started response or retry a failed start.
+            task = asyncio.current_task()
+            if task is not None and task.cancelling():
+                raise asyncio.CancelledError from None
+            if timer.expired() or time.monotonic() >= self.deadline:
+                raise TimeoutError from None
+            scope.setdefault("state", {})["http_outcome"] = "cancelled"
+
+
+class _CheckedSSE(_CheckedBody):
+    """A fully serialized, policy-approved SSE body with a bounded send."""
+
+    def __init__(self, body: bytes, deadline: float) -> None:
+        super().__init__(
+            body,
+            deadline,
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
+
+
+TextSink = Callable[[str], Awaitable[None]]
+StreamResult = TypeVar("StreamResult")
+EncoderResult = TypeVar("EncoderResult", contravariant=True)
+EarlyOperation = Callable[[TextSink], Awaitable[StreamResult]]
+
+
+class _EarlyStreamEncoder(Protocol[EncoderResult]):
+    """Packet framing belongs to the route, not the protected ASGI lifecycle."""
+
+    def text(self, text: str) -> bytes: ...
+
+    def complete(self, response: EncoderResult) -> bytes: ...
+
+    def error(self, error: GatewayError) -> bytes: ...
+
+
+class _EarlySSE(Response, Generic[StreamResult]):
+    """One admitted job owns generation, direct sends, and awaited cleanup.
+
+    Other streaming routes supply an operation and packet encoder, without
+    duplicating deadline, disconnect, admission, or error handling.
+    """
+
+    def __init__(
+        self,
+        request: Request,
+        run: EarlyOperation[StreamResult],
+        encoder: _EarlyStreamEncoder[StreamResult],
+    ) -> None:
+        super().__init__(
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
+        self.raw_headers = [
+            (name, value) for name, value in self.raw_headers if name != b"content-length"
+        ]
+        self.request = request
+        self.run = run
+        self.encoder = encoder
+        self.closed = False
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        request = self.request
+        deadline = request.state.deadline
+        started = False
+        send_failed = False
+
+        def checkpoint(until: float = deadline) -> None:
+            task = asyncio.current_task()
+            if self.closed or (task is not None and task.cancelling()):
+                raise asyncio.CancelledError
+            if time.monotonic() >= until:
+                raise TimeoutError
+
+        async def send_until(message: ASGIMessage, until: float) -> None:
+            nonlocal send_failed
+            checkpoint(until)
+            try:
+                async with asyncio.timeout_at(until):
+                    await send(message)
+                checkpoint(until)
+            except asyncio.CancelledError:
+                send_failed = True
+                self.closed = True
+                raise
+            except Exception:
+                send_failed = True
+                self.closed = True
+                # The transport is dead, not the upstream provider. Cancel the
+                # inline operation and await its resource cleanup before release.
+                raise asyncio.CancelledError from None
+
+        async def bounded_send(message: ASGIMessage) -> None:
+            await send_until(message, deadline)
+
+        async def packet(body: bytes, *, final: bool = False) -> None:
+            nonlocal started
+            checkpoint()
+            if not started:
+                started = True
+                await bounded_send(
+                    {"type": "http.response.start", "status": 200, "headers": self.raw_headers}
+                )
+            await bounded_send({"type": "http.response.body", "body": body, "more_body": not final})
+
+        async def on_text(text: str) -> None:
+            checkpoint()
+            if text:
+                # No queue or producer task: an upstream read cannot advance
+                # until the actual downstream ASGI send finishes.
+                await packet(self.encoder.text(text))
+
+        async def serve() -> None:
+            try:
+                async with asyncio.timeout_at(deadline):
+                    checkpoint()
+                    response = await self.run(on_text)
+                    checkpoint()
+                    terminal = self.encoder.complete(response)
+                    await packet(terminal, final=True)
+                request.state.stream_outcome = "complete"
+            except asyncio.CancelledError:
+                request.state.stream_outcome = (
+                    "timeout" if time.monotonic() >= deadline else "cancelled"
+                )
+                raise
+            except Exception as failure:
+                task = asyncio.current_task()
+                if self.closed or (task is not None and task.cancelling()):
+                    request.state.stream_outcome = (
+                        "timeout" if time.monotonic() >= deadline else "cancelled"
+                    )
+                    raise asyncio.CancelledError from None
+                error = (
+                    GatewayError("timeout")
+                    if time.monotonic() >= deadline or isinstance(failure, TimeoutError)
+                    else failure
+                    if isinstance(failure, GatewayError)
+                    else GatewayError(
+                        "invalid_request"
+                        if isinstance(failure, EarlyStreamUnsupported)
+                        else "internal_error"
+                    )
+                )
+                request.state.stream_outcome = error.code
+                if send_failed or (started and time.monotonic() >= deadline):
+                    return
+                try:
+                    if started:
+                        await packet(self.encoder.error(error), final=True)
+                    else:
+                        # Report a pre-header timeout as 504, even though its
+                        # generation deadline has just expired. Only this JSON
+                        # control response gets a bounded delivery allowance;
+                        # generation and post-header packets never get more time.
+                        error_deadline = (
+                            time.monotonic() + _TIMEOUT_RESPONSE_GRACE_SECONDS
+                            if time.monotonic() >= deadline
+                            else deadline
+                        )
+
+                        async def error_send(message: ASGIMessage) -> None:
+                            await send_until(message, error_deadline)
+
+                        await _error_response(
+                            error.code,
+                            request.state.request_id,
+                            openai=True,
+                            middleware=error.middleware,
+                        )(scope, receive, error_send)
+                except asyncio.CancelledError:
+                    request.state.stream_outcome = (
+                        "timeout" if time.monotonic() >= deadline else "cancelled"
+                    )
+                    raise
+                except Exception:
+                    # A failed error delivery cannot trigger a second response.
+                    request.state.stream_outcome = (
+                        "timeout" if time.monotonic() >= deadline else "cancelled"
+                    )
+
+        admission = request.app.state.admission
+        admission.acquire()
+        work = serve()
+        try:
+            job = asyncio.create_task(work)
+        except BaseException:
+            work.close()
+            admission.release_unstarted()
+            raise
+        admission.track(job)
+        disconnected = None
+        disconnect_work = None
+        try:
+            disconnect_work = _watch_disconnect(request)
+            disconnected = asyncio.create_task(disconnect_work)
+            done, _ = await asyncio.wait((job, disconnected), return_when=asyncio.FIRST_COMPLETED)
+            if job in done and not (job.cancelled() and send_failed):
+                job.result()
+            elif job not in done:
+                request.state.stream_outcome = "cancelled"
+        finally:
+            # Pin closure before cancellation: resistant in-process code must
+            # never resume forwarding or sending after a dead connection.
+            self.closed = True
+            if disconnected is None and disconnect_work is not None:
+                disconnect_work.close()
+            tasks = (job,) if disconnected is None else (job, disconnected)
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+
+            async def reap() -> None:
+                await asyncio.gather(*tasks, return_exceptions=True)
+
+            await complete_cleanup(reap())
 
 
 def create_app(
@@ -457,6 +784,7 @@ def create_app(
 
     @app.exception_handler(RequestValidationError)
     async def invalid_request(request: Request, error: RequestValidationError) -> JSONResponse:
+        request.state.http_outcome = "invalid_request"
         parameter = None
         # Known option names make rejections actionable. Arbitrary client-supplied
         # field names and every input value remain absent from diagnostics.
@@ -510,6 +838,7 @@ def create_app(
 
     @app.exception_handler(GatewayError)
     async def gateway_failure(request: Request, error: GatewayError) -> JSONResponse:
+        request.state.http_outcome = error.code
         request.state.error_code = error.code
         return _error_response(
             error.code,
@@ -523,6 +852,7 @@ def create_app(
         code = {404: "not_found", 405: "method_not_allowed"}.get(
             error.status_code, "invalid_request"
         )
+        request.state.http_outcome = code
         request.state.error_code = code
         return _error_response(
             code, request.state.request_id, openai=_openai_path(request.url.path)
@@ -565,6 +895,39 @@ def create_app(
         )
         if app.state.config.provider.kind != "openai" and payload.needs_openai_provider():
             raise GatewayError("invalid_request")
+        if request.state.stream_mode == "early":
+            pipeline = app.state.pipeline
+            if (
+                not payload.stream
+                or app.state.config.provider.kind != "openai"
+                or not callable(getattr(pipeline, "run_early", None))
+                or not callable(
+                    getattr(getattr(pipeline, "provider", None), "complete_early", None)
+                )
+            ):
+                raise GatewayError("invalid_request")
+
+            async def run(on_text: TextSink) -> ChatResponse:
+                return await pipeline.run_early(
+                    payload.core_request(),
+                    request.state.request_id,
+                    on_text=on_text,
+                    deadline=request.state.deadline,
+                    provider_model=selected
+                    if selected != app.state.config.provider.model
+                    else None,
+                )
+
+            return _EarlySSE(
+                request,
+                run,
+                EarlyChatEncoder(
+                    selected,
+                    request.state.request_id,
+                    include_usage=payload.stream_options is not None
+                    and payload.stream_options.include_usage,
+                ),
+            )
         response = await _run_connected(
             request, payload.core_request(), selected, provider_stream=payload.stream
         )
@@ -582,6 +945,94 @@ def create_app(
                 raise GatewayError("timeout")
             return _CheckedSSE(body, request.state.deadline)
         return JSONResponse(completion_response(response, selected, request.state.request_id))
+
+    @app.post("/v1/responses")
+    async def responses(request: Request) -> Response:
+        consent = request.state.responses_consent
+        content_type = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+        if (
+            content_type
+            and content_type != "application/json"
+            and not (content_type.startswith("application/") and content_type.endswith("+json"))
+        ):
+            raise GatewayError("invalid_request")
+        try:
+            body = json.loads(
+                await request.body(),
+                object_pairs_hook=_unique_json_object,
+                parse_constant=_reject_json_constant,
+            )
+            payload = ResponsesCreateRequest.model_validate(body, context={"consent": consent})
+            core = payload.core_request(consent=consent)
+        except (ValueError, TypeError, UnicodeError, RecursionError):
+            raise GatewayError("invalid_request") from None
+        selected = request.state.principal.select_model(
+            payload.model, app.state.config.provider.model
+        )
+        if app.state.config.provider.kind != "openai":
+            raise GatewayError("invalid_request")
+        if request.state.stream_mode == "early":
+            pipeline = app.state.pipeline
+            if (
+                not payload.stream
+                or not callable(getattr(pipeline, "run_responses_early", None))
+                or not callable(
+                    getattr(getattr(pipeline, "provider", None), "complete_responses_early", None)
+                )
+            ):
+                raise GatewayError("invalid_request")
+            encoder = EarlyResponsesEncoder()
+
+            async def run(on_text: TextSink) -> ResponsesResponse:
+                async def forward(delta: ResponsesTextDelta) -> None:
+                    text = encoder.stage_text(delta)
+                    if text is not None:
+                        await on_text(text)
+
+                try:
+                    return await pipeline.run_responses_early(
+                        core,
+                        request.state.request_id,
+                        on_text_delta=forward,
+                        deadline=request.state.deadline,
+                        provider_model=selected,
+                        consent=consent,
+                    )
+                except ResponsesUnsupported:
+                    raise GatewayError("invalid_request") from None
+
+            return _EarlySSE(request, run, encoder)
+        try:
+            response = await _run_connected_operation(
+                request,
+                lambda: app.state.pipeline.run_responses(
+                    core,
+                    request.state.request_id,
+                    deadline=request.state.deadline,
+                    provider_model=selected,
+                    stream=payload.stream,
+                    consent=consent,
+                ),
+            )
+        except ResponsesUnsupported:
+            raise GatewayError("invalid_request") from None
+        if response is None:
+            return Response(status_code=499)
+        try:
+            encoded = (
+                response_sse(response)
+                if payload.stream
+                else json.dumps(response_json(response), ensure_ascii=True, allow_nan=False).encode(
+                    "ascii"
+                )
+            )
+        except (ValueError, TypeError, UnicodeError, RecursionError):
+            raise GatewayError("provider_error") from None
+        if time.monotonic() >= request.state.deadline:
+            raise GatewayError("timeout")
+        if payload.stream:
+            return _CheckedSSE(encoded, request.state.deadline)
+        return _CheckedBody(encoded, request.state.deadline, media_type="application/json")
 
     @app.get("/v1/models")
     async def models(request: Request) -> dict[str, Any]:

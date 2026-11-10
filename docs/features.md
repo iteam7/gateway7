@@ -44,7 +44,7 @@ A security officer chooses whether a request containing a flagged term is stoppe
 
 ## Check the answer before delivery
 
-A security officer has the model's answer cleaned of flagged terms before the developer sees it.
+A security officer uses buffered delivery to have the model's answer cleaned of flagged terms before the developer sees it.
 
 - **Stories:** [`US-05`](https://github.com/iteam7/gateway7/issues/34)
 - **Behavior:** [`FR-005`](functional-requirements/fr/FR-005.md)
@@ -53,13 +53,16 @@ A security officer has the model's answer cleaned of flagged terms before the de
 ## Exchange guarded function-tool turns
 
 A developer connects an OpenAI-compatible harness, receives checked function calls and sends tool results back through the same policies.
-The OpenAI provider can generate through upstream SSE, while the gateway checks the whole response before releasing its SSE representation.
+The OpenAI provider can generate through upstream SSE; by default, protected buffered delivery checks the whole response before releasing client SSE.
+[Early text](api.md#opt-in-to-early-chat-completions-text) is an explicit opt-in for compatible request-only middleware; a response-policy incompatibility returns HTTP 400 unless an earlier request hook denies with HTTP 403, with zero provider calls in either case.
 
 - **Stories:** [`US-01`](https://github.com/iteam7/gateway7/issues/30), [`US-05`](https://github.com/iteam7/gateway7/issues/34)
 - **Behavior:** [`FR-013`](functional-requirements/fr/FR-013.md), [`FR-005`](functional-requirements/fr/FR-005.md)
 - **Design proposal:** [`ADR-005`](architecture/adr/ADR-005.md)
 
 The [API reference](api.md#upstream-streaming-and-checked-sse) defines the bounded subset, and the [OpenCode V2 check](setup.md#opencode-v2) records its tested harness scenario.
+The separate [native Responses HTTP subset](api.md#native-responses-http) retains ordered native calls/results through native hooks and checked JSON/SSE, with explicit opaque/hosted consent boundaries; independent review and real Codex verification remain separate.
+Its [native early-text opt-in](api.md#opt-in-to-native-early-text) admits only an eligible leading assistant prefix; held complex profiles keep their canonical identity/order without a first-token latency promise, and end-to-end/container/live verification is not claimed.
 
 ## Find the middleware that failed or slowed a request
 

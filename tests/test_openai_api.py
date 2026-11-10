@@ -14,8 +14,9 @@ import uvicorn
 from fastapi.testclient import TestClient
 
 from gateway7.app import create_app
-from gateway7.config import GatewayConfig
+from gateway7.config import GatewayConfig, ProviderConfig
 from gateway7.models import ChatResponse, ToolCall
+from gateway7.providers import build_provider
 
 TOKEN = "gateway7-synthetic-openai-client"
 HEADERS = {"Authorization": "Bearer " + TOKEN}
@@ -400,3 +401,298 @@ async def test_checked_sse_send_is_bounded_by_the_remaining_request_deadline(exp
         await response({"type": "http"}, receive, send)
     assert body_attempted.is_set() is not expired
     assert [message["type"] for message in sent] == ([] if expired else ["http.response.start"])
+
+
+@pytest.fixture
+def http_openai_app(setup_app):
+    def create(message, reason, *, stream, done=True, **config):
+        attempts = []
+
+        def handle(wire):
+            payload = json.loads(wire.content)
+            attempts.append(payload)
+            assert payload["stream"] is stream
+            assert payload["parallel_tool_calls"] is False
+            assert payload["store"] is False
+            usage = {"prompt_tokens": 7, "completion_tokens": 4, "total_tokens": 11}
+            if not stream:
+                return httpx.Response(
+                    200,
+                    json={
+                        "choices": [{"message": message, "finish_reason": reason}],
+                        "usage": usage,
+                    },
+                )
+            assert payload["stream_options"] == {"include_usage": True}
+            delta = dict(message)
+            if "tool_calls" in delta:
+                delta["tool_calls"] = [
+                    {"index": index, **call} for index, call in enumerate(delta["tool_calls"])
+                ]
+            identity = {
+                "id": "chatcmpl-synthetic-upstream",
+                "object": "chat.completion.chunk",
+                "created": 1,
+                "model": "model-a",
+            }
+            events = [
+                {**identity, "choices": [{"index": 0, "delta": delta, "finish_reason": None}]},
+                {**identity, "choices": [{"index": 0, "delta": {}, "finish_reason": reason}]},
+                {**identity, "choices": [], "usage": usage},
+            ]
+            body = "".join("data: " + json.dumps(event) + "\n\n" for event in events)
+            if done:
+                body += "data: [DONE]\n\n"
+            return httpx.Response(200, headers={"content-type": "text/event-stream"}, content=body)
+
+        provider = build_provider(
+            ProviderConfig(kind="openai", model="model-a"),
+            "gateway7-synthetic-adapter-key",
+            transport=httpx.MockTransport(handle),
+        )
+        app, _ = setup_app(provider, **config)
+        return app, attempts
+
+    return create
+
+
+@pytest.mark.parametrize("stream", [False, True])
+@pytest.mark.parametrize(
+    "choice",
+    [
+        "auto",
+        "required",
+        {"type": "function", "function": {"name": "read"}},
+    ],
+    ids=["auto", "required", "named"],
+)
+@pytest.mark.parametrize("text", ["partial", "", None], ids=["partial", "empty", "null"])
+def test_http_adapter_length_without_call_survives_the_api_contract(
+    http_openai_app, stream, choice, text
+):
+    app, attempts = http_openai_app({"role": "assistant", "content": text}, "length", stream=stream)
+    with TestClient(app) as client:
+        response = client.post(
+            "/v1/chat/completions",
+            headers=HEADERS,
+            json={
+                **BODY,
+                "tools": [TOOL],
+                "tool_choice": choice,
+                "stream": stream,
+                **({"stream_options": {"include_usage": True}} if stream else {}),
+            },
+        )
+    assert response.status_code == 200
+    if stream:
+        events = sse_events(response)
+        actual_text = "".join(
+            event["choices"][0]["delta"].get("content", "") for event in events if event["choices"]
+        )
+        assert events[-2]["choices"][0]["finish_reason"] == "length"
+        assert not any(
+            "tool_calls" in event["choices"][0]["delta"] for event in events if event["choices"]
+        )
+        usage = events[-1]["usage"]
+    else:
+        data = response.json()
+        assert data["choices"][0]["finish_reason"] == "length"
+        assert data["choices"][0]["message"] == {"role": "assistant", "content": text or ""}
+        actual_text = data["choices"][0]["message"]["content"]
+        usage = data["usage"]
+    assert actual_text == (text or "")
+    assert usage == {"prompt_tokens": 7, "completion_tokens": 4, "total_tokens": 11}
+    assert len(attempts) == 1 and attempts[0]["tool_choice"] == choice
+
+
+@pytest.mark.parametrize("stream", [False, True])
+@pytest.mark.parametrize("reason", ["stop", "tool_calls"])
+def test_http_adapter_named_call_has_normalized_finish_and_unchanged_payload(
+    http_openai_app, stream, reason
+):
+    app, attempts = http_openai_app(
+        {"role": "assistant", "content": None, "tool_calls": [CALL]},
+        reason,
+        stream=stream,
+    )
+    choice = {"type": "function", "function": {"name": "read"}}
+    with TestClient(app) as client:
+        response = client.post(
+            "/v1/chat/completions",
+            headers=HEADERS,
+            json={
+                **BODY,
+                "tools": [TOOL],
+                "tool_choice": choice,
+                "stream": stream,
+                **({"stream_options": {"include_usage": True}} if stream else {}),
+            },
+        )
+    assert response.status_code == 200
+    if stream:
+        events = sse_events(response)
+        assert events[1]["choices"][0]["delta"] == {"tool_calls": [{"index": 0, **CALL}]}
+        assert events[-2]["choices"][0]["finish_reason"] == "tool_calls"
+        usage = events[-1]["usage"]
+    else:
+        data = response.json()
+        assert data["choices"][0]["message"] == {
+            "role": "assistant",
+            "content": None,
+            "tool_calls": [CALL],
+        }
+        assert data["choices"][0]["finish_reason"] == "tool_calls"
+        usage = data["usage"]
+    assert usage == {"prompt_tokens": 7, "completion_tokens": 4, "total_tokens": 11}
+    assert len(attempts) == 1 and attempts[0]["tool_choice"] == choice
+
+
+@pytest.mark.parametrize("stream", [False, True])
+@pytest.mark.parametrize(
+    "case",
+    [
+        "none-choice",
+        "unadvertised",
+        "named-mismatch",
+        "malformed-arguments",
+        "extra-calls",
+        "length-incomplete-call",
+        "empty-stop",
+        "missing-required",
+        "unsupported-finish",
+    ],
+)
+def test_http_adapter_invalid_tool_outputs_still_return_json_errors_before_delivery(
+    http_openai_app, stream, case
+):
+    choice = "none" if case == "none-choice" else {"type": "function", "function": {"name": "read"}}
+    tools = [TOOL]
+    call = {**CALL, "function": dict(CALL["function"])}
+    message = {"role": "assistant", "content": None, "tool_calls": [call]}
+    reason = "length" if case == "length-incomplete-call" else "stop"
+    if case in ("unadvertised", "named-mismatch"):
+        call["function"]["name"] = "write"
+        if case == "named-mismatch":
+            tools.append({**TOOL, "function": {**TOOL["function"], "name": "write"}})
+    elif case in ("malformed-arguments", "length-incomplete-call"):
+        call["function"]["arguments"] = '{"path":"PRIVATE-UPSTREAM'
+    elif case == "extra-calls":
+        message["tool_calls"].append({**CALL, "id": "call_second"})
+    elif case in ("empty-stop", "missing-required"):
+        message = {
+            "role": "assistant",
+            "content": "" if case == "empty-stop" else "PRIVATE-UPSTREAM",
+        }
+    elif case == "unsupported-finish":
+        reason = "content_filter"
+    app, attempts = http_openai_app(message, reason, stream=stream)
+    with TestClient(app) as client:
+        response = client.post(
+            "/v1/chat/completions",
+            headers=HEADERS,
+            json={
+                **BODY,
+                "tools": tools,
+                "tool_choice": choice,
+                "stream": stream,
+            },
+        )
+    assert response.status_code == 502
+    assert response.headers["content-type"].startswith("application/json")
+    assert response.json()["error"]["code"] == "provider_error"
+    assert "data:" not in response.text and "PRIVATE-UPSTREAM" not in response.text
+    assert "call_fixture" not in response.text and len(attempts) == 1
+
+
+def test_http_adapter_named_stop_call_incomplete_sse_returns_json_error(http_openai_app):
+    app, attempts = http_openai_app(
+        {"role": "assistant", "content": None, "tool_calls": [CALL]},
+        "stop",
+        stream=True,
+        done=False,
+    )
+    with TestClient(app) as client:
+        response = client.post(
+            "/v1/chat/completions",
+            headers=HEADERS,
+            json={
+                **BODY,
+                "tools": [TOOL],
+                "tool_choice": {"type": "function", "function": {"name": "read"}},
+                "stream": True,
+            },
+        )
+    assert response.status_code == 502 and len(attempts) == 1
+    assert response.headers["content-type"].startswith("application/json")
+    assert "data:" not in response.text and CALL["id"] not in response.text
+
+
+@pytest.mark.parametrize("stream", [False, True])
+def test_http_adapter_normalized_stop_call_still_passes_whole_response_policy(
+    http_openai_app, stream
+):
+    app, attempts = http_openai_app(
+        {"role": "assistant", "content": None, "tool_calls": [CALL]},
+        "stop",
+        stream=stream,
+        plugins={
+            "guard": {
+                "module": "gateway7.plugins.content_policy",
+                "settings": {
+                    "terms": ["agent-fixture.txt"],
+                    "phase": "response",
+                    "action": "block",
+                },
+            }
+        },
+        middleware=["guard"],
+    )
+    with TestClient(app) as client:
+        response = client.post(
+            "/v1/chat/completions",
+            headers=HEADERS,
+            json={
+                **BODY,
+                "tools": [TOOL],
+                "tool_choice": {"type": "function", "function": {"name": "read"}},
+                "stream": stream,
+            },
+        )
+    assert response.status_code == 403 and len(attempts) == 1
+    assert response.headers["content-type"].startswith("application/json")
+    assert response.json()["error"]["code"] == "policy_denied"
+    assert "data:" not in response.text and "agent-fixture.txt" not in response.text
+
+
+@pytest.mark.parametrize("stream", [False, True])
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"tools": [], "tool_choice": "required"},
+        {"tool_choice": {"type": "function", "function": {"name": "undeclared"}}},
+        {"tools": [TOOL, TOOL]},
+        {"parallel_tool_calls": True},
+        {"messages": [{"role": "assistant", "content": None, "tool_calls": [CALL]}]},
+    ],
+)
+def test_http_adapter_finish_fix_does_not_bypass_request_validation(
+    http_openai_app, stream, changes
+):
+    app, attempts = http_openai_app(
+        {"role": "assistant", "content": None, "tool_calls": [CALL]},
+        "stop",
+        stream=stream,
+    )
+    with TestClient(app) as client:
+        response = client.post(
+            "/v1/chat/completions",
+            headers=HEADERS,
+            json={
+                **BODY,
+                "tools": [TOOL],
+                "stream": stream,
+                **changes,
+            },
+        )
+    assert response.status_code == 400 and not attempts
+    assert response.json()["error"]["code"] == "invalid_request"

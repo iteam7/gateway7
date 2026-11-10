@@ -78,7 +78,7 @@ The event registry below is the complete property allowlist.
 
 | Event | Fires when | Fields | Collected at |
 | --- | --- | --- | --- |
-| `chat_started` | The gateway receives a request on `/chat` or `/v1/chat/completions`, before authentication or validation. | `request_id` (random UUID hex, required), `route` (`chat` or `openai_chat`, required), `environment` (`staging` or `production`, required), `source` (`web`, `usability-test` or `smoke`, required), `occurred_at` (UTC ISO 8601, required), `__timestamp` (same timestamp, required by the queued transport) | `gateway`, staging and production |
+| `chat_started` | The gateway receives a request on `/chat`, `/v1/chat/completions` or `/v1/responses`, before authentication or validation. | `request_id` (random UUID hex, required), `route` (`chat`, `openai_chat` or `openai_responses`, required), `environment` (`staging` or `production`, required), `source` (`web`, `usability-test` or `smoke`, required), `occurred_at` (UTC ISO 8601, required), `__timestamp` (same timestamp, required by the queued transport) | `gateway`, staging and production |
 | `chat_completed` | That request finishes, fails or is cancelled, after the final response body has been sent or the failure has been observed. | All `chat_started` fields; `status` (HTTP status integer, required), `outcome` (`ok`, `client_error`, `cancelled` or `server_error`, required), `duration_ms` (nonnegative finite number, required) | `gateway`, staging and production |
 
 The shared `request_id` links the start and completion and is the same opaque identifier as the `X-Request-ID` response header.

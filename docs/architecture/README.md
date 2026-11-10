@@ -126,7 +126,7 @@ Prometheus scraping and Grafana queries happen separately, not as extra steps re
 
 ### Runtime boundaries
 
-Both chat APIs share one execution path.
+Native `/chat`, Chat Completions and Responses share the authentication, model-selection and admission boundaries below.
 The HTTP boundary checks the **gateway client token** before reading the protected request body, then bounds and validates that body.
 The route checks model access and passes the selected model separately from the message payload, so middleware cannot change it through the supported interface.
 The provider key belongs to the server adapter; it is never the client's bearer token.
@@ -136,7 +136,7 @@ The default is **64 active pipelines per process**: a full process rejects new w
 This is not a per-client quota or a bound on open connections/body reads.
 Health, readiness, metrics and model-list requests do not take pipeline slots.
 
-With the configured list `[A, B]`, request work runs A then B; the provider answer returns through B then A.
+In the default buffered path, with the configured list `[A, B]`, request work runs A then B; the provider answer returns through B then A.
 A successful middleware awaits `call_next` exactly once, in the same task and while its invocation is active.
 The runner rejects repeated or escaped calls, invalid payload changes and swallowed downstream failures.
 There is at most one gateway-owned adapter invocation per pipeline, with no automatic retries or failover; this is not exactly-once remote delivery or billing.
@@ -151,10 +151,10 @@ Response rejection never erases a known observation; missing or invalid counts s
 
 [ADR-005](adr/ADR-005.md) proposes the OpenAI streaming extension for [task #153](https://github.com/iteam7/gateway7/issues/153).
 It adds no deployed application or persistent agent-session store.
-The adapter component assembles actual provider SSE in `gateway7/openai_stream.py`, while the middleware component still receives one complete `ChatResponse`.
+In that default buffered path, the adapter component assembles actual provider SSE in `gateway7/openai_stream.py`, while the middleware component still receives one complete `ChatResponse`.
 The authorized model and provider-streaming selection are passed separately from middleware-editable content.
 
-For a supported streaming request, the provider receives `stream: true`.
+For a supported default buffered streaming request, the provider receives `stream: true`.
 The adapter validates the accumulated answer and terminal events before returning it through the reverse middleware chain.
 The HTTP boundary emits client SSE only after that chain succeeds, so client delivery remains buffered and a policy can still reject the whole answer before any text or function call is released.
 The existing numbered sequence remains the full-response ordering; SSE changes the wire framing, not the placement of response checks.
@@ -166,7 +166,44 @@ The gateway validates the history but neither executes the tool nor resumes a se
 The [API guide](../api.md#supported-compatibility-subset) owns the supported provider, controls, limits and SSE format.
 A synthetic run of a named harness version is separate from a live provider-account check.
 
+The current implementation also has the separate [early Chat contract](../plugins.md#early-stream-preparation) explicitly requested by the user on 5 November 2026; this note records neither a team architecture verdict nor Customer acceptance.
+It leaves the default sequence and the recorded ADRs unchanged.
+`X-Gateway7-Stream-Mode: early` selects request-only preparation through `Pipeline.run_early`, followed by direct, awaited text delivery from `HTTPProvider.complete_early`.
+Missing hooks or response-dependent policies reject this mode before upstream work, rather than being skipped.
+The HTTP stream owns one admitted job through generation, sending and cancellation cleanup; a later failure may leave a visible text prefix but emits no successful terminal marker or unvalidated tool call.
+This Chat exception does not establish general incremental response-policy support; the separate native HTTP path is described next.
+
+### Native Responses HTTP path
+
+The explicitly user-requested native increment adds `POST /v1/responses` inside the existing `gateway` container, without adding a persistent session store or changing the recorded ADR acceptance history.
+It is implemented but under independent review; synthetic HTTP acceptance is not a live Codex or full OpenAI compatibility verdict.
+The [API contract](../api.md#native-responses-http) owns the supported closed DTO shapes, controls, consent and limits; [FR-013](../functional-requirements/fr/FR-013.md) records the user-approved structured-turn requirements.
+
+Unlike the earlier code-map snapshot, this path uses `gateway7/responses_models.py` for native items and `gateway7/responses_provider.py` for one native request to the configured OpenAI origin.
+`Pipeline.run_responses` runs native preparation hooks in request order, validates one provider response and runs native checking hooks in reverse order; it does not convert the payload to `ChatRequest` or invoke Chat handlers as a fallback.
+`gateway7/responses_stream.py` assembles bounded provider events, and `gateway7/responses_api.py` constructs [checked client JSON/SSE](../api.md#json-results-and-checked-native-sse) only after validation and policy succeed.
+Item order, item/call identity, namespaces, executable strings, usage and terminal metadata remain protected independently of [permitted free-text edits](../plugins.md#native-responses-hooks) in `gateway7/responses_policy.py`.
+
+The HTTP owner snapshots the selected model, transport selection and independent opaque/hosted consent outside plugin-editable payloads; gateway consent headers do not travel upstream.
+Opaque consent permits exact encrypted/media fields to pass without plaintext inspection, while adjacent plaintext remains subject to policy.
+Hosted consent acknowledges that provider-side search may execute before returned records enter response checks; withholding those records cannot undo execution.
+Default native SSE therefore retains whole-response protection for deliverable content without claiming a pre-execution guard for hosted tools.
+
+The native early HTTP branch now selects `Pipeline.run_responses_early` with a typed `on_text_delta` sink and the native encoder, while reusing the generic app `_EarlySSE` lifecycle.
+The public `gateway7/responses_events.py` records and parser `drain_text_deltas()` retain native response/item identity, output/content indices, phase and source sequence instead of reducing that boundary to bare text.
+Only an uninterrupted assistant message/output-text part at output/content indices `0/0` is eligible for prefix delivery; another item/part, held non-text metadata or leading-part closure ends that eligibility permanently.
+The encoder reconciles any published prefix with the full checked terminal response, retaining remaining items and content at their original positions rather than scheduling, reindexing or flattening them to force early output.
+Executable tools, refusal, reasoning and opaque events remain held until strict final validation; a late failure emits sanitized native failure or aborts without false completion.
+Missing capabilities/hooks or a reached response-dependent configuration reject before upstream work, while an earlier request-hook denial retains precedence; both independent consents remain outside plugin control.
+The [API contract](../api.md#opt-in-to-native-early-text) owns the explicit opt-in and conservative eligibility details, including the lack of an all-profile first-token latency promise.
+These app/parser/encoder/pipeline seams have landed, but production typed-provider wiring and end-to-end/container/live early verification remain separate; no Codex invocation or acceptance claim follows from component review.
+This does not change Chat's approved buffered/early behavior or the native buffered default and its full-response-policy guarantees.
+The same owned provider client, TLS policy, no-retry boundary, admission limit and request deadlines apply.
+
 ### Where a request stops
+
+The HTTP error statuses below apply before response headers, as in the default buffered path.
+After early SSE headers, an error event or connection closure replaces an HTTP status change; already delivered text cannot be withdrawn.
 
 | Boundary | Result | What reaches the provider |
 | --- | --- | --- |

@@ -21,7 +21,7 @@ logger = logging.getLogger("gateway7")
 
 #: Routes whose requests are recorded. Health checks and scrapes are excluded so
 #: that probes do not dilute the request signal or fill the log stream.
-RECORDED_ROUTES = frozenset({"chat", "openai_chat", "models", "other"})
+RECORDED_ROUTES = frozenset({"chat", "openai_chat", "openai_responses", "models", "other"})
 
 #: The histogram's explicit bucket boundaries, in milliseconds. They match the
 #: Prometheus HTTP histogram's boundaries so both views interpolate alike.

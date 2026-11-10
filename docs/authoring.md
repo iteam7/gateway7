@@ -131,8 +131,58 @@ Include nullable assistant history followed by a string `role: tool` result with
 Verify that call IDs and function names survive unchanged, that invalid argument edits fail validation, and that provider usage remains original when a response is denied or transformed.
 Use only synthetic paths, arguments and tool results: offline reports include fixture values.
 
-Upstream streaming changes provider transport, while middleware still receives the complete normalized response.
+In the default buffered mode, upstream streaming changes provider transport, while middleware still receives the complete normalized response.
 Do not yield partial unchecked text or execute functions from a plugin; the harness owns execution after the gateway approves the call.
+
+## Early-stream authoring
+
+The optional [early-stream preparation hook](plugins.md#early-stream-preparation) is for request-only middleware, not a way to bypass response checks in the generated two-way example.
+Keep `handle` for normal buffered requests and extract its request checks into a helper shared by both paths.
+For a plugin with a validated `phase` setting and an existing `_prepare_request(request, context)` helper, the additional method is:
+
+```python
+from gateway7.models import ChatRequest
+from gateway7.plugin_api import Deny, EarlyStreamUnsupported, PluginContext
+
+
+async def prepare_early_stream(
+    self, request: ChatRequest, context: PluginContext
+) -> ChatRequest | Deny:
+    if self.settings.phase != "request":
+        raise EarlyStreamUnsupported()
+    return self._prepare_request(request, context)
+```
+
+Add this method to the middleware instance; the helper must perform all of its request-side policy work, including structured tool checks when tools are supported.
+Do not return the request unchanged merely to advertise compatibility, call the provider from the hook, or reuse a `both` configuration without its response policy.
+Without the hook the plugin remains valid for buffered delivery, but an explicit early request is rejected without provider work or a hidden fallback.
+
+Before offering the hook, add synthetic async tests for the shared request transformation, request denial with zero provider calls, and rejection of response-dependent settings.
+Exercise the early pipeline and HTTP stream as well as the existing whole-response fixtures: a nonempty text delta must arrive while the synthetic provider is still waiting, whereas malformed later data must produce no successful terminal marker or executable tool call.
+Also check slow-send backpressure, cancellation cleanup and admission-slot retention.
+These are authoring checks to run, not a claim that adding the method alone verifies a plugin.
+
+## Native Responses authoring
+
+The generator and `gateway7 plugin test` fixtures above exercise the Chat middleware contract; they do not certify native Responses support.
+For `/v1/responses`, add the separate [native preparation and checking hooks](plugins.md#native-responses-hooks) and use `ResponsesRequest`, `ResponsesResponse` and `ResponsesContext`, without flattening items into `ChatRequest`.
+Keep the existing `handle` method for Chat callers; native hooks are additive to API v2, not a replacement descriptor version.
+Every active middleware needs both native buffered hooks, even if a configured phase performs no changes; missing hooks reject the native request before provider work.
+
+Add direct synthetic native DTO/pipeline/HTTP tests for ordered parallel and namespaced calls, distinct item/call IDs, matched history, custom raw input and grammar definitions, reasoning text, metadata and client tool-search results.
+Test safe text transformation and denial of matches in protected IDs, schemas, executable strings and annotation-bearing text; never rewrite a tool identity or raw custom command to make a fixture pass.
+Test both independent consent defaults, exact encrypted/media string preservation with consent, and inspection of adjacent plaintext and ordinary keys named like opaque fields.
+For consented hosted search, verify that a denied returned record is withheld without pretending that response policy prevented upstream execution.
+Include partial/unknown usage, pre-provider rejection of Chat-only plugins, response-hook reverse order, malformed terminal native SSE, and consistency between checked deltas, item snapshots and final output.
+The [native API contract](api.md#native-responses-http) owns accepted fields and limits; the existing Chat fixture schema does not gain native fields automatically.
+
+For the implemented [native early contract](api.md#opt-in-to-native-early-text), keep both buffered native hooks and add request-only `prepare_early_responses`; do not bypass response-dependent settings or change consent through a payload.
+The public `responses_events` records and `ResponsesStream.drain_text_deltas()` preserve native response/item IDs, output/content positions, phase, source sequence and leading-prefix proof; bare text alone is not enough for native delivery.
+Test the eligible assistant message/output-text part at output/content indices `0/0` separately from reasoning/tool/refusal-first, interleaved and multiple-message profiles.
+Other items/parts, held non-text metadata and leading-part closure must permanently end prefix eligibility, while final checked delivery retains the complete profile without reindexing or flattening it.
+Check that tool/refusal/reasoning/opaque events stay held, the checked final text reconciles with any prefix, and a late failure emits only a sanitized native failure or abort rather than a false completion.
+Also test configured request-hook denial/refusal order, direct slow-send backpressure, deadline/disconnect cleanup and admission retention through the shared app lifecycle.
+These are component/integration authoring checks, not a claim that production typed-provider wiring, end-to-end/container early delivery or live Codex verification has passed.
 
 ## Install normally and serve
 
