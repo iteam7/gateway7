@@ -1,6 +1,7 @@
 """Errors whose public representations contain no upstream or input details."""
 
 from enum import StrEnum
+import re
 
 
 class StartupError(RuntimeError):
@@ -75,14 +76,24 @@ class GatewayError(Exception):
         "internal_error": (500, "Request processing failed"),
     }
 
-    def __init__(self, code: str) -> None:
+    def __init__(self, code: str, *, middleware: object = None) -> None:
         # Unknown strings cannot become response content, including Deny.code.
         self.code = code if code in self._ERRORS else "internal_error"
         self.status_code, self.message = self._ERRORS[self.code]
+        self.middleware = (
+            middleware
+            if self.code == "policy_denied"
+            and type(middleware) is str
+            and re.fullmatch(r"[A-Za-z][A-Za-z0-9_.-]{0,63}", middleware)
+            else None
+        )
         super().__init__(self.message)
 
     def body(self, request_id: str) -> dict[str, object]:
+        details = {"code": self.code, "message": self.message}
+        if self.middleware is not None:
+            details["middleware"] = self.middleware
         return {
-            "error": {"code": self.code, "message": self.message},
+            "error": details,
             "request_id": request_id,
         }

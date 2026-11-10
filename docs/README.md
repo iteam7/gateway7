@@ -72,7 +72,7 @@ Create a Python package and check it with synthetic fixtures before deployment.
 
 06 · Run the service
 
-[Configure a provider](setup.md#real-providers) · [Monitor requests](observability.md)
+[Configure a provider](setup.md#real-providers) · [Monitor requests](observability.md) · [Measure product use](analytics.md)
 
 Move from the demo to a real provider, then follow outcomes, usage and failures.
 Use a [provider transport](provider-transports.md) when the gateway must connect through a proxy.
@@ -108,7 +108,7 @@ The [demonstration guide](demo.md) keeps the longer walkthrough and acceptance e
 
 - **Product:** [features](features.md), [vision](product-vision.md), [threshold of success](threshold-of-success.md), [threshold review proposal](threshold-review.md), [plan](project-plan.md), [risks](risks.md), [glossary](glossary.md).
 - **Requirements:** [functional requirements](functional-requirements/README.md), [FR-012 usage reporting specification](functional-requirements/fr/FR-012.md), [guarded function-tool turns](functional-requirements/fr/FR-013.md), [quality requirements and priority matrix](quality-requirements/README.md).
-- **Architecture decisions:** [ADR-001](architecture/adr/ADR-001.md), [ADR-002](architecture/adr/ADR-002.md), [ADR-003](architecture/adr/ADR-003.md), [ADR-004](architecture/adr/ADR-004.md), [ADR-005](architecture/adr/ADR-005.md), [ADR template](architecture/adr/TEMPLATE.md), [container source](architecture/container.py), [context source](architecture/context.mmd).
+- **Architecture decisions:** [ADR-001](architecture/adr/ADR-001.md), [ADR-002](architecture/adr/ADR-002.md), [ADR-003](architecture/adr/ADR-003.md), [ADR-004](architecture/adr/ADR-004.md), [ADR-005](architecture/adr/ADR-005.md), [ADR-006](architecture/adr/ADR-006.md), [ADR-007](architecture/adr/ADR-007.md), [ADR template](architecture/adr/TEMPLATE.md), [container source](architecture/container.py), [context source](architecture/context.mmd).
 - **Project records:** [decisions](decisions.md), [assumptions](assumptions.md), [Definition of Done](definition-of-done.md), [deployment](deployment.md).
 - **Research:** [alternatives](research/alternatives.md), [comparison](research/comparison.md), [gap analysis](research/gap-analysis.md), [value proposition](research/value-proposition.md).
 

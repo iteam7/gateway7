@@ -314,7 +314,10 @@ def error_body(
         if error.status_code < 500
         else "api_error"
     )
+    details = {"message": error.message, "type": kind, "param": parameter, "code": error.code}
+    if error.middleware is not None:
+        details["middleware"] = error.middleware
     return {
-        "error": {"message": error.message, "type": kind, "param": parameter, "code": error.code},
+        "error": details,
         "request_id": request_id,
     }

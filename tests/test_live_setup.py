@@ -12,7 +12,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 @pytest.fixture
-def compose_cli(tmp_path):
+def compose_cli(tmp_path, monkeypatch):
+    for name in EXAMPLE_ANALYTICS:
+        monkeypatch.delenv(name, raising=False)
     docker = shutil.which("docker")
     if docker is None:
         pytest.skip("Docker Compose CLI is not installed")
@@ -66,6 +68,23 @@ def compose_environment(compose_cli, tmp_path):
         "json",
     ]
     return command, environment
+
+
+# The example ships both exporters disabled; live Compose forwards this allowlist.
+EXAMPLE_TELEMETRY = {
+    "TELEMETRY_ENABLED": "false",
+    "GATEWAY7_ENVIRONMENT": "",
+    "OTEL_EXPORTER_OTLP_ENDPOINT": "",
+    "OTEL_EXPORTER_OTLP_HEADERS": "",
+}
+
+EXAMPLE_ANALYTICS = {
+    "ANALYTICS_ENABLED": "false",
+    "ANALYTICS_SOURCE": "web",
+    "OPENPANEL_API_URL": "",
+    "OPENPANEL_CLIENT_ID": "",
+    "OPENPANEL_CLIENT_SECRET": "",
+}
 
 
 @pytest.fixture
@@ -160,6 +179,8 @@ def test_plain_compose_loads_example_dotenv_and_selects_live_openai(dotenv_proje
         "OPENAI_API_KEY": "gateway7-synthetic-dotenv-provider-key",
         "GATEWAY7_CLIENT_TOKEN": "gateway7-synthetic-dotenv-client-token",
         "GATEWAY7_PROXY_URL": "",
+        **EXAMPLE_TELEMETRY,
+        **EXAMPLE_ANALYTICS,
     }
     configuration = mounted_configuration(gateway)
     assert configuration["source"] == str(project / "config" / "openai.yaml")
@@ -248,8 +269,35 @@ def test_process_variables_override_dotenv_and_can_select_another_provider(
         key_variable: "synthetic-process-provider-key",
         "GATEWAY7_CLIENT_TOKEN": "synthetic-process-client-token",
         "GATEWAY7_PROXY_URL": "",
+        **EXAMPLE_TELEMETRY,
+        **EXAMPLE_ANALYTICS,
     }
     assert mounted_configuration(gateway)["source"] == str(project / "config" / f"{provider}.yaml")
+
+
+def test_process_variables_override_analytics_dotenv_defaults(dotenv_project):
+    docker, environment, project = dotenv_project
+    process_analytics = {
+        "ANALYTICS_ENABLED": "true",
+        "ANALYTICS_SOURCE": "smoke",
+        "OPENPANEL_API_URL": "http://analytics.invalid/api",
+        "OPENPANEL_CLIENT_ID": "synthetic-process-openpanel-client",
+        "OPENPANEL_CLIENT_SECRET": "synthetic-process-openpanel-secret",
+    }
+    environment.update(process_analytics)
+    environment["GATEWAY7_ENVIRONMENT"] = "staging"
+    gateway = render_compose(
+        [docker, "compose", "config", "--format", "json"], environment, project
+    )
+
+    assert gateway["environment"] == {
+        "OPENAI_API_KEY": "gateway7-synthetic-dotenv-provider-key",
+        "GATEWAY7_CLIENT_TOKEN": "gateway7-synthetic-dotenv-client-token",
+        "GATEWAY7_PROXY_URL": "",
+        **EXAMPLE_TELEMETRY,
+        **process_analytics,
+        "GATEWAY7_ENVIRONMENT": "staging",
+    }
 
 
 def test_explicit_base_file_keeps_demo_even_with_live_dotenv(dotenv_project):

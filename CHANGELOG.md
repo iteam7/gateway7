@@ -11,10 +11,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - A bounded `gateway7_http_request_outcomes_total` counter separates terminal stream failures and cancellations from the HTTP status sent, including requests ending without a response.
 - A closed native `/v1/responses` HTTP subset with native policy hooks, ordered structured tool turns, default checked JSON/SSE and independent opaque-content/hosted-tool consent; this does not establish full Responses or live Codex compatibility.
 - A typed native early-text opt-in contract preserves native identity/order for a bounded leading assistant prefix; complex profiles retain final checked output without an all-profile first-token latency promise, and end-to-end/container verification remains pending.
+- Optional privacy-safe chat start/completion events for OpenPanel, with server-owned traffic source, staging/production isolation and the four-metric analytics plan.
+- A staging analysability check for per-request log visibility and a five-minute P95 failure series, plus telemetry backend and dashboard setup instructions.
+- Optional OpenTelemetry export of one structured log record and one request-duration histogram observation per API request to an OpenObserve organization per environment, switched by `TELEMETRY_ENABLED`, with the SLI-01 and per-request log queries in the observability plan.
 
 ### Fixed
 
 - Normalize valid OpenAI `stop` tool turns to `tool_calls`, preserve call-free `length` responses and usage, accept nullable optional SSE tool fields, and use a native OpenCode V2 compatibility profile for the bounded Chat Completions subset.
+- Name the denying middleware in policy errors on both chat APIs and report bounded unsupported content-policy actions before startup.
+- Align the package, runtime and public OpenAPI version with the next release candidate instead of reporting `0.1.0` for newer release tags.
 
 ## [0.3.0] - 2026-10-31
 

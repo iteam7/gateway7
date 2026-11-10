@@ -7,5 +7,16 @@ services:
       - ${GATEWAY_KEY_ENV:-ANTHROPIC_API_KEY}
       - GATEWAY7_CLIENT_TOKEN
       - ${GATEWAY_PROXY_ENV:-GATEWAY7_PROXY_URL}
+      # Optional telemetry export; see docs/deployment.md#telemetry-pipelines.
+      - TELEMETRY_ENABLED
+      - GATEWAY7_ENVIRONMENT
+      - OTEL_EXPORTER_OTLP_ENDPOINT
+      - OTEL_EXPORTER_OTLP_HEADERS
+      # Optional product events; credentials select this environment's project.
+      - ANALYTICS_ENABLED
+      - ANALYTICS_SOURCE
+      - OPENPANEL_API_URL
+      - OPENPANEL_CLIENT_ID
+      - OPENPANEL_CLIENT_SECRET
     volumes:
       - ${GATEWAY_CONFIG_FILE:-./config/claude.yaml}:/etc/gateway7/gateway.yaml:ro

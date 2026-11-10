@@ -118,6 +118,17 @@ def load_plugins(config: GatewayConfig) -> LoadedPlugins:
         try:
             settings = descriptor.settings_model.model_validate(specification.settings, strict=True)
         except Exception:
+            action = specification.settings.get("action")
+            if (
+                specification.module == "gateway7.plugins.content_policy"
+                and descriptor.id == "content-policy"
+                and type(action) is str
+                and action not in ("block", "log", "redact")
+                and re.fullmatch(r"[a-z][a-z0-9_-]{0,31}", action)
+            ):
+                raise StartupError(
+                    f"Unsupported content policy action {action} for plugin instance {name}"
+                ) from None
             raise StartupError(f"Invalid settings for plugin instance {name}") from None
         descriptors[name] = (descriptor, settings)
 

@@ -18,6 +18,8 @@ from starlette.responses import JSONResponse, Response
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.types import ASGIApp, Message as ASGIMessage, Receive, Scope, Send
 
+from gateway7 import __version__
+from gateway7.analytics import Analytics
 from gateway7.config import GatewayConfig, load_config, provider_key
 from gateway7.auth import AccessControl
 from gateway7.errors import GatewayError, StartupError
@@ -38,6 +40,7 @@ from gateway7.providers import build_provider
 from gateway7.responses_api import EarlyResponsesEncoder, response_json, response_sse
 from gateway7.responses_events import ResponsesTextDelta
 from gateway7.responses_models import ResponsesConsent, ResponsesCreateRequest, ResponsesResponse
+from gateway7.telemetry import Telemetry
 from gateway7.transport_loader import create_transport, validate_transport_config
 
 logger = logging.getLogger("gateway7")
@@ -61,9 +64,14 @@ async def _close_provider_resource(resource: Any, timeout: float) -> None:
 
 
 def _error_response(
-    code: str, request_id: str, *, openai: bool = False, parameter: str | None = None
+    code: str,
+    request_id: str,
+    *,
+    openai: bool = False,
+    parameter: str | None = None,
+    middleware: object = None,
 ) -> JSONResponse:
-    error = GatewayError(code)
+    error = GatewayError(code, middleware=middleware)
     status = 400 if openai and code == "invalid_request" else error.status_code
     headers = {"WWW-Authenticate": "Bearer"} if error.status_code == 401 else None
     return JSONResponse(
@@ -130,6 +138,8 @@ class GatewayBoundaryMiddleware:
         scope.setdefault("state", {})["request_id"] = request_id
         response_started = False
         status_code: int | None = None
+        response_completed = False
+        error_code: str | None = None
         metrics = self.owner.state.metrics
         route = {
             "/chat": "chat",
@@ -140,10 +150,12 @@ class GatewayBoundaryMiddleware:
             "/v1/responses": "openai_responses",
             "/v1/models": "models",
         }.get(scope.get("path", ""), "other")
+        analytics = self.owner.state.analytics
+        analytics.started(request_id=request_id, route=route)
         metrics.http_in_flight.inc()
 
         async def safe_send(message: ASGIMessage) -> None:
-            nonlocal response_started, status_code
+            nonlocal response_started, response_completed, status_code
             if message["type"] == "http.response.start":
                 response_started = True
                 message = {
@@ -156,8 +168,12 @@ class GatewayBoundaryMiddleware:
             await send(message)
             if message["type"] == "http.response.start":
                 status_code = message["status"]
+            if message["type"] == "http.response.body" and not message.get("more_body", False):
+                response_completed = True
 
         async def fail(code: str) -> None:
+            nonlocal error_code
+            error_code = code
             scope["state"]["http_outcome"] = code
             await _error_response(code, request_id, openai=_openai_path(scope.get("path", "")))(
                 scope, receive, safe_send
@@ -251,6 +267,9 @@ class GatewayBoundaryMiddleware:
             if not response_started:
                 await fail("internal_error")
         finally:
+            # One monotonic measurement feeds the Prometheus histogram, the local log
+            # line and the exported log point and histogram, so they cannot disagree.
+            duration = max(0.0, time.monotonic() - started)
             metrics.http_in_flight.dec()
             if status_code is not None:
                 metrics.http_requests.labels(route, str(status_code)).inc()
@@ -260,8 +279,22 @@ class GatewayBoundaryMiddleware:
                     scope["state"].get("http_outcome", HTTPRequestOutcome.from_status(status_code)),
                 )
             )
+            if outcome == HTTPRequestOutcome.SUCCESS and not response_completed:
+                outcome = HTTPRequestOutcome.CANCELLED
             metrics.observe_http_outcome(route, outcome)
-            metrics.http_duration.labels(route).observe(max(0, time.monotonic() - started))
+            metrics.http_duration.labels(route).observe(duration)
+            if error_code is None:
+                error_code = scope["state"].get("error_code")
+            terminal_status = status_code if response_completed and status_code is not None else 499
+            if outcome == HTTPRequestOutcome.CANCELLED:
+                terminal_status = 499
+            elif outcome != HTTPRequestOutcome.SUCCESS:
+                error_code = outcome.value
+                terminal_status = (
+                    400
+                    if outcome == HTTPRequestOutcome.INVALID_REQUEST and status_code == 400
+                    else GatewayError(outcome.value).status_code
+                )
             logger.info(
                 "request_id=%s outcome=%s component=http route=%s duration_ms=%.3f",
                 request_id,
@@ -270,8 +303,23 @@ class GatewayBoundaryMiddleware:
                     "http_" + str(status_code) if status_code is not None else outcome.value,
                 ),
                 route,
-                (time.monotonic() - started) * 1000,
+                duration * 1000,
             )
+            analytics.completed(
+                request_id=request_id,
+                route=route,
+                status=terminal_status,
+                duration_ms=duration * 1000,
+            )
+            telemetry = getattr(self.owner.state, "telemetry", None)
+            if telemetry is not None:
+                telemetry.record(
+                    request_id=request_id,
+                    route=route,
+                    status=terminal_status,
+                    error_code=error_code,
+                    duration_ms=duration * 1000,
+                )
 
 
 class _PipelineAdmission:
@@ -570,9 +618,12 @@ class _EarlySSE(Response, Generic[StreamResult]):
                         async def error_send(message: ASGIMessage) -> None:
                             await send_until(message, error_deadline)
 
-                        await _error_response(error.code, request.state.request_id, openai=True)(
-                            scope, receive, error_send
-                        )
+                        await _error_response(
+                            error.code,
+                            request.state.request_id,
+                            openai=True,
+                            middleware=error.middleware,
+                        )(scope, receive, error_send)
                 except asyncio.CancelledError:
                     request.state.stream_outcome = (
                         "timeout" if time.monotonic() >= deadline else "cancelled"
@@ -625,6 +676,8 @@ def create_app(
     config_path: str | Path | None = None,
     *,
     config: GatewayConfig | None = None,
+    telemetry: Telemetry | None = None,
+    analytics: Analytics | None = None,
 ) -> FastAPI:
     path = (
         config_path
@@ -634,6 +687,26 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        active_telemetry = telemetry if telemetry is not None else Telemetry.from_environment()
+        app.state.telemetry = active_telemetry
+        active_analytics = Analytics.disabled()
+        try:
+            active_analytics = analytics if analytics is not None else Analytics.from_environment()
+            await active_analytics.start()
+            app.state.analytics = active_analytics
+            async with gateway_lifespan(app):
+                yield
+        finally:
+            app.state.analytics = Analytics.disabled()
+            try:
+                await active_analytics.shutdown()
+            finally:
+                app.state.telemetry = Telemetry.disabled()
+                # Flushing performs blocking HTTP export with its own timeout.
+                await asyncio.to_thread(active_telemetry.shutdown)
+
+    @asynccontextmanager
+    async def gateway_lifespan(app: FastAPI):
         app.state.ready = False
         active_config = config if config is not None else load_config(path)
         key = provider_key(active_config.provider)
@@ -701,10 +774,12 @@ def create_app(
                 if not failed:
                     raise
 
-    app = FastAPI(title="Gateway7", version="0.1.0", lifespan=lifespan, redirect_slashes=False)
+    app = FastAPI(title="Gateway7", version=__version__, lifespan=lifespan, redirect_slashes=False)
     app.state.ready = False
     app.state.metrics = Metrics()
     app.state.admission = _PipelineAdmission(app.state.metrics)
+    app.state.telemetry = Telemetry.disabled()
+    app.state.analytics = Analytics.disabled()
     app.add_middleware(GatewayBoundaryMiddleware, owner=app)
 
     @app.exception_handler(RequestValidationError)
@@ -753,6 +828,7 @@ def create_app(
             if len(location) > 1 and location[1] in safe_parameters:
                 parameter = location[1]
                 break
+        request.state.error_code = "invalid_request"
         return _error_response(
             "invalid_request",
             request.state.request_id,
@@ -763,8 +839,12 @@ def create_app(
     @app.exception_handler(GatewayError)
     async def gateway_failure(request: Request, error: GatewayError) -> JSONResponse:
         request.state.http_outcome = error.code
+        request.state.error_code = error.code
         return _error_response(
-            error.code, request.state.request_id, openai=_openai_path(request.url.path)
+            error.code,
+            request.state.request_id,
+            openai=_openai_path(request.url.path),
+            middleware=error.middleware,
         )
 
     @app.exception_handler(StarletteHTTPException)
@@ -773,6 +853,7 @@ def create_app(
             error.status_code, "invalid_request"
         )
         request.state.http_outcome = code
+        request.state.error_code = code
         return _error_response(
             code, request.state.request_id, openai=_openai_path(request.url.path)
         )

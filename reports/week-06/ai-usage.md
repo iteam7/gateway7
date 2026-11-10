@@ -36,127 +36,231 @@ That branch had already published FR-012 for developer usage reporting, so the u
 The published FR-012, project plan and Week 05 report were preserved byte for byte; both requirements remain in the index and navigation.
 No runtime source changed during this documentation integration.
 
-## Verification audit performed on 4 November 2026
-
-### Tool use and scope
-
-OpenCode was used for the read-only code audit, local verification, harness checks and this factual disclosure.
-The initial runtime checks below ran on 4 November against commit `090106fa1cfd88cbeceb291975e5de7b645ea301` on branch `153-verify-proxy-stream-harness`; the completed scoped TechLead review is recorded separately.
-The disclosure was prepared on 5 November after the session resumed; completed tests and provider requests were not repeated for this continuation.
-No implementation changed, and no commit, push or pull request was authorized for this audit.
-The earlier implementation results above are historical evidence, not the result of this verification run.
-
-### Local checks and limitations
-
-| Check | Recorded result |
-| --- | --- |
-| Full pytest suite | 1,076 passed, 11 skipped and 1 failed in 32.79 seconds. |
-| Python checks | Ruff formatting and lint, mypy over 28 files, compileall and the demo passed. |
-| Installed package | Wheel installation with 21 locked runtime packages, the plugin smoke and authenticated SDK/synthetic-gateway smoke passed. |
-| Repository checks | Markdownlint checked 93 files and actionlint passed. |
-| Documentation | Strict build and the site check passed for 53 pages and 5,919 link/asset checks. |
-| Compose configuration | The standalone `docker-compose` command validated the base configuration and all three live-provider configurations; this is not runtime verification. |
-
-The pytest failure is at `tests/test_proxy_transport.py:351,455-461`: the bound, non-listening macOS socket produced a timeout rather than the expected `TRANSPORT` failure category.
-The failure was reproduced in narrow, full-file and isolated runs; no product or test fix was made.
-The 11 skipped tests require the unavailable Docker Compose plugin.
-Monitoring runtime verification remains incomplete: ports 8000, 9090 and 3000 were already occupied, and no existing stack was disturbed.
-
-The documentation environment used Python 3.12.11 because the documented 3.12.14 was unavailable.
-Node 25.9 differed from the required Node 24 and produced a dependency engine mismatch.
-The successful documentation checks therefore do not establish verification in the documented toolchain.
-Lychee was unavailable, so the external Markdown link check remains unverified.
-
-### Actual harness results
-
-The real OpenCode 2.2.5 binary ran `scripts/smoke_opencode.py` against a synthetic upstream.
-Its SHA-256 was `cd03022601e4848a957999a2a7b1c1ccf18b94f9a084a44719f62abaacebe83c`.
-The allowed scenario passed with two streamed provider requests, one `read` tool execution and final marker `GATEWAY7_AGENT_OK`.
-The denied scenario passed with one streamed provider request, zero tool executions, one client error and one policy denial.
-These results establish the selected synthetic tool round trip and policy case, not live OpenAI generation or general harness compatibility.
-Upstream SSE is collected and checked before downstream SSE is delivered; the client does not receive generation-time tokens.
-
-Codex 0.153.4 was also tested as a client in an isolated, ephemeral, read-only custom-provider session.
-It requested `/v1/responses`, received HTTP 404 and made zero provider calls.
-The repository does not currently support that Responses route; this client configuration is not compatible with the implemented Chat Completions route.
-
-### Completed scoped TechLead review
-
-The completed scoped TechLead review returned `CHANGES REQUIRED` and confirmed a P2 defect in handling valid OpenAI truncation responses with `finish_reason=length`.
-`gateway7/providers.py:428-433` rejects a missing tool call for required or named `tool_choice` even when the response ended because of the length limit.
-`gateway7/providers.py:177-180` also rejects empty text with that finish reason.
-These checks turn valid truncated upstream responses into gateway HTTP 502, despite the preserved-truncation contract in `docs/api.md:137-140` and the existing length exception in `gateway7/pipeline.py:120-128`.
-
-The review confirmed this with a bounded, network-free ASGI reproduction using the production `HTTPProvider` and `httpx.MockTransport`, covering JSON and SSE upstream responses.
-An upstream HTTP 200 response with text `partial` and finish reason `length` returned gateway HTTP 200 with automatic tool choice, but HTTP 502 with required or named tool choice; empty-text length responses also returned HTTP 502.
-Each case made exactly one synthetic upstream request.
-
-The proposed follow-up is to preserve length-limited responses without tool calls, including empty text, while continuing to reject incomplete or invalid tool arguments, and add JSON and SSE regression tests.
-No implementation or test fix was authorized or made in this audit.
-The bounded review found no additional confirmed defects in its other examined areas; it is not general release approval.
-
-### Live provider diagnostics and remaining blockers
-
-The initial native `/chat` request with `gpt-4.1-mini` returned gateway HTTP 502 with safe failure category `authentication` and no reported usage.
-Subsequent non-billable `GET /v1/models` diagnostics against the official OpenAI endpoint returned HTTP 403 with code `unsupported_country_region_territory`, both directly and through the built-in authenticated local CONNECT proxy.
-The proxy diagnostic kept TLS verification enabled, recorded one CONNECT and zero proxy failures, and made no billable chat attempt.
-This verifies the tested local CONNECT route, not access through an external proxy or successful model generation.
-The user subsequently accepted continuing this audit without an external proxy, so an external proxy is not a closing requirement and no proxy file path is awaited.
-Key and account validity, live generation, live SSE and a live-model OpenCode tool round trip remain unverified; the results do not establish that the key is invalid.
-
-The user-authorized provider credential was used only in process memory.
-This disclosure includes no credentials, credential-file paths, private names, private artifact paths or raw provider error bodies.
-The audit retained the failures and environment limitations rather than treating partial checks as an overall pass.
-The scoped TechLead review is complete, and Formater POST is finalized as `CHANGES REQUIRED`, not product approval: the confirmed truncation defect, pytest failure and recorded verification gaps remain unresolved.
-No Customer acceptance or team assessment is inferred from these results.
-
 ## Team assessment
 
 TODO: the team records which generated output it accepted, changed or rejected and why after its own review.
 
-## Direct live recheck performed on 5 November 2026
+## Threshold review and Customer Review preparation
 
-OpenCode coordinated the user-authorized renewed direct check against the unchanged commit recorded above, using temporary verification scripts outside the checkout.
-The real `gpt-4.1-mini` model was reached at the official OpenAI HTTPS endpoint with TLS verification, `trust_env=False` and the `config/openai.yaml` settings, without a configured transport extension or proxy.
-The provider credential remained in process memory; no credential, private path, request identifier or raw request/response body is included here.
-This run used all nine authorized provider attempts, with no automatic retries; no further provider calls were made for this disclosure.
+Codex used the GitHub connector and separate Formater, executing and reviewing agents to prepare [task #187](https://github.com/iteam7/gateway7/issues/187) and the evidence-ready parts of [task #188](https://github.com/iteam7/gateway7/issues/188).
+The work compared the four existing threshold measures with dated repository records, preserved the original deadlines and unadopted proposals, and used the recorded plugin-installation run and DEC-020 contributor confirmation for the two supported outcomes.
+It first drafted the four-dashboard readiness map and a live meeting script with explicit per-story verdict questions, Week 5 follow-ups and a request for actual Week 7 actions.
+The representative approved that outline on 5 November and clarified the planned meeting date on 6 November.
+That approval concerned preparation, not a meeting outcome or agreement on its proposed follow-ups.
+The ongoing task removed a prematurely drafted meeting report and retained the distinction between source evidence and Customer validation.
 
-### Verified live scenarios
+On 7 November the representative reported that no Review had taken place because the demonstration was not ready.
+Codex used that correction to record the unfulfilled Review and its exact reason, preserve the unused live script byte for byte, and prepare the canonical script for a proposed written exchange.
+The written script was not sent and supplies no Customer response or completed Review.
+The weekly report now maps actual merged evidence and the outstanding Assignment 6 requirements to their owner issues, rather than treating an issue, a source-level CI pass or a planned dashboard as proof of deployment.
+After the representative reported PR #196 merged, Codex refreshed the readiness and coverage index against main `22ecc152f57ad096cd942050cd46d6d3457fb93d`, including its analytics plan and events, FR-015, proposed ADR-006/007, feature entries, external-backend container view, canonical QR-05/QRT script and dashboard definition.
+The update links the six successful main-branch workflows and merged task-closing PR #196, while retaining the missing backend-computed metric, four dashboard screenshots and actual staging QRT result.
+It also corrects the operator example so the QRT receives process environment variables and staging smoke mode is restored on exit.
+No staging availability, deployed QRT or analytics value is inferred from the source or CI.
+The only project-plan change aligns SPRINT-06 Due with the course's 8 November deadline; no commitment, velocity or release record is reconstructed.
 
-| Scenario | Recorded result |
-| --- | --- |
-| Native `/chat` | HTTP 200, exact control-marker match, 16 input and 7 output tokens; one provider attempt. |
-| OpenAI SDK 3.37.0 JSON | HTTP 200, exact control-marker match, 16 input and 7 output tokens; one provider attempt. |
-| Text SSE | HTTP 200 with `text/event-stream`, five downstream events, `[DONE]`, usage and finish reason `stop`; 61 actual upstream fragments, 22 input and 88 output tokens; one provider attempt. |
-| Real OpenCode 2.2.5 | Exit 0, exactly one completed `read` of an isolated synthetic fixture, its actual tool result in the second provider request, exact final control-marker match and zero errors; two streamed provider attempts, with input/output usage of 624/16 and 669/8 tokens. |
+No attendance, permission answer, dashboard demonstration, measured QRT result, Customer decision, story verdict, agreed Week 7 action or team-wide assessment was inferred from generated preparation or the representative's outline approval.
+A factual meeting report will be written only after an actual Review, using its real exchange and outcomes.
+The existing assessment above belongs to the separate guarded-harness work and is not filled by inference from this preparation task.
 
-The harness used a real model, not a scripted upstream; its two provider steps stayed within the three-step and 1024-output-token-per-step limits.
-For the text SSE check, the first client event arrived after approximately 1214 ms and all downstream events spanned 0.06 ms, entirely after provider completion.
-This confirms actual upstream streaming and buffered, checked downstream SSE, not generation-time client token delivery.
-These successes supersede the earlier unverified direct live-generation and live-harness results; the November 4 regional HTTP 403 remains historical evidence, not a current network blocker.
-No external proxy was required or tested in this renewed run; the earlier local CONNECT result establishes only its tested route's reachability.
+## Observability signals and the active SLI
 
-### Confirmed named-tool compatibility failure
+Claude Code (a cloud session started from the project chat) prepared [task #181](https://github.com/iteam7/gateway7/issues/181) at DeniBorsh's request.
+It read Assignment 6 and the course's observability requirements, then added `gateway7/telemetry.py`, which exports one structured log record and one request-duration histogram observation per API request over OTLP/HTTP when `TELEMETRY_ENABLED` is true.
+It rewrote `docs/observability.md` as the observability plan with SLI-01, added FR-014, the operation terms in the glossary, the gateway's telemetry configuration in the deployment guide, `.env.example` and live Compose, and the tests in `tests/test_telemetry.py`.
 
-The other four provider attempts were explicit forced-named-tool diagnostics and each returned gateway HTTP 502 with safe category `invalid_response`.
-The final JSON and SSE diagnostics, provider attempts eight and nine, isolated a new confirmed P2 compatibility defect at `gateway7/providers.py:182`.
-Each actual upstream response ended with `finish_reason=stop` and contained one structurally valid tool call matching the advertised named function and expected synthetic arguments, but the assembled response was rejected there.
-For the SSE case, parser finalization succeeded: `accepted=True`, `invalid=False`, `done=True`; rejection occurred during assembled-response validation rather than SSE parsing.
-The observed live-provider responses therefore fail despite the successful automatic-tool OpenCode round trip.
-Follow-up is to reconcile finish-reason validation with these valid tool-call responses and add JSON/SSE regression coverage without weakening named-choice or argument validation.
-No implementation or test fix was authorized or made.
+The session checked the export against a local OpenObserve v1.1.2 container with synthetic credentials and the synthetic demo provider.
+That check showed that a cumulative histogram's first failure gives a `NaN` five-minute P95 under `rate`, so the export uses delta temporality and the SLI query sums the window instead.
+The local check is not staging evidence: no university VM, staging organization or dashboard was used, and no QRT result is claimed.
 
-The earlier truncation P2 and macOS proxy-test failure remain unresolved.
-The November 4 broad QA results, toolchain/Compose/monitoring/Lychee limitations and Codex Responses-route HTTP 404 were not rerun in this bounded live recheck and are not newly verified results.
-The final scoped TechLead review of this renewed run was not yet available when this disclosure was prepared; no review approval is inferred from the live evidence.
-Formater POST remains `CHANGES REQUIRED` because of the confirmed compatibility defects and unresolved test/verification gaps, not because direct live generation or OpenCode connectivity is still unverified.
-The team's assessment above remains `TODO`; no acceptance, release or publication is inferred.
+### Team evaluation for the observability signals
 
-## Read-only remediation planning on 5 November 2026
+TODO: the team records which generated output it accepted, changed or rejected and why after its own review.
 
-OpenCode was used to prepare a prioritized remediation proposal from the completed audit and existing source, with proposed regression coverage and acceptance criteria.
-The proposal separates named-tool/truncation fixes and deterministic proxy tests from the offline nullable-tool-delta observation, reproducible native V2 harness checks and outstanding verification gates.
-Real-time downstream streaming requires a safe streaming-policy design; Responses/Codex support remains a scope choice only if that client is targeted.
-No implementation, product tests or provider requests were performed for this planning task; the completed live-audit budget remains closed at nine of nine attempts.
-The list is a proposal, not an adopted architecture decision, implemented fix or product-readiness approval.
-Team assessment of this planning output: `TODO`.
+## Staging diagnosability requirement and check
+
+The same Claude Code session prepared [task #185](https://github.com/iteam7/gateway7/issues/185): QR-05 with its deployed QRT-01, its index and testing-plan rows, and `scripts/check_sli.py` with a test against a scripted gateway and OpenObserve stand-in.
+It ran the script against the synthetic demo gateway and a local OpenObserve v1.1.2 container, where it printed `PASS QR-05 QRT-01`; that run is a development check, not the staging result.
+The testing-plan row stays `Not verified` until a member runs the check against staging from the university network and records its output, commit and screenshot.
+
+### Team evaluation for the diagnosability requirement
+
+TODO: the team records which generated output it accepted, changed or rejected and why after its own review.
+
+## Staging SLI dashboard definition
+
+For [task #183](https://github.com/iteam7/gateway7/issues/183), the same session built the SLI-01 chart in a local OpenObserve v1.1.2 organization, rendered it with a headless browser to confirm separate `ok` and `client_error` series, and tracked the sanitized definition in `monitoring/openobserve/gateway7-sli-dashboard.json` with a test that keeps its query equal to the plan's.
+The staging dashboard itself, its failure-traffic check and its sanitized screenshot need the university VM and remain for a member to produce; the local rendering is not that evidence and is not committed.
+
+### Team evaluation for the dashboard definition
+
+TODO: the team records which generated output it accepted, changed or rejected and why after its own review.
+
+## Product analytics and telemetry handoff
+
+Codex used Formater, TechLead, analytics, diagnosability and infrastructure agents to prepare [task #177](https://github.com/iteam7/gateway7/issues/177) and the remaining telemetry handoff.
+The GitHub connector supplied the current course rules, main and the team's branches; source review found that [PR #194](https://github.com/iteam7/gateway7/pull/194) and [PR #195](https://github.com/iteam7/gateway7/pull/195) had merged into working branches rather than main.
+The integration preserves their canonical QR-05, `check_sli.py`, dashboard definition, tests and genuine commit history instead of adding parallel versions.
+
+The agents implemented typed start/completion events, the bounded optional OpenPanel exporter, deployment-owned source labels, the analytics plan and FR-015, and prepared the telemetry runbook and architecture records.
+TechLead changed the generated QRT integration to remove automatic paid-provider warmup, validate a forbidden model before the negative request, keep the queries staging-only, bound response sizes and deadlines, and print only known safe result fields.
+The existing dashboard definition was retained byte for byte; the container diagram was rendered and visually checked.
+A final review also moved the QRT clock to the last response bytes, before parsing or stream cleanup; two slow-cleanup regressions verify that neither deadline can be extended.
+The team has not supplied an assessment of this new increment; no member acceptance is inferred from the AI review or automated checks.
+
+Local checks passed: 1,154 automated tests with Docker-dependent cases skipped, Python compilation, formatting, linting, type checking, the separate-process synthetic demonstration and wheel build.
+Formatting and lint checks also covered the changed test files and canonical QRT script.
+GitHub CI exposed four stale exact Compose environment expectations for the five optional analytics variables; the correction preserves those strict comparisons, isolates the fixture environment and adds a staging process-override regression.
+That correction requires the Docker-dependent checks in CI because Docker is unavailable locally.
+The strict documentation build and generated-site check passed for 59 maintained pages and 7,022 links/assets; all four Compose files passed the official Compose JSON schema.
+These local results include scripted HTTP protocol tests, not a deployed OpenPanel query, a university-VM QRT pass, four live dashboards or a production deployment.
+Docker was unavailable in the execution environment, so the new backend stack was not started locally.
+No live-provider call, Customer Review, Customer decision, release or Moodle submission was performed by this work.
+
+## Codex: Sprint planning scope
+
+- Tool: Codex.
+- Use: recorded the current estimated scope while distinguishing it from the unverified planning commitment.
+- Team assessment: TODO.
+
+## Codex: Analytics deployment
+
+- Tool: Codex.
+- Use: documented the deployed analytics backend, proxy and remaining verification.
+- Team assessment: TODO.
+
+## Codex dashboard verification for #179
+
+Codex configured and checked the staging OpenPanel chart and captured sanitized preview evidence for task #179.
+
+### Team assessment
+
+TODO: the team records its assessment of this work.
+
+## Codex dashboard verification for #180
+
+Codex configured and checked the production OpenPanel chart and captured a sanitized empty view for task #180; no synthetic traffic was sent to the production project.
+
+### Team assessment
+
+TODO: the team records its assessment of this work.
+
+## Codex observability pipeline verification
+
+Codex configured and inspected the OpenObserve VM instance, organization-scoped credentials and TLS proxy for task #182.
+It checked cross-organization authentication, ran a staging-preview SLI test and recorded that legacy log delivery and regular-gateway deployment were not verified.
+The provider key check returned a country or territory restriction and did not establish key validity.
+
+### Team assessment
+
+TODO: the team records its assessment of this work.
+
+## Codex dashboard verification for #183
+
+Codex checked the staging OpenObserve dashboard and captured the numeric failure series generated by a VM-hosted staging preview for task #183.
+
+### Team assessment
+
+TODO: the team records its assessment of this work.
+
+## Codex dashboard verification for #184
+
+Codex checked the production OpenObserve dashboard and captured its sanitized empty view for task #184; no synthetic failure was sent to production.
+
+### Team assessment
+
+TODO: the team records its assessment of this work.
+
+## Codex staging QRT preview
+
+Codex ran QR-05 QRT-01 against an isolated staging candidate on the university VM for task #185 and recorded the observed preview timings.
+The regular staging result remains unverified; an unrelated direct provider request returned a country or territory restriction.
+
+### Team assessment
+
+TODO: the team records its assessment of this work.
+
+## Codex: Release readiness
+
+- Tool: Codex.
+- Use: documented the release evidence and outstanding dependencies.
+- Team assessment: TODO.
+
+## Week 6 evidence review and integration
+
+Codex used Formater and TechLead agents to review the prepared backend and dashboard pull requests against the current course rules, exact task criteria and source commits.
+The work preserved the original disclosures above and prepared one shared readiness index so sequential evidence merges retain every contributor's record.
+It recovered the staging SLI screenshot and candidate QRT narrative from closed, unmerged PR #202 and PR #204 instead of claiming that their absence from main meant the operator had not run the check.
+The index distinguishes the operator-recorded candidate PASS from promotion, complete matching log-query evidence, a defined non-smoke metric result, Customer Review and release completion.
+The source-backed TLS review identifies the private-CA handoff and the current native client's certificate-trust limit; it does not disable verification or claim to have tested the private endpoints.
+The narrow preparation tasks retain the larger deployment and release tasks as open references rather than declaring their unfinished criteria complete.
+A teammate merged PR #198 during this review; the agents refreshed the remaining five branch candidates against that main revision and retained the merged branch unchanged.
+The later task clarification does not claim that PR #198 had a closing-task link before it merged.
+
+The first Windows quality run for the documentation-only PR #201 returned 49 policy denials and one timeout; Linux and the inspected main revision passed.
+Repeating that unchanged quality workflow passed; no test or gate was weakened.
+This review made no VM connection, provider request, Customer contact, VPN change, release or Moodle submission, and did not infer a team-wide assessment from automated or AI review.
+The team's assessment of this preparation is still to be supplied by a member.
+
+## Task #192: US-04 technical reconciliation
+
+Codex used Formater, TechLead and an implementation agent to reconcile the existing US-04 acceptance criteria with the policy denial and startup diagnostics.
+The implementation pins the middleware identity in the runner and constrains the unsupported-action diagnostic instead of echoing arbitrary configuration or request content.
+The work adds policy, API and confidentiality regressions and aligns FR-004 with the unchanged story criteria.
+The contributor-reported Customer acceptance remains separate from these technical checks; this work does not create a new Customer decision or infer acceptance from passing tests.
+On 7 November, Codex reconciled the unpublished change with the newly merged OTLP implementation, preserving the request's exported error code and adding a regression across both HTTP APIs.
+The earlier observability implementation and its AI account above remain intact.
+
+**Team assessment:** TODO: the team records which generated output it accepted, changed or rejected and why after its own review.
+
+### Task form-route deviation
+
+Task #192 was created through the GitHub API using the repository task form's sections and the native Task type, rather than by submitting the web form.
+Its native Responsible, Accountable and Priority values, matching assignees, Sprint 06 milestone and project item were verified after creation.
+This declaration does not waive the course form requirement; the Week 6 report owner must carry this deviation into the completed weekly report.
+
+## Task #192: reconcile policy diagnostics with published OTLP telemetry
+
+Codex used Formater, an implementing agent and TechLead review to port the previously reviewed policy diagnostics onto current main while preserving the published telemetry error-code ownership.
+Two chat API regressions check that a policy denial retains the correct exported error code and middleware correlation.
+The focused API, privacy and telemetry checks passed; this technical verification does not create a new Customer verdict or close the story.
+
+**Team assessment:** TODO: the team records which generated output it accepted, changed or rejected and why after its own review.
+
+### Current-main publication reconciliation
+
+The diagnostics were ported onto main 529ee3529cdf5dec51bb948740e2ed1282261f46 after the OpenPanel analytics and QR-05 work had been published.
+The port preserves the published analytics lifecycle, completion classification, OTLP error-code pin, requirements and existing AI history; focused checks and review are recorded for the new base.
+No old OpenObserve analytics implementation or unpublished replacement FR/ADR is included.
+
+## Task #210: confirmed Week 6 retrospective
+
+On 8 November, Codex drafted a retrospective for the contributor's confirmation from the repository evidence and the carried Week 5 actions.
+The contributor confirmed that the team had held the retrospective, reported a positive overall assessment and approved the proposed observations and four actions.
+The documentation preserves that approved meaning in English, including the owners, impacts, reasons and next-retrospective follow-up, while retaining the original Week 5 action quotations.
+It also records the contributor's confirmation that Customer Review would not take place before the deadline and keeps that unfulfilled requirement separate from the completed team retrospective.
+The preparation-task fields and objective checklists were corrected under the contributor's explicit authorization, and the API-versus-Issue-Form route for tasks #192 and #206–#208 is disclosed in the public report.
+No original planning commitment, formal Actual Velocity, Customer verdict, meeting transcript, final deployment or release is inferred from those confirmations.
+This documentation work performs no additional VM check or provider request; the earlier candidate observations retain their recorded scope.
+The retrospective wording confirmation is not treated as a team-wide assessment of all generated work, and no such additional assessment is supplied here.
+
+## Task #212: source completion and release preparation
+
+Codex used Formater, an implementing agent and independent review to complete the remaining repository work that could be verified without new operator evidence.
+The source/acceptance audit reconciled US-04 against the three exact policy tests in PR #209 and its existing DEC-020 Customer acceptance, then completed #33 and the narrow tasks #181/#183/#186 with their actual FR/ADR links.
+The published implementation reviews and original acceptance remain separate from this later tracking correction; no new Customer verdict or pre-merge review is invented.
+
+The version audit found that package, runtime and public API metadata still reported 0.1.0 despite the published v0.3.0 tag.
+The preparation aligns the next candidate at 0.4.0, derives the public OpenAPI version from the runtime constant and tests it against both installed distribution and project metadata.
+The project lock was regenerated using the documented `uv lock` command; only the root package version changed, with no transitive upgrades.
+The generated company-plugin package version, plugin API version 2 and historical release sections retain their original meaning.
+
+The focused version regression passed, and the local full suite passed 1,176 tests with 12 Docker-dependent checks skipped because Docker was unavailable locally.
+Compile, format, lint, type checks and the HTTP demo passed.
+The hash-locked 0.4.0 wheel was installed in an isolated environment and checked outside the checkout with isolated Python and no source-path override: distribution, runtime, API and OpenAPI versions all reported 0.4.0.
+These automated and AI review results do not supply a new team assessment of the generated output; that assessment remains for a member's review of this preparation.
+
+The report and plan now distinguish 5 completed SP from the later 21-SP scheduled estimate and pending final Actual Velocity.
+The remaining-story carryover is a proposal; no issue milestone, sprint state, release tag, VM deployment or Moodle submission is changed by the document.
+The upgrade-note draft retains the missing Customer Review and operator evidence as outstanding facts, not a course-approved waiver.
+No raw telemetry, private access information, numerical analytics result or new deployed-QRT outcome was generated for this preparation.

@@ -129,8 +129,19 @@ This sprint index includes the 31 October cross-platform reliability check perfo
 
 Provisional goal: a reviewer can verify configured model permissions and assess gateway usage and failures without recording raw prompts, responses or provider secrets.
 
-- **Due:** 2026-11-07
-- **Sprint Backlog:** [SPRINT-06 milestone; selection pending](https://github.com/iteam7/gateway7/milestone/4)
+- **Due:** 2026-11-08
+- **Sprint Backlog:** [Current SPRINT-06 milestone](https://github.com/iteam7/gateway7/milestone/4)
+- **Planned Velocity:** The original planning commitment was not recorded; the later scheduled-scope estimate below does not reconstruct it.
+- **Current scheduled scope:** 21 SP: [US-04](https://github.com/iteam7/gateway7/issues/33) (5), [US-14](https://github.com/iteam7/gateway7/issues/174) (8) and [US-15](https://github.com/iteam7/gateway7/issues/175) (8).
+  This tally is not evidence of the original planning commitment or planned velocity.
+- **Completed-story checkpoint, 8 November:** 5 SP, US-04 (5), following its unchanged-criterion reconciliation in [PR #209](https://github.com/iteam7/gateway7/pull/209) and the earlier Customer acceptance in [DEC-020](decisions.md#dec-020).
+  US-14 and US-15 remain open at 8 SP each; this checkpoint is not final Actual Velocity or closure of the sprint.
+- **Carryover proposal:** move the unfinished US-14/US-15 work to SPRINT-07 if it remains incomplete at closeout, preserving the source estimates and the actually assigned owners.
+  This is a proposal; no issue milestone or sprint state is changed by this document.
+- **Future candidates:** [US-07](https://github.com/iteam7/gateway7/issues/36), [US-08](https://github.com/iteam7/gateway7/issues/37) and [US-13](https://github.com/iteam7/gateway7/issues/141) total 16 SP; the team has not confirmed the scope for the next two sprints.
+
+The [Week 6 readiness record](https://github.com/iteam7/gateway7/blob/main/reports/week-06/release-readiness.md) links the prepared package candidate, upgrade note and remaining operator handoff.
+Formal Actual Velocity is recorded when the sprint closes, after the release and the disposition of unfinished work; this source checkpoint supplies neither a release nor a retrospective planning commitment.
 
 #### REL-06
 
@@ -170,6 +181,7 @@ Each row is one quality requirement test and what it found at its last check; th
 | [QR-02](quality-requirements/qr/QR-02.md) | [QR-02 QRT-01](quality-requirements/qr/QR-02.md#qrt-01) | Passes | [SPRINT-05](#sprint-05) | [SPRINT-05](#sprint-05) | [Main CI check job, 31 October](https://github.com/iteam7/gateway7/actions/runs/41130602373/job/124320199306) |
 | [QR-03](quality-requirements/qr/QR-03.md) | [QR-03 QRT-01](quality-requirements/qr/QR-03.md#qrt-01) | Passes | [SPRINT-05](#sprint-05) | [SPRINT-05](#sprint-05) | [Main CI check job, 31 October](https://github.com/iteam7/gateway7/actions/runs/41130602373/job/124320199306) |
 | [QR-03](quality-requirements/qr/QR-03.md) | [QR-03 QRT-02](quality-requirements/qr/QR-03.md#qrt-02) | Passes | [SPRINT-05](#sprint-05) | [SPRINT-05](#sprint-05) | [Operator-reported staging check, 31 October](https://github.com/iteam7/gateway7/blob/5d64cf6d96e6842b991df0569f740cf14ce2e382/reports/week-05/quality-checks.md#staging-check) |
+| [QR-05](quality-requirements/qr/QR-05.md) | [QR-05 QRT-01](quality-requirements/qr/QR-05.md#qrt-01) | Not verified | None | [SPRINT-06](#sprint-06) | None |
 
 The QR-02 and QR-03 CI results were checked on 31 October at `main` commit `a15b1cd14618ee7b5ac423f4aed5ed2f496f405d`.
 The job logs show both testability tests and the confidentiality test passing; the suite completed in 46.82 seconds and the separate HTTP demonstration step in 12 seconds.

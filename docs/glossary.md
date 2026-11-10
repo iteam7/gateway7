@@ -63,6 +63,68 @@ The built-in proxy transport is one such extension.
 
 **Defined by:** [the transport guide](provider-transports.md) and [ADR-004](architecture/adr/ADR-004.md).
 
+## Operation
+
+### Telemetry
+
+The events about product use and signals about operation that Gateway7 sends to external backends, with analytics and operating-signal collection enabled separately by the operator.
+
+**Defined by:** [the observability plan](observability.md#collected-data).
+
+### Signal
+
+One kind of telemetry the gateway reports about its own operation, either a metric or a log in this project, from which an operator reads how requests are served.
+
+**Defined by:** [the observability plan](observability.md#the-signals).
+
+### Service Level Indicator
+
+A service level indicator, or SLI, is a numbered quality signal with a fixed definition, unit, window, source and query that a quality requirement test reads, such as [SLI-01](observability.md#sli-01).
+
+**Defined by:** [the observability plan](observability.md#the-slis).
+
+### Observability
+
+The operator's ability to find out from the gateway's signals alone why a request failed or slowed, without reading request content or attaching a debugger.
+
+**Defined by:** [FR-014](functional-requirements/fr/FR-014.md).
+
+### Event
+
+A fixed, typed record of a core-task action, such as a chat starting or completing, with a random task identifier and a server-owned traffic source.
+
+**Defined by:** [the analytics event registry](analytics.md#the-events).
+
+### Focus Metric
+
+The one number the analytics plan uses to read the value expressed by [VP-01](research/value-proposition.md#vp-01-predictable-local-preflight-for-small-teams), distinct from operational request-duration signals.
+
+**Defined by:** [the analytics metric tree](analytics.md#the-metric-tree).
+
+### Counter-Metric
+
+The metric that guards the focus metric against harmful growth rather than contributing to its count.
+
+**Defined by:** [the analytics metric tree](analytics.md#the-metric-tree).
+
+### Smoke Traffic
+
+Synthetic traffic generated to check the staging pipeline, tagged `source=smoke` and excluded from every default analytics metric.
+
+**Defined by:** [the analytics event registry](analytics.md#the-events).
+
+### Analytics Pipeline
+
+The optional path from gateway core-task events to an environment's analytics project and its charts.
+
+**Defined by:** [the analytics plan](analytics.md#the-pipeline).
+
+### Observability Pipeline
+
+The optional path from gateway logs and duration observations to an environment's observability organization and its SLI chart.
+
+**Defined by:** [the observability plan](observability.md#the-pipeline).
+
 ## Demonstration
 
 ### Synthetic Provider

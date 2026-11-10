@@ -301,7 +301,7 @@ class Pipeline:
                 if violation:
                     raise GatewayError("plugin_error")
                 if type(result) is Deny:
-                    raise GatewayError("policy_denied")
+                    raise GatewayError("policy_denied", middleware=plugin.name)
                 if not called or not completed:
                     raise GatewayError("plugin_error")
                 try:
@@ -720,7 +720,7 @@ class Pipeline:
                             raise GatewayError("plugin_error") from None
                         budget_checkpoint()
                         if type(result) is Deny:
-                            raise GatewayError("policy_denied")
+                            raise GatewayError("policy_denied", middleware=plugin.name)
                         try:
                             request = _validated(result, ChatRequest)
                         except Exception:

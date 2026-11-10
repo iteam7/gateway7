@@ -35,3 +35,23 @@
 - Publication boundary: One intended commit and a Draft PR; no merge, force push, history rewrite or new runtime allocation.
 - Verification boundary: The branch is 80 commits behind fetched main; retained local tests are not merged-result verification, and the external HTTP 403 live-acceptance blocker remains unresolved.
 - Team assessment: TODO
+
+## 2026-11-09 — Historical report provenance
+
+- Tool: OpenCode.
+- Use: Read-only mapping of the Week 06 AI-usage merge conflict.
+- Historical evidence: The feature-side Week 06 report, including its 121 additions relative to the common base, remains preserved verbatim at [commit 1dfc87b160d9445c36a046219b4af1773a037744](https://github.com/iteam7/gateway7/blob/1dfc87b160d9445c36a046219b4af1773a037744/reports/week-06/ai-usage.md).
+  This is an earlier audit record, not work newly performed, rerun or reassessed in Week 07.
+- Team assessment: TODO
+
+## 2026-11-10 — Main integration and publication preparation
+
+- Tool: OpenCode.
+- Use: Reviewed the pending main-into-feature merge and prepared its ordinary merge commit and normal push to the existing Draft PR; actual source, documentation and report-mapping reviews were approved.
+- Preservation: Canonical main Week 06 is retained, and the existing Week 07 body and immutable historical report reference are unchanged.
+- Merged Python QA: 3249 passed with zero failures, errors, skips, xfails, xpasses or deselections, including all 12 Compose-configuration cases; Ruff format/lint, mypy for 36 production files and one synthetic demo passed.
+  The isolated environment used genuine project metadata 0.4.0 without changing the 52 locked dependencies; the earlier 3119-test result remains historical, not merged-source validation.
+- Documentation QA: 111 Markdown files/zero issues, strict MkDocs, site checks for 59 pages/7141 links-assets, Lychee nine changed pages/301 successes/zero errors/exclusions and actionlint six workflows passed before this append.
+- Publication boundary: This entry records verification and publication preparation, not a PR merge, release or human acceptance; the request remains Draft.
+- Live boundary: The last named request returned HTTP 403 in the authentication category; cause, usage and cost are unknown, replay/final were not run, and the 17 NEW implementation attempts remain closed with no additional provider calls or live-runtime allocation.
+- Team assessment: TODO

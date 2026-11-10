@@ -2,7 +2,8 @@
 
 The threshold of success is the minimal set of goals that must all be achieved for gateway7 to count as a success this term.
 Each goal below answers a failure statement listed in [Failure And Success Statements](#failure-and-success-statements).
-The [Customer review proposal](threshold-review.md) identifies measure/goal inconsistencies in TOS-02 and TOS-04 and offers concrete clarifications; those proposals are not part of the current threshold.
+The [earlier Customer review proposal](threshold-review.md) identifies measure/goal inconsistencies and preserves unadopted clarifications; those proposals are not part of the current threshold.
+Open goals retain their original deadlines while the missing historical evidence is assessed.
 
 ## TOS-01
 
@@ -22,15 +23,17 @@ Every request and response passes through the configured policy pipeline, and th
 
 A company plugin can be added to the gateway without changing the core's code.
 
-- **Status:** Open
+- **Status:** Achieved
 - **Measure:** a second, previously unwritten plugin is installed and exercised through configuration alone ([VP-02](research/value-proposition.md#vp-02-testable-domain-filter-extensions)), with no edit to any file outside its own plugin and configuration files, by Week 4.
+- **Outcome:** the recorded 19 October 2026 disposable-checkout check installed and exercised a new `company_plugins/sample.py` through configuration with no core edit, before the Week 4 deadline; [the historical US-03 re-verification](https://github.com/iteam7/gateway7/blob/090106fa1cfd88cbeceb291975e5de7b645ea301/reports/week-03/README.md#us-03-issue-32-re-verification-on-19-october-2026) records the changed paths, commit and result. This assessment reads that existing record; it is not a new test run.
 
 ## TOS-04
 
 The Customer accepts the minimum usable product candidate against its stories' acceptance criteria.
 
-- **Status:** Open
+- **Status:** Achieved
 - **Measure:** a `DEC-nnn` records the Customer's verdict on US-01, US-02 and US-03 in a Week 3 or later meeting report.
+- **Outcome:** Customer acceptance of US-01, US-02 and US-03 at the 30 October meeting is recorded in [DEC-020](decisions.md#dec-020), supported by [the contributor confirmation recorded on 31 October](https://github.com/iteam7/gateway7/blob/090106fa1cfd88cbeceb291975e5de7b645ea301/reports/week-05/meeting-follow-up.md#customer-verdicts). This is member-reported evidence supplementing the transcript-only meeting report; it does not claim that the original transcript names those verdicts or adopt the earlier proposed acceptance date.
 
 ## Failure And Success Statements
 

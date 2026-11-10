@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "gateway7"
-version = "0.1.0"
+version = "0.4.0"
 description = "A minimal ordered-plugin LLM gateway with a deterministic HTTP demo"
 requires-python = ">=3.11,<3.14"
 dependencies = [
@@ -14,6 +14,8 @@ dependencies = [
   "PyYAML>=6.0.2,<7",
   "prometheus-client>=0.21,<1",
   "uvicorn>=0.34,<1",
+  "opentelemetry-sdk>=1.30,<2",
+  "opentelemetry-exporter-otlp-proto-http>=1.30,<2",
 ]
 
 [project.scripts]
