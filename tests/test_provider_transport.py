@@ -259,3 +259,72 @@ async def test_non_200_closes_stream_without_reading_body_or_retrying(status, re
     assert not stream.exhausted
     assert stream.close_calls == 1
     assert len(requests) == 1
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        REPLY.replace(b'"content": "pong"', b'"content": "hidden", "content": "pong"'),
+        REPLY[:-1] + b', "metadata": {"repeated": 1, "repeated": 2}}',
+        REPLY[:-1] + b', "metadata": NaN}',
+        REPLY[:-1] + b', "metadata": Infinity}',
+        REPLY[:-1] + b', "metadata": -Infinity}',
+        REPLY[:-1] + b', "metadata": 1e999}',
+        REPLY.decode().encode("utf-16"),
+        REPLY.decode().encode("utf-32"),
+        REPLY.replace(b"pong", b"\xff"),
+        REPLY.replace(b"pong", b"\\ud800"),
+        REPLY.replace(b"pong", b"\\udfff"),
+        REPLY[:-1] + b', "metadata": {"\\ud800": 1}}',
+        REPLY[:-1] + b', "metadata": ' + b"[" * 64 + b"0" + b"]" * 64 + b"}",
+    ],
+    ids=[
+        "duplicate-content",
+        "duplicate-ignored-metadata",
+        "nan",
+        "infinity",
+        "negative-infinity",
+        "overflowing-float",
+        "utf16",
+        "utf32",
+        "invalid-utf8",
+        "unpaired-high-surrogate",
+        "unpaired-low-surrogate",
+        "surrogate-object-key",
+        "depth-overflow",
+    ],
+)
+async def test_ambiguous_or_noninteroperable_provider_json_is_rejected(body):
+    stream = ObservedStream([body[:17], body[17:]])
+    async with streamed_provider(stream) as (provider, requests, response):
+        with pytest.raises(ProviderError) as caught:
+            await provider.complete(REQUEST)
+        assert response.is_closed
+    assert_safe_error(caught.value, ProviderErrorReason.INVALID_RESPONSE)
+    assert caught.value.usage is None
+    assert stream.close_calls == 1
+    assert len(requests) == 1
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["данные/🌍.txt".encode(), b"\\u0434\\u0430\\u043d\\u043d\\u044b\\u0435/\\ud83c\\udf0d.txt"],
+    ids=["utf8", "json-surrogate-pair"],
+)
+async def test_strict_provider_json_preserves_valid_unicode_and_depth_boundary(text):
+    body = (
+        REPLY.replace(b"pong", text)[:-1]
+        + b', "metadata": '
+        + b"[" * 63
+        + b"0"
+        + b"]" * 63
+        + b"}"
+    )
+    stream = ObservedStream([body[:17], body[17:]])
+    async with streamed_provider(stream) as (provider, requests, response):
+        answer = await provider.complete(REQUEST)
+        assert answer.text == "данные/🌍.txt"
+        assert answer.usage == {"input_tokens": 3, "output_tokens": 1}
+        assert response.is_closed
+    assert stream.close_calls == 1
+    assert len(requests) == 1
