@@ -76,3 +76,12 @@
 - Use: Checked repository/course rules, the report-only diff, source/configuration preservation, remote branch and Task/PR mapping, and prepared publication of the completed proxy verification in the existing Draft PR.
 - Boundary: No product source or configuration changed and no tests, harnesses or provider calls were repeated; the bounded proxy PASS does not establish the historical HTTP 403 cause or universal compatibility.
 - Team assessment: TODO
+
+## 2026-11-11 — Task #238
+
+- Tool: Codex.
+- Work: Add stable client identities and account suspension.
+- Verification: 258 affected access, model routing, Chat and Responses tests passed; Ruff format/lint, mypy for config.py/auth.py and both changed documents markdownlint passed.
+- Review: Independent TechLead code review approved the implementation; this is technical review, not team or Customer acceptance.
+- Boundary: Synthetic local checks only; no external provider calls, deployment or merge.
+- Team assessment: TODO

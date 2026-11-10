@@ -83,6 +83,7 @@ class PluginConfig(StrictConfig):
 
 class ClientConfig(StrictConfig):
     token_env: str = Field(pattern=r"^[A-Za-z_][A-Za-z0-9_]*$", max_length=128)
+    enabled: bool = True
     models: list[ModelId] = Field(min_length=1, max_length=64)
 
     @model_validator(mode="after")

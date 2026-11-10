@@ -89,7 +89,25 @@ Clients can store their own token as `GATEWAY7_TOKEN`.
 
 Client tokens must be distinct, 16–512 visible ASCII characters without spaces, and different from the provider key.
 Generate random tokens for real applications.
-Missing/invalid values, duplicates and provider-key reuse prevent startup.
+Missing/invalid values, duplicates and provider-key reuse prevent startup for enabled clients.
+
+The names under `auth.clients`, such as `chat_app` and `worker`, identify the accounts.
+Keep a client's name when rotating its token so its identity stays the same.
+The gateway does not add these names to prompts, ordinary chat responses, logs or metric labels.
+
+To suspend an account, set `enabled: false` on that client and restart:
+
+```yaml
+worker:
+  token_env: GATEWAY7_WORKER_TOKEN
+  enabled: false
+  models: [gpt-4.1-mini, gpt-4.1]
+```
+
+Place this entry under `auth.clients` in the example above.
+`enabled` defaults to `true`.
+A suspended account cannot authenticate on any protected API route, and its token environment variable need not be present.
+Set `enabled: true`, supply a valid token and restart to restore access.
 
 Validate the edited file and restart as shown in [setup](setup.md#real-providers).
 Validation needs no credentials and makes no provider call; startup checks credential values.
