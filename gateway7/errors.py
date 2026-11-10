@@ -73,13 +73,21 @@ class GatewayError(Exception):
         "body_too_large": (413, "Request body is too large"),
         "unavailable": (503, "Gateway is not ready"),
         "overloaded": (503, "Gateway active request capacity is full"),
+        "client_overloaded": (429, "Client active request capacity is full"),
         "internal_error": (500, "Request processing failed"),
     }
 
-    def __init__(self, code: str, *, middleware: object = None) -> None:
+    def __init__(self, code: str, *, middleware: object = None, retry_after: object = None) -> None:
         # Unknown strings cannot become response content, including Deny.code.
         self.code = code if code in self._ERRORS else "internal_error"
         self.status_code, self.message = self._ERRORS[self.code]
+        self.retry_after = (
+            retry_after
+            if self.status_code == 429 and type(retry_after) is int and 1 <= retry_after <= 3600
+            else 1
+            if self.status_code == 429
+            else None
+        )
         self.middleware = (
             middleware
             if self.code == "policy_denied"

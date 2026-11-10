@@ -131,10 +131,35 @@ Expect `pong — Hello` in `text`.
 The CLI reads `GATEWAY7_TOKEN`; use `--token-env ANOTHER_VARIABLE` to select a different variable.
 See the [CLI reference](cli.md) for other options.
 
+## Limit concurrent client requests
+
+Set `limits.max_concurrent_requests` on an individual client to limit how many of its admitted requests remain active:
+
+```yaml
+chat_app:
+  token_env: GATEWAY7_APP_TOKEN
+  models: [gpt-4.1-mini]
+  limits:
+    max_concurrent_requests: 2
+```
+
+The value must be an integer from 1 to 10,000.
+Omitting the setting or using `null` leaves that client subject only to the independent global pipeline limit.
+The client's limit is shared across native `/chat`, Chat Completions and Responses, including checked and early streaming.
+When its slots are occupied, a valid new request receives HTTP 429 with `error.code: client_overloaded` and `Retry-After: 1` before middleware or a provider call.
+Other clients retain their own capacity; the global pipeline limit still returns HTTP 503 with `overloaded` when all pipeline slots are busy.
+
+A client slot stays occupied through response delivery and owned cancellation cleanup.
+The global `active_pipelines` gauge continues to count pipeline tasks only, so it can be zero while a client's completed response is still being delivered.
+Health, readiness, metrics and model-list requests do not use client slots.
+Client names are not added to logs or public metric labels.
+Limits apply to one gateway process and reset on restart; separate workers or replicas do not share counters.
+Changing client limits requires a configuration change and restart.
+
 ## Deployment boundary
 
 Change clients, permissions or tokens through server configuration/environment and restart.
-There is no token-management API, user database, billing or per-client quota/rate limit.
+There is no token-management API, user database, billing or per-client request-rate limit.
 
 The supplied live Compose override forwards the provider key and `GATEWAY7_CLIENT_TOKEN` for the single-client samples.
 Using the two-client section above with Compose also requires forwarding `GATEWAY7_APP_TOKEN` and `GATEWAY7_WORKER_TOKEN`; see [setup](setup.md#real-providers).

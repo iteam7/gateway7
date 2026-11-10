@@ -81,9 +81,14 @@ class PluginConfig(StrictConfig):
     settings: dict[str, Any] = Field(default_factory=dict)
 
 
+class ClientLimitsConfig(StrictConfig):
+    max_concurrent_requests: int | None = Field(default=None, ge=1, le=10000)
+
+
 class ClientConfig(StrictConfig):
     token_env: str = Field(pattern=r"^[A-Za-z_][A-Za-z0-9_]*$", max_length=128)
     enabled: bool = True
+    limits: ClientLimitsConfig = Field(default_factory=ClientLimitsConfig)
     models: list[ModelId] = Field(min_length=1, max_length=64)
 
     @model_validator(mode="after")

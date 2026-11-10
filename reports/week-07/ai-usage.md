@@ -85,3 +85,12 @@
 - Review: Independent TechLead code review approved the implementation; this is technical review, not team or Customer acceptance.
 - Boundary: Synthetic local checks only; no external provider calls, deployment or merge.
 - Team assessment: TODO
+
+## 2026-11-11 — Task #239
+
+- Tool: Codex.
+- Work: Enforce per-client concurrent request limits.
+- Verification: Full suite passed: 3285 passed, 12 Docker-dependent skips; 63 targeted admission tests, Ruff format/lint, mypy for all 36 production files, Markdown, strict MkDocs and site checker (60 pages, 7323 links/assets) passed.
+- Review: Independent TechLead code review approved the implementation; this is technical review, not team or Customer acceptance.
+- Boundary: Synthetic local checks only; no external provider calls, deployment or merge.
+- Team assessment: TODO

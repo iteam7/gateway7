@@ -21,6 +21,7 @@ class HTTPRequestOutcome(StrEnum):
     MODEL_FORBIDDEN = "model_forbidden"
     BODY_TOO_LARGE = "body_too_large"
     OVERLOADED = "overloaded"
+    CLIENT_OVERLOADED = "client_overloaded"
     UNAVAILABLE = "unavailable"
     NOT_FOUND = "not_found"
     METHOD_NOT_ALLOWED = "method_not_allowed"
@@ -53,6 +54,7 @@ class HTTPRequestOutcome(StrEnum):
             405: cls.METHOD_NOT_ALLOWED,
             413: cls.BODY_TOO_LARGE,
             422: cls.INVALID_REQUEST,
+            429: cls.CLIENT_OVERLOADED,
             499: cls.CANCELLED,
             502: cls.PROVIDER_ERROR,
             503: cls.UNAVAILABLE,
@@ -94,7 +96,7 @@ class Metrics:
         )
         self.admission_rejections = Counter(
             "gateway7_admission_rejections_total",
-            "Chat requests rejected because active pipeline capacity is full.",
+            "Chat requests rejected because global pipeline or client request capacity is full.",
             registry=self.registry,
         )
         self.provider_calls = Counter(

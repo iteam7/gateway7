@@ -19,6 +19,16 @@ An operator gives each [client](glossary.md#client) its own token and decides wh
 - **Behavior:** [`FR-006`](functional-requirements/fr/FR-006.md)
 - **Decisions:** [`ADR-003`](architecture/adr/ADR-003.md)
 
+## Keep one client's work within its capacity
+
+An operator can give each [client](glossary.md#client) an optional concurrent-request limit, shared across chat APIs and retained through delivery and cleanup.
+A busy client receives HTTP 429 while another client can proceed within the independent global pipeline capacity.
+The [client guide](authentication.md#limit-concurrent-client-requests) explains configuration and the one-process boundary.
+
+- **Stories:** [`US-07`](https://github.com/iteam7/gateway7/issues/36), extended by the operator request in [task #239](https://github.com/iteam7/gateway7/issues/239).
+- **Behavior:** [`FR-016`](functional-requirements/fr/FR-016.md)
+- **Decisions:** [`ADR-003`](architecture/adr/ADR-003.md)
+
 ## Mask phone numbers before they leave
 
 A security officer keeps customers' phone numbers out of the prompts that reach the provider.

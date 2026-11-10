@@ -72,6 +72,7 @@ nav:
           - FR-013 Exchange guarded function-tool turns: functional-requirements/fr/FR-013.md
           - FR-014 Expose request quality signals: functional-requirements/fr/FR-014.md
           - FR-015 Record core-task events: functional-requirements/fr/FR-015.md
+          - FR-016 Limit client active requests: functional-requirements/fr/FR-016.md
       - Decisions: decisions.md
       - Assumptions: assumptions.md
       - Definition of Done: definition-of-done.md

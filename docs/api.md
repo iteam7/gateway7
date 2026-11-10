@@ -460,6 +460,7 @@ Native `/chat` success bodies also include `request_id`; Chat Completions uses a
 | 500 | `plugin_error` or `internal_error` | Report the request ID to the operator |
 | 502 | `provider_error` | Ask the operator to check provider diagnostics |
 | 503 | `unavailable` or `overloaded` | Check readiness or reduce concurrent requests |
+| 429 | `client_overloaded` | Wait for the safe `Retry-After` interval before retrying |
 | 504 | `timeout` | The overall gateway deadline expired |
 
 Use the paths exactly as shown; trailing slashes return 404.

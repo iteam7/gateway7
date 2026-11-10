@@ -7,6 +7,7 @@ import os
 import time
 from collections.abc import Awaitable, Callable, Coroutine
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Generic, Literal, Protocol, TypeVar
 from uuid import uuid4
@@ -70,10 +71,13 @@ def _error_response(
     openai: bool = False,
     parameter: str | None = None,
     middleware: object = None,
+    retry_after: object = None,
 ) -> JSONResponse:
-    error = GatewayError(code, middleware=middleware)
+    error = GatewayError(code, middleware=middleware, retry_after=retry_after)
     status = 400 if openai and code == "invalid_request" else error.status_code
-    headers = {"WWW-Authenticate": "Bearer"} if error.status_code == 401 else None
+    headers = {"WWW-Authenticate": "Bearer"} if error.status_code == 401 else {}
+    if error.retry_after is not None:
+        headers["Retry-After"] = str(error.retry_after)
     return JSONResponse(
         error_body(error, request_id, parameter) if openai else error.body(request_id),
         status_code=status,
@@ -136,6 +140,7 @@ class GatewayBoundaryMiddleware:
         request_id = uuid4().hex
         started = time.monotonic()
         scope.setdefault("state", {})["request_id"] = request_id
+        scope["state"]["admission_delivery_owner"] = True
         response_started = False
         status_code: int | None = None
         response_completed = False
@@ -267,6 +272,9 @@ class GatewayBoundaryMiddleware:
             if not response_started:
                 await fail("internal_error")
         finally:
+            lease = scope["state"].pop("admission_lease", None)
+            if lease is not None:
+                self.owner.state.admission.release_delivery(lease)
             # One monotonic measurement feeds the Prometheus histogram, the local log
             # line and the exported log point and histogram, so they cannot disagree.
             duration = max(0.0, time.monotonic() - started)
@@ -322,6 +330,11 @@ class GatewayBoundaryMiddleware:
                 )
 
 
+@dataclass(frozen=True, eq=False)
+class _AdmissionLease:
+    client_id: str | None
+
+
 class _PipelineAdmission:
     """App-local, event-loop-owned capacity; no waiting queue or early release."""
 
@@ -329,26 +342,86 @@ class _PipelineAdmission:
         self.limit = 64
         self.active = 0
         self.metrics = metrics
-        self._tasks: set[asyncio.Task[Any]] = set()
+        self._tasks: dict[asyncio.Task[Any], _AdmissionLease] = {}
+        self._leases: set[_AdmissionLease] = set()
+        self._global_pending: set[_AdmissionLease] = set()
+        self._delivery_pending: set[_AdmissionLease] = set()
+        self._tracked: set[_AdmissionLease] = set()
+        self._client_limits: dict[str, int | None] = {}
+        self._client_active: dict[str, int] = {}
+        self._authenticated = False
 
-    def acquire(self) -> None:
+    def configure(self, config: GatewayConfig) -> None:
+        if self._leases:
+            raise StartupError("Cannot configure admission while requests are active")
+        self.limit = config.limits.max_concurrent_requests
+        self._authenticated = config.auth.enabled
+        self._client_limits = {
+            name: client.limits.max_concurrent_requests
+            for name, client in config.auth.clients.items()
+            if client.enabled
+        }
+        self._client_active = {name: 0 for name in self._client_limits}
+
+    def acquire(
+        self, client_id: str | None = None, *, hold_delivery: bool = False
+    ) -> _AdmissionLease:
         # This check and increment contain no await, so another request cannot
-        # acquire the same last slot on this application's event loop.
+        # acquire the same global or client slot on this application's event loop.
+        if (
+            self._authenticated
+            and client_id is None
+            or (client_id is not None and client_id not in self._client_limits)
+        ):
+            raise GatewayError("unauthorized")
         if self.active >= self.limit:
             self.metrics.admission_rejections.inc()
             raise GatewayError("overloaded")
+        if client_id is not None:
+            limit = self._client_limits[client_id]
+            if limit is not None and self._client_active[client_id] >= limit:
+                self.metrics.admission_rejections.inc()
+                raise GatewayError("client_overloaded")
+        lease = _AdmissionLease(client_id)
+        self._leases.add(lease)
+        self._global_pending.add(lease)
+        if hold_delivery:
+            self._delivery_pending.add(lease)
+        if client_id is not None:
+            self._client_active[client_id] += 1
         self.active += 1
         self.metrics.active_pipelines.inc()
+        return lease
 
-    def release_unstarted(self) -> None:
+    def release_unstarted(self, lease: _AdmissionLease) -> None:
         # Only task-creation failure uses this rollback: no pipeline exists yet.
+        if lease not in self._global_pending or lease in self._tracked:
+            raise ValueError("Admission lease is not an unstarted owned request")
+        self._global_pending.remove(lease)
+        self._delivery_pending.discard(lease)
         self.active -= 1
         self.metrics.active_pipelines.dec()
+        self._release_client(lease)
 
-    def track(self, task: asyncio.Task[Any]) -> None:
+    def track(self, task: asyncio.Task[Any], lease: _AdmissionLease) -> None:
         # Retain tasks even if their HTTP caller has already been cancelled.
-        self._tasks.add(task)
+        if lease not in self._global_pending or lease in self._tracked or task in self._tasks:
+            raise ValueError("Admission lease is not available for tracking")
+        self._tasks[task] = lease
+        self._tracked.add(lease)
         task.add_done_callback(self._finished)
+
+    def release_delivery(self, lease: _AdmissionLease) -> None:
+        if lease not in self._delivery_pending:
+            raise ValueError("Admission lease has no owned delivery")
+        self._delivery_pending.remove(lease)
+        if lease not in self._global_pending:
+            self._release_client(lease)
+
+    def _release_client(self, lease: _AdmissionLease) -> None:
+        self._leases.remove(lease)
+        if lease.client_id is not None:
+            self._client_active[lease.client_id] -= 1
 
     def _finished(self, task: asyncio.Task[Any]) -> None:
         # An abandoned HTTP caller may never await its terminal exception.
@@ -356,9 +429,24 @@ class _PipelineAdmission:
         # callers that still await the task receive.
         if not task.cancelled():
             task.exception()
-        self._tasks.remove(task)
+        lease = self._tasks.pop(task)
+        self._tracked.remove(lease)
+        self._global_pending.remove(lease)
         self.active -= 1
         self.metrics.active_pipelines.dec()
+        if lease not in self._delivery_pending:
+            self._release_client(lease)
+
+
+def _admit_request(request: Request) -> _AdmissionLease:
+    principal = getattr(request.state, "principal", None)
+    lease = request.app.state.admission.acquire(
+        None if principal is None else principal.client_id,
+        hold_delivery=getattr(request.state, "admission_delivery_owner", False),
+    )
+    if getattr(request.state, "admission_delivery_owner", False):
+        request.state.admission_lease = lease
+    return lease
 
 
 async def _watch_disconnect(request: Request) -> None:
@@ -395,17 +483,18 @@ async def _run_connected_operation(
 ) -> PipelineResult | None:
     """Share one admission lease and disconnect guard across native API shapes."""
     admission = request.app.state.admission
-    admission.acquire()
+    lease = _admit_request(request)
     work = None
     try:
         work = operation()
         job = asyncio.create_task(work)
     except BaseException:
-        admission.release_unstarted()
+        admission.release_unstarted(lease)
+        request.scope["state"].pop("admission_lease", None)
         if work is not None:
             work.close()
         raise
-    admission.track(job)
+    admission.track(job, lease)
     disconnected = None
     disconnect_work = None
     try:
@@ -623,6 +712,7 @@ class _EarlySSE(Response, Generic[StreamResult]):
                             request.state.request_id,
                             openai=True,
                             middleware=error.middleware,
+                            retry_after=error.retry_after,
                         )(scope, receive, error_send)
                 except asyncio.CancelledError:
                     request.state.stream_outcome = (
@@ -636,15 +726,16 @@ class _EarlySSE(Response, Generic[StreamResult]):
                     )
 
         admission = request.app.state.admission
-        admission.acquire()
+        lease = _admit_request(request)
         work = serve()
         try:
             job = asyncio.create_task(work)
         except BaseException:
             work.close()
-            admission.release_unstarted()
+            admission.release_unstarted(lease)
+            request.scope["state"].pop("admission_lease", None)
             raise
-        admission.track(job)
+        admission.track(job, lease)
         disconnected = None
         disconnect_work = None
         try:
@@ -739,7 +830,7 @@ def create_app(
             await start_plugins(plugins, active_config.limits.hook_timeout_seconds)
             started = True
             app.state.config = active_config
-            app.state.admission.limit = active_config.limits.max_concurrent_requests
+            app.state.admission.configure(active_config)
             app.state.access = access
             app.state.pipeline = Pipeline(
                 plugins,
@@ -845,6 +936,7 @@ def create_app(
             request.state.request_id,
             openai=_openai_path(request.url.path),
             middleware=error.middleware,
+            retry_after=error.retry_after,
         )
 
     @app.exception_handler(StarletteHTTPException)

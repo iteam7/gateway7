@@ -420,6 +420,7 @@ Use the [architecture](architecture/README.md#customer-view), [middleware author
 | `limits.max_body_bytes` | Request body limit; default 65,536 bytes |
 | `limits.max_concurrent_requests` | Active pipelines per process; default 64, configurable from 1 to 10,000 |
 | `auth` | Client token environment names and model allowlists |
+| `auth.clients.<name>.limits.max_concurrent_requests` | Optional client request capacity, including delivery and cleanup; integer 1–10,000, absent/null means no additional client limit |
 | `plugins` | Named middleware instances and their validated settings |
 | `middleware` | Request order; buffered responses pass through the chain in reverse; early mode requires explicit request-only compatibility |
 
@@ -432,6 +433,7 @@ When all slots are busy, a new chat request gets HTTP 503 with code `overloaded`
 The slot stays busy until the pipeline task finishes, including cancellation cleanup.
 Health, metrics and model-list requests do not use these slots.
 Each process has its own limit; this setting is not a per-client quota or a limit on connections and body reads.
+Optional [client request limits](authentication.md#limit-concurrent-client-requests) add isolated per-client capacity without changing this global pipeline count.
 
 Timeouts depend on cooperative async code.
 A plugin that blocks Python or ignores cancellation can keep running and hold its slot.
