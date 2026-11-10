@@ -39,6 +39,8 @@ Python keywords and reserved Windows device names are rejected.
 
 The offline worker can load it beside `gateway.yaml` before installation.
 `validate` and `serve` need the package installed; they do not load it from the current folder.
+The generated dependency accepts the Gateway7 minor release that created the project and excludes the next minor release.
+Review the plugin contract before widening that range; the loader also checks API v2 independently of package metadata.
 
 ## Read expected and actual results
 

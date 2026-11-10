@@ -10,6 +10,7 @@ import re
 import shutil
 import tempfile
 
+from gateway7 import __version__
 from gateway7.errors import StartupError
 
 
@@ -106,6 +107,8 @@ def _fixtures() -> dict[str, object]:
 def _project_files(name: str) -> dict[str, str]:
     package = "gateway7_plugin_" + name
     distribution = "gateway7-plugin-" + name.replace("_", "-")
+    major, minor, _ = __version__.split(".", 2)
+    gateway_requirement = f"gateway7>={major}.{minor},<{major}.{int(minor) + 1}"
     return {
         f"{package}/__init__.py": '"""Company-owned Gateway7 middleware package."""\n',
         f"{package}/plugin.py": _PLUGIN.replace("__PLUGIN_NAME__", name),
@@ -113,7 +116,8 @@ def _project_files(name: str) -> dict[str, str]:
             '[build-system]\nrequires = ["hatchling>=1.27,<2"]\n'
             'build-backend = "hatchling.build"\n\n[project]\n'
             f'name = "{distribution}"\nversion = "0.1.0"\n'
-            'requires-python = ">=3.11,<3.14"\ndependencies = ["gateway7>=0.1,<0.2"]\n\n'
+            'requires-python = ">=3.11,<3.14"\n'
+            f'dependencies = ["{gateway_requirement}"]\n\n'
             "[tool.hatch.build.targets.wheel]\n"
             f'packages = ["{package}"]\n'
         ),
@@ -144,6 +148,8 @@ def _project_files(name: str) -> dict[str, str]:
             "From this directory, install only this plugin package, without resolving a different gateway7 distribution:\n\n"
             "```bash\nuv pip install --no-deps .\ngateway7 validate --config gateway.yaml\n```\n\n"
             "Gateway7 checks plugin API version 2 at load time. The package version `0.1.0` alone does not establish API-v2 compatibility.\n\n"
+            f"The generated dependency `{gateway_requirement}` accepts this Gateway7 minor release and excludes the next one. "
+            "Review the plugin contract before widening that range.\n\n"
             "The [authoring guide](https://iteam7.github.io/gateway7/authoring/) includes a complete local HTTP walkthrough "
             "with this installed package, a synthetic upstream and a public test token; no provider account is needed.\n\n"
             "Edit `gateway.yaml` to select a real provider, model and authenticated client; supply keys through environment variables. "
