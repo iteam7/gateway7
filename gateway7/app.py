@@ -45,6 +45,7 @@ from gateway7.responses_events import ResponsesTextDelta
 from gateway7.responses_models import ResponsesConsent, ResponsesCreateRequest, ResponsesResponse
 from gateway7.telemetry import Telemetry
 from gateway7.transport_loader import create_transport, validate_transport_config
+from gateway7.usage import OperatorAccess, UsageLedger
 
 logger = logging.getLogger("gateway7")
 _TIMEOUT_RESPONSE_GRACE_SECONDS = 0.1
@@ -193,6 +194,12 @@ class GatewayBoundaryMiddleware:
             if not getattr(self.owner.state, "ready", False):
                 await fail("unavailable")
                 return
+            if scope.get("path") == "/operator/usage":
+                try:
+                    self.owner.state.operator_access.authenticate(scope.get("headers", []))
+                except GatewayError as error:
+                    await fail(error.code)
+                    return
             if route in ("chat", "openai_chat", "openai_responses", "models"):
                 try:
                     scope["state"]["principal"] = self.owner.state.access.authenticate(
@@ -871,6 +878,8 @@ def create_app(
         active_config = config if config is not None else load_config(path)
         key = provider_key(active_config.provider)
         access = AccessControl(active_config)
+        operator_access = OperatorAccess(active_config)
+        usage_ledger = UsageLedger(active_config.auth.clients)
         validated_transport = validate_transport_config(active_config.provider.transport)
         plugins = load_plugins(active_config)
         transport = create_transport(validated_transport)
@@ -901,6 +910,8 @@ def create_app(
             app.state.config = active_config
             app.state.admission.configure(active_config)
             app.state.access = access
+            app.state.operator_access = operator_access
+            app.state.usage_ledger = usage_ledger
             app.state.pipeline = Pipeline(
                 plugins,
                 provider,
@@ -909,7 +920,7 @@ def create_app(
                 provider_name=active_config.provider.kind,
             )
             app.state.client_pipelines = build_client_pipelines(
-                active_config, plugins, app.state.pipeline
+                active_config, plugins, app.state.pipeline, usage_ledger
             )
             app.state.ready = True
             yield
@@ -921,6 +932,8 @@ def create_app(
             app.state.pipeline = None
             app.state.client_pipelines = {}
             app.state.access = None
+            app.state.operator_access = None
+            app.state.usage_ledger = None
 
             async def cleanup() -> None:
                 try:
@@ -942,6 +955,8 @@ def create_app(
     app.state.ready = False
     app.state.metrics = Metrics()
     app.state.admission = _PipelineAdmission(app.state.metrics)
+    app.state.operator_access = None
+    app.state.usage_ledger = None
     app.state.telemetry = Telemetry.disabled()
     app.state.analytics = Analytics.disabled()
     app.state.client_pipelines = {}
@@ -1040,6 +1055,12 @@ def create_app(
         return Response(
             generate_latest(app.state.metrics.registry),
             headers={"Content-Type": CONTENT_TYPE_LATEST},
+        )
+
+    @app.get("/operator/usage", include_in_schema=False)
+    async def operator_usage() -> JSONResponse:
+        return JSONResponse(
+            app.state.usage_ledger.snapshot(), headers={"Cache-Control": "no-store"}
         )
 
     @app.post("/chat")

@@ -163,6 +163,65 @@ Keep response inspection in buffered delivery unless every selected middleware e
 See [FR-018](functional-requirements/fr/FR-018.md) for the behavior and technical acceptance criteria.
 Policy changes take effect after validation and restart; selection adds no raw-prompt retention or client-identity fields to ordinary telemetry.
 
+## Operator usage snapshot
+
+To enable a read-only usage view, add `operator_token_env` to the authenticated server configuration:
+
+```yaml
+auth:
+  enabled: true
+  operator_token_env: GATEWAY7_OPERATOR_TOKEN
+  clients:
+    chat_app:
+      token_env: GATEWAY7_APP_TOKEN
+      models: [gpt-4.1-mini]
+```
+
+Supply the named operator variable through the server's environment or secret manager, with a distinct random token of 16–512 visible ASCII characters without spaces.
+It must differ from the provider key and all enabled client tokens.
+Configuration requires client authentication to be enabled; malformed, missing or conflicting configured values prevent startup without printing them.
+The supplied single-client Compose samples do not automatically forward this new variable; explicitly provide it to the server when enabling this optional capability.
+
+An operator request sends only that separate Bearer credential.
+Client credentials cannot read usage, and an operator credential cannot call chat or list models.
+The endpoint returns HTTP 404 by default and HTTP 401 for missing, invalid or duplicated credentials when enabled, before reading the request body.
+Successful responses have `Cache-Control: no-store`.
+For example, a client process that already receives the operator variable can read the snapshot without putting its value in command-line arguments:
+
+```python
+import json
+import os
+from urllib.request import Request, urlopen
+
+request = Request(
+    "http://127.0.0.1:8000/operator/usage",
+    headers={"Authorization": "Bearer " + os.environ["GATEWAY7_OPERATOR_TOKEN"]},
+)
+with urlopen(request, timeout=10) as response:
+    print(json.load(response))
+```
+
+Use HTTPS when reaching a shared deployment.
+The result includes `scope: process_lifetime`, its UTC `started_at`, `reset_on_restart: true` and a `clients` object keyed by configured client identity.
+Each client row contains:
+
+| Field | Meaning |
+| --- | --- |
+| `provider_attempts` | Provider calls observed once, including failures and cancellation |
+| `outcomes` | Provider outcomes `complete`, `provider_error` and `cancelled`; these are not HTTP delivery outcomes |
+| `known_input_tokens`, `known_output_tokens` | Independent sums of valid source-reported counts |
+| `input_usage_unknown_attempts`, `output_usage_unknown_attempts` | Attempts lacking valid usage for that direction |
+
+A zero known total accompanied by unknown attempts does not mean that those attempts consumed zero tokens.
+An in-flight attempt enters this snapshot when its terminal provider observation is recorded; active admission is a separate signal.
+Requests rejected before the provider runs add no usage; an answer blocked after a provider call keeps its observed provider usage.
+The snapshot retains aggregate numbers only, without prompts, answers, tools, credentials or per-request history, and adds no client-identity labels to logs or metrics.
+Rows are limited to configured client IDs, including zero-usage disabled clients; a configuration reload still requires a restart.
+
+Restarting the application resets its ledger, and separate workers have separate ledgers.
+This bounded view is not durable accounting, an arbitrary-period or per-model usage report, a distributed budget, a hard token or currency cap, or a monetary cost estimate.
+[FR-019](functional-requirements/fr/FR-019.md) specifies this increment; [FR-012](functional-requirements/fr/FR-012.md) and its broader US-13 history requirement remain separate.
+
 ## Use the CLI
 
 From the checkout, using the demo variables above:

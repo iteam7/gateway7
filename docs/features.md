@@ -39,6 +39,17 @@ The [rate guide](authentication.md#limit-a-clients-request-rate) explains contin
 - **Behavior:** [`FR-017`](functional-requirements/fr/FR-017.md)
 - **Decisions:** [`ADR-003`](architecture/adr/ADR-003.md)
 
+## Read a protected client usage snapshot
+
+An operator uses a separate credential to read each configured client's provider-attempt counts and known input/output token totals for this process's lifetime.
+Unknown usage remains explicit for each direction, including failed and cancelled attempts; response-side denials retain observed provider usage.
+The [operator snapshot guide](authentication.md#operator-usage-snapshot) explains credential separation, restart reset and the snapshot fields.
+This increment does not deliver the arbitrary-period, per-model history specified by FR-012 or a billing ledger.
+
+- **Stories:** [`US-13`](https://github.com/iteam7/gateway7/issues/141), partial increment
+- **Behavior:** [`FR-019`](functional-requirements/fr/FR-019.md)
+- **Decisions:** [`ADR-003`](architecture/adr/ADR-003.md)
+
 ## Mask phone numbers before they leave
 
 A security officer keeps customers' phone numbers out of the prompts that reach the provider.

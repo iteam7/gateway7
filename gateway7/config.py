@@ -103,6 +103,9 @@ class ClientConfig(StrictConfig):
 class AuthConfig(StrictConfig):
     enabled: bool = False
     clients: dict[InstanceName, ClientConfig] = Field(default_factory=dict, max_length=128)
+    operator_token_env: str | None = Field(
+        default=None, pattern=r"^[A-Za-z_][A-Za-z0-9_]*$", max_length=128
+    )
 
     @model_validator(mode="after")
     def consistent_clients(self) -> "AuthConfig":
@@ -110,6 +113,8 @@ class AuthConfig(StrictConfig):
             raise ValueError(
                 "Enabled authentication requires clients; disabled authentication requires none"
             )
+        if self.operator_token_env is not None and not self.enabled:
+            raise ValueError("Operator usage access requires client authentication")
         return self
 
 

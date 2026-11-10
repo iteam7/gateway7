@@ -7,6 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- An opt-in operator-only client usage snapshot reports known and unknown directional source usage and terminal provider outcomes without retaining request or response content.
 - Optional additional per-client middleware chains retain all global policies, isolate client rules and validate references before plugin construction.
 - Optional per-client request-rate quotas with monotonic refill, safe Retry-After responses and no charge for pre-admission rejects or task-creation rollback.
 - Optional per-client concurrency limits with isolated 429 admission and leases held through response delivery and cancellation cleanup.

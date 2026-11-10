@@ -112,3 +112,12 @@
 - Review: Independent TechLead code review approved the implementation; this is technical review, not team or Customer acceptance.
 - Boundary: Synthetic local checks only; no external provider calls, deployment or merge.
 - Team assessment: TODO
+
+## 2026-11-11 — Task #242
+
+- Tool: Codex.
+- Work: Expose an authenticated operator-only client usage snapshot.
+- Verification: Final full suite passed: 3455 passed, 12 Docker-dependent skips; 98 feature tests and 704 affected tests passed. Ruff format/lint, mypy for all 38 production modules, Markdown, strict MkDocs and site checker (63 pages, 7868 links/assets) passed. Independent review covered buffered cancellation/late usage and partial native error accounting.
+- Review: Independent TechLead code review approved the implementation; this is technical review, not team or Customer acceptance.
+- Boundary: Synthetic local checks only; no external provider calls, deployment or merge.
+- Team assessment: TODO

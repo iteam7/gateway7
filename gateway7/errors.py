@@ -1,6 +1,7 @@
 """Errors whose public representations contain no upstream or input details."""
 
 from enum import StrEnum
+from dataclasses import dataclass
 import re
 
 
@@ -57,6 +58,49 @@ class ProviderError(Exception):
         if self._usage is None:
             return None
         return {"input_tokens": self._usage[0], "output_tokens": self._usage[1]}
+
+
+def normalized_usage(value: object) -> dict[str, int] | None:
+    """Read each known direction independently and discard all other fields."""
+    if not isinstance(value, dict):
+        return None
+    result = {
+        name: count
+        for name in ("input_tokens", "output_tokens")
+        if type(count := value.get(name)) is int and 0 <= count <= 2**63 - 1
+    }
+    return result or None
+
+
+@dataclass(frozen=True)
+class _ObservedUsage:
+    input_tokens: int | None
+    output_tokens: int | None
+
+
+def retain_observed_usage(error: BaseException, usage: object) -> None:
+    """Preserve exception identity while binding a detached numeric snapshot."""
+    counts = normalized_usage(usage) or {}
+    snapshot = _ObservedUsage(counts.get("input_tokens"), counts.get("output_tokens"))
+    try:
+        setattr(error, "_gateway7_observed_usage", snapshot)
+    except Exception:
+        # Some trusted callbacks prohibit exception attributes; identity wins.
+        pass
+
+
+def observed_error_usage(error: BaseException) -> dict[str, int] | None:
+    try:
+        snapshot = getattr(error, "_gateway7_observed_usage", None)
+        if type(snapshot) is _ObservedUsage:
+            return normalized_usage(
+                {"input_tokens": snapshot.input_tokens, "output_tokens": snapshot.output_tokens}
+            )
+        if isinstance(error, ProviderError):
+            return normalized_usage(error.usage)
+    except Exception:
+        pass
+    return None
 
 
 class GatewayError(Exception):

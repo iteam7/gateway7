@@ -16,7 +16,7 @@ from urllib.parse import urlsplit
 
 import httpx
 
-from gateway7.errors import ProviderError, ProviderErrorReason
+from gateway7.errors import ProviderError, ProviderErrorReason, retain_observed_usage
 from gateway7.models import ChatResponse, ToolCall
 from gateway7.openai_stream import OpenAIStream
 from gateway7.responses_models import ResponsesConsent
@@ -540,6 +540,7 @@ class HTTPProvider:
         except BaseException as caught_error:
             error = primary_error if primary_error is not None else caught_error
             if callback_active or not isinstance(error, Exception):
+                retain_observed_usage(error, streamed.usage if streamed is not None else usage)
                 raise error from None
             if isinstance(error, ProviderError):
                 reason = error.reason
