@@ -2,15 +2,49 @@
 
 import codecs
 import json
+import math
 from typing import Any, cast
 
 from gateway7.errors import ProviderError, ProviderErrorReason
 
 MAX_EVENT_BYTES = 65_536
+MAX_JSON_DEPTH = 64
 
 
 def _reject_constant(_: str) -> None:
     raise ValueError("Invalid JSON number")
+
+
+def _finite_float(value: str) -> float:
+    result = float(value)
+    if not math.isfinite(result):
+        raise ValueError("Invalid JSON number")
+    return result
+
+
+def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("Duplicate JSON object key")
+        result[key] = value
+    return result
+
+
+def _bounded_json(value: Any) -> None:
+    pending = [(value, 0)]
+    while pending:
+        item, depth = pending.pop()
+        if depth > MAX_JSON_DEPTH:
+            raise ValueError("JSON nesting exceeds the supported bound")
+        if isinstance(item, dict):
+            for key, child in item.items():
+                key.encode("utf-8")
+                pending.append((child, depth + 1))
+        elif isinstance(item, list):
+            pending.extend((child, depth + 1) for child in item)
+        elif isinstance(item, str):
+            item.encode("utf-8")
 
 
 class OpenAIStream:
@@ -134,7 +168,13 @@ class OpenAIStream:
                 self._text_drained = len(self._text)
             return
         try:
-            data = json.loads(raw, parse_constant=_reject_constant)
+            data = json.loads(
+                raw,
+                object_pairs_hook=_unique_object,
+                parse_constant=_reject_constant,
+                parse_float=_finite_float,
+            )
+            _bounded_json(data)
         except (ValueError, UnicodeError, RecursionError):
             self._invalid = True
             return

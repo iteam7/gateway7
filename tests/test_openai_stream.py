@@ -318,6 +318,84 @@ async def test_incomplete_final_calls_are_rejected_at_the_provider_boundary(call
     assert caught.value.usage == {"input_tokens": 7, "output_tokens": 3}
 
 
+@pytest.mark.parametrize(
+    "raw",
+    [
+        '{"choices":[],"choices":[{"index":0,"delta":{"content":"visible"},'
+        '"finish_reason":"stop"}]}',
+        '{"choices":[{"index":0,"delta":{"content":"discarded","content":"visible"},'
+        '"finish_reason":"stop"}]}',
+        '{"choices":[],"usage":{"prompt_tokens":1,"prompt_tokens":7,"completion_tokens":3}}',
+        '{"choices":[],"usage":null,"metadata":{"nested":{"private":"a","private":"b"}}}',
+        '{"choices":[{"index":0,"delta":{"content":"visible"},"finish_reason":"stop"}],'
+        '"metadata":{"count":1e400}}',
+        '{"choices":[{"index":0,"delta":{"content":"visible"},"finish_reason":"stop"}],'
+        '"metadata":{"count":-1e400}}',
+    ],
+    ids=["root-key", "delta-key", "usage-key", "ignored-metadata-key", "overflow", "underflow"],
+)
+@pytest.mark.parametrize("fragment_size", [1, 4096])
+def test_invalid_json_event_never_releases_text_and_retains_later_valid_usage(raw, fragment_size):
+    body = ("data: " + raw + "\n\n").encode() + sse_body({"choices": [], "usage": USAGE})
+    stream = OpenAIStream(max_bytes=len(body))
+    for offset in range(0, len(body), fragment_size):
+        stream.feed(body[offset : offset + fragment_size])
+        assert stream.drain_text() == ()
+    with pytest.raises(ProviderError) as caught:
+        stream.finish()
+    assert caught.value.reason is ProviderErrorReason.INVALID_RESPONSE
+    assert caught.value.usage == {"input_tokens": 7, "output_tokens": 3}
+
+
+@pytest.mark.parametrize("location", ["text", "identity", "key", "metadata"])
+def test_escaped_lone_surrogates_are_rejected_before_any_text_is_drained(location):
+    event = stream_chunk({"content": "visible"}, "stop")
+    if location == "text":
+        event["choices"][0]["delta"]["content"] = "\ud800"
+    elif location == "identity":
+        event["id"] = "\udfff"
+    elif location == "key":
+        event["metadata"] = {"\ud800": "synthetic"}
+    else:
+        event["metadata"] = {"nested": ["\udfff"]}
+    body = ("data: " + json.dumps(event, ensure_ascii=True) + "\n\n").encode()
+    body += sse_body({"choices": [], "usage": USAGE})
+    stream = OpenAIStream(max_bytes=len(body))
+    stream.feed(body)
+    assert stream.drain_text() == ()
+    with pytest.raises(ProviderError) as caught:
+        stream.finish()
+    assert caught.value.usage == {"input_tokens": 7, "output_tokens": 3}
+
+
+@pytest.mark.parametrize("nesting,accepted", [(63, True), (64, False)])
+def test_json_depth_limit_covers_ignored_metadata_and_preserves_the_boundary(nesting, accepted):
+    nested = {}
+    for _ in range(nesting):
+        nested = [nested]
+    body = sse_body(
+        stream_chunk({"content": "visible"}, "stop", metadata=nested),
+        {"choices": [], "usage": USAGE},
+    )
+    stream = OpenAIStream(max_bytes=len(body))
+    stream.feed(body)
+    if accepted:
+        assert stream.drain_text() == ("visible",)
+        assert stream.finish()["usage"] == USAGE
+    else:
+        assert stream.drain_text() == ()
+        with pytest.raises(ProviderError) as caught:
+            stream.finish()
+        assert caught.value.usage == {"input_tokens": 7, "output_tokens": 3}
+
+
+def test_escaped_valid_surrogate_pairs_and_finite_ignored_numbers_remain_supported():
+    event = stream_chunk({"content": "Привет 🌍"}, "stop", metadata={"count": 1e30})
+    body = ("data: " + json.dumps(event, ensure_ascii=True) + "\n\n").encode()
+    body += sse_body({"choices": [], "usage": USAGE})
+    assert assemble(body)["choices"][0]["message"]["content"] == "Привет 🌍"
+
+
 def test_text_drains_only_after_a_complete_utf8_event_and_only_once():
     stream = OpenAIStream(max_bytes=1_048_576)
     assert stream.drain_text() == ()
