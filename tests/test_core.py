@@ -16,8 +16,9 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from gateway7.app import create_app
 from gateway7.config import GatewayConfig, LimitsConfig, load_config, provider_key
-from gateway7.errors import GatewayError, StartupError
+from gateway7.errors import GatewayError, ProviderError, ProviderErrorReason, StartupError
 from gateway7.loader import load_plugins, start_plugins
+from gateway7.metrics import Metrics
 from gateway7.models import ChatRequest, ChatResponse, Message, ToolCall, ToolDefinition
 from gateway7.pipeline import Pipeline
 from gateway7.plugin_api import API_VERSION, Deny, PluginDescriptor
@@ -1182,3 +1183,119 @@ def test_middleware_cannot_change_tool_identity_or_return_invalid_arguments(monk
     with pytest.raises(GatewayError) as error:
         asyncio.run(Pipeline(load_plugins(config), Provider(), config.limits).run(tool_request(), "bad-tools"))
     assert error.value.code == "plugin_error"
+
+
+@pytest.mark.parametrize("interruption", ["cancel", "deadline"])
+@pytest.mark.parametrize("replacement", ["runtime_error", "provider_error", "return"])
+async def test_buffered_provider_cannot_replace_request_interruption(
+    monkeypatch, interruption, replacement
+):
+    entered = asyncio.Event()
+    contexts = []
+
+    class Stateful:
+        async def handle(self, request, context, call_next):
+            contexts.append(context)
+            context.state["synthetic"] = True
+            return await call_next(request)
+
+    class InterruptedProvider(FakeProvider):
+        async def complete(self, request):
+            self.calls.append(request)
+            entered.set()
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                if replacement == "runtime_error":
+                    raise RuntimeError(SECRET) from None
+                if replacement == "provider_error":
+                    raise ProviderError(
+                        ProviderErrorReason.TRANSPORT,
+                        usage={"input_tokens": 8, "output_tokens": 2},
+                    ) from None
+                return ChatResponse(text=SECRET, usage={"input_tokens": 8, "output_tokens": 2})
+
+    runner, _ = pipeline_for(
+        monkeypatch,
+        Stateful(),
+        limits={"request_timeout_seconds": 0.01 if interruption == "deadline" else 1},
+    )
+    provider = InterruptedProvider()
+    runner.provider = provider
+    runner.metrics = metrics = Metrics()
+    task = asyncio.create_task(runner.run(payload(), "buffered-interruption"))
+    await entered.wait()
+    if interruption == "cancel":
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        assert task.cancelled()
+    else:
+        with pytest.raises(GatewayError) as caught:
+            await task
+        assert caught.value.code == "timeout"
+    assert len(provider.calls) == 1 and contexts[0].state == {}
+    for outcome, expected in (("cancelled", 1), ("provider_error", 0), ("complete", 0)):
+        observed = metrics.registry.get_sample_value(
+            "gateway7_provider_calls_total", {"provider": "fake", "outcome": outcome}
+        )
+        assert (observed or 0) == expected
+    known_usage = replacement != "runtime_error"
+    assert (metrics.registry.get_sample_value(
+        "gateway7_provider_usage_unknown_total", {"provider": "fake"}
+    ) or 0) == int(not known_usage)
+    assert (metrics.registry.get_sample_value(
+        "gateway7_provider_tokens_total", {"provider": "fake", "direction": "input"}
+    ) or 0) == (8 if known_usage else 0)
+    assert (metrics.registry.get_sample_value(
+        "gateway7_provider_tokens_total", {"provider": "fake", "direction": "output"}
+    ) or 0) == (2 if known_usage else 0)
+
+
+@pytest.mark.parametrize("replacement", ["error", "return"])
+async def test_buffered_provider_respects_expired_total_timer_before_clock_deadline(
+    monkeypatch, replacement
+):
+    timeout_at = asyncio.timeout_at
+
+    class EarlyExpiry:
+        def __init__(self, when):
+            self.inner = timeout_at(when)
+
+        async def __aenter__(self):
+            await self.inner.__aenter__()
+            return self
+
+        async def __aexit__(self, *args):
+            return await self.inner.__aexit__(*args)
+
+        def expired(self):
+            return True
+
+    class CompletedProvider(FakeProvider):
+        async def complete(self, request):
+            self.calls.append(request)
+            if replacement == "error":
+                raise RuntimeError(SECRET)
+            return ChatResponse(text=SECRET, usage={"input_tokens": 8, "output_tokens": 2})
+
+    config = configuration()
+    metrics = Metrics()
+    provider = CompletedProvider()
+    runner = Pipeline(load_plugins(config), provider, config.limits, metrics=metrics)
+    monkeypatch.setattr(asyncio, "timeout_at", EarlyExpiry)
+    with pytest.raises(GatewayError) as caught:
+        await runner.run(payload(), "early-total-expiry")
+    assert caught.value.code == "timeout" and len(provider.calls) == 1
+    assert metrics.registry.get_sample_value(
+        "gateway7_provider_calls_total", {"provider": "fake", "outcome": "cancelled"}
+    ) == 1
+    assert not metrics.registry.get_sample_value(
+        "gateway7_provider_calls_total", {"provider": "fake", "outcome": "provider_error"}
+    )
+    assert not metrics.registry.get_sample_value(
+        "gateway7_provider_calls_total", {"provider": "fake", "outcome": "complete"}
+    )
+    assert (metrics.registry.get_sample_value(
+        "gateway7_provider_tokens_total", {"provider": "fake", "direction": "input"}
+    ) or 0) == (8 if replacement == "return" else 0)

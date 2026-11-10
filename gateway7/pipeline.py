@@ -147,6 +147,7 @@ class Pipeline:
                     raise GatewayError("plugin_error")
                 provider_called = True
                 started = time.monotonic()
+                attempt_usage = None
                 _log(request_id, "start", "provider", "provider", 0)
                 try:
                     # Authenticated routing is pinned outside plugin-visible
@@ -157,6 +158,11 @@ class Pipeline:
                     if provider_stream:
                         options["stream"] = True
                     response = await self.provider.complete(incoming, **options)
+                    if isinstance(response, ChatResponse):
+                        attempt_usage = ProviderError(usage=response.usage).usage
+                    _checkpoint(deadline)
+                    if total_timer.expired():
+                        raise GatewayError("timeout")
                     try:
                         result = _validated(response, ChatResponse)
                         _response_contract(incoming, result)
@@ -173,13 +179,38 @@ class Pipeline:
                 except asyncio.CancelledError:
                     if self.metrics is not None:
                         self.metrics.observe_provider(
-                            self.provider_name, "cancelled", time.monotonic() - started
+                            self.provider_name,
+                            "cancelled",
+                            time.monotonic() - started,
+                            attempt_usage,
                         )
                     _log(
                         request_id, "cancelled", "provider", "provider", time.monotonic() - started
                     )
                     raise
                 except Exception as error:
+                    # A provider can replace cancellation with another error or
+                    # return late. The request interruption still takes priority.
+                    try:
+                        _checkpoint(deadline)
+                        if total_timer.expired():
+                            raise GatewayError("timeout")
+                    except (asyncio.CancelledError, GatewayError):
+                        if self.metrics is not None:
+                            self.metrics.observe_provider(
+                                self.provider_name,
+                                "cancelled",
+                                time.monotonic() - started,
+                                error.usage if isinstance(error, ProviderError) else attempt_usage,
+                            )
+                        _log(
+                            request_id,
+                            "cancelled",
+                            "provider",
+                            "provider",
+                            time.monotonic() - started,
+                        )
+                        raise
                     reason = ProviderErrorReason.normalize(
                         error.reason if isinstance(error, ProviderError) else None
                     )
