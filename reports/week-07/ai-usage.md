@@ -82,6 +82,7 @@
 - Tool: Codex.
 - Work: Enforce final JSON response delivery deadlines.
 - Verification: 370 affected native/Chat/stream/Responses HTTP tests passed; Ruff format/lint and mypy for app.py passed.
+- Follow-up: The existing post-header metrics case now expects cancellation for a downstream OSError, matching checked Responses delivery; 255 affected metrics/core/Responses tests passed.
 - Review: Independent TechLead code review approved the implementation; this is technical review, not team or Customer acceptance.
 - Boundary: Synthetic local checks only; no external provider calls, deployment or merge.
 - Team assessment: TODO
