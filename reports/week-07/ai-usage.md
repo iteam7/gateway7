@@ -76,3 +76,12 @@
 - Use: Checked repository/course rules, the report-only diff, source/configuration preservation, remote branch and Task/PR mapping, and prepared publication of the completed proxy verification in the existing Draft PR.
 - Boundary: No product source or configuration changed and no tests, harnesses or provider calls were repeated; the bounded proxy PASS does not establish the historical HTTP 403 cause or universal compatibility.
 - Team assessment: TODO
+
+## 2026-11-11 — Task #233
+
+- Tool: Codex.
+- Work: Reject inconsistent partial Responses usage totals.
+- Verification: 984 affected native Responses tests and the full suite passed: 3254 passed, 12 Docker-dependent skips; Ruff format/lint and mypy for all 36 production modules passed.
+- Review: Independent TechLead code review approved the implementation; this is technical review, not team or Customer acceptance.
+- Boundary: Synthetic local checks only; no external provider calls, deployment or merge.
+- Team assessment: TODO
