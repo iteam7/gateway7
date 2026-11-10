@@ -17,6 +17,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- Bound final native and nonstreaming Chat JSON delivery by the request deadline, including blocked ASGI sends.
 - Normalize valid OpenAI `stop` tool turns to `tool_calls`, preserve call-free `length` responses and usage, accept nullable optional SSE tool fields, and use a native OpenCode V2 compatibility profile for the bounded Chat Completions subset.
 - Name the denying middleware in policy errors on both chat APIs and report bounded unsupported content-policy actions before startup.
 - Align the package, runtime and public OpenAPI version with the next release candidate instead of reporting `0.1.0` for newer release tags.

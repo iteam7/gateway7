@@ -449,6 +449,8 @@ class _CheckedBody(Response):
         try:
             async with timer:
                 await super().__call__(scope, receive, send)
+            if timer.expired() or time.monotonic() >= self.deadline:
+                raise TimeoutError
         except TimeoutError:
             raise
         except OSError:
@@ -884,9 +886,16 @@ def create_app(
         response = await _run_connected(request, payload.core_request(), selected)
         if response is None:
             return Response(status_code=499)
-        return JSONResponse(
-            {"text": response.text, "usage": response.usage, "request_id": request.state.request_id}
+        body = bytes(
+            JSONResponse(
+                {
+                    "text": response.text,
+                    "usage": response.usage,
+                    "request_id": request.state.request_id,
+                }
+            ).body
         )
+        return _CheckedBody(body, request.state.deadline, media_type="application/json")
 
     @app.post("/v1/chat/completions")
     async def openai_chat(payload: OpenAIChatRequest, request: Request) -> Response:
@@ -944,7 +953,10 @@ def create_app(
             if time.monotonic() >= request.state.deadline:
                 raise GatewayError("timeout")
             return _CheckedSSE(body, request.state.deadline)
-        return JSONResponse(completion_response(response, selected, request.state.request_id))
+        body = bytes(
+            JSONResponse(completion_response(response, selected, request.state.request_id)).body
+        )
+        return _CheckedBody(body, request.state.deadline, media_type="application/json")
 
     @app.post("/v1/responses")
     async def responses(request: Request) -> Response:

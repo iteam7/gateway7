@@ -1182,3 +1182,145 @@ def test_middleware_cannot_change_tool_identity_or_return_invalid_arguments(monk
     with pytest.raises(GatewayError) as error:
         asyncio.run(Pipeline(load_plugins(config), Provider(), config.limits).run(tool_request(), "bad-tools"))
     assert error.value.code == "plugin_error"
+
+
+async def json_delivery_request(app, path, send):
+    incoming = asyncio.Queue()
+    incoming.put_nowait({
+        "type": "http.request",
+        "body": json.dumps({
+            "model": "fake", "messages": [{"role": "user", "content": "hello"}],
+        }).encode(),
+        "more_body": False,
+    })
+    scope = {
+        "type": "http", "asgi": {"version": "3.0"}, "http_version": "1.1",
+        "method": "POST", "scheme": "http", "path": path, "raw_path": path.encode(),
+        "query_string": b"", "root_path": "",
+        "headers": [(b"content-type", b"application/json")],
+        "server": ("synthetic.test", 80), "client": ("synthetic", 1000),
+    }
+    await app(scope, incoming.get, send)
+    return scope
+
+
+@pytest.mark.parametrize("path,route", [("/chat", "chat"), ("/v1/chat/completions", "openai_chat")])
+@pytest.mark.parametrize("blocked_message", ["http.response.start", "http.response.body"])
+async def test_json_delivery_is_bounded_by_request_deadline(
+    monkeypatch, path, route, blocked_message
+):
+    monkeypatch.setenv("GATEWAY7_TEST_KEY", SECRET)
+    provider = FakeProvider()
+    monkeypatch.setattr(app_module, "build_provider", lambda *_: provider)
+    app = create_app(config=configuration(limits={"request_timeout_seconds": 0.05}))
+    attempted = []
+    sent = []
+
+    async def send(message):
+        attempted.append(message["type"])
+        if message["type"] == blocked_message:
+            await asyncio.Event().wait()
+        sent.append(message)
+
+    async with app.router.lifespan_context(app):
+        scope = await asyncio.wait_for(json_delivery_request(app, path, send), timeout=1)
+    assert len(provider.calls) == 1
+    assert attempted.count("http.response.start") == 1
+    assert not any(message["type"] == "http.response.body" for message in sent)
+    assert scope["state"]["http_outcome"] == "timeout"
+    assert app.state.admission.active == 0
+    assert app.state.metrics.registry.get_sample_value(
+        "gateway7_http_request_outcomes_total", {"route": route, "outcome": "timeout"}
+    ) == 1
+
+
+@pytest.mark.parametrize("path,route", [("/chat", "chat"), ("/v1/chat/completions", "openai_chat")])
+@pytest.mark.parametrize("failed_message", ["http.response.start", "http.response.body"])
+async def test_json_closed_downstream_is_cancelled_without_second_response(
+    monkeypatch, caplog, path, route, failed_message
+):
+    monkeypatch.setenv("GATEWAY7_TEST_KEY", SECRET)
+    provider = FakeProvider()
+    monkeypatch.setattr(app_module, "build_provider", lambda *_: provider)
+    app = create_app(config=configuration())
+    attempted = []
+
+    async def send(message):
+        attempted.append(message["type"])
+        if message["type"] == failed_message:
+            raise OSError("SYNTHETIC_PRIVATE_CLOSED_CONNECTION")
+
+    with caplog.at_level("INFO", logger="gateway7"):
+        async with app.router.lifespan_context(app):
+            scope = await json_delivery_request(app, path, send)
+    assert attempted.count("http.response.start") == 1
+    assert scope["state"]["http_outcome"] == "cancelled"
+    assert len(provider.calls) == 1 and app.state.admission.active == 0
+    assert app.state.metrics.registry.get_sample_value(
+        "gateway7_http_request_outcomes_total", {"route": route, "outcome": "cancelled"}
+    ) == 1
+    assert "SYNTHETIC_PRIVATE_CLOSED_CONNECTION" not in caplog.text
+
+
+@pytest.mark.parametrize("path", ["/chat", "/v1/chat/completions"])
+async def test_json_deadline_expires_before_success_headers(monkeypatch, path):
+    monkeypatch.setenv("GATEWAY7_TEST_KEY", SECRET)
+    provider = FakeProvider()
+    monkeypatch.setattr(app_module, "build_provider", lambda *_: provider)
+    app = create_app(config=configuration())
+    original_response = app_module.JSONResponse
+
+    def expired_after_serialization(*args, **kwargs):
+        response = original_response(*args, **kwargs)
+        if response.status_code == 200:
+            # Model a deadline reached during synchronous output serialization.
+            app.state.checked_request_scope["state"]["deadline"] = time.monotonic() - 1
+        return response
+
+    monkeypatch.setattr(app_module, "JSONResponse", expired_after_serialization)
+    sent = []
+
+    async def send(message):
+        sent.append(message)
+
+    async def wrapped(scope, receive, output):
+        app.state.checked_request_scope = scope
+        await app(scope, receive, output)
+
+    async with app.router.lifespan_context(app):
+        await json_delivery_request(wrapped, path, send)
+    starts = [message for message in sent if message["type"] == "http.response.start"]
+    assert [message["status"] for message in starts] == [504]
+    body = b"".join(message.get("body", b"") for message in sent)
+    assert json.loads(body)["error"]["code"] == "timeout"
+    assert len(provider.calls) == 1
+
+
+@pytest.mark.parametrize("path,route", [("/chat", "chat"), ("/v1/chat/completions", "openai_chat")])
+async def test_json_delivery_cannot_report_success_after_send_suppresses_timeout(
+    monkeypatch, path, route
+):
+    monkeypatch.setenv("GATEWAY7_TEST_KEY", SECRET)
+    provider = FakeProvider()
+    monkeypatch.setattr(app_module, "build_provider", lambda *_: provider)
+    app = create_app(config=configuration(limits={"request_timeout_seconds": 0.05}))
+    sent = []
+
+    async def send(message):
+        if message["type"] == "http.response.body":
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                pass
+        sent.append(message)
+
+    async with app.router.lifespan_context(app):
+        scope = await asyncio.wait_for(json_delivery_request(app, path, send), timeout=1)
+    assert [message["status"] for message in sent if message["type"] == "http.response.start"] == [200]
+    assert scope["state"]["http_outcome"] == "timeout"
+    assert app.state.metrics.registry.get_sample_value(
+        "gateway7_http_request_outcomes_total", {"route": route, "outcome": "timeout"}
+    ) == 1
+    assert app.state.metrics.registry.get_sample_value(
+        "gateway7_http_request_outcomes_total", {"route": route, "outcome": "success"}
+    ) is None
