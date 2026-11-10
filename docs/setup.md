@@ -258,6 +258,8 @@ docker compose -f compose.yaml -f compose.live.yaml run --rm --no-deps \
 ```
 
 Validation needs no credentials and makes no provider call.
+Gateway YAML is limited to 1 MiB of UTF-8 input, 10,000 distinct nodes and 64 nested levels.
+Ordinary shared aliases are supported; recursive aliases, duplicate keys and non-string keys are rejected before configuration values are constructed.
 It checks configuration and imports trusted plugin factories; those factories may have their own side effects.
 A valid config does not prove that an account or model is available.
 

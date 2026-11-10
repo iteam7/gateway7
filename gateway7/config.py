@@ -16,6 +16,10 @@ from pydantic import (
 
 from gateway7.errors import StartupError
 
+MAX_CONFIG_BYTES = 1_048_576
+MAX_CONFIG_NODES = 10_000
+MAX_CONFIG_DEPTH = 64
+
 InstanceName = Annotated[str, StringConstraints(pattern=r"^[A-Za-z][A-Za-z0-9_.-]{0,63}$")]
 ModelId = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")]
 ModuleName = Annotated[
@@ -119,37 +123,71 @@ class GatewayConfig(StrictConfig):
         return self
 
 
-def _reject_duplicate_keys(node: yaml.Node | None, ancestors: frozenset[int] = frozenset()) -> None:
-    """safe_load otherwise silently overwrites repeated plugin/config map keys."""
+def _reject_duplicate_keys(node: yaml.Node | None) -> None:
+    """Validate the bounded YAML graph before constructing configuration values."""
     if node is None:
         return
-    if id(node) in ancestors:
-        raise StartupError("Recursive YAML configuration is not supported")
-    ancestors = ancestors | {id(node)}
-    if isinstance(node, yaml.MappingNode):
-        keys: set[str] = set()
-        for key, value in node.value:
-            if not isinstance(key, yaml.ScalarNode) or key.tag != "tag:yaml.org,2002:str":
-                raise StartupError("Configuration keys must be strings")
-            if key.value in keys:
-                raise StartupError("Duplicate configuration key")
-            keys.add(key.value)
-            _reject_duplicate_keys(value, ancestors)
-    elif isinstance(node, yaml.SequenceNode):
-        for item in node.value:
-            _reject_duplicate_keys(item, ancestors)
+    heights: dict[int, int] = {}
+    nodes = 0
+
+    def visit(current: yaml.Node, ancestors: frozenset[int], depth: int) -> int:
+        nonlocal nodes
+        identity = id(current)
+        if identity in ancestors:
+            raise StartupError("Recursive YAML configuration is not supported")
+        if depth > MAX_CONFIG_DEPTH:
+            raise StartupError("Gateway configuration exceeds the YAML depth limit")
+        if identity in heights:
+            height = heights[identity]
+            if depth + height - 1 > MAX_CONFIG_DEPTH:
+                raise StartupError("Gateway configuration exceeds the YAML depth limit")
+            return height
+        nodes += 1
+        if nodes > MAX_CONFIG_NODES:
+            raise StartupError("Gateway configuration exceeds the YAML node limit")
+        ancestors = ancestors | {identity}
+        height = 1
+        if isinstance(current, yaml.MappingNode):
+            keys: set[str] = set()
+            for key, value in current.value:
+                if not isinstance(key, yaml.ScalarNode) or key.tag != "tag:yaml.org,2002:str":
+                    raise StartupError("Configuration keys must be strings")
+                if key.value in keys:
+                    raise StartupError("Duplicate configuration key")
+                keys.add(key.value)
+                height = max(
+                    height,
+                    1 + visit(key, ancestors, depth + 1),
+                    1 + visit(value, ancestors, depth + 1),
+                )
+        elif isinstance(current, yaml.SequenceNode):
+            for item in current.value:
+                height = max(height, 1 + visit(item, ancestors, depth + 1))
+        heights[identity] = height
+        return height
+
+    visit(node, frozenset(), 1)
 
 
 def load_config(path: str | Path) -> GatewayConfig:
     try:
-        text = Path(path).read_text(encoding="utf-8")
+        with Path(path).open("rb") as source:
+            raw = source.read(MAX_CONFIG_BYTES + 1)
+        if len(raw) > MAX_CONFIG_BYTES:
+            raise StartupError("Gateway configuration exceeds the file size limit")
+        text = raw.decode("utf-8")
     except (OSError, UnicodeError):
         raise StartupError("Cannot read gateway configuration") from None
     try:
-        # SafeLoader does not instantiate Python objects. The second pass rejects
-        # duplicate map keys, aliases that recurse, and non-string keys.
-        data = yaml.safe_load(text)
-        _reject_duplicate_keys(yaml.compose(text, Loader=yaml.SafeLoader))
+        # Compose once, check graph structure and work limits, then construct only
+        # safe YAML values. Memoized subtree heights keep alias checks linear.
+        loader = yaml.SafeLoader(text)
+        try:
+            node = loader.get_single_node()
+            _reject_duplicate_keys(node)
+            data = None if node is None else loader.construct_document(node)
+        finally:
+            loader.dispose()
         if isinstance(data, dict) and "chains" in data:
             raise StartupError(
                 "Legacy chains configuration: replace chains.request/response "

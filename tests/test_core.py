@@ -105,6 +105,96 @@ def test_config_is_strict_and_redacts_validation(tmp_path):
         assert SECRET not in str(error.value)
 
 
+@pytest.mark.parametrize("raw", [b"#" + b"x" * 1_048_576, ("#" + "é" * 524_288).encode()])
+def test_config_file_size_is_bounded_in_bytes(tmp_path, raw):
+    path = tmp_path / "oversized.yaml"
+    path.write_bytes(raw)
+    with pytest.raises(StartupError, match="file size limit"):
+        load_config(path)
+
+
+@pytest.mark.parametrize(
+    "content, message",
+    [
+        ("plugins: {}\nplugins: {}\n", "Duplicate configuration key"),
+        ("plugins: &recursive\n  again: *recursive\n", "Recursive YAML"),
+        ("plugins: " + "[" * 70 + "synthetic-private" + "]" * 70, "depth limit"),
+    ],
+)
+def test_invalid_yaml_graph_is_rejected_before_values_are_constructed(
+    tmp_path, monkeypatch, content, message
+):
+    constructed = []
+    original = yaml.SafeLoader.construct_document
+
+    def construct(loader, node):
+        constructed.append(node)
+        return original(loader, node)
+
+    monkeypatch.setattr(yaml.SafeLoader, "construct_document", construct)
+    path = tmp_path / "invalid.yaml"
+    path.write_text(content, encoding="utf-8")
+    with pytest.raises(StartupError, match=message) as caught:
+        load_config(path)
+    assert constructed == []
+    assert "synthetic-private" not in str(caught.value)
+
+
+def test_config_yaml_node_budget_is_enforced_before_construction(tmp_path, monkeypatch):
+    from gateway7 import config as config_module
+
+    monkeypatch.setattr(config_module, "MAX_CONFIG_NODES", 20)
+    content = {"plugins": {"sample": {
+        "module": "gateway7.plugins.phone_mask", "settings": {"items": list(range(30))},
+    }}}
+    path = tmp_path / "too-many-nodes.yaml"
+    path.write_text(yaml.safe_dump(content), encoding="utf-8")
+    with pytest.raises(StartupError, match="node limit"):
+        load_config(path)
+
+
+def test_config_preserves_ordinary_shared_yaml_aliases(tmp_path):
+    path = tmp_path / "shared.yaml"
+    path.write_text(
+        "plugins:\n"
+        "  first: &plugin\n"
+        "    module: gateway7.plugins.phone_mask\n"
+        "    enabled: false\n"
+        "  second: *plugin\n",
+        encoding="utf-8",
+    )
+    config = load_config(path)
+    assert set(config.plugins) == {"first", "second"}
+    assert config.plugins["first"] == config.plugins["second"]
+
+
+def test_shared_yaml_graph_validation_has_bounded_work():
+    from gateway7.config import _reject_duplicate_keys
+
+    visits = []
+
+    class CountedItems(list):
+        def __iter__(self):
+            for item in super().__iter__():
+                visits.append(item)
+                yield item
+
+    node = yaml.ScalarNode("tag:yaml.org,2002:str", "synthetic")
+    for _ in range(15):
+        node = yaml.SequenceNode("tag:yaml.org,2002:seq", CountedItems([node, node]))
+    _reject_duplicate_keys(node)
+    assert len(visits) < 100
+
+
+def test_reused_yaml_alias_cannot_bypass_the_depth_limit(monkeypatch):
+    from gateway7 import config as config_module
+
+    monkeypatch.setattr(config_module, "MAX_CONFIG_DEPTH", 5)
+    node = yaml.compose("[&shared [[synthetic]], [[*shared]]]", Loader=yaml.SafeLoader)
+    with pytest.raises(StartupError, match="depth limit"):
+        config_module._reject_duplicate_keys(node)
+
+
 def test_environment_key_is_required_and_never_in_error(monkeypatch):
     config = configuration()
     monkeypatch.delenv("GATEWAY7_TEST_KEY", raising=False)
