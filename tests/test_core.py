@@ -208,6 +208,68 @@ def test_required_unknown_duplicate_and_wrong_hooks(monkeypatch):
         load_plugins(configuration({"p": {"module": name}}, ["p"]))
 
 
+def test_required_chain_membership_is_checked_before_any_factory(monkeypatch):
+    created = []
+    name = module(monkeypatch, lambda settings: created.append(settings) or PassThrough())
+    config = configuration(
+        {"first": {"module": name}, "required": {"module": name, "required": True}},
+        ["first"],
+    )
+    with pytest.raises(StartupError, match="required is missing from middleware chain"):
+        load_plugins(config)
+    assert created == []
+
+
+@pytest.mark.parametrize("enabled", [True, False])
+@pytest.mark.parametrize(
+    "invalid_factory",
+    [lambda: PassThrough(), lambda settings, required: PassThrough(),
+     lambda *, settings: PassThrough()],
+    ids=["missing-settings-argument", "extra-required-argument", "keyword-only-settings"],
+)
+def test_factory_signatures_are_preflighted_before_any_construction(
+    monkeypatch, enabled, invalid_factory
+):
+    created = []
+    first = module(monkeypatch, lambda settings: created.append(settings) or PassThrough())
+    second = module(monkeypatch, invalid_factory, name="test_gateway7_bad_factory")
+    config = configuration(
+        {"first": {"module": first}, "second": {"module": second, "enabled": enabled}},
+        ["first", "second"],
+    )
+    with pytest.raises(StartupError, match="Invalid PLUGIN descriptor for plugin instance second"):
+        load_plugins(config)
+    assert created == []
+
+
+def test_async_callable_factory_is_rejected_before_construction(monkeypatch):
+    created = []
+
+    class AsyncFactory:
+        async def __call__(self, settings):
+            created.append(settings)
+            return PassThrough()
+
+    name = module(monkeypatch, AsyncFactory())
+    with pytest.raises(StartupError, match="Invalid PLUGIN descriptor"):
+        load_plugins(configuration({"p": {"module": name}}, ["p"]))
+    assert created == []
+
+
+def test_synchronous_callable_factory_accepting_settings_remains_supported(monkeypatch):
+    created = []
+
+    class Factory:
+        def __call__(self, settings, optional=None):
+            created.append(settings)
+            return PassThrough()
+
+    name = module(monkeypatch, Factory())
+    loaded = load_plugins(configuration({"p": {"module": name}}, ["p"]))
+    assert len(created) == 1
+    assert loaded.middleware_chain == (loaded.instances["p"],)
+
+
 def test_legacy_version_and_configuration_explain_migration(monkeypatch, tmp_path):
     name = module(monkeypatch, descriptor=PluginDescriptor("legacy", 1, Settings, lambda _: PassThrough()))
     with pytest.raises(StartupError, match="migrate to API v2"):
