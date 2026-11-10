@@ -1182,3 +1182,59 @@ def test_middleware_cannot_change_tool_identity_or_return_invalid_arguments(monk
     with pytest.raises(GatewayError) as error:
         asyncio.run(Pipeline(load_plugins(config), Provider(), config.limits).run(tool_request(), "bad-tools"))
     assert error.value.code == "plugin_error"
+
+
+@pytest.mark.parametrize(
+    "method,path,allowed",
+    [
+        ("GET", "/chat", {"POST"}),
+        ("GET", "/v1/chat/completions", {"POST"}),
+        ("GET", "/v1/responses", {"POST"}),
+        ("POST", "/health", {"GET"}),
+        ("POST", "/ready", {"GET"}),
+        ("POST", "/metrics", {"GET"}),
+        ("POST", "/docs", {"GET", "HEAD"}),
+        ("POST", "/openapi.json", {"GET", "HEAD"}),
+    ],
+)
+def test_method_not_allowed_reports_framework_owned_allowed_methods(monkeypatch, method, path, allowed):
+    monkeypatch.setenv("GATEWAY7_TEST_KEY", SECRET)
+    provider = FakeProvider()
+    monkeypatch.setattr(app_module, "build_provider", lambda *_: provider)
+    with TestClient(create_app(config=configuration())) as client:
+        response = client.request(method, path)
+    assert response.status_code == 405
+    assert set(response.headers["allow"].split(", ")) == allowed
+    assert response.json()["error"]["code"] == "method_not_allowed"
+    assert response.json()["request_id"] == response.headers["x-request-id"]
+    if path.startswith("/v1/"):
+        assert response.json()["error"]["type"] == "invalid_request_error"
+    assert provider.calls == []
+
+
+@pytest.mark.parametrize("status", [404, 405, 418])
+def test_http_exception_headers_cannot_escape_sanitization(monkeypatch, status):
+    monkeypatch.setenv("GATEWAY7_TEST_KEY", SECRET)
+    provider = FakeProvider()
+    monkeypatch.setattr(app_module, "build_provider", lambda *_: provider)
+    app = create_app(config=configuration())
+
+    @app.get("/synthetic-http-error")
+    async def synthetic_error():
+        raise app_module.StarletteHTTPException(
+            status_code=status,
+            detail="SYNTHETIC_PRIVATE_DETAIL",
+            headers={
+                "Allow": "SYNTHETIC_PRIVATE_METHOD",
+                "X-Private": "SYNTHETIC_PRIVATE_HEADER",
+                "Set-Cookie": "SYNTHETIC_PRIVATE_COOKIE",
+            },
+        )
+
+    with TestClient(app) as client:
+        response = client.get("/synthetic-http-error")
+    assert response.status_code == (status if status in (404, 405) else 422)
+    assert "allow" not in response.headers
+    assert "x-private" not in response.headers and "set-cookie" not in response.headers
+    assert "SYNTHETIC_PRIVATE" not in response.text + str(response.headers)
+    assert provider.calls == []

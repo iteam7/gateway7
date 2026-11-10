@@ -16,6 +16,7 @@ from fastapi.exceptions import RequestValidationError
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from starlette.responses import JSONResponse, Response
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.routing import Match, Route
 from starlette.types import ASGIApp, Message as ASGIMessage, Receive, Scope, Send
 
 from gateway7 import __version__
@@ -854,9 +855,38 @@ def create_app(
         )
         request.state.http_outcome = code
         request.state.error_code = code
-        return _error_response(
+        response = _error_response(
             code, request.state.request_id, openai=_openai_path(request.url.path)
         )
+        if error.status_code == 405:
+            allowed: set[str] = set()
+            for route in app.router.routes:
+                if isinstance(route, Route):
+                    match, _ = route.matches(request.scope)
+                    if match != Match.NONE:
+                        allowed.update(route.methods or ())
+            if allowed and request.method not in allowed:
+                methods = sorted(allowed)
+                if all(
+                    method
+                    in {
+                        "GET",
+                        "HEAD",
+                        "POST",
+                        "PUT",
+                        "PATCH",
+                        "DELETE",
+                        "OPTIONS",
+                        "TRACE",
+                        "CONNECT",
+                    }
+                    for method in methods
+                ):
+                    # The matched route owns this protocol value. Exception
+                    # headers can contain input or private details, so do not
+                    # copy them into the sanitized error response.
+                    response.headers["Allow"] = ", ".join(methods)
+        return response
 
     @app.get("/health")
     async def health() -> dict[str, str]:
