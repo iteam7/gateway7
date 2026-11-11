@@ -266,7 +266,7 @@
 
 - Tool: Codex.
 - Work: Consolidated the twenty reviewed hardening, client-control and operator-console changes into one release-review branch and PR at the repository owner's request.
-- Provenance: Refreshed main and every component PR head; all twenty heads still matched the previously reviewed integration.
+- Provenance: Refreshed main and every component PR head; remote head SHAs matched the recorded component manifest, and component trees matched the reviewed checkpoints.
   The resolved merge preserves current main and the actual remote component commit histories, with the original PRs and branches retained.
 - Verification reuse: Product source, tests, maintained documentation and assets are unchanged from the approved integration; its 3665 passed tests, 12 local Docker-dependent skips, formatting, lint, types, demo, wheel/assets, JavaScript and documentation results are reused by exact-tree comparison, not presented as a new run.
 - Current checks: The aggregation disclosure passed Markdown lint and whitespace checks; new aggregate CI is reported on the PR.
