@@ -833,7 +833,10 @@ async def test_provider_exception_cannot_replace_cancellation_or_deadline(error_
         )
         == 0
     )
-    assert sample(metrics, "gateway7_provider_usage_unknown_total", {"provider": "openai"}) == 1
+    known_usage = error_type is ProviderError
+    assert sample(metrics, "gateway7_provider_usage_unknown_total", {"provider": "openai"}) == (
+        0 if known_usage else 1
+    )
     assert (
         sample(
             metrics,
@@ -843,8 +846,11 @@ async def test_provider_exception_cannot_replace_cancellation_or_deadline(error_
                 "direction": "input",
             },
         )
-        == 0
+        == (8 if known_usage else 0)
     )
+    assert sample(
+        metrics, "gateway7_provider_tokens_total", {"provider": "openai", "direction": "output"}
+    ) == (2 if known_usage else 0)
 
 
 async def test_provider_exception_cannot_replace_early_total_timer_expiry(monkeypatch):

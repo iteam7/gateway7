@@ -72,6 +72,11 @@ nav:
           - FR-013 Exchange guarded function-tool turns: functional-requirements/fr/FR-013.md
           - FR-014 Expose request quality signals: functional-requirements/fr/FR-014.md
           - FR-015 Record core-task events: functional-requirements/fr/FR-015.md
+          - FR-016 Limit client active requests: functional-requirements/fr/FR-016.md
+          - FR-017 Limit client request rates: functional-requirements/fr/FR-017.md
+          - FR-018 Apply additional client middleware: functional-requirements/fr/FR-018.md
+          - FR-019 Read operator client usage: functional-requirements/fr/FR-019.md
+          - FR-020 Inspect clients and middleware: functional-requirements/fr/FR-020.md
       - Decisions: decisions.md
       - Assumptions: assumptions.md
       - Definition of Done: definition-of-done.md

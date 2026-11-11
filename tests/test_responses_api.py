@@ -805,6 +805,9 @@ def test_native_opaque_model_missing_from_catalog_still_generates_with_original_
                 "parallel_tool_calls": True,
             },
         )
+        usage = app.state.usage_ledger.snapshot()["clients"]["synthetic"]
+        assert usage["provider_attempts"] == 1
+        assert usage["known_input_tokens"] == 7 and usage["known_output_tokens"] == 4
     assert result.status_code == 200, result.text
     actual = native_events(result)[-1]["response"] if stream else result.json()
     assert actual == final.wire_dict()

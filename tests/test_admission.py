@@ -14,10 +14,11 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 from starlette.requests import Request
 
 from gateway7.app import create_app
-from gateway7.config import GatewayConfig, LimitsConfig, load_config
-from gateway7.errors import StartupError
+from gateway7.config import ClientLimitsConfig, GatewayConfig, LimitsConfig, load_config
+from gateway7.errors import GatewayError, StartupError
 from gateway7.models import ChatRequest, ChatResponse
 from gateway7.plugin_api import Deny, PluginDescriptor
+from gateway7.responses_models import ResponsesResponse
 
 app_module = importlib.import_module("gateway7.app")
 SENTINEL = "synthetic-admission-private-message"
@@ -406,9 +407,9 @@ async def test_abandoned_task_exception_is_consumed_without_unhandled_private_tr
             finished.set()
 
     try:
-        admission.acquire()
+        lease = admission.acquire()
         task = asyncio.create_task(abandoned_pipeline())
-        admission.track(task)
+        admission.track(task, lease)
         del task  # The HTTP caller no longer holds or awaits this task.
         release.set()
         await asyncio.wait_for(finished.wait(), 1)
@@ -679,3 +680,474 @@ async def test_checked_disconnect_preserves_cancellation_and_timeout_precedence(
         await asyncio.wait_for(pending, 1)
     assert cleaned.is_set() and [message["status"] for message in sent] == [200]
     assert "http_outcome" not in scope["state"]
+
+
+CLIENT_TOKENS = {"alpha": "synthetic-client-alpha-token", "beta": "synthetic-client-beta-token"}
+
+
+class ClientLimitProvider:
+    _kind = "openai"
+
+    def __init__(self, gate):
+        self.gate = gate
+        self.calls = []
+
+    async def _wait(self, kind):
+        self.calls.append(kind)
+        self.gate.entered.put_nowait(kind)
+        while True:
+            try:
+                await self.gate.release.wait()
+                break
+            except asyncio.CancelledError:
+                self.gate.cancelled.set()
+                if not self.gate.resist:
+                    raise
+
+    async def complete(self, request, **options):
+        await self._wait("chat")
+        return ChatResponse(text="synthetic answer")
+
+    async def complete_early(self, request, *, on_text, **options):
+        await self._wait("chat-early")
+        await on_text("synthetic answer")
+        return ChatResponse(text="synthetic answer")
+
+    async def complete_responses(self, request, **options):
+        await self._wait("responses")
+        return ResponsesResponse(
+            id="resp_synthetic_limits", created_at=1, model="fake", status="completed", output=[]
+        )
+
+    async def complete_responses_early(self, request, **options):
+        await self._wait("responses-early")
+        return ResponsesResponse(
+            id="resp_synthetic_limits", created_at=1, model="fake", status="completed", output=[]
+        )
+
+    async def aclose(self):
+        pass
+
+
+def client_limit_app(
+    monkeypatch, gate, *, global_limit=4, client_limit=1, requests_per_minute=None
+):
+    monkeypatch.setenv("OPENAI_API_KEY", "synthetic-client-limits-provider-key")
+    for name, token in CLIENT_TOKENS.items():
+        monkeypatch.setenv("LIMITS_" + name.upper(), token)
+    provider = ClientLimitProvider(gate)
+    monkeypatch.setattr(app_module, "build_provider", lambda *_: provider)
+    config = GatewayConfig.model_validate({
+        "provider": {"kind": "openai", "model": "fake"},
+        "limits": {"max_concurrent_requests": global_limit},
+        "auth": {"enabled": True, "clients": {
+            name: {"token_env": "LIMITS_" + name.upper(), "models": ["fake"],
+                   "limits": {"max_concurrent_requests": client_limit,
+                              "requests_per_minute": requests_per_minute}}
+            for name in CLIENT_TOKENS
+        }},
+    })
+    return create_app(config=config), provider
+
+
+def client_headers(name="alpha", *, early=False):
+    headers = {"Authorization": "Bearer " + CLIENT_TOKENS[name]}
+    if early:
+        headers["X-Gateway7-Stream-Mode"] = "early"
+    return headers
+
+
+def client_payload(path, *, stream=False):
+    return (
+        {"model": "fake", "input": "synthetic", "stream": stream}
+        if path == "/v1/responses"
+        else {**body(openai=path != "/chat"), **({"stream": True} if stream else {})}
+    )
+
+
+@pytest.mark.parametrize("path,stream,early", [
+    ("/chat", False, False),
+    ("/v1/chat/completions", False, False),
+    ("/v1/chat/completions", True, False),
+    ("/v1/chat/completions", True, True),
+    ("/v1/responses", False, False),
+    ("/v1/responses", True, False),
+    ("/v1/responses", True, True),
+])
+async def test_client_capacity_is_shared_across_all_api_delivery_modes(monkeypatch, path, stream, early):
+    gate = Gate()
+    app, provider = client_limit_app(monkeypatch, gate)
+    async with app.router.lifespan_context(app), client_for(app) as client:
+        pending = asyncio.create_task(client.post(
+            path, headers=client_headers(early=early), json=client_payload(path, stream=stream)
+        ))
+        await asyncio.wait_for(gate.entered.get(), 1)
+        try:
+            rejected = await client.post("/v1/chat/completions", headers=client_headers(),
+                                         json=client_payload("/v1/chat/completions"))
+            assert rejected.status_code == 429 and rejected.headers["Retry-After"] == "1"
+            assert rejected.json()["error"]["code"] == "client_overloaded"
+            assert rejected.json()["error"]["type"] == "rate_limit_error"
+            assert len(provider.calls) == 1
+        finally:
+            gate.release.set()
+            assert (await asyncio.wait_for(pending, 1)).status_code == 200
+        assert (await client.post("/chat", headers=client_headers(), json=body())).status_code == 200
+        assert sample(app, "active_pipelines") == 0
+
+
+async def test_saturated_client_does_not_block_another_and_global_overload_stays_503(monkeypatch, caplog):
+    gate = Gate()
+    app, provider = client_limit_app(monkeypatch, gate, global_limit=2)
+    async with app.router.lifespan_context(app), client_for(app) as client:
+        first = asyncio.create_task(client.post("/chat", headers=client_headers(), json=body()))
+        await asyncio.wait_for(gate.entered.get(), 1)
+        second = None
+        try:
+            rejected = await client.post("/chat", headers=client_headers(), json=body())
+            assert rejected.status_code == 429
+            second = asyncio.create_task(client.post("/chat", headers=client_headers("beta"), json=body()))
+            await asyncio.wait_for(gate.entered.get(), 1)
+            overloaded = await client.post("/chat", headers=client_headers("beta"), json=body())
+            assert overloaded.status_code == 503 and overloaded.json()["error"]["code"] == "overloaded"
+            assert "Retry-After" not in overloaded.headers
+            assert len(provider.calls) == 2
+        finally:
+            gate.release.set()
+            await asyncio.gather(*(task for task in (first, second) if task is not None))
+        outcome = app.state.metrics.registry.get_sample_value(
+            "gateway7_http_request_outcomes_total", {"route": "chat", "outcome": "client_overloaded"}
+        )
+        assert outcome == 1
+        report = (await client.get("/metrics")).text
+        assert all(token not in report + caplog.text for token in CLIENT_TOKENS.values())
+        assert 'client_id="' not in report and 'client="' not in report
+
+
+async def client_raw_request(app, *, send=None):
+    incoming = asyncio.Queue()
+    await incoming.put({"type": "http.request", "body": json.dumps(body()).encode(), "more_body": False})
+    sent = []
+    async def collect(message):
+        sent.append(message)
+    scope = {
+        "type": "http", "asgi": {"version": "3.0"}, "http_version": "1.1", "method": "POST",
+        "scheme": "http", "path": "/chat", "raw_path": b"/chat", "query_string": b"", "root_path": "",
+        "headers": [(b"content-type", b"application/json"),
+                    (b"authorization", ("Bearer " + CLIENT_TOKENS["alpha"]).encode())],
+        "server": ("gateway.test", 80), "client": ("synthetic", 1000),
+    }
+    return asyncio.create_task(app(scope, incoming.get, collect if send is None else send)), incoming, sent
+
+
+async def test_client_slot_covers_buffered_delivery_without_extending_global_pipeline_slot(monkeypatch):
+    gate = Gate()
+    gate.release.set()
+    app, provider = client_limit_app(monkeypatch, gate)
+    sending = asyncio.Event()
+    release_send = asyncio.Event()
+    async def blocked_send(message):
+        if message["type"] == "http.response.body":
+            sending.set()
+            await release_send.wait()
+    async with app.router.lifespan_context(app), client_for(app) as client:
+        pending, _, _ = await client_raw_request(app, send=blocked_send)
+        await asyncio.wait_for(sending.wait(), 1)
+        try:
+            assert sample(app, "active_pipelines") == 0
+            assert (await client.post("/chat", headers=client_headers(), json=body())).status_code == 429
+            assert (await client.post("/chat", headers=client_headers("beta"), json=body())).status_code == 200
+            assert len(provider.calls) == 2
+        finally:
+            release_send.set()
+            await asyncio.wait_for(pending, 1)
+        assert (await client.post("/chat", headers=client_headers(), json=body())).status_code == 200
+
+
+@pytest.mark.parametrize("termination", ["disconnect", "cancel"])
+async def test_client_slot_waits_for_resistant_provider_cleanup(monkeypatch, termination):
+    gate = Gate(resist=True)
+    app, _ = client_limit_app(monkeypatch, gate)
+    async with app.router.lifespan_context(app), client_for(app) as client:
+        pending, incoming, _ = await client_raw_request(app)
+        await asyncio.wait_for(gate.entered.get(), 1)
+        if termination == "cancel":
+            pending.cancel()
+        else:
+            await incoming.put({"type": "http.disconnect"})
+        await asyncio.wait_for(gate.cancelled.wait(), 1)
+        try:
+            assert (await client.post("/chat", headers=client_headers(), json=body())).status_code == 429
+            assert sample(app, "active_pipelines") == 1
+        finally:
+            gate.release.set()
+            if termination == "cancel":
+                with pytest.raises(asyncio.CancelledError):
+                    await asyncio.wait_for(pending, 1)
+            else:
+                await asyncio.wait_for(pending, 1)
+        assert (await client.post("/chat", headers=client_headers(), json=body())).status_code == 200
+
+
+@pytest.mark.parametrize("value", [0, -1, 10001, True, 1.5, "1"])
+def test_client_concurrency_limit_is_strict_and_bounded(value):
+    with pytest.raises(ValidationError):
+        ClientLimitsConfig(max_concurrent_requests=value)
+
+
+def test_client_concurrency_defaults_and_lease_ownership(monkeypatch):
+    assert ClientLimitsConfig().max_concurrent_requests is None
+    assert ClientLimitsConfig(max_concurrent_requests=10000).max_concurrent_requests == 10000
+    gate = Gate()
+    app, _ = client_limit_app(monkeypatch, gate)
+    first = app_module._PipelineAdmission(app.state.metrics)
+    second = app_module._PipelineAdmission(app.state.metrics)
+    config = GatewayConfig.model_validate({"auth": {"enabled": True, "clients": {
+        "alpha": {"token_env": "LIMITS_ALPHA", "models": ["fake"],
+                  "limits": {"max_concurrent_requests": 1}},
+    }}})
+    first.configure(config)
+    second.configure(config)
+    for invalid in (None, "unknown"):
+        with pytest.raises(GatewayError, match="Missing or invalid"):
+            first.acquire(invalid)
+    lease = first.acquire("alpha")
+    with pytest.raises(ValueError):
+        second.release_unstarted(lease)
+    first.release_unstarted(lease)
+    with pytest.raises(ValueError):
+        first.release_unstarted(lease)
+    fresh = first.acquire("alpha")
+    first.release_unstarted(fresh)
+    assert first.active == second.active == 0
+
+
+@pytest.mark.parametrize("failure_at", [1, 2])
+async def test_task_creation_failure_releases_the_client_capacity(monkeypatch, failure_at):
+    gate = Gate()
+    gate.release.set()
+    app, provider = client_limit_app(monkeypatch, gate)
+    create_task = asyncio.create_task
+    creations = 0
+    def fail_creation(work):
+        nonlocal creations
+        creations += 1
+        if creations == failure_at:
+            raise RuntimeError("Synthetic task creation failure")
+        return create_task(work)
+    async with app.router.lifespan_context(app), client_for(app) as client:
+        principal = app.state.access.authenticate([
+            (b"authorization", ("Bearer " + CLIENT_TOKENS["alpha"]).encode())
+        ])
+        request = Request({"type": "http", "app": app, "state": {
+            "request_id": "synthetic-client-creation", "deadline": time.monotonic() + 10,
+            "principal": principal,
+        }})
+        with monkeypatch.context() as patch:
+            patch.setattr(app_module.asyncio, "create_task", fail_creation)
+            with pytest.raises(RuntimeError, match="Synthetic task creation failure"):
+                await app_module._run_connected(request, ChatRequest.model_validate(body()), "fake")
+        assert sample(app, "active_pipelines") == 0 and provider.calls == []
+        assert (await client.post("/chat", headers=client_headers(), json=body())).status_code == 200
+
+
+@pytest.mark.parametrize("retry_after", [None, 0, -1, 3601, True, SENTINEL])
+def test_client_overload_retry_header_accepts_only_safe_bounded_integers(retry_after):
+    response = app_module._error_response("client_overloaded", "synthetic", retry_after=retry_after)
+    assert response.status_code == 429 and response.headers["Retry-After"] == "1"
+    assert SENTINEL.encode() not in response.body
+
+
+@pytest.mark.parametrize("failure", ["operation", "pipeline-task", "disconnect-task"])
+async def test_http_creation_failure_releases_delivery_owned_client_lease(monkeypatch, failure):
+    gate = Gate()
+    gate.release.set()
+    app, provider = client_limit_app(monkeypatch, gate)
+    create_task = asyncio.create_task
+    creations = 0
+    def fail_creation(work):
+        nonlocal creations
+        creations += 1
+        if creations == (1 if failure == "pipeline-task" else 2):
+            raise RuntimeError(SENTINEL)
+        return create_task(work)
+    def fail_operation(*args, **kwargs):
+        raise RuntimeError(SENTINEL)
+    async with app.router.lifespan_context(app), client_for(app) as client:
+        with monkeypatch.context() as patch:
+            if failure == "operation":
+                patch.setattr(app.state.client_pipelines["alpha"], "run", fail_operation)
+            else:
+                patch.setattr(app_module.asyncio, "create_task", fail_creation)
+            failed = await client.post("/chat", headers=client_headers(), json=body())
+        assert failed.status_code == 500 and failed.json()["error"]["code"] == "internal_error"
+        assert SENTINEL not in failed.text and provider.calls == []
+        assert sample(app, "active_pipelines") == 0
+        assert (await client.post("/chat", headers=client_headers(), json=body())).status_code == 200
+
+
+def rate_limit_app(monkeypatch, *, rpm=1, client_limit=1, global_limit=4, clock=None):
+    gate = Gate()
+    gate.release.set()
+    app, provider = client_limit_app(
+        monkeypatch, gate, global_limit=global_limit, client_limit=client_limit,
+        requests_per_minute=rpm,
+    )
+    if clock is not None:
+        app.state.admission = app_module._PipelineAdmission(app.state.metrics, clock=clock)
+    return app, provider
+
+
+@pytest.mark.parametrize("path,stream,early", [
+    ("/chat", False, False),
+    ("/v1/chat/completions", False, False),
+    ("/v1/chat/completions", True, False),
+    ("/v1/chat/completions", True, True),
+    ("/v1/responses", False, False),
+    ("/v1/responses", True, False),
+    ("/v1/responses", True, True),
+])
+async def test_rate_quota_is_shared_across_all_api_delivery_modes(monkeypatch, path, stream, early):
+    app, provider = rate_limit_app(monkeypatch)
+    async with app.router.lifespan_context(app), client_for(app) as client:
+        accepted = await client.post(path, headers=client_headers(early=early),
+                                     json=client_payload(path, stream=stream))
+        assert accepted.status_code == 200
+        rejected = await client.post("/v1/chat/completions", headers=client_headers(),
+                                     json=client_payload("/v1/chat/completions"))
+        assert rejected.status_code == 429 and rejected.json()["error"]["code"] == "rate_limited"
+        assert rejected.json()["error"]["type"] == "rate_limit_error"
+        assert 1 <= int(rejected.headers["Retry-After"]) <= 60 and len(provider.calls) == 1
+        assert sample(app, "rate_limit_rejections_total") == 1
+        assert app.state.metrics.registry.get_sample_value(
+            "gateway7_http_request_outcomes_total", {"route": "openai_chat", "outcome": "rate_limited"}
+        ) == 1
+
+
+async def test_rate_quota_refill_is_monotonic_independent_and_retry_after_rounds_up(monkeypatch):
+    now = [100.0]
+    app, provider = rate_limit_app(monkeypatch, clock=lambda: now[0])
+    async with app.router.lifespan_context(app), client_for(app) as client:
+        assert (await client.post("/chat", headers=client_headers(), json=body())).status_code == 200
+        for instant, expected_wait in ((100, 60), (130, 30), (159.5, 1)):
+            now[0] = instant
+            rejected = await client.post("/chat", headers=client_headers(), json=body())
+            assert rejected.status_code == 429 and rejected.headers["Retry-After"] == str(expected_wait)
+        assert (await client.post("/chat", headers=client_headers("beta"), json=body())).status_code == 200
+        now[0] = 160
+        assert (await client.post("/v1/responses", headers=client_headers(),
+                                  json=client_payload("/v1/responses"))).status_code == 200
+        assert len(provider.calls) == 3
+
+
+async def test_rate_quota_ignores_control_routes_and_preadmission_failures(monkeypatch):
+    app, provider = rate_limit_app(monkeypatch)
+    async with app.router.lifespan_context(app), client_for(app) as client:
+        for path in ("/health", "/ready", "/metrics", "/v1/models"):
+            assert (await client.get(path, headers=client_headers())).status_code == 200
+        assert (await client.post("/chat", json=body())).status_code == 401
+        assert (await client.post("/chat", headers=client_headers(),
+                                  json={**body(), "model": "forbidden"})).status_code == 403
+        assert (await client.post("/chat", headers=client_headers(), json={"messages": []})).status_code == 422
+        assert (await client.post("/chat", headers={**client_headers(), "Content-Type": "application/json"},
+                                  content=b"{")).status_code == 422
+        assert provider.calls == []
+        assert (await client.post("/chat", headers=client_headers(), json=body())).status_code == 200
+        assert (await client.post("/chat", headers=client_headers(), json=body())).status_code == 429
+
+
+@pytest.mark.parametrize("capacity", ["global", "client"])
+async def test_capacity_rejection_does_not_debit_request_rate(monkeypatch, capacity):
+    gate = Gate()
+    app, provider = client_limit_app(
+        monkeypatch, gate, global_limit=1 if capacity == "global" else 4,
+        requests_per_minute=1 if capacity == "global" else 2,
+    )
+    async with app.router.lifespan_context(app), client_for(app) as client:
+        pending = asyncio.create_task(client.post("/chat", headers=client_headers(), json=body()))
+        await asyncio.wait_for(gate.entered.get(), 1)
+        target = "beta" if capacity == "global" else "alpha"
+        try:
+            rejected = await client.post("/chat", headers=client_headers(target), json=body())
+            assert rejected.json()["error"]["code"] == (
+                "overloaded" if capacity == "global" else "client_overloaded"
+            )
+        finally:
+            gate.release.set()
+            await asyncio.wait_for(pending, 1)
+        assert (await client.post("/chat", headers=client_headers(target), json=body())).status_code == 200
+        depleted = await client.post("/chat", headers=client_headers(target), json=body())
+        assert depleted.status_code == 429 and depleted.json()["error"]["code"] == "rate_limited"
+        assert len(provider.calls) == 2
+
+
+@pytest.mark.parametrize("early,failure", [
+    (False, "operation"), (False, "pipeline-task"), (False, "disconnect-task"),
+    (True, "pipeline-task"), (True, "disconnect-task"),
+])
+async def test_rate_debit_is_refunded_when_admission_setup_fails(monkeypatch, early, failure):
+    app, provider = rate_limit_app(monkeypatch)
+    create_task = asyncio.create_task
+    creations = 0
+    def fail_creation(work):
+        nonlocal creations
+        creations += 1
+        if creations == (1 if failure == "pipeline-task" else 2):
+            raise RuntimeError(SENTINEL)
+        return create_task(work)
+    def fail_operation(*args, **kwargs):
+        raise RuntimeError(SENTINEL)
+    path = "/v1/chat/completions" if early else "/chat"
+    async with app.router.lifespan_context(app), client_for(app) as client:
+        with monkeypatch.context() as patch:
+            if failure == "operation":
+                patch.setattr(app.state.client_pipelines["alpha"], "run", fail_operation)
+            else:
+                patch.setattr(app_module.asyncio, "create_task", fail_creation)
+            failed = await client.post(path, headers=client_headers(early=early),
+                                       json=client_payload(path, stream=early))
+        assert failed.status_code == 500 and provider.calls == []
+        assert sample(app, "active_pipelines") == 0
+        assert (await client.post(path, headers=client_headers(early=early),
+                                  json=client_payload(path, stream=early))).status_code == 200
+
+
+async def test_admitted_provider_failure_consumes_the_request_quota(monkeypatch):
+    app, provider = rate_limit_app(monkeypatch)
+    async def fail(request, **options):
+        provider.calls.append("failed")
+        raise RuntimeError(SENTINEL)
+    monkeypatch.setattr(provider, "complete", fail)
+    async with app.router.lifespan_context(app), client_for(app) as client:
+        assert (await client.post("/chat", headers=client_headers(), json=body())).status_code == 502
+        rejected = await client.post("/chat", headers=client_headers(), json=body())
+        assert rejected.status_code == 429 and rejected.json()["error"]["code"] == "rate_limited"
+        assert provider.calls == ["failed"]
+
+
+async def test_rate_state_is_separate_between_apps_and_resets_at_restart(monkeypatch):
+    first, _ = rate_limit_app(monkeypatch)
+    second, _ = rate_limit_app(monkeypatch)
+    async with first.router.lifespan_context(first), client_for(first) as client:
+        assert (await client.post("/chat", headers=client_headers(), json=body())).status_code == 200
+        assert (await client.post("/chat", headers=client_headers(), json=body())).status_code == 429
+        async with second.router.lifespan_context(second), client_for(second) as other:
+            assert (await other.post("/chat", headers=client_headers(), json=body())).status_code == 200
+    async with first.router.lifespan_context(first), client_for(first) as client:
+        assert (await client.post("/chat", headers=client_headers(), json=body())).status_code == 200
+
+
+@pytest.mark.parametrize("value", [0, -1, 1_000_001, True, 1.5, "2"])
+def test_request_rate_is_optional_strict_and_bounded(value):
+    assert ClientLimitsConfig().requests_per_minute is None
+    assert ClientLimitsConfig(requests_per_minute=1_000_000).requests_per_minute == 1_000_000
+    with pytest.raises(ValidationError):
+        ClientLimitsConfig(requests_per_minute=value)
+
+
+async def test_absent_rate_quota_keeps_existing_authenticated_behavior(monkeypatch):
+    app, provider = rate_limit_app(monkeypatch, rpm=None)
+    async with app.router.lifespan_context(app), client_for(app) as client:
+        for _ in range(3):
+            assert (await client.post("/chat", headers=client_headers(), json=body())).status_code == 200
+        assert len(provider.calls) == 3 and sample(app, "rate_limit_rejections_total") == 0

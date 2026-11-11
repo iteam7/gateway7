@@ -515,10 +515,15 @@ async def test_app_unlimited_catalog_and_finite_clients_never_share_permissions(
         "unlimited": {"token_env": "SYNTHETIC_CATALOG_TOKEN"},
         "restricted": {"token_env": "SYNTHETIC_OTHER_TOKEN", "models": ["local-only"]},
     }
-    async with catalog_app(handle, clients=clients) as (_, client, _):
+    async with catalog_app(handle, clients=clients) as (app, client, provider):
+        assert all(view.provider is provider for view in app.state.client_pipelines.values())
         upstream = await client.get("/v1/models", headers=AUTH)
         local = await client.get("/v1/models", headers={"authorization": "Bearer " + OTHER_TOKEN})
         again = await client.get("/v1/models", headers=AUTH)
+        assert all(
+            row["provider_attempts"] == 0
+            for row in app.state.usage_ledger.snapshot()["clients"].values()
+        )
     assert upstream.status_code == again.status_code == local.status_code == 200
     assert upstream.json() == again.json() == DOCUMENT
     assert local.json()["data"] == [
@@ -617,6 +622,123 @@ async def test_app_catalog_failure_is_safe_503_and_generation_is_independent(
     assert KEY not in failed.text + metrics + caplog.text and TOKEN not in metrics + caplog.text
 
 
+def generation_reply():
+    return httpx.Response(
+        200,
+        json={
+            "choices": [{
+                "message": {"role": "assistant", "content": "answer"},
+                "finish_reason": "stop",
+            }],
+            "usage": {"prompt_tokens": 3, "completion_tokens": 1},
+        },
+    )
+
+
+async def test_catalog_does_not_spend_the_next_generation_token(catalog_app):
+    seen = []
+
+    def handle(wire):
+        seen.append(wire.method)
+        return httpx.Response(200, json=DOCUMENT) if wire.method == "GET" else generation_reply()
+
+    clients = {"unlimited": {
+        "token_env": "SYNTHETIC_CATALOG_TOKEN", "limits": {"requests_per_minute": 1}
+    }}
+    body = {"model": OPAQUE_MODEL, "messages": [{"role": "user", "content": "ping"}]}
+    async with catalog_app(handle, clients=clients) as (app, client, _):
+        admission = app.state.admission
+        instant = admission._rate_buckets["unlimited"].updated
+        admission._clock = lambda: instant
+        catalog = await client.get("/v1/models", headers=AUTH)
+        assert catalog.status_code == 200 and catalog.json() == DOCUMENT
+        assert admission._rate_buckets["unlimited"].tokens == 1
+        assert admission.active == 0 and not admission._leases
+        accepted = await client.post("/v1/chat/completions", headers=AUTH, json=body)
+        assert accepted.status_code == 200
+        rejected = await client.post("/v1/chat/completions", headers=AUTH, json=body)
+        assert rejected.status_code == 429
+        assert rejected.json()["error"]["code"] == "rate_limited"
+        usage = app.state.usage_ledger.snapshot()["clients"]["unlimited"]
+        assert usage["provider_attempts"] == 1
+        assert usage["known_input_tokens"] == 3 and usage["known_output_tokens"] == 1
+    assert seen == ["GET", "POST"]
+
+
+async def test_cold_and_cached_catalog_ignore_depleted_generation_quota(catalog_app):
+    seen = []
+
+    def handle(wire):
+        seen.append(wire.method)
+        return httpx.Response(200, json=DOCUMENT) if wire.method == "GET" else generation_reply()
+
+    clients = {"unlimited": {
+        "token_env": "SYNTHETIC_CATALOG_TOKEN", "limits": {"requests_per_minute": 1}
+    }}
+    body = {"model": OPAQUE_MODEL, "messages": [{"role": "user", "content": "ping"}]}
+    async with catalog_app(handle, clients=clients) as (app, client, _):
+        admission = app.state.admission
+        instant = admission._rate_buckets["unlimited"].updated
+        admission._clock = lambda: instant
+        assert (await client.post("/v1/chat/completions", headers=AUTH, json=body)).status_code == 200
+        rejected = await client.post("/v1/chat/completions", headers=AUTH, json=body)
+        assert rejected.status_code == 429
+        assert rejected.json()["error"]["code"] == "rate_limited"
+        for _ in range(2):
+            catalog = await client.get("/v1/models", headers=AUTH)
+            assert catalog.status_code == 200 and catalog.json() == DOCUMENT
+            assert admission._rate_buckets["unlimited"].tokens == 0
+            assert admission.active == 0 and not admission._leases
+        assert app.state.usage_ledger.snapshot()["clients"]["unlimited"]["provider_attempts"] == 1
+    assert seen == ["POST", "GET"]
+
+
+@pytest.mark.parametrize("capacity", ["global", "client"])
+@pytest.mark.parametrize("cached", [False, True])
+async def test_catalog_bypasses_occupied_generation_slots(catalog_app, capacity, cached):
+    entered = asyncio.Event()
+    release = asyncio.Event()
+    seen = []
+
+    async def handle(wire):
+        seen.append(wire.method)
+        if wire.method == "GET":
+            return httpx.Response(200, json=DOCUMENT)
+        entered.set()
+        await release.wait()
+        return generation_reply()
+
+    clients = {"unlimited": {
+        "token_env": "SYNTHETIC_CATALOG_TOKEN", "limits": {"max_concurrent_requests": 1}
+    }}
+    body = {"model": OPAQUE_MODEL, "messages": [{"role": "user", "content": "ping"}]}
+    async with catalog_app(
+        handle, clients=clients,
+        limits={"max_concurrent_requests": 1 if capacity == "global" else 2},
+    ) as (app, client, _):
+        if cached:
+            assert (await client.get("/v1/models", headers=AUTH)).status_code == 200
+        pending = asyncio.create_task(
+            client.post("/v1/chat/completions", headers=AUTH, json=body)
+        )
+        try:
+            await asyncio.wait_for(entered.wait(), 1)
+            rejected = await client.post("/v1/chat/completions", headers=AUTH, json=body)
+            assert rejected.status_code == (503 if capacity == "global" else 429)
+            assert rejected.json()["error"]["code"] == (
+                "overloaded" if capacity == "global" else "client_overloaded"
+            )
+            catalog = await client.get("/v1/models", headers=AUTH)
+            assert catalog.status_code == 200 and catalog.json() == DOCUMENT
+            assert app.state.admission.active == 1
+            assert app.state.admission._client_active["unlimited"] == 1
+            assert not pending.done()
+        finally:
+            release.set()
+            assert (await asyncio.wait_for(pending, 1)).status_code == 200
+    assert seen.count("GET") == seen.count("POST") == 1
+
+
 class CatalogHTTP:
     def __init__(self, app, *, headers=AUTH):
         self.scope = {
@@ -672,21 +794,25 @@ async def test_app_catalog_own_deadline_is_504_and_does_not_poison_next_request(
 
 async def test_app_catalog_disconnect_awaits_real_cleanup_even_under_repeated_cancel(catalog_app):
     stream = CatalogStream(pause=True, hold_close=True)
-    async with catalog_app(lambda _: streamed_catalog(stream)) as (app, _, _):
+    async with catalog_app(lambda _: streamed_catalog(stream)) as (app, _, provider):
         before = asyncio.all_tasks()
         raw = CatalogHTTP(app)
         await asyncio.wait_for(stream.reading.wait(), 1)
+        owned = provider._catalog_leader
+        assert isinstance(owned, asyncio.Task) and owned is not raw.task
+        assert app.state.admission.active == 0 and "admission_lease" not in raw.scope["state"]
         raw.incoming.put_nowait({"type": "http.disconnect"})
         await asyncio.wait_for(stream.closing.wait(), 1)
         for _ in range(2):
             raw.task.cancel()
             await checkpoint()
-            assert not raw.task.done() and app.state.admission.active == 1
+            assert not raw.task.done() and not owned.done() and app.state.admission.active == 0
             assert not stream.close_interrupted and not stream.closed.is_set()
         stream.close_release.set()
         with pytest.raises(asyncio.CancelledError):
             await raw.task
         assert raw.status is None and stream.closed.is_set() and app.state.admission.active == 0
+        assert owned.done() and provider._catalog_leader is None and stream.close_attempts == 1
         assert not (asyncio.all_tasks() - before)
 
 
@@ -698,20 +824,25 @@ async def test_app_waiter_disconnect_does_not_cancel_another_requests_owned_fetc
         seen.append(wire)
         return streamed_catalog(stream)
 
-    async with catalog_app(handle) as (app, _, _):
+    async with catalog_app(handle) as (app, _, provider):
         before = asyncio.all_tasks()
         leader = CatalogHTTP(app)
         await asyncio.wait_for(stream.reading.wait(), 1)
+        owned = provider._catalog_leader
+        assert isinstance(owned, asyncio.Task) and owned is not leader.task
         waiter = CatalogHTTP(app)
         await checkpoint()
         await checkpoint()
         waiter.incoming.put_nowait({"type": "http.disconnect"})
         await waiter.finish()
         assert waiter.status == 499 and not leader.task.done() and not stream.closing.is_set()
-        assert len(seen) == 1 and app.state.admission.active == 1
+        assert len(seen) == 1 and app.state.admission.active == 0 and not owned.done()
+        assert "admission_lease" not in leader.scope["state"]
+        assert "admission_lease" not in waiter.scope["state"]
         stream.release.set()
         await leader.finish()
         assert leader.status == 200 and stream.closed.is_set() and app.state.admission.active == 0
+        assert owned.done() and provider._catalog_leader is None and stream.close_attempts == 1
         assert not (asyncio.all_tasks() - before)
 
 

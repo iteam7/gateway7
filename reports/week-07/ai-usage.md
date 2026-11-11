@@ -95,3 +95,212 @@
 - Use: Checked current rules, Task #222 and branch/PR mapping, reviewed the intended diff and prepared its authorized commit and Draft PR publication.
 - Boundary: Reused the closed implementation checks without repeating product, provider or live-account tests; publication does not establish rollout, universal compatibility or human approval.
 - Team assessment: TODO
+
+## 2026-11-11 — Task #223
+
+- Tool: Codex.
+- Work: Reject ambiguous JSON in native and Chat requests.
+- Verification: 295 affected native/Chat/Responses HTTP tests passed; Ruff format/lint and mypy for app.py passed.
+- Review: Independent TechLead code review approved the implementation; this is technical review, not team or Customer acceptance.
+- Boundary: Synthetic local checks only; no external provider calls, deployment or merge.
+- Team assessment: TODO
+
+## 2026-11-11 — Task #224
+
+- Tool: Codex.
+- Work: Enforce final JSON response delivery deadlines.
+- Verification: 370 affected native/Chat/stream/Responses HTTP tests passed; Ruff format/lint and mypy for app.py passed.
+- Follow-up: The existing post-header metrics case now expects cancellation for a downstream OSError, matching checked Responses delivery; 255 affected metrics/core/Responses tests passed.
+- Review: Independent TechLead code review approved the implementation; this is technical review, not team or Customer acceptance.
+- Boundary: Synthetic local checks only; no external provider calls, deployment or merge.
+- Team assessment: TODO
+
+## 2026-11-11 — Task #225
+
+- Tool: Codex.
+- Work: Preserve safe Allow headers on HTTP 405 errors.
+- Verification: 298 affected core, OpenAI HTTP and access tests passed; Ruff format/lint and mypy for app.py passed.
+- Review: Independent TechLead code review approved the implementation; this is technical review, not team or Customer acceptance.
+- Boundary: Synthetic local checks only; no external provider calls, deployment or merge.
+- Team assessment: TODO
+
+## 2026-11-11 — Task #226
+
+- Tool: Codex.
+- Work: Reject ambiguous nonstreaming provider JSON responses.
+- Verification: 500 targeted provider/transport tests passed; Ruff format/lint and mypy for all 36 production files passed.
+- Review: Independent TechLead code review approved the implementation; this is technical review, not team or Customer acceptance.
+- Boundary: Synthetic local checks only; no external provider calls, deployment or merge.
+- Team assessment: TODO
+
+## 2026-11-11 — Task #227
+
+- Tool: Codex.
+- Work: Complete Chat provider stream cleanup despite cancellation.
+- Verification: 813 affected provider, Responses and proxy tests plus 233 HTTP/early-stream tests passed; Ruff format/lint and mypy for all 37 production files passed.
+- Review: Independent TechLead code review approved the implementation; this is technical review, not team or Customer acceptance.
+- Boundary: Synthetic local checks only; no external provider calls, deployment or merge.
+- Team assessment: TODO
+
+## 2026-11-11 — Task #228
+
+- Tool: Codex.
+- Work: Preserve cancellation and deadlines in buffered Chat calls.
+- Verification: 397 affected core, early and native pipeline tests passed; Ruff format/lint and mypy for all 36 production modules passed.
+- Review: Independent TechLead code review approved the implementation; this is technical review, not team or Customer acceptance.
+- Boundary: Synthetic local checks only; no external provider calls, deployment or merge.
+- Team assessment: TODO
+
+## 2026-11-11 — Task #229
+
+- Tool: Codex.
+- Work: Validate plugin topology before constructing middleware.
+- Verification: 128 affected core and plugin tests passed; Ruff format/lint and mypy for all 36 production files passed.
+- Review: Independent TechLead code review approved the implementation; this is technical review, not team or Customer acceptance.
+- Boundary: Synthetic local checks only; no external provider calls, deployment or merge.
+- Team assessment: TODO
+
+## 2026-11-11 — Task #230: Bound YAML configuration parsing and alias traversal
+
+- Tool: Codex in ChatGPT Work Mode.
+- Work: Implemented byte-bounded YAML loading and one graph-validation pass with memoized alias depths, plus synthetic file/graph regressions and the documented limits.
+- Verification: 153 affected configuration, CLI and offline tooling tests passed; Ruff format/lint and mypy for 36 production files passed.
+- Additional checks: The synthetic HTTP demonstration, wheel build, strict MkDocs build, 59-page/7,141-link site check and affected Markdown lint passed.
+- Review: The separate TechLead agent approved the actual implementation, tests and documentation; team-member review remains pending.
+- Boundary: Synthetic checks only; no live provider calls, deployment, release, merge or Customer acceptance was performed.
+- Team assessment: TODO
+
+## 2026-11-11 — Task #231
+
+- Tool: Codex.
+- Work: Reject ambiguous and unbounded JSON in Chat SSE events.
+- Verification: 840 affected provider-stream tests passed, including 19 new strict-event regressions; Ruff format/lint and mypy for all 36 production modules passed.
+- Review: Independent TechLead code review approved the implementation; this is technical review, not team or Customer acceptance.
+- Boundary: Synthetic local checks only; no external provider calls, deployment or merge.
+- Team assessment: TODO
+
+## 2026-11-11 — Task #232
+
+- Tool: Codex.
+- Work: Revalidate nested Chat middleware state before forwarding.
+- Verification: 405 targeted pipeline tests and the full suite passed: 3253 passed, 12 Docker-dependent skips; Ruff format/lint and mypy for all 36 production modules passed.
+- Review: Independent TechLead code review approved the implementation; this is technical review, not team or Customer acceptance.
+- Boundary: Synthetic local checks only; no external provider calls, deployment or merge.
+- Team assessment: TODO
+
+## 2026-11-11 — Task #233
+
+- Tool: Codex.
+- Work: Reject inconsistent partial Responses usage totals.
+- Verification: 984 affected native Responses tests and the full suite passed: 3254 passed, 12 Docker-dependent skips; Ruff format/lint and mypy for all 36 production modules passed.
+- Review: Independent TechLead code review approved the implementation; this is technical review, not team or Customer acceptance.
+- Boundary: Synthetic local checks only; no external provider calls, deployment or merge.
+- Team assessment: TODO
+
+## 2026-11-11 — Task #234: Generate plugin dependencies for the current Gateway7 API
+
+- Tool: Codex in ChatGPT Work Mode.
+- Work: Aligned generated package metadata with the running Gateway7 minor version and documented the range; validated current and future version examples and the generated offline project.
+- Verification: 34 scaffold, offline tooling and testability tests passed; Ruff format/lint and mypy for 36 production files passed.
+- Additional checks: The synthetic HTTP demonstration, wheel build, strict MkDocs build, 59-page/7,141-link site check and affected Markdown lint passed.
+- Review: The separate TechLead agent approved the actual implementation, tests and documentation; team-member review remains pending.
+- Boundary: Synthetic checks only; no live provider calls, deployment, release, merge or Customer acceptance was performed.
+- Team assessment: TODO
+
+## 2026-11-11 — Task #235: Keep telemetry resource attributes within the privacy allowlist
+
+- Tool: Codex in ChatGPT Work Mode.
+- Work: Replaced ambient resource detection with the fixed service/environment resource allowlist and checked actual exported synthetic log/metric resources.
+- Verification: 107 telemetry, SLI and analytics tests passed; Ruff format/lint and mypy for 36 production files passed.
+- Additional checks: The synthetic HTTP demonstration, wheel build, strict MkDocs build, 59-page/7,141-link site check and affected Markdown lint passed.
+- Review: The separate TechLead agent approved the actual implementation, tests and documentation; team-member review remains pending.
+- Boundary: Synthetic checks only; no live provider calls, deployment, release, merge or Customer acceptance was performed.
+- Team assessment: TODO
+
+## 2026-11-11 — Task #236
+
+- Tool: Codex.
+- Work: Retain observed Chat usage when response cleanup fails, on top of the strict decoder from task #226.
+- Verification: 628 affected provider, transport and usage-metric tests passed; Ruff format/lint and mypy for all 36 production files passed.
+- Review: Independent TechLead code review approved the implementation; this is technical review, not team or Customer acceptance.
+- Boundary: Source-reported counts are observed accounting, not proof of transport completion, successful output or monetary cost.
+  Synthetic local checks only; no external provider calls, deployment or merge.
+- Team assessment: TODO
+
+## 2026-11-11 — Task #238
+
+- Tool: Codex.
+- Work: Add stable client identities and account suspension.
+- Verification: 258 affected access, model routing, Chat and Responses tests passed; Ruff format/lint, mypy for config.py/auth.py and both changed documents markdownlint passed.
+- Review: Independent TechLead code review approved the implementation; this is technical review, not team or Customer acceptance.
+- Boundary: Synthetic local checks only; no external provider calls, deployment or merge.
+- Team assessment: TODO
+
+## 2026-11-11 — Task #239
+
+- Tool: Codex.
+- Work: Enforce per-client concurrent request limits.
+- Verification: Full suite passed: 3285 passed, 12 Docker-dependent skips; 63 targeted admission tests, Ruff format/lint, mypy for all 36 production files, Markdown, strict MkDocs and site checker (60 pages, 7323 links/assets) passed.
+- Review: Independent TechLead code review approved the implementation; this is technical review, not team or Customer acceptance.
+- Boundary: Synthetic local checks only; no external provider calls, deployment or merge.
+- Team assessment: TODO
+
+## 2026-11-11 — Task #240
+
+- Tool: Codex.
+- Work: Enforce per-client request-rate quotas.
+- Verification: Full suite passed: 3311 passed, 12 Docker-dependent skips; 481 affected tests, Ruff format/lint, mypy for all 36 production modules, Markdown, strict MkDocs and site checker (61 pages, 7504 links/assets) passed.
+- Review: Independent TechLead code review approved the implementation; this is technical review, not team or Customer acceptance.
+- Boundary: Synthetic local checks only; no external provider calls, deployment or merge.
+- Team assessment: TODO
+
+## 2026-11-11 — Task #241
+
+- Tool: Codex.
+- Work: Apply additional content-policy chains per client.
+- Verification: Combined full suite passed: 3357 passed, 12 Docker-dependent skips; 134 focused policy/admission tests and 5 INFO privacy cases passed. Ruff format/lint, mypy for all 37 production modules, synthetic demo, wheel, Markdown, strict MkDocs and site checker (62 pages, 7681 links/assets) passed.
+- Review: Independent TechLead code review approved the implementation; this is technical review, not team or Customer acceptance.
+- Boundary: Synthetic local checks only; no external provider calls, deployment or merge.
+- Team assessment: TODO
+
+## 2026-11-11 — Task #242
+
+- Tool: Codex.
+- Work: Expose an authenticated operator-only client usage snapshot.
+- Verification: Final full suite passed: 3455 passed, 12 Docker-dependent skips; 98 feature tests and 704 affected tests passed. Ruff format/lint, mypy for all 38 production modules, Markdown, strict MkDocs and site checker (63 pages, 7868 links/assets) passed. Independent review covered buffered cancellation/late usage and partial native error accounting.
+- Review: Independent TechLead code review approved the implementation; this is technical review, not team or Customer acceptance.
+- Boundary: Synthetic local checks only; no external provider calls, deployment or merge.
+- Team assessment: TODO
+
+## 2026-11-11 — Task #257
+
+- Tool: Codex.
+- Work: Add a read-only operator web console.
+- Verification: Final full suite passed: 3478 passed, 12 Docker-dependent skips; 23 console API cases, Ruff format/lint, mypy for all 39 production modules, demo, wheel and extracted-wheel assets passed. JavaScript syntax, Markdown, strict MkDocs and site checker (64 pages, 8061 links/assets) passed. Actual Gateway browser verification covered separate operator authentication, refresh, logout, suspended clients, limits, policy order and known/unknown usage; owned preview servers were stopped.
+- Review: Independent TechLead code review approved the implementation; this is technical review, not team or Customer acceptance.
+- Boundary: Synthetic local checks only; no external provider calls, deployment or merge.
+- Team assessment: TODO
+
+## 2026-11-11 — Aggregate release review (Task #263)
+
+- Tool: Codex.
+- Work: Consolidated the twenty reviewed hardening, client-control and operator-console changes into one release-review branch and PR at the repository owner's request.
+- Provenance: Refreshed main and every component PR head; remote head SHAs matched the recorded component manifest, and component trees matched the reviewed checkpoints.
+  The resolved merge preserves current main and the actual remote component commit histories, with the original PRs and branches retained.
+- Verification reuse: Product source, tests, maintained documentation and assets are unchanged from the approved integration; its 3665 passed tests, 12 local Docker-dependent skips, formatting, lint, types, demo, wheel/assets, JavaScript and documentation results are reused by exact-tree comparison, not presented as a new run.
+- Current checks: The aggregation disclosure passed Markdown lint and whitespace checks; new aggregate CI is reported on the PR.
+- Review shape: The owner requested one combined colleague-review link instead of twenty separate review links; the component work remains traceable in the aggregate PR.
+- Boundary: No task #222 or unrelated branch import, new product behavior, main merge, version bump, tag, deployment or GitHub Release publication.
+- Team assessment: TODO
+
+## 2026-11-11 — Task 222 main integration
+
+- Tool: OpenCode.
+- Use: Resolved ordinary main-into-feature integration for [Task #222](https://github.com/iteam7/gateway7/issues/222) and prepared the existing Draft PR update, preserving main client controls, unrestricted-model console projection and catalog exemption from generation admission.
+- Review: Independent actual-diff reviews approved the 14-file source integration, four documentation files, exact report union and deterministic real-Timeout deadline-test correction; production deadlines were not increased.
+- Verification: Latest merged-source full pytest passed all 4006 tests with zero failures/errors/skips, and one unchanged synthetic demo passed all 15 checkpoints; earlier production Ruff formatting/lint and mypy checks remain applicable without repetition.
+  Documentation QA passed full Markdown (116 files), strict MkDocs/site checks (64 pages, 8070 links/assets) and five-page Lychee (79 successes, zero errors/exclusions).
+- History: Earlier 4005-pass/one-failure pytest and demo exit 1 remain historical failed runs; the latest fresh passes clear the latest gates, not the still-unknown historical demo failure cause.
+- Preservation: Both published report histories and all 30 existing team-assessment placeholders remain verbatim; finished-week evidence and released changelog history are unchanged.
+- Boundary: Synthetic local validation only; no new live provider/catalog/generation, installed-package verification, rollout, PR merge or human acceptance is claimed.
+- Team assessment: TODO

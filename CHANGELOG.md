@@ -9,6 +9,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - Explicit private JSON credential loading for local `gateway7 serve` startup, with existing environment values taking precedence and no automatic file discovery.
 - Optional provider/client model restrictions and an authenticated, bounded cached OpenAI model catalog; catalog membership neither gates authorization nor certifies endpoint compatibility.
+- A read-only operator web console displays safe client configuration, limits, usage and startup middleware capabilities with isolated authentication and packaged local assets.
+- An opt-in operator-only client usage snapshot reports known and unknown directional source usage and terminal provider outcomes without retaining request or response content.
+- Optional additional per-client middleware chains retain all global policies, isolate client rules and validate references before plugin construction.
+- Optional per-client request-rate quotas with monotonic refill, safe Retry-After responses and no charge for pre-admission rejects or task-creation rollback.
+- Optional per-client concurrency limits with isolated 429 admission and leases held through response delivery and cancellation cleanup.
+- Stable configured client identities independent of token rotation and restart-based account suspension with enabled: false.
 - Opt-in early Chat Completions text via `X-Gateway7-Stream-Mode: early` for compatible request-only middleware, with backpressure and delayed validated tool calls; full-response checked delivery remains the default.
 - A bounded `gateway7_http_request_outcomes_total` counter separates terminal stream failures and cancellations from the HTTP status sent, including requests ending without a response.
 - A closed native `/v1/responses` HTTP subset with native policy hooks, ordered structured tool turns, default checked JSON/SSE and independent opaque-content/hosted-tool consent; this does not establish full Responses or live Codex compatibility.
@@ -19,6 +25,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- Reject ambiguous native and Chat HTTP JSON, including duplicate members, nonfinite numbers and invalid Unicode, before middleware or provider calls.
+- Bound final native and nonstreaming Chat JSON delivery by the request deadline, including blocked ASGI sends.
+- Preserve safe route-owned Allow headers on HTTP 405 errors without reflecting arbitrary exception headers.
+- Complete owned Chat provider stream cleanup after cancellation, sharing the cancellation-safe close behavior with Responses.
+- Preserve timeout and external-cancellation precedence when a Chat provider suppresses cancellation, while retaining known source usage.
+- Validate required middleware topology and all factory signatures before constructing any plugin instance.
+- Bound YAML configuration files and validate aliases, duplicate keys, node counts and nesting before constructing configuration values.
+- Reject ambiguous, nonfinite, invalid-Unicode or excessively nested Chat SSE event JSON before delivering any of its text.
+- Revalidate nested Chat middleware object state so copied extra fields, invalid descendants and cycles cannot bypass boundary validation.
+- Reject partial Responses usage whose reported directional or detail counts exceed a reported total while preserving unknown counts.
+- Generate middleware package dependencies for the running Gateway7 minor release instead of the incompatible pre-0.2 range.
+- Exclude ambient OpenTelemetry resource attributes and automatic detectors from exported log and metric resources.
+- Retain observed provider-reported Chat usage when response cleanup fails, with strict JSON validation and unknown usage for malformed or oversized bodies.
+- Reject ambiguous buffered provider JSON with duplicate members, invalid UTF-8, nonfinite numbers or excessive nesting before Chat response delivery.
 - Normalize valid OpenAI `stop` tool turns to `tool_calls`, preserve call-free `length` responses and usage, accept nullable optional SSE tool fields, and use a native OpenCode V2 compatibility profile for the bounded Chat Completions subset.
 - Name the denying middleware in policy errors on both chat APIs and report bounded unsupported content-policy actions before startup.
 - Align the package, runtime and public OpenAPI version with the next release candidate instead of reporting `0.1.0` for newer release tags.

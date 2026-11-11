@@ -69,13 +69,27 @@ def load_plugins(config: GatewayConfig) -> LoadedPlugins:
     for name in chain:
         if name not in config.plugins:
             raise StartupError(f"Unknown plugin instance {name} in middleware chain")
+    for name, specification in config.plugins.items():
+        if specification.required and not specification.enabled:
+            raise StartupError(f"Required plugin instance {name} must be enabled")
+        if specification.required and name not in chain:
+            raise StartupError(f"Required plugin instance {name} is missing from middleware chain")
+    for client in config.auth.clients.values():
+        additional = client.additional_middleware
+        if len(additional) != len(set(additional)):
+            raise StartupError("Duplicate additional middleware in client policy")
+        for name in additional:
+            if name not in config.plugins:
+                raise StartupError(f"Unknown additional middleware {name} in client policy")
+            if not config.plugins[name].enabled:
+                raise StartupError(f"Disabled additional middleware {name} in client policy")
+            if name in chain:
+                raise StartupError(f"Additional middleware {name} is already global")
 
     # Validate all descriptors/settings first, including disabled modules. No
     # factory runs until all configuration-level checks have passed.
     descriptors: dict[str, tuple[PluginDescriptor, BaseModel]] = {}
     for name, specification in config.plugins.items():
-        if specification.required and not specification.enabled:
-            raise StartupError(f"Required plugin instance {name} must be enabled")
         try:
             module = importlib.import_module(specification.module)
         except Exception:
@@ -111,8 +125,10 @@ def load_plugins(config: GatewayConfig) -> LoadedPlugins:
                 or descriptor.settings_model.model_config.get("frozen") is not True
                 or not callable(descriptor.create)
                 or inspect.iscoroutinefunction(descriptor.create)
+                or inspect.iscoroutinefunction(getattr(descriptor.create, "__call__", None))
             ):
                 raise ValueError
+            inspect.signature(descriptor.create).bind(None)
         except Exception:
             raise StartupError(f"Invalid PLUGIN descriptor for plugin instance {name}") from None
         try:
@@ -165,9 +181,6 @@ def load_plugins(config: GatewayConfig) -> LoadedPlugins:
         )
         instances[name] = plugin
 
-    for name, specification in config.plugins.items():
-        if specification.required and name not in chain:
-            raise StartupError(f"Required plugin instance {name} is missing from middleware chain")
     active = tuple(instances[name] for name in chain if config.plugins[name].enabled)
     return LoadedPlugins(instances, active)
 

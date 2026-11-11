@@ -785,21 +785,70 @@ async def test_blocked_native_text_send_prevents_next_upstream_read(early_http):
         assert app.state.admission.active == 0 and b"response.completed" not in raw.body
 
 
-async def test_native_terminal_send_uses_original_absolute_request_deadline(early_http):
+async def test_native_terminal_send_uses_original_absolute_request_deadline(
+    early_http, monkeypatch
+):
+    class TimeoutObserver:
+        def __init__(self):
+            self.timers = []
+
+        def timeout_at(self, when):
+            timer = asyncio.timeout_at(when)
+            self.timers.append(timer)
+            return timer
+
+        def __getattr__(self, name):
+            return getattr(asyncio, name)
+
+    observer = TimeoutObserver()
     barrier = SendBarrier("response.completed")
-    async with early_http(limits={"request_timeout_seconds": 0.8}) as (app, up, _, post):
-        raw = post(send_hook=barrier, delay_body=True)
-        await raw.wait_for(raw.reading)
-        deadline = raw.scope["state"]["deadline"]
-        loop = asyncio.get_running_loop()
-        await asyncio.sleep(max(0, deadline - loop.time() - 0.25))
-        raw.body_release.set()
-        await raw.wait_for(barrier.blocked)
-        assert raw.first_text.is_set() and up.eof.is_set() and up.closed.is_set()
-        assert app.state.admission.active == 1
-        await raw.finish(timeout=max(0.01, deadline - loop.time()) + 0.1)
-        assert raw.scope["state"]["deadline"] == deadline and app.state.admission.active == 0
-        assert b"response.completed" not in raw.body and b"[DONE]" not in raw.body
+    send_cancelled = asyncio.Event()
+    cleanup_release = asyncio.Event()
+    cleanup_finished = asyncio.Event()
+    send_timeout = None
+
+    async def send(message):
+        nonlocal send_timeout
+        # Capture the real context enclosing this actual ASGI send.
+        send_timeout = observer.timers[-1]
+        try:
+            await barrier(message)
+        except asyncio.CancelledError:
+            send_cancelled.set()
+            await cleanup_release.wait()
+            cleanup_finished.set()
+            raise
+
+    async with early_http() as (app, up, _, post):
+        app_module = importlib.import_module("gateway7.app")
+        with monkeypatch.context() as patch:
+            patch.setattr(app_module, "asyncio", observer)
+            raw = post(send_hook=send, delay_body=True)
+            try:
+                await raw.wait_for(raw.reading)
+                original_deadline = raw.scope["state"]["deadline"]
+                raw.body_release.set()
+                await raw.wait_for(barrier.blocked)
+                assert raw.status == 200 and raw.first_text.is_set()
+                assert up.eof.is_set() and up.closed.is_set()
+                assert app.state.admission.active == 1 and not raw.task.done()
+                assert raw.scope["state"]["deadline"] == original_deadline
+                assert isinstance(send_timeout, asyncio.Timeout)
+                assert send_timeout.when() == original_deadline
+                assert not send_timeout.expired()
+
+                send_timeout.reschedule(asyncio.get_running_loop().time())
+                await raw.wait_for(send_cancelled)
+                assert send_timeout.expired()
+                assert not cleanup_finished.is_set() and not raw.task.done()
+                assert app.state.admission.active == 1
+            finally:
+                cleanup_release.set()
+            await raw.finish()
+            assert cleanup_finished.is_set() and send_timeout.expired()
+            assert raw.scope["state"]["deadline"] == original_deadline
+            assert app.state.admission.active == 0
+            assert b"response.completed" not in raw.body and b"[DONE]" not in raw.body
 
 
 @pytest.mark.parametrize("published", [False, True], ids=["before-text", "after-prefix"])

@@ -19,6 +19,37 @@ An operator gives each [client](glossary.md#client) its own token and decides wh
 - **Behavior:** [`FR-006`](functional-requirements/fr/FR-006.md)
 - **Decisions:** [`ADR-003`](architecture/adr/ADR-003.md)
 
+## Keep one client's work within its capacity
+
+An operator can give each [client](glossary.md#client) an optional concurrent-request limit, shared across chat APIs and retained through delivery and cleanup.
+A busy client receives HTTP 429 while another client can proceed within the independent global pipeline capacity.
+The [client guide](authentication.md#limit-concurrent-client-requests) explains configuration and the one-process boundary.
+
+- **Stories:** [`US-07`](https://github.com/iteam7/gateway7/issues/36), extended by the operator request in [task #239](https://github.com/iteam7/gateway7/issues/239).
+- **Behavior:** [`FR-016`](functional-requirements/fr/FR-016.md)
+- **Decisions:** [`ADR-003`](architecture/adr/ADR-003.md)
+
+## Control each client's request rate
+
+An operator can assign each [client](glossary.md#client) an optional request-rate bucket shared across chat APIs.
+Requests rejected before admission consume no quota, while admitted requests consume one token even if a later policy or provider fails.
+The [rate guide](authentication.md#limit-a-clients-request-rate) explains continuous refill, safe retry headers and process-local restart behavior.
+
+- **Stories:** [`US-07`](https://github.com/iteam7/gateway7/issues/36), extended by the operator request in [task #240](https://github.com/iteam7/gateway7/issues/240).
+- **Behavior:** [`FR-017`](functional-requirements/fr/FR-017.md)
+- **Decisions:** [`ADR-003`](architecture/adr/ADR-003.md)
+
+## Read a protected client usage snapshot
+
+An operator uses a separate credential to read each configured client's provider-attempt counts and known input/output token totals for this process's lifetime.
+Unknown usage remains explicit for each direction, including failed and cancelled attempts; response-side denials retain observed provider usage.
+The [operator snapshot guide](authentication.md#operator-usage-snapshot) explains credential separation, restart reset and the snapshot fields.
+This increment does not deliver the arbitrary-period, per-model history specified by FR-012 or a billing ledger.
+
+- **Stories:** [`US-13`](https://github.com/iteam7/gateway7/issues/141), partial increment
+- **Behavior:** [`FR-019`](functional-requirements/fr/FR-019.md)
+- **Decisions:** [`ADR-003`](architecture/adr/ADR-003.md)
+
 ## Mask phone numbers before they leave
 
 A security officer keeps customers' phone numbers out of the prompts that reach the provider.
@@ -28,10 +59,10 @@ A security officer keeps customers' phone numbers out of the prompts that reach 
 
 ## Add company middleware by configuration
 
-An operator adds the company's own [middleware](glossary.md#middleware) to the gateway and sets its order without changing the gateway's code.
+An operator adds the company's own [middleware](glossary.md#middleware) and configures shared and additional per-client policies without changing the gateway's code.
 
 - **Stories:** [`US-03`](https://github.com/iteam7/gateway7/issues/32)
-- **Behavior:** [`FR-003`](functional-requirements/fr/FR-003.md)
+- **Behavior:** [`FR-003`](functional-requirements/fr/FR-003.md), [`FR-018`](functional-requirements/fr/FR-018.md)
 - **Decisions:** [`ADR-001`](architecture/adr/ADR-001.md), [`ADR-002`](architecture/adr/ADR-002.md)
 
 ## Block or log a flagged request
@@ -71,6 +102,14 @@ An operator finds which [middleware](glossary.md#middleware) failed or slowed a 
 - **Stories:** [`US-12`](https://github.com/iteam7/gateway7/issues/140)
 - **Behavior:** [`FR-011`](functional-requirements/fr/FR-011.md)
 - **Decisions:** [`ADR-002`](architecture/adr/ADR-002.md)
+
+## Inspect client access and middleware
+
+An operator can review each [client](glossary.md#client)'s access, configured limits, observed provider usage and middleware order in a read-only browser workspace.
+
+- **Stories:** [US-07](https://github.com/iteam7/gateway7/issues/36), [US-13](https://github.com/iteam7/gateway7/issues/141), [US-03](https://github.com/iteam7/gateway7/issues/32)
+- **Behavior:** [FR-020](functional-requirements/fr/FR-020.md), [FR-019](functional-requirements/fr/FR-019.md)
+- **Decisions:** [ADR-003](architecture/adr/ADR-003.md)
 
 ## Start a middleware package
 

@@ -13,6 +13,7 @@ from pydantic import TypeAdapter
 from gateway7.config import ModelId
 from gateway7.errors import ProviderError, ProviderErrorReason
 from gateway7.http_lifecycle import _OwnedCloseStream as _OwnedCloseStream
+from gateway7.provider_stream import OwnedCloseStream
 from gateway7.responses_events import ResponsesTextDelta, ResponsesTextSink
 from gateway7.responses_models import (
     ResponseFunctionTool,
@@ -269,7 +270,7 @@ async def complete_responses(
             try:
                 if not isinstance(wire.stream, httpx.AsyncByteStream):
                     raise ResponsesProviderError(ProviderErrorReason.INVALID_RESPONSE)
-                wire.stream = _OwnedCloseStream(wire.stream)
+                wire.stream = OwnedCloseStream(wire.stream)
                 if wire.status_code != 200:
                     raise ResponsesProviderError(_http_reason(wire.status_code))
                 media_type = wire.headers.get("content-type", "").split(";", 1)[0].strip().lower()
