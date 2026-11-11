@@ -25,6 +25,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- Complete local startup cancellation when middleware suppresses cancellation, retaining the original cancellation and restoring the credential overlay before cleanup.
 - Reject ambiguous native and Chat HTTP JSON, including duplicate members, nonfinite numbers and invalid Unicode, before middleware or provider calls.
 - Bound final native and nonstreaming Chat JSON delivery by the request deadline, including blocked ASGI sends.
 - Preserve safe route-owned Allow headers on HTTP 405 errors without reflecting arbitrary exception headers.

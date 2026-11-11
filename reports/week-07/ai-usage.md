@@ -304,3 +304,14 @@
 - Preservation: Both published report histories and all 30 existing team-assessment placeholders remain verbatim; finished-week evidence and released changelog history are unchanged.
 - Boundary: Synthetic local validation only; no new live provider/catalog/generation, installed-package verification, rollout, PR merge or human acceptance is claimed.
 - Team assessment: TODO
+
+## 2026-11-11 — Task #222 PR review correction
+
+- Tool: Codex.
+- Work: Fixed cancellation of explicit-secrets local startup when an API-v2 middleware catches cancellation and returns; the lifecycle receives the original cancellation through its finish signal and completes owned cleanup before it propagates.
+- Regression: A real Gateway/API-v2 plugin test fails against the reviewed PR head and passes with the fix; it checks repeated cancellation during cleanup, original cancellation identity, same-task lifespan ownership, restored synthetic environment, no server start and no surviving owned jobs.
+- Verification: The corrected source passed 80 focused CLI/private-file tests and one full pytest run with 3995 passes and 12 local skips because Docker Compose is unavailable.
+  Production Ruff formatting/lint and mypy passed for all 41 files; the unchanged synthetic demo and wheel build passed.
+- Review: Independent actual-diff TechLead review approved the narrow handshake correction and regression; earlier Task #222 evidence above remains historical and unchanged.
+- Boundary: No real credential files, existing launcher/server, live providers, model permissions/catalog behavior, dependencies, deployment or merge were changed.
+- Team assessment: TODO

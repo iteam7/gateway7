@@ -223,9 +223,9 @@ async def _serve(
             if lifecycle is None:
                 raise
             # The overlay is already restored before requesting or awaiting cleanup.
-            if ready.done() and not finish.done():
+            if not finish.done():
                 finish.set_result(error)
-            else:
+            if not ready.done():
                 lifecycle.cancel()
             while not lifecycle.done():
                 try:
