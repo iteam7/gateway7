@@ -12,6 +12,7 @@ from pydantic import TypeAdapter
 
 from gateway7.config import ModelId
 from gateway7.errors import ProviderError, ProviderErrorReason
+from gateway7.http_lifecycle import _OwnedCloseStream as _OwnedCloseStream
 from gateway7.provider_stream import OwnedCloseStream
 from gateway7.responses_events import ResponsesTextDelta, ResponsesTextSink
 from gateway7.responses_models import (

@@ -134,6 +134,30 @@ async def test_invalid_override_does_not_make_a_provider_request(model):
         await provider.aclose()
 
 
+@pytest.mark.parametrize("model", ["ft:gpt-4.1:team:custom", "org/CaseSensitive"])
+async def test_openai_opaque_ids_reach_the_wire_unchanged_outside_middleware(monkeypatch, model):
+    provider = build_provider(ProviderConfig(kind="openai", model="default-model"), "synthetic-key")
+    await provider.aclose()
+    observed = []
+
+    def handle(wire):
+        payload = json.loads(wire.content)
+        observed.append(payload["model"])
+        assert payload["messages"] == [{"role": "user", "content": "sanitized"}]
+        return httpx.Response(200, json=wire_response("openai", "answer"))
+
+    provider._client = httpx.AsyncClient(transport=httpx.MockTransport(handle))
+    try:
+        response = await pipeline_for(monkeypatch, provider, RewriteText()).run(
+            ChatRequest(messages=[Message(role="user", content="input")]),
+            "opaque-model", provider_model=model,
+        )
+        assert response.text == "answer" and observed == [model]
+        assert provider._model == "default-model"
+    finally:
+        await provider.aclose()
+
+
 async def test_plugin_cannot_inject_a_model_using_unchecked_copy(monkeypatch):
     calls = []
 

@@ -11,6 +11,7 @@ import re
 import secrets
 import socket
 import signal
+import stat
 import sys
 import threading
 import time
@@ -23,7 +24,8 @@ import httpx
 import uvicorn
 
 from gateway7.app import create_app
-from gateway7.config import GatewayConfig, load_config
+from gateway7.auth import _valid_token
+from gateway7.config import GatewayConfig, load_config, validate_model_id
 from gateway7.errors import StartupError
 from gateway7.loader import load_plugins
 from gateway7.models import ChatRequest, ChatResponse, Message
@@ -32,6 +34,92 @@ from gateway7.offline import print_report, run_offline
 from gateway7.scaffold import create_plugin_project
 from gateway7.smoke import run_smoke
 from gateway7.transport_loader import validate_transport_config
+from gateway7.transports.http_proxy import _proxy_url
+
+_SECRETS_FILE_LIMIT = 65536
+
+
+def _private_regular_file(info: os.stat_result) -> bool:
+    return stat.S_ISREG(info.st_mode) and (
+        os.name != "posix" or info.st_uid == os.geteuid() and not info.st_mode & 0o077
+    )
+
+
+def _unique_secret_names(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for name, value in pairs:
+        if name in result:
+            raise ValueError("Duplicate secrets file member")
+        result[name] = value
+    return result
+
+
+def _read_secrets_file(path: str, config: GatewayConfig) -> dict[str, str]:
+    """Read only an explicit, bounded private JSON file of referenced credentials."""
+    try:
+        before = os.stat(path, follow_symlinks=False)
+        if not _private_regular_file(before):
+            raise OSError
+        flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+        with os.fdopen(os.open(path, flags), "rb") as source:
+            after = os.fstat(source.fileno())
+            if not _private_regular_file(after) or (before.st_dev, before.st_ino) != (
+                after.st_dev,
+                after.st_ino,
+            ):
+                raise OSError
+            if after.st_size > _SECRETS_FILE_LIMIT:
+                raise StartupError("Invalid secrets file")
+            content = source.read(_SECRETS_FILE_LIMIT + 1)
+    except (OSError, ValueError):
+        raise StartupError("Cannot read private secrets file") from None
+    try:
+        if len(content) > _SECRETS_FILE_LIMIT:
+            raise ValueError
+        data = json.loads(content.decode("utf-8"), object_pairs_hook=_unique_secret_names)
+        if not isinstance(data, dict):
+            raise ValueError
+        token_names = {client.token_env for client in config.auth.clients.values()}
+        allowed = {config.provider.key_env, *token_names}
+        proxy_name = None
+        transport = config.provider.transport
+        if transport is not None and transport.module == "gateway7.transports.http_proxy":
+            candidate = transport.settings.get("url_env")
+            if isinstance(candidate, str) and re.fullmatch(
+                r"[A-Za-z_][A-Za-z0-9_]{0,127}", candidate
+            ):
+                proxy_name = candidate
+                allowed.add(candidate)
+        for name, value in data.items():
+            if (
+                name not in allowed
+                or not isinstance(value, str)
+                or not value
+                or not value.isascii()
+                or any(not 33 <= ord(character) <= 126 for character in value)
+            ):
+                raise ValueError
+            if name in token_names and not _valid_token(value):
+                raise ValueError
+            if name == proxy_name:
+                _proxy_url(value)
+        return data
+    except (ValueError, UnicodeError, RecursionError, StartupError):
+        raise StartupError("Invalid secrets file") from None
+
+
+@contextmanager
+def _startup_environment(values: dict[str, str]) -> Iterator[None]:
+    added = []
+    try:
+        for name, value in values.items():
+            if name not in os.environ:
+                os.environ[name] = value
+                added.append(name)
+        yield
+    finally:
+        for name in added:
+            os.environ.pop(name, None)
 
 
 class _ManagedServer(uvicorn.Server):
@@ -81,7 +169,17 @@ async def _serve(
     port: int,
     *,
     config: GatewayConfig | None = None,
+    secrets_file: str | None = None,
 ) -> None:
+    values = {}
+    if secrets_file is not None:
+        if config is None:
+            config = load_config(
+                config_path
+                if config_path is not None
+                else os.environ.get("GATEWAY_CONFIG", "config/demo.yaml")
+            )
+        values = _read_secrets_file(secrets_file, config)
     app = create_app(config_path, config=config)
     # Own lifespan so Uvicorn cannot print raw startup exceptions or config values.
     server = _ManagedServer(
@@ -94,8 +192,49 @@ async def _serve(
             timeout_graceful_shutdown=10,
         )
     )
-    async with app.router.lifespan_context(app):
-        await server.serve()
+    if secrets_file is None:
+        async with app.router.lifespan_context(app):
+            await server.serve()
+    else:
+        loop = asyncio.get_running_loop()
+        ready: asyncio.Future[None] = loop.create_future()
+        finish: asyncio.Future[BaseException | None] = loop.create_future()
+
+        async def own_lifespan() -> None:
+            # Task-local context managers must enter and exit in this same task.
+            async with app.router.lifespan_context(app):
+                ready.set_result(None)
+                error = await finish
+                if error is not None:
+                    raise error
+
+        lifecycle: asyncio.Task[None] | None = None
+        try:
+            with _startup_environment(values):
+                lifecycle = asyncio.create_task(own_lifespan())
+                await asyncio.wait((ready, lifecycle), return_when=asyncio.FIRST_COMPLETED)
+                if lifecycle.done():
+                    lifecycle.result()
+            await server.serve()
+            if not finish.done():
+                finish.set_result(None)
+            await asyncio.shield(lifecycle)
+        except BaseException as error:
+            if lifecycle is None:
+                raise
+            # The overlay is already restored before requesting or awaiting cleanup.
+            if not finish.done():
+                finish.set_result(error)
+            if not ready.done():
+                lifecycle.cancel()
+            while not lifecycle.done():
+                try:
+                    await asyncio.shield(lifecycle)
+                except (Exception, asyncio.CancelledError):
+                    pass
+            if not lifecycle.cancelled():
+                lifecycle.exception()
+            raise
 
 
 def _demo_config(port: int) -> GatewayConfig:
@@ -243,8 +382,11 @@ async def _chat(
         or len(token) > 512
     ):
         raise StartupError("Gateway token environment variable has an invalid value")
-    if model is not None and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", model) is None:
-        raise StartupError("--model must be a valid model identifier")
+    if model is not None:
+        try:
+            validate_model_id(model)
+        except ValueError:
+            raise StartupError("--model must be a valid model identifier") from None
     request = ChatRequest(messages=[Message(role="user", content=message)], max_tokens=max_tokens)
     # The CLI's chat command targets the unchanged native text endpoint.
     payload: dict[str, Any] = {
@@ -285,6 +427,10 @@ def _parser() -> argparse.ArgumentParser:
     subcommands = parser.add_subparsers(dest="command", required=True)
     serve = subcommands.add_parser("serve", help="Run the gateway with a YAML configuration")
     serve.add_argument("--config", default=os.environ.get("GATEWAY_CONFIG"))
+    serve.add_argument(
+        "--secrets-file",
+        help="Explicit private JSON file of config-referenced credentials; existing environment wins",
+    )
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8000)
     validate = subcommands.add_parser(
@@ -403,7 +549,12 @@ def main(argv: list[str] | None = None) -> int:
                 raise StartupError(
                     "Pass --config PATH or set GATEWAY_CONFIG; use gateway7 demo for a key-free start"
                 )
-            asyncio.run(_run_service(_serve(args.config, args.host, args.port)))
+            service = (
+                _serve(args.config, args.host, args.port)
+                if args.secrets_file is None
+                else _serve(args.config, args.host, args.port, secrets_file=args.secrets_file)
+            )
+            asyncio.run(_run_service(service))
         elif args.command == "demo":
             asyncio.run(_run_service(_demo(args.host, args.port)))
         else:

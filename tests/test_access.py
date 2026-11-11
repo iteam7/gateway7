@@ -9,8 +9,8 @@ from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 from gateway7.app import create_app
-from gateway7.auth import AccessControl
-from gateway7.config import GatewayConfig
+from gateway7.auth import AccessControl, Principal
+from gateway7.config import ClientConfig, GatewayConfig, ProviderConfig
 from gateway7.errors import GatewayError, StartupError
 from gateway7.models import ChatResponse
 
@@ -72,13 +72,214 @@ def test_real_providers_cannot_run_without_client_authentication(kind, auth):
 @pytest.mark.parametrize("auth", [
     {"enabled": True},
     {"enabled": False, "clients": {"ignored": {"token_env": "TOKEN", "models": ["fake"]}}},
-    {"enabled": True, "clients": {"bad": {"token_env": "TOKEN", "models": []}}},
+    {"enabled": True, "clients": {"bad": {"token_env": "TOKEN", "models": None}}},
     {"enabled": True, "clients": {"bad": {"token_env": "TOKEN", "models": ["fake", "fake"]}}},
     {"enabled": True, "clients": {"bad": {"token_env": "TOKEN", "models": ["../escape"]}}},
 ])
 def test_auth_configuration_is_strict(auth):
     with pytest.raises(ValidationError):
         GatewayConfig.model_validate({"auth": auth})
+
+
+@pytest.mark.parametrize("models", [[], ["model-a"], ["model-a", "model-b"]])
+def test_optional_allowlists_accept_explicit_lists(models):
+    assert ProviderConfig(allowed_models=models).allowed_models == models
+    assert ClientConfig(token_env="TOKEN", models=models).models == models
+
+
+def test_missing_allowlists_are_unrestricted_and_dump_as_absent():
+    provider = ProviderConfig()
+    client = ClientConfig(token_env="TOKEN")
+    assert provider.allowed_models is None and client.models is None
+    assert "allowed_models" not in provider.model_dump()
+    assert "models" not in client.model_dump()
+
+
+@pytest.mark.parametrize("value", [None, "model-a", 42, True, {}, ("model-a",), [42], [""],
+                                       ["model-a", "model-a"], ["model-a"] * 65])
+@pytest.mark.parametrize("level", ["provider", "client"])
+def test_optional_allowlists_reject_null_wrong_types_and_duplicates(level, value):
+    with pytest.raises(ValidationError):
+        if level == "provider":
+            ProviderConfig(allowed_models=value)
+        else:
+            ClientConfig(token_env="TOKEN", models=value)
+
+
+@pytest.mark.parametrize("provider_models,client_models,expected", [
+    (None, None, None),
+    (None, ["model-b", "model-a"], ("model-b", "model-a")),
+    (["model-a", "model-b"], None, ("model-a", "model-b")),
+    (["model-a", "model-b"], ["model-b", "model-c"], ("model-b",)),
+    ([], None, ()),
+    (None, [], ()),
+    ([], ["model-a"], ()),
+    (["model-a"], [], ()),
+    (["model-a"], ["model-b"], ()),
+])
+def test_effective_model_permissions_are_the_intersection(
+    credentials, provider_models, client_models, expected
+):
+    provider = {"model": "model-a"}
+    client = {"token_env": "CLIENT_ALPHA"}
+    if provider_models is not None:
+        provider["allowed_models"] = provider_models
+    if client_models is not None:
+        client["models"] = client_models
+    config = access_config(provider=provider, auth={"enabled": True, "clients": {"alpha": client}})
+    principal = AccessControl(config).authenticate([(b"authorization", ("Bearer " + TOKEN_A).encode())])
+    assert principal.models == expected
+    for model in ("model-a", "model-b", "model-c"):
+        if expected is None or model in expected:
+            assert principal.select_model(model, "model-a") == model
+        else:
+            with pytest.raises(GatewayError) as error:
+                principal.select_model(model, "model-a")
+            assert error.value.code == "model_forbidden"
+
+
+def test_unrestricted_principal_keeps_literal_ids_and_default_selection():
+    principal = Principal(None)
+    assert principal.select_model(None, "configured-default") == "configured-default"
+    for model in ("ft:gpt-4.1:team:custom", "org/model", "CaseSensitive"):
+        assert principal.select_model(model, "configured-default") == model
+    restricted = Principal(("CaseSensitive",))
+    with pytest.raises(GatewayError) as error:
+        restricted.select_model("casesensitive", "CaseSensitive")
+    assert error.value.code == "model_forbidden"
+
+
+def test_forbidden_default_never_selects_an_alternative():
+    with pytest.raises(GatewayError) as error:
+        Principal(("another-model",)).select_model(None, "configured-default")
+    assert error.value.code == "model_forbidden"
+
+
+@pytest.mark.parametrize("allowed,expected", [(None, ("fake",)), (["fake", "other"], ("fake",)),
+                                             ([], ()), (["other"], ())])
+def test_anonymous_fake_permissions_intersect_the_default_with_provider_policy(allowed, expected):
+    provider = {} if allowed is None else {"allowed_models": allowed}
+    principal = AccessControl(GatewayConfig.model_validate({"provider": provider})).authenticate([])
+    assert principal.models == expected
+
+
+@pytest.mark.parametrize("provider_models,client_models,expected", [
+    (["model-a", "model-b"], None, ["model-a", "model-b"]),
+    (None, ["model-a"], ["model-a"]),
+    (["model-a"], ["model-a", "model-b"], ["model-a"]),
+    ([], None, []),
+    (None, [], []),
+    (["model-a"], ["model-b"], []),
+])
+def test_finite_catalog_uses_effective_permissions_without_provider_discovery(
+    credentials, provider, monkeypatch, provider_models, client_models, expected
+):
+    discovery = []
+
+    async def unexpected_discovery():
+        discovery.append(1)
+        raise AssertionError("Finite model policies must not query the provider")
+
+    monkeypatch.setattr(provider, "list_models", unexpected_discovery, raising=False)
+    specification = {"model": "model-a"}
+    client_config = {"token_env": "CLIENT_ALPHA"}
+    if provider_models is not None:
+        specification["allowed_models"] = provider_models
+    if client_models is not None:
+        client_config["models"] = client_models
+    config = access_config(provider=specification,
+                           auth={"enabled": True, "clients": {"alpha": client_config}})
+    with TestClient(create_app(config=config)) as client:
+        response = client.get("/v1/models", headers={"Authorization": "Bearer " + TOKEN_A})
+        assert response.status_code == 200
+        assert [item["id"] for item in response.json()["data"]] == expected
+    assert discovery == [] and provider.calls == []
+
+
+@pytest.mark.parametrize("provider_models,client_models", [([], None), (None, []),
+                                                          (["model-b"], None), (None, ["model-b"])])
+@pytest.mark.parametrize("path", ["/chat", "/v1/chat/completions", "/v1/responses"])
+def test_denied_default_or_empty_policy_never_runs_middleware_or_provider(
+    credentials, provider, monkeypatch, provider_models, client_models, path
+):
+    from gateway7.plugins.phone_mask import PhoneMaskPlugin
+
+    calls = []
+
+    async def unexpected_middleware(*args):
+        calls.append(1)
+        raise AssertionError("Denied models must not reach middleware")
+
+    monkeypatch.setattr(PhoneMaskPlugin, "handle", unexpected_middleware)
+    specification = {"model": "model-a"}
+    client_config = {"token_env": "CLIENT_ALPHA"}
+    if provider_models is not None:
+        specification["allowed_models"] = provider_models
+    if client_models is not None:
+        client_config["models"] = client_models
+    config = access_config(
+        provider=specification,
+        auth={"enabled": True, "clients": {"alpha": client_config}},
+        plugins={"mask": {"module": "gateway7.plugins.phone_mask"}}, middleware=["mask"],
+    )
+    message = {"messages": [{"role": "user", "content": "hello"}]}
+    body = message if path == "/chat" else {"model": "model-a", **message}
+    if path == "/v1/responses":
+        body = {"model": "model-a", "input": "hello"}
+    with TestClient(create_app(config=config)) as client:
+        response = client.post(path, json=body, headers={"Authorization": "Bearer " + TOKEN_A})
+        assert response.status_code == 403
+        assert response.json()["error"]["code"] == "model_forbidden"
+    assert calls == [] and provider.calls == []
+
+
+@pytest.mark.parametrize("restricted", [False, True])
+@pytest.mark.parametrize("path", ["/chat", "/v1/chat/completions"])
+@pytest.mark.parametrize("model", ["ft:gpt-4.1:team:custom", "org/CaseSensitive"])
+def test_openai_requests_keep_literal_unknown_ids(
+    credentials, provider, monkeypatch, path, model, restricted
+):
+    monkeypatch.setenv("OPENAI_API_KEY", PROVIDER_KEY)
+    client_config = {"token_env": "CLIENT_ALPHA"}
+    if restricted:
+        client_config["models"] = [model]
+    config = access_config(provider={"kind": "openai", "model": "configured-default"},
+                           auth={"enabled": True, "clients": {"alpha": client_config}})
+    with TestClient(create_app(config=config)) as client:
+        response = client.post(path, headers={"Authorization": "Bearer " + TOKEN_A},
+                               json={"model": model, "messages": [{"role": "user", "content": "hello"}]})
+        assert response.status_code == 200
+        assert provider.calls[-1][1] == model
+        assert not hasattr(provider.calls[-1][0], "model")
+
+
+@pytest.mark.parametrize("kind", ["fake", "claude", "gemini"])
+@pytest.mark.parametrize("path,status", [("/chat", 422), ("/v1/chat/completions", 400)])
+@pytest.mark.parametrize("model", ["org/model", "a:method", "X" * 129])
+def test_unrestricted_non_openai_request_still_requires_a_path_safe_model(
+    credentials, provider, monkeypatch, kind, path, status, model
+):
+    config = access_config(provider={"kind": kind, "model": "configured-default"},
+                           auth={"enabled": True, "clients": {"alpha": {"token_env": "CLIENT_ALPHA"}}})
+    monkeypatch.setenv(config.provider.key_env, PROVIDER_KEY)
+    with TestClient(create_app(config=config)) as client:
+        response = client.post(path, headers={"Authorization": "Bearer " + TOKEN_A},
+                               json={"model": model, "messages": [{"role": "user", "content": "hello"}]})
+        assert response.status_code == status
+        assert response.json()["error"]["code"] == "invalid_request"
+    assert provider.calls == []
+
+
+def test_permissions_are_snapshotted_before_configured_lists_can_change(credentials):
+    config = access_config(provider={"model": "model-a", "allowed_models": ["model-a"]})
+    access = AccessControl(config)
+    config.provider.allowed_models.append("model-b")
+    config.auth.clients["alpha"].models.append("model-b")
+    principal = access.authenticate([(b"authorization", ("Bearer " + TOKEN_A).encode())])
+    assert principal.models == ("model-a",)
+    with pytest.raises(GatewayError) as error:
+        principal.select_model("model-b", "model-a")
+    assert error.value.code == "model_forbidden"
 
 
 @pytest.mark.parametrize("value", [None, "", "too-short", "contains whitespace", "x" * 513, "non-ascii-ключ-private"])
@@ -178,12 +379,13 @@ def test_fake_anonymous_mode_cannot_select_another_model(credentials, provider):
         assert [item["id"] for item in client.get("/v1/models").json()["data"]] == ["fake"]
 
 
-async def test_concurrent_clients_cannot_change_each_others_model_permissions(credentials, provider):
+@pytest.mark.parametrize("path", ["/chat", "/v1/chat/completions"])
+async def test_concurrent_clients_cannot_change_each_others_model_permissions(credentials, provider, path):
     app = create_app(config=access_config())
     async with app.router.lifespan_context(app):
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url="http://gateway") as client:
             async def call(token, model):
-                return await client.post("/chat", headers={"Authorization": "Bearer " + token},
+                return await client.post(path, headers={"Authorization": "Bearer " + token},
                                          json={"model": model, "messages": [{"role": "user", "content": model}]})
             results = await asyncio.gather(*(call(token, model) for token, model in [
                 (TOKEN_A, "model-a"), (TOKEN_B, "model-b"), (TOKEN_A, "model-b"), (TOKEN_B, "model-a"),

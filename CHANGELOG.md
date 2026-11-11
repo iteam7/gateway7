@@ -7,6 +7,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- Explicit private JSON credential loading for local `gateway7 serve` startup, with existing environment values taking precedence and no automatic file discovery.
+- Optional provider/client model restrictions and an authenticated, bounded cached OpenAI model catalog; catalog membership neither gates authorization nor certifies endpoint compatibility.
 - A read-only operator web console displays safe client configuration, limits, usage and startup middleware capabilities with isolated authentication and packaged local assets.
 - An opt-in operator-only client usage snapshot reports known and unknown directional source usage and terminal provider outcomes without retaining request or response content.
 - Optional additional per-client middleware chains retain all global policies, isolate client rules and validate references before plugin construction.
@@ -23,6 +25,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- Complete local startup cancellation when middleware suppresses cancellation, retaining the original cancellation and restoring the credential overlay before cleanup.
 - Reject ambiguous native and Chat HTTP JSON, including duplicate members, nonfinite numbers and invalid Unicode, before middleware or provider calls.
 - Bound final native and nonstreaming Chat JSON delivery by the request deadline, including blocked ASGI sends.
 - Preserve safe route-owned Allow headers on HTTP 405 errors without reflecting arbitrary exception headers.

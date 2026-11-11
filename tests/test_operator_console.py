@@ -52,7 +52,7 @@ def console_app(monkeypatch):
     monkeypatch.setenv("CONSOLE_TEST_CLIENT", CLIENT)
     monkeypatch.delenv("CONSOLE_TEST_SUSPENDED", raising=False)
 
-    def build(*, enabled=True):
+    def build(*, enabled=True, models=("fake",)):
         provider = Provider()
         monkeypatch.setattr(
             importlib.import_module("gateway7.app"), "build_provider", lambda *_: provider
@@ -65,14 +65,14 @@ def console_app(monkeypatch):
                     "clients": {
                         ACCOUNT: {
                             "token_env": "CONSOLE_TEST_CLIENT",
-                            "models": ["fake"],
+                            **({"models": list(models)} if models is not None else {}),
                             "limits": {"max_concurrent_requests": 2, "requests_per_minute": 30},
                             "additional_middleware": [EXTRA],
                         },
                         "synthetic_suspended": {
                             "token_env": "CONSOLE_TEST_SUSPENDED",
                             "enabled": False,
-                            "models": ["fake"],
+                            **({"models": list(models)} if models is not None else {}),
                         },
                     },
                 },
@@ -212,6 +212,41 @@ async def test_console_state_checks_access_before_body_and_ignores_query_or_cook
     starts = [message for message in sent if message["type"] == "http.response.start"]
     assert [message["status"] for message in starts] == [401 if enabled else 404]
     assert ACCOUNT not in str(sent) and OPERATOR not in str(sent)
+    assert provider.calls == []
+
+
+@pytest.mark.parametrize(
+    "models,expected",
+    [(None, None), ([], []), (["fake"], ["fake"])],
+    ids=["unrestricted", "deny-all", "finite"],
+)
+def test_operator_model_policy_projection_preserves_each_state_for_suspended_clients(
+    console_app, models, expected
+):
+    app, provider = console_app(models=models)
+    with TestClient(app) as client:
+        denied = client.get("/operator/state")
+        assert denied.status_code == 401
+        assert ACCOUNT not in denied.text
+        write = client.post("/operator/state", headers=OPERATOR_HEADERS)
+        assert write.status_code == 405
+        assert ACCOUNT not in write.text
+        response = client.get("/operator/state", headers=OPERATOR_HEADERS)
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    accounts = {item["id"]: item for item in response.json()["clients"]}
+    assert accounts[ACCOUNT]["models"] == expected
+    assert accounts[ACCOUNT]["enabled"] is True
+    assert accounts[ACCOUNT]["limits"] == {
+        "max_concurrent_requests": 2,
+        "requests_per_minute": 30,
+    }
+    assert accounts[ACCOUNT]["effective_middleware"] == [SHARED, EXTRA]
+    assert accounts["synthetic_suspended"]["models"] == expected
+    assert accounts["synthetic_suspended"]["enabled"] is False
+    assert accounts["synthetic_suspended"]["effective_middleware"] == []
+    for value in (PRIVATE, OPERATOR, CLIENT, PROVIDER_KEY, "token_env", "settings"):
+        assert value not in response.text
     assert provider.calls == []
 
 

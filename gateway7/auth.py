@@ -11,12 +11,12 @@ from gateway7.errors import GatewayError, StartupError
 
 @dataclass(frozen=True)
 class Principal:
-    models: tuple[str, ...]
+    models: tuple[str, ...] | None
     client_id: str | None = None
 
     def select_model(self, requested: str | None, default: str) -> str:
         selected = default if requested is None else requested
-        if selected not in self.models:
+        if self.models is not None and selected not in self.models:
             raise GatewayError("model_forbidden")
         return selected
 
@@ -25,12 +25,24 @@ def _valid_token(token: str) -> bool:
     return 16 <= len(token) <= 512 and token.isascii() and all(33 <= ord(c) <= 126 for c in token)
 
 
+def _effective_models(
+    provider: list[str] | None, client: list[str] | None
+) -> tuple[str, ...] | None:
+    if provider is None:
+        return None if client is None else tuple(client)
+    if client is None:
+        return tuple(provider)
+    return tuple(model for model in client if model in provider)
+
+
 class AccessControl:
     """Keep token digests, never caller tokens, in the running gateway state."""
 
     def __init__(self, config: GatewayConfig) -> None:
         self.enabled = config.auth.enabled
-        self.anonymous = Principal((config.provider.model,))
+        self.anonymous = Principal(
+            _effective_models(config.provider.allowed_models, [config.provider.model])
+        )
         provider_digest = hashlib.sha256(
             os.environ.get(config.provider.key_env, "").encode()
         ).digest()
@@ -48,7 +60,15 @@ class AccessControl:
                 raise StartupError("Gateway client tokens must differ from the provider credential")
             if any(hmac.compare_digest(digest, existing) for existing, _ in clients):
                 raise StartupError("Gateway clients must use distinct bearer tokens")
-            clients.append((digest, Principal(tuple(specification.models), client_id=client_id)))
+            clients.append(
+                (
+                    digest,
+                    Principal(
+                        _effective_models(config.provider.allowed_models, specification.models),
+                        client_id=client_id,
+                    ),
+                )
+            )
         self._clients = tuple(clients)
 
     def authenticate(self, headers: list[tuple[bytes, bytes]]) -> Principal:

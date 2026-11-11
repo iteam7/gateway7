@@ -749,3 +749,66 @@ def test_http_provider_uses_native_path_pinned_model_and_no_gateway_consent_head
     assert response.status_code == 200, response.text
     assert response.json()["model"] == SOURCE_MODEL and response.json()["usage"] == USAGE
     assert len(attempts) == 1 and provider._client.is_closed
+
+
+@pytest.mark.parametrize("stream", [False, True])
+@pytest.mark.parametrize("catalog_fails", [False, True])
+def test_native_opaque_model_missing_from_catalog_still_generates_with_original_controls(
+    responses_app, stream, catalog_fails
+):
+    selected = "ft:synthetic/account:model/" + "x" * 160
+    attempts = []
+    final = native_response(message(), function_call(), tools=[FUNCTION])
+
+    def handle(wire):
+        attempts.append(wire)
+        if wire.method == "GET":
+            return (
+                httpx.Response(503, content=b"SYNTHETIC_PRIVATE_CATALOG")
+                if catalog_fails
+                else httpx.Response(200, json={"object": "list", "data": []})
+            )
+        payload = json.loads(wire.content)
+        assert wire.url.path == "/v1/responses" and payload["model"] == selected
+        assert payload["tools"] == [FUNCTION] and payload["store"] is False
+        assert payload["stream"] is stream and payload["parallel_tool_calls"] is True
+        # The adapter's native stream parser is already independently checked;
+        # use its checked native encoder to supply a complete synthetic source.
+        if stream:
+            from gateway7.responses_api import response_sse
+
+            return httpx.Response(
+                200, content=response_sse(final), headers={"content-type": "text/event-stream"}
+            )
+        return httpx.Response(200, json=final.wire_dict())
+
+    provider = build_provider(
+        ProviderConfig(kind="openai", model=MODEL),
+        PROVIDER_KEY,
+        transport=httpx.MockTransport(handle),
+    )
+    app, _ = responses_app(
+        provider,
+        auth={"enabled": True, "clients": {"synthetic": {"token_env": "GATEWAY7_RESPONSES_TOKEN"}}},
+    )
+    with TestClient(app) as client:
+        catalog = client.get("/v1/models", headers=HEADERS)
+        assert catalog.status_code == (503 if catalog_fails else 200)
+        result = client.post(
+            PATH,
+            headers=HEADERS,
+            json={
+                **BODY,
+                "model": selected,
+                "stream": stream,
+                "tools": [FUNCTION],
+                "parallel_tool_calls": True,
+            },
+        )
+        usage = app.state.usage_ledger.snapshot()["clients"]["synthetic"]
+        assert usage["provider_attempts"] == 1
+        assert usage["known_input_tokens"] == 7 and usage["known_output_tokens"] == 4
+    assert result.status_code == 200, result.text
+    actual = native_events(result)[-1]["response"] if stream else result.json()
+    assert actual == final.wire_dict()
+    assert [wire.method for wire in attempts] == ["GET", "POST"]

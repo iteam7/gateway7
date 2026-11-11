@@ -57,7 +57,11 @@ def operator_state(
             {
                 "id": client_id,
                 "enabled": client_specification.enabled,
-                "models": list(client_specification.models),
+                "models": (
+                    None
+                    if client_specification.models is None
+                    else list(client_specification.models)
+                ),
                 "limits": {
                     "max_concurrent_requests": client_specification.limits.max_concurrent_requests,
                     "requests_per_minute": client_specification.limits.requests_per_minute,

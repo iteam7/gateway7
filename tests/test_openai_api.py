@@ -109,7 +109,7 @@ def test_openai_message_mapping_response_shape_and_token_limits(setup_app, limit
     {"messages": [{"role": "user", "content": [{"type": "text", "text": "private"}]}]},
     {"messages": [{"role": "user", "content": None}]},
     {"messages": [{"role": "tool", "content": "private"}]},
-    {"messages": []}, {"model": None}, {"model": "../unsafe"},
+    {"messages": []}, {"model": None}, {"model": "invalid model"},
     {"unknown-sensitive-field-value": "private-sensitive-input"},
 ])
 def test_unsupported_controls_and_nontext_are_rejected_without_forwarding(setup_app, changes):

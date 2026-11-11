@@ -140,7 +140,13 @@
           client.enabled ? "active" : "suspended",
         ),
       );
-      pills(cell(row), client.models);
+      if (client.models === null) {
+        cell(row, "No client model restriction");
+      } else if (client.models.length === 0) {
+        cell(row, "No models allowed");
+      } else {
+        pills(cell(row), client.models);
+      }
       cell(
         row,
         client.limits.max_concurrent_requests === null

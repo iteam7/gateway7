@@ -15,7 +15,7 @@ from fastapi.testclient import TestClient
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from gateway7.app import create_app
-from gateway7.config import GatewayConfig, LimitsConfig, load_config, provider_key
+from gateway7.config import GatewayConfig, LimitsConfig, ProviderConfig, load_config, provider_key
 from gateway7.errors import GatewayError, StartupError
 from gateway7.loader import load_plugins, start_plugins
 from gateway7.models import ChatRequest, ChatResponse, Message, ToolCall, ToolDefinition
@@ -103,6 +103,121 @@ def test_config_is_strict_and_redacts_validation(tmp_path):
         with pytest.raises(StartupError) as error:
             load_config(path)
         assert SECRET not in str(error.value)
+
+
+@pytest.mark.parametrize("models", [None, [], ["model-a"]])
+def test_config_dump_roundtrip_preserves_optional_policy_and_other_nulls(tmp_path, models):
+    provider = {"model": "model-a"}
+    client = {"token_env": "TOKEN"}
+    if models is not None:
+        provider["allowed_models"] = models
+        client["models"] = models
+    config = GatewayConfig.model_validate({
+        "provider": provider,
+        "plugins": {"test": {"module": "example_plugin", "settings": {"unchanged": None}}},
+        "auth": {"enabled": True, "clients": {"test": client}},
+    })
+    for dumped in (config.model_dump(), json.loads(config.model_dump_json())):
+        assert ("allowed_models" in dumped["provider"]) == (models is not None)
+        assert ("models" in dumped["auth"]["clients"]["test"]) == (models is not None)
+        assert dumped["provider"]["transport"] is None
+        assert dumped["auth"]["operator_token_env"] is None
+        assert dumped["auth"]["clients"]["test"]["limits"] == {
+            "max_concurrent_requests": None, "requests_per_minute": None,
+        }
+        assert dumped["plugins"]["test"]["settings"]["unchanged"] is None
+        assert GatewayConfig.model_validate(dumped) == config
+    assert load_config(write_config(tmp_path, config)) == config
+
+
+@pytest.mark.parametrize("models", [None, [], ["model-a"]])
+def test_optional_model_policy_keeps_client_identity_limits_and_suspension(monkeypatch, models):
+    from gateway7.auth import AccessControl
+
+    token = "synthetic-config-active-client-token"
+    monkeypatch.setenv("GATEWAY7_CONFIG_PROVIDER", "synthetic-config-provider-key")
+    monkeypatch.setenv("GATEWAY7_CONFIG_ACTIVE", token)
+    monkeypatch.delenv("GATEWAY7_CONFIG_SUSPENDED", raising=False)
+    client = {
+        "token_env": "GATEWAY7_CONFIG_ACTIVE",
+        "limits": {"max_concurrent_requests": 1, "requests_per_minute": 2},
+    }
+    if models is not None:
+        client["models"] = models
+    config = GatewayConfig.model_validate({
+        "provider": {"model": "model-a", "key_env": "GATEWAY7_CONFIG_PROVIDER"},
+        "auth": {"enabled": True, "clients": {
+            "active": client,
+            "suspended": {"token_env": "GATEWAY7_CONFIG_SUSPENDED", "enabled": False},
+        }},
+    })
+    access = AccessControl(config)
+    principal = access.authenticate([(b"authorization", ("Bearer " + token).encode())])
+    assert principal.client_id == "active"
+    assert principal.models == (None if models is None else tuple(models))
+    assert config.auth.clients["active"].limits.max_concurrent_requests == 1
+    assert config.auth.clients["active"].limits.requests_per_minute == 2
+    with pytest.raises(GatewayError) as caught:
+        access.authenticate([(b"authorization", b"Bearer synthetic-config-suspended-token")])
+    assert caught.value.code == "unauthorized"
+
+
+@pytest.mark.parametrize("model", ["ft:gpt-4.1:team:custom", "org/model", "X" * 1024, "é" * 512])
+def test_openai_model_ids_are_opaque_literal_values(model):
+    config = ProviderConfig(kind="openai", model=model, allowed_models=[model])
+    assert config.model == model and config.allowed_models == [model]
+
+
+@pytest.mark.parametrize("model", ["ft:gpt-4.1:team:custom", "org/CaseSensitive"])
+def test_chat_native_responses_and_stream_heads_share_opaque_model_ids(model):
+    from gateway7.openai_api import NativeChatRequest, OpenAIChatRequest
+    from gateway7.responses_events import ResponsesStreamHead
+    from gateway7.responses_models import ResponsesCreateRequest
+    from gateway7.responses_provider import _MODEL
+
+    message = {"role": "user", "content": "hello"}
+    values = [
+        NativeChatRequest.model_validate({"model": model, "messages": [message]}).model,
+        OpenAIChatRequest.model_validate({"model": model, "messages": [message]}).model,
+        ResponsesCreateRequest.model_validate({"model": model, "input": "hello"}).model,
+        ResponsesStreamHead(id="resp_model_id", created_at=1.0, model=model).model,
+        _MODEL.validate_python(model, strict=True),
+    ]
+    assert values == [model] * 5
+
+
+@pytest.mark.parametrize("model", ["", "with space", "trailing\n", "tab\t", "a\x00b", "a\x7fb",
+                                     "a\x85b", "a\u200bb", "a\ud800b", "X" * 1025, "é" * 513, 42])
+def test_opaque_model_ids_reject_unsafe_values(model):
+    from gateway7.config import ModelId
+    from pydantic import TypeAdapter
+
+    with pytest.raises(ValidationError):
+        TypeAdapter(ModelId).validate_python(model)
+
+
+@pytest.mark.parametrize("kind", ["fake", "claude", "gemini"])
+@pytest.mark.parametrize("model", ["../escape", "org/model", "a:method", "x?key=value", "X" * 129])
+def test_non_openai_models_keep_the_original_path_safe_constraints(kind, model):
+    with pytest.raises(ValidationError):
+        ProviderConfig(kind=kind, model=model)
+    with pytest.raises(ValidationError):
+        ProviderConfig(kind=kind, model="default-model", allowed_models=[model])
+    with pytest.raises(ValidationError):
+        GatewayConfig.model_validate({
+            "provider": {"kind": kind, "model": "default-model"},
+            "auth": {"enabled": True, "clients": {"test": {"token_env": "TOKEN", "models": [model]}}},
+        })
+
+
+@pytest.mark.parametrize("field", ["provider", "client"])
+def test_yaml_explicit_null_model_policy_remains_a_configuration_error(tmp_path, field):
+    content = ("provider:\n  allowed_models: null\n" if field == "provider" else
+               "auth:\n  enabled: true\n  clients:\n    test:\n      token_env: TOKEN\n      models: null\n")
+    path = tmp_path / "gateway.yaml"
+    path.write_text(content, encoding="utf-8")
+    with pytest.raises(StartupError, match="^Invalid gateway configuration$"):
+        load_config(path)
 
 
 @pytest.mark.parametrize("raw", [b"#" + b"x" * 1_048_576, ("#" + "é" * 524_288).encode()])

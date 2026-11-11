@@ -707,7 +707,7 @@ async def test_native_other_provider_kinds_are_rejected_without_transport(kind):
     assert caught.value.reason is ProviderErrorReason.REJECTED and not attempts
 
 
-@pytest.mark.parametrize("model", ["", "../unsafe", "unsafe?key=synthetic", "x" * 129, True, 1])
+@pytest.mark.parametrize("model", ["", "invalid model", "bad\nmodel", "x" * 1025, True, 1])
 async def test_native_bound_model_is_validated_before_the_single_request(model):
     attempts = []
     async with mocked(lambda wire: attempts.append(wire)) as provider:
@@ -1518,8 +1518,8 @@ async def test_native_typed_interleaving_stays_in_source_order_and_encoder_holds
 
 
 @pytest.mark.parametrize("delivery", ["json", "sse", "on_text", "on_text_delta"])
-async def test_native_outbound_alias_keeps_consistent_dated_provider_identity(delivery):
-    alias = "gpt-4.1-mini"
+@pytest.mark.parametrize("alias", ["gpt-4.1-mini", "ft:synthetic/account:model/" + "x" * 160, "é" * 512])
+async def test_native_outbound_alias_keeps_consistent_dated_provider_identity(delivery, alias):
     reported = "gpt-4.1-mini-2025-04-14"
     final = response(message("Synthetic alias result"), model=reported)
     wire_response = upstream(final, stream=delivery != "json")
@@ -1591,7 +1591,7 @@ async def test_native_reported_model_must_stay_consistent_with_its_source_identi
         assert all(value.head.model == reported for value in received)
 
 
-@pytest.mark.parametrize("model", ["", "../unsafe", True, "m" * 129])
+@pytest.mark.parametrize("model", ["", "invalid model", True, "m" * 1025])
 def test_native_record_reported_model_keeps_its_strict_bounded_identifier(model):
     core = request()
     controls = {

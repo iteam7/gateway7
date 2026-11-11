@@ -77,6 +77,25 @@
 - Boundary: No product source or configuration changed and no tests, harnesses or provider calls were repeated; the bounded proxy PASS does not establish the historical HTTP 403 cause or universal compatibility.
 - Team assessment: TODO
 
+## 2026-11-11 — Task 222 startup and model access
+
+- Tool: OpenCode.
+- Use: Implemented and documented [Task #222](https://github.com/iteam7/gateway7/issues/222): explicit `serve --secrets-file` startup and optional provider/client model limits.
+- Access: Effective limits intersect; an absent list imposes no restriction at that level and `[]` denies all models, with authentication and privacy preserved.
+- Catalog: Added authenticated, bounded cached OpenAI discovery and opaque model IDs for the supported text Chat/Responses APIs; catalog presence does not prove endpoint or modality compatibility.
+- Review: Independent actual-diff reviews approved the implementation, documentation and two-fixture correction after the CLI lifecycle findings were closed.
+- Verification: Final full pytest passed 3566 tests without failures, errors, skips or deselections; formatting, lint, types, compilation, synthetic demo, wheel build, outside-checkout locked runtime installation, installed CLI/authoring/synthetic smoke and corrected provenance checks passed.
+- Documentation: Strict site validation, corrected current-checkout Markdown and the five-page link check passed.
+- Boundary: Historical failing runs remain historical; no real provider-account, upstream catalog or live generation verification was performed for this task, and universal compatibility is not claimed.
+- Team assessment: TODO
+
+## 2026-11-11 — Task 222 publication preparation
+
+- Tool: OpenCode.
+- Use: Checked current rules, Task #222 and branch/PR mapping, reviewed the intended diff and prepared its authorized commit and Draft PR publication.
+- Boundary: Reused the closed implementation checks without repeating product, provider or live-account tests; publication does not establish rollout, universal compatibility or human approval.
+- Team assessment: TODO
+
 ## 2026-11-11 — Task #223
 
 - Tool: Codex.
@@ -272,4 +291,27 @@
 - Current checks: The aggregation disclosure passed Markdown lint and whitespace checks; new aggregate CI is reported on the PR.
 - Review shape: The owner requested one combined colleague-review link instead of twenty separate review links; the component work remains traceable in the aggregate PR.
 - Boundary: No task #222 or unrelated branch import, new product behavior, main merge, version bump, tag, deployment or GitHub Release publication.
+- Team assessment: TODO
+
+## 2026-11-11 — Task 222 main integration
+
+- Tool: OpenCode.
+- Use: Resolved ordinary main-into-feature integration for [Task #222](https://github.com/iteam7/gateway7/issues/222) and prepared the existing Draft PR update, preserving main client controls, unrestricted-model console projection and catalog exemption from generation admission.
+- Review: Independent actual-diff reviews approved the 14-file source integration, four documentation files, exact report union and deterministic real-Timeout deadline-test correction; production deadlines were not increased.
+- Verification: Latest merged-source full pytest passed all 4006 tests with zero failures/errors/skips, and one unchanged synthetic demo passed all 15 checkpoints; earlier production Ruff formatting/lint and mypy checks remain applicable without repetition.
+  Documentation QA passed full Markdown (116 files), strict MkDocs/site checks (64 pages, 8070 links/assets) and five-page Lychee (79 successes, zero errors/exclusions).
+- History: Earlier 4005-pass/one-failure pytest and demo exit 1 remain historical failed runs; the latest fresh passes clear the latest gates, not the still-unknown historical demo failure cause.
+- Preservation: Both published report histories and all 30 existing team-assessment placeholders remain verbatim; finished-week evidence and released changelog history are unchanged.
+- Boundary: Synthetic local validation only; no new live provider/catalog/generation, installed-package verification, rollout, PR merge or human acceptance is claimed.
+- Team assessment: TODO
+
+## 2026-11-11 — Task #222 PR review correction
+
+- Tool: Codex.
+- Work: Fixed cancellation of explicit-secrets local startup when an API-v2 middleware catches cancellation and returns; the lifecycle receives the original cancellation through its finish signal and completes owned cleanup before it propagates.
+- Regression: A real Gateway/API-v2 plugin test fails against the reviewed PR head and passes with the fix; it checks repeated cancellation during cleanup, original cancellation identity, same-task lifespan ownership, restored synthetic environment, no server start and no surviving owned jobs.
+- Verification: The corrected source passed 80 focused CLI/private-file tests and one full pytest run with 3995 passes and 12 local skips because Docker Compose is unavailable.
+  Production Ruff formatting/lint and mypy passed for all 41 files; the unchanged synthetic demo and wheel build passed.
+- Review: Independent actual-diff TechLead review approved the narrow handshake correction and regression; earlier Task #222 evidence above remains historical and unchanged.
+- Boundary: No real credential files, existing launcher/server, live providers, model permissions/catalog behavior, dependencies, deployment or merge were changed.
 - Team assessment: TODO
