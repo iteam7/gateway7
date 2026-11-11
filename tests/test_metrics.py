@@ -437,7 +437,8 @@ def test_completed_stream_maps_to_success_without_a_second_observation():
 
 @pytest.mark.parametrize("stream,failure,outcome", [
     (True, "deadline", "timeout"),
-    (False, "send-error", "internal_error"),
+    # Checked JSON delivery classifies a closed downstream as cancellation.
+    (False, "send-error", "cancelled"),
 ], ids=["buffered-sse-deadline", "json-send-error"])
 async def test_post_header_boundary_failure_is_not_counted_as_success(
     monkeypatch, caplog, stream, failure, outcome

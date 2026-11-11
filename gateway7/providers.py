@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import ipaddress
 import json
+import math
 import re
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any, Literal
@@ -16,9 +17,10 @@ from urllib.parse import urlsplit
 
 import httpx
 
-from gateway7.errors import ProviderError, ProviderErrorReason
+from gateway7.errors import ProviderError, ProviderErrorReason, retain_observed_usage
 from gateway7.models import ChatResponse, ToolCall
 from gateway7.openai_stream import OpenAIStream
+from gateway7.provider_stream import OwnedCloseStream
 from gateway7.responses_models import ResponsesConsent
 
 if TYPE_CHECKING:
@@ -30,12 +32,63 @@ if TYPE_CHECKING:
 
 MAX_RESPONSE_BYTES = 1_048_576
 MAX_USAGE_TOKENS = 2**63 - 1
+MAX_JSON_DEPTH = 64
 FinishReason = Literal["stop", "length", "tool_calls"]
 _REAL_HOSTS = {
     "claude": "api.anthropic.com",
     "openai": "api.openai.com",
     "gemini": "generativelanguage.googleapis.com",
 }
+
+
+def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for name, value in pairs:
+        if name in result:
+            raise ValueError("Duplicate JSON object key")
+        result[name] = value
+    return result
+
+
+def _reject_constant(_: str) -> None:
+    raise ValueError("Invalid JSON number")
+
+
+def _finite_float(value: str) -> float:
+    result = float(value)
+    if not math.isfinite(result):
+        raise ValueError("Invalid JSON number")
+    return result
+
+
+def _json_body(body: bytes | bytearray) -> dict[str, Any]:
+    """Decode one unambiguous, bounded UTF-8 provider object before projection."""
+    try:
+        value = json.loads(
+            body.decode("utf-8"),
+            object_pairs_hook=_unique_object,
+            parse_constant=_reject_constant,
+            parse_float=_finite_float,
+        )
+        if not isinstance(value, dict):
+            raise ValueError
+        pending = [(value, 0)]
+        while pending:
+            item, depth = pending.pop()
+            if depth > MAX_JSON_DEPTH:
+                raise ValueError
+            if isinstance(item, dict):
+                for name, child in item.items():
+                    name.encode("utf-8")
+                    pending.append((child, depth + 1))
+            elif isinstance(item, list):
+                pending.extend((child, depth + 1) for child in item)
+            elif isinstance(item, str):
+                # JSON escapes can otherwise produce unpaired UTF-16 surrogates.
+                item.encode("utf-8")
+        return value
+    except (ValueError, UnicodeError, RecursionError, OverflowError):
+        raise ProviderError(ProviderErrorReason.INVALID_RESPONSE) from None
 
 
 def _validated_origin(kind: str, value: str) -> str:
@@ -445,6 +498,7 @@ class HTTPProvider:
         streamed = OpenAIStream(MAX_RESPONSE_BYTES) if stream else None
         callback_active = False
         primary_error: BaseException | None = None
+        body = bytearray()
         try:
             path, payload = self._request(request, model, stream=stream)
             # A single request: retries and redirects are intentionally absent.
@@ -452,6 +506,9 @@ class HTTPProvider:
                 "POST", self._origin + path, json=payload, headers=self._headers
             ) as response:
                 try:
+                    if not isinstance(response.stream, httpx.AsyncByteStream):
+                        raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
+                    response.stream = OwnedCloseStream(response.stream)
                     if response.status_code != 200:
                         if response.status_code in (401, 403):
                             reason = ProviderErrorReason.AUTHENTICATION
@@ -478,17 +535,13 @@ class HTTPProvider:
                                         callback_active = False
                         data = streamed.finish()
                     else:
-                        body = bytearray()
                         async for chunk in response.aiter_bytes():
                             if len(chunk) > MAX_RESPONSE_BYTES - len(body):
+                                # An over-limit document cannot supply trusted accounting.
+                                body.clear()
                                 raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
                             body.extend(chunk)
-                        try:
-                            data = json.loads(body)
-                        except (ValueError, UnicodeError, RecursionError):
-                            raise ProviderError(ProviderErrorReason.INVALID_RESPONSE) from None
-                        if not isinstance(data, dict):
-                            raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
+                        data = _json_body(body)
                 except BaseException as body_error:
                     # HTTPX closes on context exit; cleanup must not replace this failure.
                     primary_error = body_error
@@ -540,7 +593,17 @@ class HTTPProvider:
         except BaseException as caught_error:
             error = primary_error if primary_error is not None else caught_error
             if callback_active or not isinstance(error, Exception):
+                retain_observed_usage(error, streamed.usage if streamed is not None else usage)
                 raise error from None
+            if streamed is None and usage is None and body:
+                try:
+                    # HTTPX can close at EOF before aiter_bytes returns. Preserve
+                    # source-reported counts from an observed valid JSON object
+                    # even when cleanup fails; this is not a successful answer
+                    # or proof that the transport completed without truncation.
+                    usage = _response_usage(self._kind, _json_body(body))
+                except ProviderError:
+                    pass
             if isinstance(error, ProviderError):
                 reason = error.reason
             elif isinstance(error, httpx.TimeoutException):

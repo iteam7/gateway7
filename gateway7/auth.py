@@ -12,6 +12,7 @@ from gateway7.errors import GatewayError, StartupError
 @dataclass(frozen=True)
 class Principal:
     models: tuple[str, ...]
+    client_id: str | None = None
 
     def select_model(self, requested: str | None, default: str) -> str:
         selected = default if requested is None else requested
@@ -34,7 +35,9 @@ class AccessControl:
             os.environ.get(config.provider.key_env, "").encode()
         ).digest()
         clients: list[tuple[bytes, Principal]] = []
-        for specification in config.auth.clients.values():
+        for client_id, specification in config.auth.clients.items():
+            if not specification.enabled:
+                continue
             token = os.environ.get(specification.token_env, "")
             if not _valid_token(token):
                 raise StartupError(
@@ -45,7 +48,7 @@ class AccessControl:
                 raise StartupError("Gateway client tokens must differ from the provider credential")
             if any(hmac.compare_digest(digest, existing) for existing, _ in clients):
                 raise StartupError("Gateway clients must use distinct bearer tokens")
-            clients.append((digest, Principal(tuple(specification.models))))
+            clients.append((digest, Principal(tuple(specification.models), client_id=client_id)))
         self._clients = tuple(clients)
 
     def authenticate(self, headers: list[tuple[bytes, bytes]]) -> Principal:

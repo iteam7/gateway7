@@ -105,6 +105,96 @@ def test_config_is_strict_and_redacts_validation(tmp_path):
         assert SECRET not in str(error.value)
 
 
+@pytest.mark.parametrize("raw", [b"#" + b"x" * 1_048_576, ("#" + "é" * 524_288).encode()])
+def test_config_file_size_is_bounded_in_bytes(tmp_path, raw):
+    path = tmp_path / "oversized.yaml"
+    path.write_bytes(raw)
+    with pytest.raises(StartupError, match="file size limit"):
+        load_config(path)
+
+
+@pytest.mark.parametrize(
+    "content, message",
+    [
+        ("plugins: {}\nplugins: {}\n", "Duplicate configuration key"),
+        ("plugins: &recursive\n  again: *recursive\n", "Recursive YAML"),
+        ("plugins: " + "[" * 70 + "synthetic-private" + "]" * 70, "depth limit"),
+    ],
+)
+def test_invalid_yaml_graph_is_rejected_before_values_are_constructed(
+    tmp_path, monkeypatch, content, message
+):
+    constructed = []
+    original = yaml.SafeLoader.construct_document
+
+    def construct(loader, node):
+        constructed.append(node)
+        return original(loader, node)
+
+    monkeypatch.setattr(yaml.SafeLoader, "construct_document", construct)
+    path = tmp_path / "invalid.yaml"
+    path.write_text(content, encoding="utf-8")
+    with pytest.raises(StartupError, match=message) as caught:
+        load_config(path)
+    assert constructed == []
+    assert "synthetic-private" not in str(caught.value)
+
+
+def test_config_yaml_node_budget_is_enforced_before_construction(tmp_path, monkeypatch):
+    from gateway7 import config as config_module
+
+    monkeypatch.setattr(config_module, "MAX_CONFIG_NODES", 20)
+    content = {"plugins": {"sample": {
+        "module": "gateway7.plugins.phone_mask", "settings": {"items": list(range(30))},
+    }}}
+    path = tmp_path / "too-many-nodes.yaml"
+    path.write_text(yaml.safe_dump(content), encoding="utf-8")
+    with pytest.raises(StartupError, match="node limit"):
+        load_config(path)
+
+
+def test_config_preserves_ordinary_shared_yaml_aliases(tmp_path):
+    path = tmp_path / "shared.yaml"
+    path.write_text(
+        "plugins:\n"
+        "  first: &plugin\n"
+        "    module: gateway7.plugins.phone_mask\n"
+        "    enabled: false\n"
+        "  second: *plugin\n",
+        encoding="utf-8",
+    )
+    config = load_config(path)
+    assert set(config.plugins) == {"first", "second"}
+    assert config.plugins["first"] == config.plugins["second"]
+
+
+def test_shared_yaml_graph_validation_has_bounded_work():
+    from gateway7.config import _reject_duplicate_keys
+
+    visits = []
+
+    class CountedItems(list):
+        def __iter__(self):
+            for item in super().__iter__():
+                visits.append(item)
+                yield item
+
+    node = yaml.ScalarNode("tag:yaml.org,2002:str", "synthetic")
+    for _ in range(15):
+        node = yaml.SequenceNode("tag:yaml.org,2002:seq", CountedItems([node, node]))
+    _reject_duplicate_keys(node)
+    assert len(visits) < 100
+
+
+def test_reused_yaml_alias_cannot_bypass_the_depth_limit(monkeypatch):
+    from gateway7 import config as config_module
+
+    monkeypatch.setattr(config_module, "MAX_CONFIG_DEPTH", 5)
+    node = yaml.compose("[&shared [[synthetic]], [[*shared]]]", Loader=yaml.SafeLoader)
+    with pytest.raises(StartupError, match="depth limit"):
+        config_module._reject_duplicate_keys(node)
+
+
 def test_environment_key_is_required_and_never_in_error(monkeypatch):
     config = configuration()
     monkeypatch.delenv("GATEWAY7_TEST_KEY", raising=False)
@@ -206,6 +296,68 @@ def test_required_unknown_duplicate_and_wrong_hooks(monkeypatch):
     module(monkeypatch, lambda _: Synchronous())
     with pytest.raises(StartupError, match="invalid async hook"):
         load_plugins(configuration({"p": {"module": name}}, ["p"]))
+
+
+def test_required_chain_membership_is_checked_before_any_factory(monkeypatch):
+    created = []
+    name = module(monkeypatch, lambda settings: created.append(settings) or PassThrough())
+    config = configuration(
+        {"first": {"module": name}, "required": {"module": name, "required": True}},
+        ["first"],
+    )
+    with pytest.raises(StartupError, match="required is missing from middleware chain"):
+        load_plugins(config)
+    assert created == []
+
+
+@pytest.mark.parametrize("enabled", [True, False])
+@pytest.mark.parametrize(
+    "invalid_factory",
+    [lambda: PassThrough(), lambda settings, required: PassThrough(),
+     lambda *, settings: PassThrough()],
+    ids=["missing-settings-argument", "extra-required-argument", "keyword-only-settings"],
+)
+def test_factory_signatures_are_preflighted_before_any_construction(
+    monkeypatch, enabled, invalid_factory
+):
+    created = []
+    first = module(monkeypatch, lambda settings: created.append(settings) or PassThrough())
+    second = module(monkeypatch, invalid_factory, name="test_gateway7_bad_factory")
+    config = configuration(
+        {"first": {"module": first}, "second": {"module": second, "enabled": enabled}},
+        ["first", "second"],
+    )
+    with pytest.raises(StartupError, match="Invalid PLUGIN descriptor for plugin instance second"):
+        load_plugins(config)
+    assert created == []
+
+
+def test_async_callable_factory_is_rejected_before_construction(monkeypatch):
+    created = []
+
+    class AsyncFactory:
+        async def __call__(self, settings):
+            created.append(settings)
+            return PassThrough()
+
+    name = module(monkeypatch, AsyncFactory())
+    with pytest.raises(StartupError, match="Invalid PLUGIN descriptor"):
+        load_plugins(configuration({"p": {"module": name}}, ["p"]))
+    assert created == []
+
+
+def test_synchronous_callable_factory_accepting_settings_remains_supported(monkeypatch):
+    created = []
+
+    class Factory:
+        def __call__(self, settings, optional=None):
+            created.append(settings)
+            return PassThrough()
+
+    name = module(monkeypatch, Factory())
+    loaded = load_plugins(configuration({"p": {"module": name}}, ["p"]))
+    assert len(created) == 1
+    assert loaded.middleware_chain == (loaded.instances["p"],)
 
 
 def test_legacy_version_and_configuration_explain_migration(monkeypatch, tmp_path):
@@ -1182,3 +1334,545 @@ def test_middleware_cannot_change_tool_identity_or_return_invalid_arguments(monk
     with pytest.raises(GatewayError) as error:
         asyncio.run(Pipeline(load_plugins(config), Provider(), config.limits).run(tool_request(), "bad-tools"))
     assert error.value.code == "plugin_error"
+
+
+@pytest.mark.parametrize("path", ["/chat", "/v1/chat/completions"])
+@pytest.mark.parametrize(
+    "raw",
+    [
+        pytest.param(
+            b'{"model":"forbidden","model":"fake",'
+            b'"messages":[{"role":"user","content":"hello"}]}',
+            id="duplicate-model",
+        ),
+        pytest.param(
+            b'{"model":"fake","messages":[],"messages":[{"role":"user","content":"hello"}]}',
+            id="duplicate-messages",
+        ),
+        pytest.param(
+            b'{"model":"fake","messages":[{"role":"user",'
+            b'"content":"SYNTHETIC_PRIVATE_FIRST","content":"SYNTHETIC_PRIVATE_SECOND"}]}',
+            id="duplicate-nested-content",
+        ),
+        *[
+            pytest.param(
+                b'{"model":"fake","messages":[{"role":"user","content":"hello"}],'
+                b'"max_tokens":' + constant + b'}',
+                id=constant.decode(),
+            )
+            for constant in (b"NaN", b"Infinity", b"-Infinity", b"1e1000", b"-1e1000")
+        ],
+        pytest.param(
+            b'{"model":"fake","messages":[{"role":"user","content":"\xff"}]}',
+            id="invalid-utf8",
+        ),
+        *[
+            pytest.param(
+                b'{"model":"fake","messages":[{"role":"user","content":"'
+                + escaped + b'"}]}',
+                id=escaped.decode(),
+            )
+            for escaped in (b"\\ud800", b"\\udfff")
+        ],
+        *[
+            pytest.param(
+                '{"model":"fake","messages":[{"role":"user","content":"hello"}]}'.encode(
+                    encoding
+                ),
+                id=encoding,
+            )
+            for encoding in ("utf-16", "utf-32")
+        ],
+        pytest.param(b"[" * 1100 + b"0" + b"]" * 1100, id="excessive-json-nesting"),
+    ],
+)
+def test_chat_json_rejects_ambiguous_members_and_nonstandard_input(monkeypatch, caplog, path, raw):
+    monkeypatch.setenv("GATEWAY7_TEST_KEY", SECRET)
+    provider = FakeProvider()
+    monkeypatch.setattr(app_module, "build_provider", lambda *_: provider)
+    app = create_app(config=configuration())
+    with caplog.at_level("INFO", logger="gateway7"), TestClient(app) as client:
+        response = client.post(path, headers={"content-type": "application/json"}, content=raw)
+        metrics = client.get("/metrics").text
+    assert response.status_code == (400 if path.startswith("/v1/") else 422)
+    assert response.json()["error"]["code"] == "invalid_request"
+    assert response.json()["request_id"] == response.headers["x-request-id"]
+    assert "SYNTHETIC_PRIVATE" not in response.text + caplog.text + metrics
+    assert provider.calls == []
+
+
+@pytest.mark.parametrize("path", ["/chat", "/v1/chat/completions"])
+@pytest.mark.parametrize("content_type", [None, "application/json", "application/synthetic+json"])
+def test_strict_chat_json_preserves_utf8_payloads_and_documented_schemas(
+    monkeypatch, path, content_type
+):
+    monkeypatch.setenv("GATEWAY7_TEST_KEY", SECRET)
+    provider = FakeProvider()
+    monkeypatch.setattr(app_module, "build_provider", lambda *_: provider)
+    app = create_app(config=configuration())
+    headers = {} if content_type is None else {"content-type": content_type}
+    raw = json.dumps(
+        {"model": "fake", "messages": [{"role": "user", "content": "Привет 🌍"}]},
+        ensure_ascii=False,
+    ).encode("utf-8")
+    with TestClient(app) as client:
+        response = client.post(path, headers=headers, content=raw)
+    if content_type is None:
+        assert response.status_code == (400 if path.startswith("/v1/") else 422)
+        assert provider.calls == []
+    else:
+        assert response.status_code == 200
+        assert provider.calls[0].messages[0].content == "Привет 🌍"
+    schema = app.openapi()["paths"][path]["post"]["requestBody"]["content"]["application/json"]
+    assert schema["schema"]["$ref"].startswith("#/components/schemas/")
+
+
+@pytest.mark.parametrize("path", ["/chat", "/v1/chat/completions"])
+def test_strict_chat_json_does_not_parse_unauthenticated_input(monkeypatch, path):
+    monkeypatch.setenv("GATEWAY7_TEST_KEY", SECRET)
+    monkeypatch.setenv("GATEWAY7_JSON_TEST_TOKEN", "synthetic-json-boundary-token")
+    provider = FakeProvider()
+    monkeypatch.setattr(app_module, "build_provider", lambda *_: provider)
+
+    async def unexpected_parse(self):
+        pytest.fail("Unauthenticated input reached the JSON parser")
+
+    monkeypatch.setattr(app_module._StrictJSONRequest, "json", unexpected_parse)
+    config = GatewayConfig.model_validate({
+        **configuration().model_dump(),
+        "auth": {"enabled": True, "clients": {
+            "test": {"token_env": "GATEWAY7_JSON_TEST_TOKEN", "models": ["fake"]},
+        }},
+    })
+    with TestClient(create_app(config=config)) as client:
+        response = client.post(path, content=b'{"messages":"SYNTHETIC_PRIVATE_INVALID')
+    assert response.status_code == 401 and provider.calls == []
+
+
+@pytest.mark.parametrize("path", ["/chat", "/v1/chat/completions"])
+def test_strict_chat_json_accepts_escaped_unicode_surrogate_pairs(monkeypatch, path):
+    monkeypatch.setenv("GATEWAY7_TEST_KEY", SECRET)
+    provider = FakeProvider()
+    monkeypatch.setattr(app_module, "build_provider", lambda *_: provider)
+    with TestClient(create_app(config=configuration())) as client:
+        response = client.post(
+            path,
+            headers={"content-type": "application/json"},
+            content=b'{"model":"fake","messages":[{"role":"user","content":"\\ud83c\\udf0d"}]}',
+        )
+    assert response.status_code == 200
+    assert provider.calls[0].messages[0].content == "🌍"
+
+
+async def json_delivery_request(app, path, send):
+    incoming = asyncio.Queue()
+    incoming.put_nowait({
+        "type": "http.request",
+        "body": json.dumps({
+            "model": "fake", "messages": [{"role": "user", "content": "hello"}],
+        }).encode(),
+        "more_body": False,
+    })
+    scope = {
+        "type": "http", "asgi": {"version": "3.0"}, "http_version": "1.1",
+        "method": "POST", "scheme": "http", "path": path, "raw_path": path.encode(),
+        "query_string": b"", "root_path": "",
+        "headers": [(b"content-type", b"application/json")],
+        "server": ("synthetic.test", 80), "client": ("synthetic", 1000),
+    }
+    await app(scope, incoming.get, send)
+    return scope
+
+
+@pytest.mark.parametrize("path,route", [("/chat", "chat"), ("/v1/chat/completions", "openai_chat")])
+@pytest.mark.parametrize("blocked_message", ["http.response.start", "http.response.body"])
+async def test_json_delivery_is_bounded_by_request_deadline(
+    monkeypatch, path, route, blocked_message
+):
+    monkeypatch.setenv("GATEWAY7_TEST_KEY", SECRET)
+    provider = FakeProvider()
+    monkeypatch.setattr(app_module, "build_provider", lambda *_: provider)
+    app = create_app(config=configuration(limits={"request_timeout_seconds": 0.05}))
+    attempted = []
+    sent = []
+
+    async def send(message):
+        attempted.append(message["type"])
+        if message["type"] == blocked_message:
+            await asyncio.Event().wait()
+        sent.append(message)
+
+    async with app.router.lifespan_context(app):
+        scope = await asyncio.wait_for(json_delivery_request(app, path, send), timeout=1)
+    assert len(provider.calls) == 1
+    assert attempted.count("http.response.start") == 1
+    assert not any(message["type"] == "http.response.body" for message in sent)
+    assert scope["state"]["http_outcome"] == "timeout"
+    assert app.state.admission.active == 0
+    assert app.state.metrics.registry.get_sample_value(
+        "gateway7_http_request_outcomes_total", {"route": route, "outcome": "timeout"}
+    ) == 1
+
+
+@pytest.mark.parametrize("path,route", [("/chat", "chat"), ("/v1/chat/completions", "openai_chat")])
+@pytest.mark.parametrize("failed_message", ["http.response.start", "http.response.body"])
+async def test_json_closed_downstream_is_cancelled_without_second_response(
+    monkeypatch, caplog, path, route, failed_message
+):
+    monkeypatch.setenv("GATEWAY7_TEST_KEY", SECRET)
+    provider = FakeProvider()
+    monkeypatch.setattr(app_module, "build_provider", lambda *_: provider)
+    app = create_app(config=configuration())
+    attempted = []
+
+    async def send(message):
+        attempted.append(message["type"])
+        if message["type"] == failed_message:
+            raise OSError("SYNTHETIC_PRIVATE_CLOSED_CONNECTION")
+
+    with caplog.at_level("INFO", logger="gateway7"):
+        async with app.router.lifespan_context(app):
+            scope = await json_delivery_request(app, path, send)
+    assert attempted.count("http.response.start") == 1
+    assert scope["state"]["http_outcome"] == "cancelled"
+    assert len(provider.calls) == 1 and app.state.admission.active == 0
+    assert app.state.metrics.registry.get_sample_value(
+        "gateway7_http_request_outcomes_total", {"route": route, "outcome": "cancelled"}
+    ) == 1
+    assert "SYNTHETIC_PRIVATE_CLOSED_CONNECTION" not in caplog.text
+
+
+@pytest.mark.parametrize("path", ["/chat", "/v1/chat/completions"])
+async def test_json_deadline_expires_before_success_headers(monkeypatch, path):
+    monkeypatch.setenv("GATEWAY7_TEST_KEY", SECRET)
+    provider = FakeProvider()
+    monkeypatch.setattr(app_module, "build_provider", lambda *_: provider)
+    app = create_app(config=configuration())
+    original_response = app_module.JSONResponse
+
+    def expired_after_serialization(*args, **kwargs):
+        response = original_response(*args, **kwargs)
+        if response.status_code == 200:
+            # Model a deadline reached during synchronous output serialization.
+            app.state.checked_request_scope["state"]["deadline"] = time.monotonic() - 1
+        return response
+
+    monkeypatch.setattr(app_module, "JSONResponse", expired_after_serialization)
+    sent = []
+
+    async def send(message):
+        sent.append(message)
+
+    async def wrapped(scope, receive, output):
+        app.state.checked_request_scope = scope
+        await app(scope, receive, output)
+
+    async with app.router.lifespan_context(app):
+        await json_delivery_request(wrapped, path, send)
+    starts = [message for message in sent if message["type"] == "http.response.start"]
+    assert [message["status"] for message in starts] == [504]
+    body = b"".join(message.get("body", b"") for message in sent)
+    assert json.loads(body)["error"]["code"] == "timeout"
+    assert len(provider.calls) == 1
+
+
+@pytest.mark.parametrize("path,route", [("/chat", "chat"), ("/v1/chat/completions", "openai_chat")])
+async def test_json_delivery_cannot_report_success_after_send_suppresses_timeout(
+    monkeypatch, path, route
+):
+    monkeypatch.setenv("GATEWAY7_TEST_KEY", SECRET)
+    provider = FakeProvider()
+    monkeypatch.setattr(app_module, "build_provider", lambda *_: provider)
+    app = create_app(config=configuration(limits={"request_timeout_seconds": 0.05}))
+    sent = []
+
+    async def send(message):
+        if message["type"] == "http.response.body":
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                pass
+        sent.append(message)
+
+    async with app.router.lifespan_context(app):
+        scope = await asyncio.wait_for(json_delivery_request(app, path, send), timeout=1)
+    assert [message["status"] for message in sent if message["type"] == "http.response.start"] == [200]
+    assert scope["state"]["http_outcome"] == "timeout"
+    assert app.state.metrics.registry.get_sample_value(
+        "gateway7_http_request_outcomes_total", {"route": route, "outcome": "timeout"}
+    ) == 1
+    assert app.state.metrics.registry.get_sample_value(
+        "gateway7_http_request_outcomes_total", {"route": route, "outcome": "success"}
+    ) is None
+
+
+@pytest.mark.parametrize(
+    "method,path,allowed",
+    [
+        ("GET", "/chat", {"POST"}),
+        ("GET", "/v1/chat/completions", {"POST"}),
+        ("GET", "/v1/responses", {"POST"}),
+        ("POST", "/health", {"GET"}),
+        ("POST", "/ready", {"GET"}),
+        ("POST", "/metrics", {"GET"}),
+        ("POST", "/docs", {"GET", "HEAD"}),
+        ("POST", "/openapi.json", {"GET", "HEAD"}),
+    ],
+)
+def test_method_not_allowed_reports_framework_owned_allowed_methods(monkeypatch, method, path, allowed):
+    monkeypatch.setenv("GATEWAY7_TEST_KEY", SECRET)
+    provider = FakeProvider()
+    monkeypatch.setattr(app_module, "build_provider", lambda *_: provider)
+    with TestClient(create_app(config=configuration())) as client:
+        response = client.request(method, path)
+    assert response.status_code == 405
+    assert set(response.headers["allow"].split(", ")) == allowed
+    assert response.json()["error"]["code"] == "method_not_allowed"
+    assert response.json()["request_id"] == response.headers["x-request-id"]
+    if path.startswith("/v1/"):
+        assert response.json()["error"]["type"] == "invalid_request_error"
+    assert provider.calls == []
+
+
+@pytest.mark.parametrize("status", [404, 405, 418])
+def test_http_exception_headers_cannot_escape_sanitization(monkeypatch, status):
+    monkeypatch.setenv("GATEWAY7_TEST_KEY", SECRET)
+    provider = FakeProvider()
+    monkeypatch.setattr(app_module, "build_provider", lambda *_: provider)
+    app = create_app(config=configuration())
+
+    @app.get("/synthetic-http-error")
+    async def synthetic_error():
+        raise app_module.StarletteHTTPException(
+            status_code=status,
+            detail="SYNTHETIC_PRIVATE_DETAIL",
+            headers={
+                "Allow": "SYNTHETIC_PRIVATE_METHOD",
+                "X-Private": "SYNTHETIC_PRIVATE_HEADER",
+                "Set-Cookie": "SYNTHETIC_PRIVATE_COOKIE",
+            },
+        )
+
+    with TestClient(app) as client:
+        response = client.get("/synthetic-http-error")
+    assert response.status_code == (status if status in (404, 405) else 422)
+    assert "allow" not in response.headers
+    assert "x-private" not in response.headers and "set-cookie" not in response.headers
+    assert "SYNTHETIC_PRIVATE" not in response.text + str(response.headers)
+    assert provider.calls == []
+
+
+from gateway7.errors import GatewayError, ProviderError, ProviderErrorReason, StartupError
+
+
+from gateway7.metrics import Metrics
+
+
+@pytest.mark.parametrize("interruption", ["cancel", "deadline"])
+@pytest.mark.parametrize("replacement", ["runtime_error", "provider_error", "return"])
+async def test_buffered_provider_cannot_replace_request_interruption(
+    monkeypatch, interruption, replacement
+):
+    entered = asyncio.Event()
+    contexts = []
+
+    class Stateful:
+        async def handle(self, request, context, call_next):
+            contexts.append(context)
+            context.state["synthetic"] = True
+            return await call_next(request)
+
+    class InterruptedProvider(FakeProvider):
+        async def complete(self, request):
+            self.calls.append(request)
+            entered.set()
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                if replacement == "runtime_error":
+                    raise RuntimeError(SECRET) from None
+                if replacement == "provider_error":
+                    raise ProviderError(
+                        ProviderErrorReason.TRANSPORT,
+                        usage={"input_tokens": 8, "output_tokens": 2},
+                    ) from None
+                return ChatResponse(text=SECRET, usage={"input_tokens": 8, "output_tokens": 2})
+
+    runner, _ = pipeline_for(
+        monkeypatch,
+        Stateful(),
+        limits={"request_timeout_seconds": 0.01 if interruption == "deadline" else 1},
+    )
+    provider = InterruptedProvider()
+    runner.provider = provider
+    runner.metrics = metrics = Metrics()
+    task = asyncio.create_task(runner.run(payload(), "buffered-interruption"))
+    await entered.wait()
+    if interruption == "cancel":
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        assert task.cancelled()
+    else:
+        with pytest.raises(GatewayError) as caught:
+            await task
+        assert caught.value.code == "timeout"
+    assert len(provider.calls) == 1 and contexts[0].state == {}
+    for outcome, expected in (("cancelled", 1), ("provider_error", 0), ("complete", 0)):
+        observed = metrics.registry.get_sample_value(
+            "gateway7_provider_calls_total", {"provider": "fake", "outcome": outcome}
+        )
+        assert (observed or 0) == expected
+    known_usage = replacement != "runtime_error"
+    assert (metrics.registry.get_sample_value(
+        "gateway7_provider_usage_unknown_total", {"provider": "fake"}
+    ) or 0) == int(not known_usage)
+    assert (metrics.registry.get_sample_value(
+        "gateway7_provider_tokens_total", {"provider": "fake", "direction": "input"}
+    ) or 0) == (8 if known_usage else 0)
+    assert (metrics.registry.get_sample_value(
+        "gateway7_provider_tokens_total", {"provider": "fake", "direction": "output"}
+    ) or 0) == (2 if known_usage else 0)
+
+
+@pytest.mark.parametrize("replacement", ["error", "return"])
+async def test_buffered_provider_respects_expired_total_timer_before_clock_deadline(
+    monkeypatch, replacement
+):
+    timeout_at = asyncio.timeout_at
+
+    class EarlyExpiry:
+        def __init__(self, when):
+            self.inner = timeout_at(when)
+
+        async def __aenter__(self):
+            await self.inner.__aenter__()
+            return self
+
+        async def __aexit__(self, *args):
+            return await self.inner.__aexit__(*args)
+
+        def expired(self):
+            return True
+
+    class CompletedProvider(FakeProvider):
+        async def complete(self, request):
+            self.calls.append(request)
+            if replacement == "error":
+                raise RuntimeError(SECRET)
+            return ChatResponse(text=SECRET, usage={"input_tokens": 8, "output_tokens": 2})
+
+    config = configuration()
+    metrics = Metrics()
+    provider = CompletedProvider()
+    runner = Pipeline(load_plugins(config), provider, config.limits, metrics=metrics)
+    monkeypatch.setattr(asyncio, "timeout_at", EarlyExpiry)
+    with pytest.raises(GatewayError) as caught:
+        await runner.run(payload(), "early-total-expiry")
+    assert caught.value.code == "timeout" and len(provider.calls) == 1
+    assert metrics.registry.get_sample_value(
+        "gateway7_provider_calls_total", {"provider": "fake", "outcome": "cancelled"}
+    ) == 1
+    assert not metrics.registry.get_sample_value(
+        "gateway7_provider_calls_total", {"provider": "fake", "outcome": "provider_error"}
+    )
+    assert not metrics.registry.get_sample_value(
+        "gateway7_provider_calls_total", {"provider": "fake", "outcome": "complete"}
+    )
+    assert (metrics.registry.get_sample_value(
+        "gateway7_provider_tokens_total", {"provider": "fake", "direction": "input"}
+    ) or 0) == (8 if replacement == "return" else 0)
+
+
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_serializer
+
+
+@pytest.mark.parametrize("boundary", ["input", "middleware"])
+@pytest.mark.parametrize("forgery", ["copied-extra", "extra-state", "invalid-child", "cycle"])
+def test_nested_chat_request_state_is_rejected_before_provider(monkeypatch, boundary, forgery):
+    forged = payload()
+    if forgery == "copied-extra":
+        forged.messages[0] = forged.messages[0].model_copy(update={"private_control": SECRET})
+    elif forgery == "extra-state":
+        object.__setattr__(forged.messages[0], "__pydantic_extra__", {"private_control": SECRET})
+    elif forgery == "invalid-child":
+        forged.messages[0] = Message.model_construct(role="user", content=12)
+    else:
+        forged.messages.append(forged.messages)
+
+    class Forging:
+        async def handle(self, request, context, call_next):
+            return await call_next(forged)
+
+    runner, provider = pipeline_for(monkeypatch, Forging() if boundary == "middleware" else PassThrough())
+    with pytest.raises(GatewayError) as caught:
+        asyncio.run(runner.run(forged if boundary == "input" else payload(), "nested-request"))
+    assert caught.value.code == ("invalid_request" if boundary == "input" else "plugin_error")
+    assert provider.calls == [] and SECRET not in str(caught.value)
+
+
+@pytest.mark.parametrize("boundary", ["provider", "middleware"])
+@pytest.mark.parametrize("forgery", ["call-extra", "function-extra", "extra-state"])
+def test_nested_chat_response_state_cannot_be_discarded_by_serialization(
+    monkeypatch, boundary, forgery
+):
+    call = tool_call()
+    if forgery == "call-extra":
+        call = call.model_copy(update={"private_control": SECRET})
+    elif forgery == "function-extra":
+        call = call.model_copy(
+            update={"function": call.function.model_copy(update={"private_control": SECRET})}
+        )
+    else:
+        object.__setattr__(call.function, "__pydantic_extra__", {"private_control": SECRET})
+    forged = ChatResponse(text="", tool_calls=[call], finish_reason="tool_calls")
+    valid = ChatResponse(text="", tool_calls=[tool_call()], finish_reason="tool_calls")
+
+    class Provider(FakeProvider):
+        async def complete(self, request):
+            self.calls.append(request)
+            return forged if boundary == "provider" else valid
+
+    class Inspect:
+        async def handle(self, request, context, call_next):
+            result = await call_next(request)
+            return forged if boundary == "middleware" else result
+
+    name = module(monkeypatch, descriptor=PluginDescriptor(
+        id="state-inspector", api_version=API_VERSION, settings_model=Settings,
+        create=lambda _: Inspect(), supports_tools=True,
+    ))
+    config = configuration({"inspect": {"module": name}}, ["inspect"])
+    provider = Provider()
+    runner = Pipeline(load_plugins(config), provider, config.limits)
+    with pytest.raises(GatewayError) as caught:
+        asyncio.run(runner.run(tool_request(), "nested-response"))
+    assert caught.value.code == ("provider_error" if boundary == "provider" else "plugin_error")
+    assert len(provider.calls) == 1 and SECRET not in str(caught.value)
+
+
+def test_chat_revalidation_does_not_invoke_serializers_that_hide_actual_state(monkeypatch):
+    serialized = []
+
+    class MisleadingRequest(ChatRequest):
+        @model_serializer
+        def hide_invalid_state(self):
+            serialized.append(True)
+            return {"messages": [{"role": "user", "content": "safe"}]}
+
+    runner, provider = pipeline_for(monkeypatch, PassThrough())
+    with pytest.raises(GatewayError) as caught:
+        asyncio.run(runner.run(MisleadingRequest.model_construct(messages=[]), "serializer"))
+    assert caught.value.code == "invalid_request"
+    assert provider.calls == [] and serialized == []
+
+
+def test_valid_shared_chat_children_are_detached_without_becoming_cycles(monkeypatch):
+    message = Message(role="user", content="synthetic")
+    original = ChatRequest(messages=[message, message])
+    runner, provider = pipeline_for(monkeypatch, PassThrough())
+    result = asyncio.run(runner.run(original, "shared-child"))
+    forwarded = provider.calls[0]
+    assert result.text == "answer" and len(forwarded.messages) == 2
+    assert forwarded is not original and forwarded.messages[0] is not message
+    assert forwarded.messages[0] is not forwarded.messages[1]

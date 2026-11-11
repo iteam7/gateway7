@@ -1,6 +1,7 @@
 """Errors whose public representations contain no upstream or input details."""
 
 from enum import StrEnum
+from dataclasses import dataclass
 import re
 
 
@@ -59,6 +60,49 @@ class ProviderError(Exception):
         return {"input_tokens": self._usage[0], "output_tokens": self._usage[1]}
 
 
+def normalized_usage(value: object) -> dict[str, int] | None:
+    """Read each known direction independently and discard all other fields."""
+    if not isinstance(value, dict):
+        return None
+    result = {
+        name: count
+        for name in ("input_tokens", "output_tokens")
+        if type(count := value.get(name)) is int and 0 <= count <= 2**63 - 1
+    }
+    return result or None
+
+
+@dataclass(frozen=True)
+class _ObservedUsage:
+    input_tokens: int | None
+    output_tokens: int | None
+
+
+def retain_observed_usage(error: BaseException, usage: object) -> None:
+    """Preserve exception identity while binding a detached numeric snapshot."""
+    counts = normalized_usage(usage) or {}
+    snapshot = _ObservedUsage(counts.get("input_tokens"), counts.get("output_tokens"))
+    try:
+        setattr(error, "_gateway7_observed_usage", snapshot)
+    except Exception:
+        # Some trusted callbacks prohibit exception attributes; identity wins.
+        pass
+
+
+def observed_error_usage(error: BaseException) -> dict[str, int] | None:
+    try:
+        snapshot = getattr(error, "_gateway7_observed_usage", None)
+        if type(snapshot) is _ObservedUsage:
+            return normalized_usage(
+                {"input_tokens": snapshot.input_tokens, "output_tokens": snapshot.output_tokens}
+            )
+        if isinstance(error, ProviderError):
+            return normalized_usage(error.usage)
+    except Exception:
+        pass
+    return None
+
+
 class GatewayError(Exception):
     _ERRORS = {
         "unauthorized": (401, "Missing or invalid gateway bearer token"),
@@ -73,13 +117,22 @@ class GatewayError(Exception):
         "body_too_large": (413, "Request body is too large"),
         "unavailable": (503, "Gateway is not ready"),
         "overloaded": (503, "Gateway active request capacity is full"),
+        "client_overloaded": (429, "Client active request capacity is full"),
+        "rate_limited": (429, "Client request rate quota is exhausted"),
         "internal_error": (500, "Request processing failed"),
     }
 
-    def __init__(self, code: str, *, middleware: object = None) -> None:
+    def __init__(self, code: str, *, middleware: object = None, retry_after: object = None) -> None:
         # Unknown strings cannot become response content, including Deny.code.
         self.code = code if code in self._ERRORS else "internal_error"
         self.status_code, self.message = self._ERRORS[self.code]
+        self.retry_after = (
+            retry_after
+            if self.status_code == 429 and type(retry_after) is int and 1 <= retry_after <= 3600
+            else 1
+            if self.status_code == 429
+            else None
+        )
         self.middleware = (
             middleware
             if self.code == "policy_denied"
