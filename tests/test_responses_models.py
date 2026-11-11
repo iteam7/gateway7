@@ -547,6 +547,11 @@ def test_incomplete_empty_text_preserves_truthful_partial_usage_without_zeroes()
         {"input_tokens": 1, "output_tokens": 2, "total_tokens": 9},
         {"input_tokens": 1, "input_tokens_details": {"cached_tokens": 2}},
         {"output_tokens": 1, "output_tokens_details": {"reasoning_tokens": 2}},
+        {"input_tokens": 20, "total_tokens": 1},
+        {"output_tokens": 20, "total_tokens": 1},
+        {"input_tokens_details": {"cached_tokens": 20}, "total_tokens": 1},
+        {"input_tokens_details": {"cache_write_tokens": 20}, "total_tokens": 1},
+        {"output_tokens_details": {"reasoning_tokens": 20}, "total_tokens": 1},
         {"unknown_count": 1},
     ],
 )
@@ -910,6 +915,13 @@ def test_completed_response_still_rejects_unfinished_hosted_search(status):
         ({"total_tokens": 30}, None),
         ({"output_tokens_details": {"reasoning_tokens": 5}}, None),
         ({"input_tokens": 19, "total_tokens": 30}, {"input_tokens": 19}),
+        ({"output_tokens": 11, "total_tokens": 30}, {"output_tokens": 11}),
+        ({"input_tokens": 0, "total_tokens": 0}, {"input_tokens": 0}),
+        ({"output_tokens": 0, "total_tokens": 0}, {"output_tokens": 0}),
+        ({"input_tokens_details": {"cached_tokens": 5}, "total_tokens": 5}, None),
+        ({"input_tokens_details": {"cache_write_tokens": 5}, "total_tokens": 5}, None),
+        ({"output_tokens_details": {"reasoning_tokens": 5}, "total_tokens": 5}, None),
+        ({"input_tokens_details": {"cached_tokens": 5}, "total_tokens": None}, None),
     ],
 )
 def test_accounting_retains_each_reported_direction_without_inference(usage, expected):
@@ -927,6 +939,11 @@ def test_accounting_retains_each_reported_direction_without_inference(usage, exp
         {"input_tokens": "SYNTHETIC_PRIVATE_INVALID_STATE"},
         {"output_tokens": 2**63},
         {"input_tokens": 1, "output_tokens": 2, "total_tokens": 9},
+        {"input_tokens": 20, "total_tokens": 1},
+        {"output_tokens": 20, "total_tokens": 1},
+        {"input_tokens_details": {"cached_tokens": 20}, "total_tokens": 1},
+        {"input_tokens_details": {"cache_write_tokens": 20}, "total_tokens": 1},
+        {"output_tokens_details": {"reasoning_tokens": 20}, "total_tokens": 1},
     ],
 )
 def test_partial_accounting_revalidates_unchecked_usage_without_serializer_warnings(usage):

@@ -116,7 +116,9 @@ class Telemetry:
         )
         from opentelemetry.sdk.resources import Resource
 
-        resource = Resource.create(
+        # Resource.create runs ambient detectors, including OTEL_RESOURCE_ATTRIBUTES,
+        # which can attach arbitrary private text to every exported signal.
+        resource = Resource(
             {"service.name": "gateway7", "deployment.environment.name": environment}
         )
         # The exporters read the endpoint and the credential header from the standard

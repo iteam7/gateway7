@@ -3,23 +3,28 @@
 import asyncio
 import json
 import logging
+import math
 import os
 import time
 from collections.abc import Awaitable, Callable, Coroutine
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Generic, Literal, Protocol, TypeVar
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.routing import APIRoute
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from starlette.responses import JSONResponse, Response
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.routing import Match, Route
 from starlette.types import ASGIApp, Message as ASGIMessage, Receive, Scope, Send
 
 from gateway7 import __version__
 from gateway7.analytics import Analytics
+from gateway7.client_policies import build_client_pipelines
 from gateway7.config import GatewayConfig, load_config, provider_key
 from gateway7.auth import AccessControl
 from gateway7.errors import GatewayError, StartupError
@@ -34,6 +39,7 @@ from gateway7.openai_api import (
     completion_sse,
     error_body,
 )
+from gateway7.operator_console import CONSOLE_HEADERS, OPERATOR_PATHS, console_asset, operator_state
 from gateway7.pipeline import Pipeline
 from gateway7.plugin_api import EarlyStreamUnsupported, ResponsesUnsupported
 from gateway7.providers import build_provider
@@ -42,6 +48,7 @@ from gateway7.responses_events import ResponsesTextDelta
 from gateway7.responses_models import ResponsesConsent, ResponsesCreateRequest, ResponsesResponse
 from gateway7.telemetry import Telemetry
 from gateway7.transport_loader import create_transport, validate_transport_config
+from gateway7.usage import OperatorAccess, UsageLedger
 
 logger = logging.getLogger("gateway7")
 _TIMEOUT_RESPONSE_GRACE_SECONDS = 0.1
@@ -70,10 +77,13 @@ def _error_response(
     openai: bool = False,
     parameter: str | None = None,
     middleware: object = None,
+    retry_after: object = None,
 ) -> JSONResponse:
-    error = GatewayError(code, middleware=middleware)
+    error = GatewayError(code, middleware=middleware, retry_after=retry_after)
     status = 400 if openai and code == "invalid_request" else error.status_code
-    headers = {"WWW-Authenticate": "Bearer"} if error.status_code == 401 else None
+    headers = {"WWW-Authenticate": "Bearer"} if error.status_code == 401 else {}
+    if error.retry_after is not None:
+        headers["Retry-After"] = str(error.retry_after)
     return JSONResponse(
         error_body(error, request_id, parameter) if openai else error.body(request_id),
         status_code=status,
@@ -122,6 +132,51 @@ def _reject_json_constant(_: str) -> None:
     raise ValueError("Invalid JSON number")
 
 
+def _validate_json_scalars(value: Any) -> None:
+    pending = [value]
+    while pending:
+        item = pending.pop()
+        if isinstance(item, dict):
+            pending.extend(item)
+            pending.extend(item.values())
+        elif isinstance(item, list):
+            pending.extend(item)
+        elif isinstance(item, str):
+            item.encode("utf-8")
+        elif isinstance(item, float) and not math.isfinite(item):
+            raise ValueError("Invalid JSON number")
+
+
+class _StrictJSONRequest(Request):
+    """Parse the DTO routes once without ambiguous members or JSON extensions."""
+
+    async def json(self) -> Any:
+        if not hasattr(self, "_json"):
+            try:
+                value = json.loads(
+                    (await self.body()).decode("utf-8"),
+                    object_pairs_hook=_unique_json_object,
+                    parse_constant=_reject_json_constant,
+                )
+                _validate_json_scalars(value)
+                self._json = value
+            except (ValueError, UnicodeError, RecursionError):
+                # FastAPI normally handles malformed JSON; our stricter parser
+                # also rejects duplicate members and unsupported byte encodings.
+                raise StarletteHTTPException(status_code=400) from None
+        return self._json
+
+
+class _StrictJSONRoute(APIRoute):
+    def get_route_handler(self) -> Callable[[Request], Coroutine[Any, Any, Response]]:
+        handle = super().get_route_handler()
+
+        async def strict_json(request: Request) -> Response:
+            return await handle(_StrictJSONRequest(request.scope, request.receive))
+
+        return strict_json
+
+
 class GatewayBoundaryMiddleware:
     """Bound bytes before JSON parsing, including bodies without Content-Length."""
 
@@ -136,9 +191,11 @@ class GatewayBoundaryMiddleware:
         request_id = uuid4().hex
         started = time.monotonic()
         scope.setdefault("state", {})["request_id"] = request_id
+        scope["state"]["admission_delivery_owner"] = True
         response_started = False
         status_code: int | None = None
         response_completed = False
+        operator_path = scope.get("path", "").startswith("/operator/")
         error_code: str | None = None
         metrics = self.owner.state.metrics
         route = {
@@ -158,10 +215,19 @@ class GatewayBoundaryMiddleware:
             nonlocal response_started, response_completed, status_code
             if message["type"] == "http.response.start":
                 response_started = True
+                headers = message.get("headers", [])
+                if operator_path:
+                    owned = {
+                        name.lower().encode("ascii"): value.encode("ascii")
+                        for name, value in CONSOLE_HEADERS.items()
+                    }
+                    headers = [
+                        (name, value) for name, value in headers if name.lower() not in owned
+                    ] + list(owned.items())
                 message = {
                     **message,
                     "headers": [
-                        *message.get("headers", []),
+                        *headers,
                         (b"x-request-id", request_id.encode()),
                     ],
                 }
@@ -186,6 +252,16 @@ class GatewayBoundaryMiddleware:
             if not getattr(self.owner.state, "ready", False):
                 await fail("unavailable")
                 return
+            if scope.get("path") in OPERATOR_PATHS:
+                try:
+                    access = self.owner.state.operator_access
+                    if scope.get("path") in {"/operator/usage", "/operator/state"}:
+                        access.authenticate(scope.get("headers", []))
+                    elif not access.enabled:
+                        raise GatewayError("not_found")
+                except GatewayError as error:
+                    await fail(error.code)
+                    return
             if route in ("chat", "openai_chat", "openai_responses", "models"):
                 try:
                     scope["state"]["principal"] = self.owner.state.access.authenticate(
@@ -267,6 +343,9 @@ class GatewayBoundaryMiddleware:
             if not response_started:
                 await fail("internal_error")
         finally:
+            lease = scope["state"].pop("admission_lease", None)
+            if lease is not None:
+                self.owner.state.admission.release_delivery(lease)
             # One monotonic measurement feeds the Prometheus histogram, the local log
             # line and the exported log point and histogram, so they cannot disagree.
             duration = max(0.0, time.monotonic() - started)
@@ -322,33 +401,145 @@ class GatewayBoundaryMiddleware:
                 )
 
 
+@dataclass(frozen=True, eq=False)
+class _AdmissionLease:
+    client_id: str | None
+
+
+@dataclass
+class _RateBucket:
+    capacity: int
+    tokens: float
+    updated: float
+
+
 class _PipelineAdmission:
     """App-local, event-loop-owned capacity; no waiting queue or early release."""
 
-    def __init__(self, metrics: Metrics) -> None:
+    def __init__(self, metrics: Metrics, *, clock: Callable[[], float] = time.monotonic) -> None:
         self.limit = 64
         self.active = 0
         self.metrics = metrics
-        self._tasks: set[asyncio.Task[Any]] = set()
+        self._tasks: dict[asyncio.Task[Any], _AdmissionLease] = {}
+        self._leases: set[_AdmissionLease] = set()
+        self._global_pending: set[_AdmissionLease] = set()
+        self._delivery_pending: set[_AdmissionLease] = set()
+        self._tracked: set[_AdmissionLease] = set()
+        self._client_limits: dict[str, int | None] = {}
+        self._client_active: dict[str, int] = {}
+        self._authenticated = False
+        self._clock = clock
+        self._rate_buckets: dict[str, _RateBucket] = {}
+        self._rate_debits: set[_AdmissionLease] = set()
 
-    def acquire(self) -> None:
+    def configure(self, config: GatewayConfig) -> None:
+        if self._leases:
+            raise StartupError("Cannot configure admission while requests are active")
+        self.limit = config.limits.max_concurrent_requests
+        self._authenticated = config.auth.enabled
+        self._client_limits = {
+            name: client.limits.max_concurrent_requests
+            for name, client in config.auth.clients.items()
+            if client.enabled
+        }
+        self._client_active = {name: 0 for name in self._client_limits}
+        now = self._clock()
+        self._rate_buckets = {
+            name: _RateBucket(limit, float(limit), now)
+            for name, client in config.auth.clients.items()
+            if client.enabled and (limit := client.limits.requests_per_minute) is not None
+        }
+
+    def _debit_rate(self, client_id: str | None) -> bool:
+        bucket = self._rate_buckets.get(client_id) if client_id is not None else None
+        if bucket is None:
+            return False
+        now = max(bucket.updated, self._clock())
+        bucket.tokens = min(
+            float(bucket.capacity),
+            bucket.tokens + (now - bucket.updated) * bucket.capacity / 60,
+        )
+        bucket.updated = now
+        if bucket.tokens < 1:
+            self.metrics.rate_limit_rejections.inc()
+            retry_after = max(1, min(60, math.ceil((1 - bucket.tokens) * 60 / bucket.capacity)))
+            raise GatewayError("rate_limited", retry_after=retry_after)
+        bucket.tokens -= 1
+        return True
+
+    def acquire(
+        self, client_id: str | None = None, *, hold_delivery: bool = False
+    ) -> _AdmissionLease:
         # This check and increment contain no await, so another request cannot
-        # acquire the same last slot on this application's event loop.
+        # acquire the same global or client slot on this application's event loop.
+        if (
+            self._authenticated
+            and client_id is None
+            or (client_id is not None and client_id not in self._client_limits)
+        ):
+            raise GatewayError("unauthorized")
         if self.active >= self.limit:
             self.metrics.admission_rejections.inc()
             raise GatewayError("overloaded")
+        if client_id is not None:
+            limit = self._client_limits[client_id]
+            if limit is not None and self._client_active[client_id] >= limit:
+                self.metrics.admission_rejections.inc()
+                raise GatewayError("client_overloaded")
+        rate_debited = self._debit_rate(client_id)
+        lease = _AdmissionLease(client_id)
+        self._leases.add(lease)
+        self._global_pending.add(lease)
+        if hold_delivery:
+            self._delivery_pending.add(lease)
+        if rate_debited:
+            self._rate_debits.add(lease)
+        if client_id is not None:
+            self._client_active[client_id] += 1
         self.active += 1
         self.metrics.active_pipelines.inc()
+        return lease
 
-    def release_unstarted(self) -> None:
+    def release_unstarted(self, lease: _AdmissionLease) -> None:
         # Only task-creation failure uses this rollback: no pipeline exists yet.
+        if lease not in self._global_pending or lease in self._tracked:
+            raise ValueError("Admission lease is not an unstarted owned request")
+        self.rollback_start(lease)
+        self._global_pending.remove(lease)
+        self._delivery_pending.discard(lease)
         self.active -= 1
         self.metrics.active_pipelines.dec()
+        self._release_client(lease)
 
-    def track(self, task: asyncio.Task[Any]) -> None:
+    def rollback_start(self, lease: _AdmissionLease) -> None:
+        """Refund admission setup failure, without releasing running cleanup."""
+        if lease not in self._leases:
+            raise ValueError("Admission lease is not owned by this application")
+        if lease in self._rate_debits:
+            self._rate_debits.remove(lease)
+            assert lease.client_id is not None
+            bucket = self._rate_buckets[lease.client_id]
+            bucket.tokens = min(float(bucket.capacity), bucket.tokens + 1)
+
+    def track(self, task: asyncio.Task[Any], lease: _AdmissionLease) -> None:
         # Retain tasks even if their HTTP caller has already been cancelled.
-        self._tasks.add(task)
+        if lease not in self._global_pending or lease in self._tracked or task in self._tasks:
+            raise ValueError("Admission lease is not available for tracking")
+        self._tasks[task] = lease
+        self._tracked.add(lease)
         task.add_done_callback(self._finished)
+
+    def release_delivery(self, lease: _AdmissionLease) -> None:
+        if lease not in self._delivery_pending:
+            raise ValueError("Admission lease has no owned delivery")
+        self._delivery_pending.remove(lease)
+        if lease not in self._global_pending:
+            self._release_client(lease)
+
+    def _release_client(self, lease: _AdmissionLease) -> None:
+        self._leases.remove(lease)
+        if lease.client_id is not None:
+            self._client_active[lease.client_id] -= 1
 
     def _finished(self, task: asyncio.Task[Any]) -> None:
         # An abandoned HTTP caller may never await its terminal exception.
@@ -356,9 +547,25 @@ class _PipelineAdmission:
         # callers that still await the task receive.
         if not task.cancelled():
             task.exception()
-        self._tasks.remove(task)
+        lease = self._tasks.pop(task)
+        self._rate_debits.discard(lease)
+        self._tracked.remove(lease)
+        self._global_pending.remove(lease)
         self.active -= 1
         self.metrics.active_pipelines.dec()
+        if lease not in self._delivery_pending:
+            self._release_client(lease)
+
+
+def _admit_request(request: Request) -> _AdmissionLease:
+    principal = getattr(request.state, "principal", None)
+    lease = request.app.state.admission.acquire(
+        None if principal is None else principal.client_id,
+        hold_delivery=getattr(request.state, "admission_delivery_owner", False),
+    )
+    if getattr(request.state, "admission_delivery_owner", False):
+        request.state.admission_lease = lease
+    return lease
 
 
 async def _watch_disconnect(request: Request) -> None:
@@ -368,10 +575,21 @@ async def _watch_disconnect(request: Request) -> None:
             return
 
 
+def _client_pipeline(request: Request) -> Pipeline:
+    if not request.app.state.config.auth.enabled:
+        return request.app.state.pipeline
+    client_id = request.state.principal.client_id
+    pipeline = request.app.state.client_pipelines.get(client_id)
+    if pipeline is None:
+        # An authenticated client must never fall back to a less restrictive chain.
+        raise GatewayError("unavailable")
+    return pipeline
+
+
 async def _run_connected(
     request: Request, payload: ChatRequest, selected_model: str, *, provider_stream: bool = False
 ) -> Any:
-    pipeline = request.app.state.pipeline
+    pipeline = _client_pipeline(request)
 
     def operation() -> Coroutine[Any, Any, ChatResponse]:
         return pipeline.run(
@@ -395,17 +613,18 @@ async def _run_connected_operation(
 ) -> PipelineResult | None:
     """Share one admission lease and disconnect guard across native API shapes."""
     admission = request.app.state.admission
-    admission.acquire()
+    lease = _admit_request(request)
     work = None
     try:
         work = operation()
         job = asyncio.create_task(work)
     except BaseException:
-        admission.release_unstarted()
+        admission.release_unstarted(lease)
+        request.scope["state"].pop("admission_lease", None)
         if work is not None:
             work.close()
         raise
-    admission.track(job)
+    admission.track(job, lease)
     disconnected = None
     disconnect_work = None
     try:
@@ -418,6 +637,10 @@ async def _run_connected_operation(
         # hooks must cooperate with cancellation; this is not a process sandbox.
         job.cancel()
         return None
+    except BaseException:
+        if disconnected is None:
+            admission.rollback_start(lease)
+        raise
     finally:
         if disconnected is None and disconnect_work is not None:
             disconnect_work.close()
@@ -449,6 +672,8 @@ class _CheckedBody(Response):
         try:
             async with timer:
                 await super().__call__(scope, receive, send)
+            if timer.expired() or time.monotonic() >= self.deadline:
+                raise TimeoutError
         except TimeoutError:
             raise
         except OSError:
@@ -623,6 +848,7 @@ class _EarlySSE(Response, Generic[StreamResult]):
                             request.state.request_id,
                             openai=True,
                             middleware=error.middleware,
+                            retry_after=error.retry_after,
                         )(scope, receive, error_send)
                 except asyncio.CancelledError:
                     request.state.stream_outcome = (
@@ -636,15 +862,16 @@ class _EarlySSE(Response, Generic[StreamResult]):
                     )
 
         admission = request.app.state.admission
-        admission.acquire()
+        lease = _admit_request(request)
         work = serve()
         try:
             job = asyncio.create_task(work)
         except BaseException:
             work.close()
-            admission.release_unstarted()
+            admission.release_unstarted(lease)
+            request.scope["state"].pop("admission_lease", None)
             raise
-        admission.track(job)
+        admission.track(job, lease)
         disconnected = None
         disconnect_work = None
         try:
@@ -655,6 +882,10 @@ class _EarlySSE(Response, Generic[StreamResult]):
                 job.result()
             elif job not in done:
                 request.state.stream_outcome = "cancelled"
+        except BaseException:
+            if disconnected is None:
+                admission.rollback_start(lease)
+            raise
         finally:
             # Pin closure before cancellation: resistant in-process code must
             # never resume forwarding or sending after a dead connection.
@@ -711,6 +942,8 @@ def create_app(
         active_config = config if config is not None else load_config(path)
         key = provider_key(active_config.provider)
         access = AccessControl(active_config)
+        operator_access = OperatorAccess(active_config)
+        usage_ledger = UsageLedger(active_config.auth.clients)
         validated_transport = validate_transport_config(active_config.provider.transport)
         plugins = load_plugins(active_config)
         transport = create_transport(validated_transport)
@@ -739,14 +972,19 @@ def create_app(
             await start_plugins(plugins, active_config.limits.hook_timeout_seconds)
             started = True
             app.state.config = active_config
-            app.state.admission.limit = active_config.limits.max_concurrent_requests
+            app.state.admission.configure(active_config)
             app.state.access = access
+            app.state.operator_access = operator_access
+            app.state.usage_ledger = usage_ledger
             app.state.pipeline = Pipeline(
                 plugins,
                 provider,
                 active_config.limits,
                 metrics=app.state.metrics,
                 provider_name=active_config.provider.kind,
+            )
+            app.state.client_pipelines = build_client_pipelines(
+                active_config, plugins, app.state.pipeline, usage_ledger
             )
             app.state.ready = True
             yield
@@ -756,7 +994,10 @@ def create_app(
         finally:
             app.state.ready = False
             app.state.pipeline = None
+            app.state.client_pipelines = {}
             app.state.access = None
+            app.state.operator_access = None
+            app.state.usage_ledger = None
 
             async def cleanup() -> None:
                 try:
@@ -775,11 +1016,15 @@ def create_app(
                     raise
 
     app = FastAPI(title="Gateway7", version=__version__, lifespan=lifespan, redirect_slashes=False)
+    app.router.route_class = _StrictJSONRoute
     app.state.ready = False
     app.state.metrics = Metrics()
     app.state.admission = _PipelineAdmission(app.state.metrics)
+    app.state.operator_access = None
+    app.state.usage_ledger = None
     app.state.telemetry = Telemetry.disabled()
     app.state.analytics = Analytics.disabled()
+    app.state.client_pipelines = {}
     app.add_middleware(GatewayBoundaryMiddleware, owner=app)
 
     @app.exception_handler(RequestValidationError)
@@ -845,6 +1090,7 @@ def create_app(
             request.state.request_id,
             openai=_openai_path(request.url.path),
             middleware=error.middleware,
+            retry_after=error.retry_after,
         )
 
     @app.exception_handler(StarletteHTTPException)
@@ -854,9 +1100,38 @@ def create_app(
         )
         request.state.http_outcome = code
         request.state.error_code = code
-        return _error_response(
+        response = _error_response(
             code, request.state.request_id, openai=_openai_path(request.url.path)
         )
+        if error.status_code == 405:
+            allowed: set[str] = set()
+            for route in app.router.routes:
+                if isinstance(route, Route):
+                    match, _ = route.matches(request.scope)
+                    if match != Match.NONE:
+                        allowed.update(route.methods or ())
+            if allowed and request.method not in allowed:
+                methods = sorted(allowed)
+                if all(
+                    method
+                    in {
+                        "GET",
+                        "HEAD",
+                        "POST",
+                        "PUT",
+                        "PATCH",
+                        "DELETE",
+                        "OPTIONS",
+                        "TRACE",
+                        "CONNECT",
+                    }
+                    for method in methods
+                ):
+                    # The matched route owns this protocol value. Exception
+                    # headers can contain input or private details, so do not
+                    # copy them into the sanitized error response.
+                    response.headers["Allow"] = ", ".join(methods)
+        return response
 
     @app.get("/health")
     async def health() -> dict[str, str]:
@@ -876,6 +1151,35 @@ def create_app(
             headers={"Content-Type": CONTENT_TYPE_LATEST},
         )
 
+    @app.get("/operator/usage", include_in_schema=False)
+    async def operator_usage() -> JSONResponse:
+        return JSONResponse(
+            app.state.usage_ledger.snapshot(), headers={"Cache-Control": "no-store"}
+        )
+
+    @app.get("/operator/state", include_in_schema=False)
+    async def operator_snapshot() -> JSONResponse:
+        snapshot = operator_state(
+            app.state.config,
+            app.state.pipeline,
+            app.state.client_pipelines,
+            ready=app.state.ready,
+        )
+        snapshot["usage"] = app.state.usage_ledger.snapshot()
+        return JSONResponse(snapshot, headers=CONSOLE_HEADERS)
+
+    @app.get("/operator/console", include_in_schema=False)
+    async def operator_console() -> Response:
+        return console_asset("index.html")
+
+    @app.get("/operator/assets/console.css", include_in_schema=False)
+    async def operator_console_styles() -> Response:
+        return console_asset("console.css")
+
+    @app.get("/operator/assets/console.js", include_in_schema=False)
+    async def operator_console_script() -> Response:
+        return console_asset("console.js")
+
     @app.post("/chat")
     async def chat(payload: NativeChatRequest, request: Request) -> Response:
         selected = request.state.principal.select_model(
@@ -884,9 +1188,16 @@ def create_app(
         response = await _run_connected(request, payload.core_request(), selected)
         if response is None:
             return Response(status_code=499)
-        return JSONResponse(
-            {"text": response.text, "usage": response.usage, "request_id": request.state.request_id}
+        body = bytes(
+            JSONResponse(
+                {
+                    "text": response.text,
+                    "usage": response.usage,
+                    "request_id": request.state.request_id,
+                }
+            ).body
         )
+        return _CheckedBody(body, request.state.deadline, media_type="application/json")
 
     @app.post("/v1/chat/completions")
     async def openai_chat(payload: OpenAIChatRequest, request: Request) -> Response:
@@ -896,7 +1207,7 @@ def create_app(
         if app.state.config.provider.kind != "openai" and payload.needs_openai_provider():
             raise GatewayError("invalid_request")
         if request.state.stream_mode == "early":
-            pipeline = app.state.pipeline
+            pipeline = _client_pipeline(request)
             if (
                 not payload.stream
                 or app.state.config.provider.kind != "openai"
@@ -944,7 +1255,10 @@ def create_app(
             if time.monotonic() >= request.state.deadline:
                 raise GatewayError("timeout")
             return _CheckedSSE(body, request.state.deadline)
-        return JSONResponse(completion_response(response, selected, request.state.request_id))
+        body = bytes(
+            JSONResponse(completion_response(response, selected, request.state.request_id)).body
+        )
+        return _CheckedBody(body, request.state.deadline, media_type="application/json")
 
     @app.post("/v1/responses")
     async def responses(request: Request) -> Response:
@@ -971,8 +1285,8 @@ def create_app(
         )
         if app.state.config.provider.kind != "openai":
             raise GatewayError("invalid_request")
+        pipeline = _client_pipeline(request)
         if request.state.stream_mode == "early":
-            pipeline = app.state.pipeline
             if (
                 not payload.stream
                 or not callable(getattr(pipeline, "run_responses_early", None))
@@ -1005,7 +1319,7 @@ def create_app(
         try:
             response = await _run_connected_operation(
                 request,
-                lambda: app.state.pipeline.run_responses(
+                lambda: pipeline.run_responses(
                     core,
                     request.state.request_id,
                     deadline=request.state.deadline,

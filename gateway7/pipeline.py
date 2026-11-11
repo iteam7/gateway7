@@ -7,10 +7,17 @@ from collections.abc import Awaitable, Callable
 from typing import Any, Literal, TypeVar
 
 from gateway7.config import LimitsConfig
-from gateway7.errors import GatewayError, ProviderError, ProviderErrorReason
+from gateway7.errors import (
+    GatewayError,
+    ProviderError,
+    ProviderErrorReason,
+    normalized_usage,
+    observed_error_usage,
+    retain_observed_usage,
+)
 from gateway7.loader import LoadedPlugin, LoadedPlugins
 from gateway7.metrics import Metrics
-from gateway7.models import ChatRequest, ChatResponse, NamedToolChoice
+from gateway7.models import ChatRequest, ChatResponse, NamedToolChoice, StrictPayload
 from gateway7.plugin_api import (
     Deny,
     EarlyStreamUnsupported,
@@ -23,14 +30,46 @@ from gateway7.responses_models import (
     ResponsesConsent,
     ResponsesRequest,
     ResponsesResponse,
+    ResponsesUsage,
     _revalidated_state,
     validate_request,
     validate_response,
 )
 from gateway7.responses_policy import protected_snapshot
+from gateway7.usage import ProviderObserver
 
 logger = logging.getLogger("gateway7")
 Payload = TypeVar("Payload", ChatRequest, ChatResponse)
+
+
+def _error_usage(error: BaseException) -> dict[str, int] | None:
+    """Take only validated numeric source accounting, including native cancellation."""
+    try:
+        native = getattr(error, "responses_usage", None)
+        if native is not None:
+            if type(native) is not ResponsesUsage:
+                return None
+            native = _revalidated_state(native, ResponsesUsage)
+            reported = [native.input_tokens, native.output_tokens]
+            if native.input_tokens_details is not None:
+                reported.extend(
+                    (
+                        native.input_tokens_details.cached_tokens,
+                        native.input_tokens_details.cache_write_tokens,
+                    )
+                )
+            if native.output_tokens_details is not None:
+                reported.append(native.output_tokens_details.reasoning_tokens)
+            if native.total_tokens is not None and any(
+                count is not None and count > native.total_tokens for count in reported
+            ):
+                return None
+            return normalized_usage(
+                {"input_tokens": native.input_tokens, "output_tokens": native.output_tokens}
+            )
+    except Exception:
+        return None
+    return observed_error_usage(error)
 
 
 def _checkpoint(deadline: float) -> None:
@@ -41,16 +80,30 @@ def _checkpoint(deadline: float) -> None:
         raise GatewayError("timeout")
 
 
+def _payload_state(value: Any, ancestors: frozenset[int] = frozenset()) -> Any:
+    """Read recursive actual DTO state without serializers or dropped extras."""
+    if not isinstance(value, (StrictPayload, dict, list, tuple)):
+        return value
+    if id(value) in ancestors:
+        raise ValueError("Cyclic payload state")
+    ancestors = ancestors | {id(value)}
+    if isinstance(value, StrictPayload):
+        actual = vars(value)
+        if set(actual) - type(value).model_fields.keys() or value.__pydantic_extra__:
+            raise ValueError("Unexpected payload fields")
+        return {name: _payload_state(child, ancestors) for name, child in actual.items()}
+    if isinstance(value, dict):
+        return {key: _payload_state(child, ancestors) for key, child in value.items()}
+    if isinstance(value, tuple):
+        return tuple(_payload_state(child, ancestors) for child in value)
+    return [_payload_state(child, ancestors) for child in value]
+
+
 def _validated(payload: object, expected: type[Payload]) -> Payload:
     if not isinstance(payload, expected):
         raise ValueError("Invalid payload type")
-    # model_copy(update=...) can add undeclared attributes even with extra=forbid;
-    # model_dump omits them. Reject such edits instead of silently discarding a
-    # plugin's attempted model/control-field injection.
-    if set(vars(payload)) - expected.model_fields.keys():
-        raise ValueError("Unexpected payload fields")
-    # model_copy/model_construct can bypass validation, including mutable children.
-    return expected.model_validate(payload.model_dump(mode="python", warnings=False), strict=True)
+    # Copies, constructed instances and mutable children bypass normal validation.
+    return expected.model_validate(_payload_state(payload), strict=True)
 
 
 def _response_contract(incoming: ChatRequest, outgoing: ChatResponse) -> None:
@@ -102,12 +155,29 @@ class Pipeline:
         *,
         metrics: Metrics | None = None,
         provider_name: str = "fake",
+        provider_observer: ProviderObserver | None = None,
     ) -> None:
         self.plugins = plugins
         self.provider = provider
         self.limits = limits
         self.metrics = metrics
         self.provider_name = provider_name
+        self.provider_observer = provider_observer
+
+    def _observe_provider(
+        self,
+        outcome: str,
+        duration: float,
+        usage: dict[str, int] | None = None,
+        *,
+        error_reason: object = ProviderErrorReason.UNKNOWN,
+    ) -> None:
+        if self.metrics is not None:
+            self.metrics.observe_provider(
+                self.provider_name, outcome, duration, usage, error_reason=error_reason
+            )
+        if self.provider_observer is not None:
+            self.provider_observer(outcome, normalized_usage(usage))
 
     def _tool_capability(self, request: ChatRequest) -> None:
         if request.requires_tools and any(
@@ -147,6 +217,7 @@ class Pipeline:
                     raise GatewayError("plugin_error")
                 provider_called = True
                 started = time.monotonic()
+                attempt_usage = None
                 _log(request_id, "start", "provider", "provider", 0)
                 try:
                     # Authenticated routing is pinned outside plugin-visible
@@ -157,6 +228,11 @@ class Pipeline:
                     if provider_stream:
                         options["stream"] = True
                     response = await self.provider.complete(incoming, **options)
+                    if isinstance(response, ChatResponse):
+                        attempt_usage = normalized_usage(response.usage)
+                    _checkpoint(deadline)
+                    if total_timer.expired():
+                        raise GatewayError("timeout")
                     try:
                         result = _validated(response, ChatResponse)
                         _response_contract(incoming, result)
@@ -166,31 +242,52 @@ class Pipeline:
                         ):
                             raise ValueError("Middleware does not support tool payloads")
                     except (TypeError, ValueError):
-                        raise ProviderError(
+                        rejected = ProviderError(
                             ProviderErrorReason.INVALID_RESPONSE,
-                            usage=response.usage if isinstance(response, ChatResponse) else None,
-                        ) from None
-                except asyncio.CancelledError:
-                    if self.metrics is not None:
-                        self.metrics.observe_provider(
-                            self.provider_name, "cancelled", time.monotonic() - started
+                            usage=attempt_usage,
                         )
+                        retain_observed_usage(rejected, attempt_usage)
+                        raise rejected from None
+                except asyncio.CancelledError as error:
+                    self._observe_provider(
+                        "cancelled",
+                        time.monotonic() - started,
+                        _error_usage(error) or attempt_usage,
+                    )
                     _log(
                         request_id, "cancelled", "provider", "provider", time.monotonic() - started
                     )
                     raise
                 except Exception as error:
+                    # A provider can suppress cancellation or return after its
+                    # deadline. Account once without converting that interruption.
+                    try:
+                        _checkpoint(deadline)
+                        if total_timer.expired():
+                            raise GatewayError("timeout")
+                    except (asyncio.CancelledError, GatewayError):
+                        self._observe_provider(
+                            "cancelled",
+                            time.monotonic() - started,
+                            _error_usage(error) or attempt_usage,
+                        )
+                        _log(
+                            request_id,
+                            "cancelled",
+                            "provider",
+                            "provider",
+                            time.monotonic() - started,
+                        )
+                        raise
                     reason = ProviderErrorReason.normalize(
                         error.reason if isinstance(error, ProviderError) else None
                     )
-                    if self.metrics is not None:
-                        self.metrics.observe_provider(
-                            self.provider_name,
-                            "provider_error",
-                            time.monotonic() - started,
-                            error.usage if isinstance(error, ProviderError) else None,
-                            error_reason=reason,
-                        )
+                    self._observe_provider(
+                        "provider_error",
+                        time.monotonic() - started,
+                        _error_usage(error),
+                        error_reason=reason,
+                    )
                     _log(
                         request_id,
                         "provider_error",
@@ -204,10 +301,7 @@ class Pipeline:
                 provider_usage = None if result.usage is None else dict(result.usage)
                 provider_finish_reason = result.finish_reason
                 provider_calls = tuple((call.id, call.function.name) for call in result.tool_calls)
-                if self.metrics is not None:
-                    self.metrics.observe_provider(
-                        self.provider_name, "complete", time.monotonic() - started, provider_usage
-                    )
+                self._observe_provider("complete", time.monotonic() - started, provider_usage)
                 _checkpoint(deadline)
                 _log(request_id, "complete", "provider", "provider", time.monotonic() - started)
                 return result
@@ -575,10 +669,7 @@ class Pipeline:
                     reason: ProviderErrorReason | None = None,
                 ) -> None:
                     elapsed = time.monotonic() - started
-                    if self.metrics is not None:
-                        self.metrics.observe_provider(
-                            self.provider_name, outcome, elapsed, usage, error_reason=reason
-                        )
+                    self._observe_provider(outcome, elapsed, usage, error_reason=reason)
                     _log(request_id, outcome, "provider", "provider", elapsed, reason=reason)
 
                 try:
@@ -603,28 +694,30 @@ class Pipeline:
                         validated_usage = response.accounting_usage()
                         response = validate_response(request, response, consent=consent)
                     except (ValueError, TypeError):
-                        raise ProviderError(
+                        rejected = ProviderError(
                             ProviderErrorReason.INVALID_RESPONSE, usage=validated_usage
-                        ) from None
+                        )
+                        retain_observed_usage(rejected, validated_usage)
+                        raise rejected from None
                     checkpoint()
-                except asyncio.CancelledError:
-                    record_provider("cancelled")
+                except asyncio.CancelledError as error:
+                    record_provider("cancelled", _error_usage(error))
                     raise
                 except Exception as error:
                     try:
                         checkpoint()
                     except (asyncio.CancelledError, GatewayError):
-                        record_provider("cancelled")
+                        record_provider("cancelled", _error_usage(error))
                         raise
                     if isinstance(error, GatewayError) and error.code == "timeout":
-                        record_provider("cancelled")
+                        record_provider("cancelled", _error_usage(error))
                         raise
                     reason = ProviderErrorReason.normalize(
                         error.reason if isinstance(error, ProviderError) else None
                     )
                     record_provider(
                         "provider_error",
-                        error.usage if isinstance(error, ProviderError) else None,
+                        _error_usage(error),
                         reason,
                     )
                     raise GatewayError("provider_error") from None
@@ -764,10 +857,7 @@ class Pipeline:
                     reason: ProviderErrorReason | None = None,
                 ) -> None:
                     duration = time.monotonic() - started
-                    if self.metrics is not None:
-                        self.metrics.observe_provider(
-                            self.provider_name, outcome, duration, usage, error_reason=reason
-                        )
+                    self._observe_provider(outcome, duration, usage, error_reason=reason)
                     _log(request_id, outcome, "provider", "provider", duration, reason=reason)
 
                 try:
@@ -784,12 +874,16 @@ class Pipeline:
                         ):
                             raise ValueError("Middleware does not support tool payloads")
                     except (TypeError, ValueError):
-                        raise ProviderError(
+                        rejected = ProviderError(
                             ProviderErrorReason.INVALID_RESPONSE,
                             usage=response.usage if isinstance(response, ChatResponse) else None,
-                        ) from None
-                except asyncio.CancelledError:
-                    record_provider("cancelled")
+                        )
+                        retain_observed_usage(
+                            rejected, response.usage if isinstance(response, ChatResponse) else None
+                        )
+                        raise rejected from None
+                except asyncio.CancelledError as error:
+                    record_provider("cancelled", _error_usage(error))
                     raise
                 except Exception as error:
                     # A provider or callback may replace cancellation with an
@@ -799,17 +893,17 @@ class Pipeline:
                         if total_timer.expired():
                             raise GatewayError("timeout")
                     except (asyncio.CancelledError, GatewayError):
-                        record_provider("cancelled")
+                        record_provider("cancelled", _error_usage(error))
                         raise
                     if isinstance(error, GatewayError) and error.code == "timeout":
-                        record_provider("cancelled")
+                        record_provider("cancelled", _error_usage(error))
                         raise
                     reason = ProviderErrorReason.normalize(
                         error.reason if isinstance(error, ProviderError) else None
                     )
                     record_provider(
                         "provider_error",
-                        error.usage if isinstance(error, ProviderError) else None,
+                        _error_usage(error),
                         reason,
                     )
                     raise GatewayError("provider_error") from None

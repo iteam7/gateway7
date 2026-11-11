@@ -790,6 +790,9 @@ async def test_common_runner_accepts_non_chat_packet_encoder(make_app):
                 "state": {
                     "deadline": asyncio.get_running_loop().time() + 1,
                     "request_id": "synthetic-reusable",
+                    "principal": app.state.access.authenticate(
+                        [(b"authorization", f"Bearer {TOKEN}".encode())]
+                    ),
                 },
             }
         )
@@ -862,6 +865,9 @@ async def test_common_runner_task_creation_failures_rollback_and_reap(
                 "state": {
                     "deadline": asyncio.get_running_loop().time() + 1,
                     "request_id": "synthetic-creation",
+                    "principal": app.state.access.authenticate(
+                        [(b"authorization", f"Bearer {TOKEN}".encode())]
+                    ),
                 },
             },
             receive,
@@ -902,6 +908,9 @@ async def test_common_runner_json_error_delivery_is_also_admitted_and_bounded(ma
                 "state": {
                     "deadline": asyncio.get_running_loop().time() + 0.1,
                     "request_id": "synthetic-error",
+                    "principal": app.state.access.authenticate(
+                        [(b"authorization", f"Bearer {TOKEN}".encode())]
+                    ),
                 },
             },
             receive,
@@ -1018,6 +1027,9 @@ async def test_already_expired_runner_skips_work_and_bounds_json_504_delivery(ma
                 "state": {
                     "deadline": asyncio.get_running_loop().time() - 1,
                     "request_id": "synthetic-expired",
+                    "principal": app.state.access.authenticate(
+                        [(b"authorization", f"Bearer {TOKEN}".encode())]
+                    ),
                 },
             },
             receive,

@@ -826,6 +826,19 @@ class ResponsesUsage(ResponsesModel):
 
     @model_validator(mode="after")
     def truthful_counts(self) -> ResponsesUsage:
+        if self.total_tokens is not None:
+            reported = [self.input_tokens, self.output_tokens]
+            if self.input_tokens_details is not None:
+                reported.extend(
+                    [
+                        self.input_tokens_details.cached_tokens,
+                        self.input_tokens_details.cache_write_tokens,
+                    ]
+                )
+            if self.output_tokens_details is not None:
+                reported.append(self.output_tokens_details.reasoning_tokens)
+            if any(count is not None and count > self.total_tokens for count in reported):
+                raise ValueError("Reported usage exceeds its total")
         if (
             self.input_tokens is not None
             and self.output_tokens is not None

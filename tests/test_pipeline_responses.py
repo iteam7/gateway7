@@ -530,7 +530,9 @@ async def test_provider_error_cannot_replace_interruption_and_counts_once(early,
     assert len(provider.calls) == 1
     assert metric(metrics, "provider_calls_total", provider="openai", outcome="cancelled") == 1
     assert metric(metrics, "provider_calls_total", provider="openai", outcome="provider_error") == 0
-    assert metric(metrics, "provider_usage_unknown_total", provider="openai") == 1
+    assert metric(metrics, "provider_usage_unknown_total", provider="openai") == 0
+    assert metric(metrics, "provider_tokens_total", provider="openai", direction="input") == 8
+    assert metric(metrics, "provider_tokens_total", provider="openai", direction="output") == 2
 
 
 async def test_early_text_waits_for_complete_request_chain_and_never_calls_response_hooks():
@@ -991,7 +993,7 @@ async def test_rejected_provider_dto_usage_is_never_read_or_serialized(
     assert not recwarn.list
 
 
-async def test_contract_rejection_after_deadline_does_not_count_snapshotted_usage(monkeypatch):
+async def test_contract_rejection_after_deadline_preserves_validated_source_usage(monkeypatch):
     import gateway7.pipeline as pipeline_module
 
     def late_rejection(*args, **kwargs):
@@ -1008,8 +1010,9 @@ async def test_contract_rejection_after_deadline_does_not_count_snapshotted_usag
     assert caught.value.code == "timeout" and len(provider.calls) == 1
     assert metric(metrics, "provider_calls_total", provider="openai", outcome="cancelled") == 1
     assert metric(metrics, "provider_calls_total", provider="openai", outcome="provider_error") == 0
-    assert metric(metrics, "provider_usage_unknown_total", provider="openai") == 1
-    assert metric(metrics, "provider_tokens_total", provider="openai", direction="input") == 0
+    assert metric(metrics, "provider_usage_unknown_total", provider="openai") == 0
+    assert metric(metrics, "provider_tokens_total", provider="openai", direction="input") == 8
+    assert metric(metrics, "provider_tokens_total", provider="openai", direction="output") == 2
 
 
 @pytest.mark.parametrize("usage", [None, {"input_tokens": 8, "output_tokens": 2}])

@@ -19,3 +19,8 @@ Each requirement states one behavior of Gateway7, the containers it runs in and 
 | [FR-013](fr/FR-013.md) | Exchange guarded function-tool turns | `gateway` | Active |
 | [FR-014](fr/FR-014.md) | Expose Each API Request's Quality Signal To The Observability Backend | `gateway` | Active |
 | [FR-015](fr/FR-015.md) | Record Privacy-Safe Chat Task Events For Product Analytics | `gateway` | Active |
+| [FR-016](fr/FR-016.md) | Limit Each Client's Active Requests | `gateway` | Active |
+| [FR-017](fr/FR-017.md) | Limit Each Client's Request Rate | `gateway` | Active |
+| [FR-018](fr/FR-018.md) | Apply Additional Per-Client Middleware | `gateway` | Active |
+| [FR-019](fr/FR-019.md) | Read Client Usage Through A Protected Operator Snapshot | `gateway` | Active |
+| [FR-020](fr/FR-020.md) | Inspect Clients And Middleware In A Read-Only Operator Console | `gateway` | Active |

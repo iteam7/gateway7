@@ -8,14 +8,38 @@ import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import threading
 import time
+import tomllib
 
 import pytest
 import yaml
+from packaging.requirements import Requirement
 
+from gateway7 import __version__
 from gateway7.cli import main
 from gateway7.errors import StartupError
 from gateway7.offline import MAX_FILE_BYTES, load_fixtures, run_offline
 from gateway7.scaffold import create_plugin_project
+
+
+@pytest.mark.parametrize("gateway_version", [__version__, "0.9.7", "1.2.3"])
+def test_generated_dependency_accepts_its_gateway_release_and_excludes_other_minors(
+    tmp_path, monkeypatch, gateway_version
+):
+    from gateway7 import scaffold
+
+    monkeypatch.setattr(scaffold, "__version__", gateway_version)
+    project = create_plugin_project("sample", tmp_path)
+    metadata = tomllib.loads((project / "pyproject.toml").read_text(encoding="utf-8"))
+    requirement = Requirement(metadata["project"]["dependencies"][0])
+    major, minor, _ = (int(part) for part in gateway_version.split("."))
+    assert requirement.name == "gateway7"
+    assert requirement.specifier.contains(gateway_version)
+    assert requirement.specifier.contains(f"{major}.{minor}.99")
+    assert not requirement.specifier.contains("0.1.0")
+    assert not requirement.specifier.contains(f"{major}.{minor + 1}.0")
+    assert metadata["project"]["dependencies"][0] in (
+        project / "README.md"
+    ).read_text(encoding="utf-8")
 
 
 def test_generated_project_passes_offline_and_mismatch_exits_one(tmp_path, capsys):

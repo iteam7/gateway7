@@ -308,6 +308,8 @@ def error_body(
     kind = (
         "authentication_error"
         if error.code == "unauthorized"
+        else "rate_limit_error"
+        if error.status_code == 429
         else "permission_error"
         if error.code == "model_forbidden"
         else "invalid_request_error"
