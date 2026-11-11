@@ -7,16 +7,23 @@ can send a second copy of a request or leak the server key to another origin.
 
 from __future__ import annotations
 
+import asyncio
 import ipaddress
 import json
-import re
+import math
+import time
+import unicodedata
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
 from urllib.parse import urlsplit
 
 import httpx
 
+from gateway7.config import validate_model_id, validate_provider_model
 from gateway7.errors import ProviderError, ProviderErrorReason
+from gateway7.http_lifecycle import _OwnedCloseStream
+from gateway7.loader import complete_cleanup
 from gateway7.models import ChatResponse, ToolCall
 from gateway7.openai_stream import OpenAIStream
 from gateway7.responses_models import ResponsesConsent
@@ -29,6 +36,11 @@ if TYPE_CHECKING:
 
 
 MAX_RESPONSE_BYTES = 1_048_576
+MAX_CATALOG_MODELS = 4096
+MAX_CATALOG_DEPTH = 64
+CATALOG_TTL_SECONDS = 300.0
+CATALOG_FAILURE_SECONDS = 1.0
+CATALOG_FETCH_SECONDS = 2.0
 MAX_USAGE_TOKENS = 2**63 - 1
 FinishReason = Literal["stop", "length", "tool_calls"]
 _REAL_HOSTS = {
@@ -36,6 +48,88 @@ _REAL_HOSTS = {
     "openai": "api.openai.com",
     "gemini": "generativelanguage.googleapis.com",
 }
+
+
+@dataclass(frozen=True, slots=True)
+class CatalogModel:
+    id: str
+    created: int
+    owned_by: str
+    object: Literal["model"] = "model"
+
+
+def _catalog_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for name, value in pairs:
+        if name in result:
+            raise ValueError
+        result[name] = value
+    return result
+
+
+def _catalog_constant(_: str) -> None:
+    raise ValueError
+
+
+def _catalog_float(value: str) -> float:
+    result = float(value)
+    if not math.isfinite(result):
+        raise ValueError
+    return result
+
+
+def _catalog_models(body: bytearray) -> tuple[CatalogModel, ...]:
+    """Validate the entire bounded JSON document before discarding extra metadata."""
+    try:
+        data = json.loads(
+            body.decode("utf-8"),
+            object_pairs_hook=_catalog_object,
+            parse_constant=_catalog_constant,
+            parse_float=_catalog_float,
+        )
+        pending = [(data, 0)]
+        while pending:
+            value, depth = pending.pop()
+            if depth > MAX_CATALOG_DEPTH:
+                raise ValueError
+            if isinstance(value, (dict, list)):
+                if isinstance(value, dict):
+                    for name, child in value.items():
+                        name.encode("utf-8")
+                        pending.append((child, depth + 1))
+                else:
+                    pending.extend((child, depth + 1) for child in value)
+            elif isinstance(value, str):
+                value.encode("utf-8")
+        if not isinstance(data, dict) or data.get("object") != "list":
+            raise ValueError
+        records = data.get("data")
+        if not isinstance(records, list) or len(records) > MAX_CATALOG_MODELS:
+            raise ValueError
+        models = []
+        seen: set[str] = set()
+        for record in records:
+            if not isinstance(record, dict) or record.get("object") != "model":
+                raise ValueError
+            raw_model = record.get("id")
+            if not isinstance(raw_model, str):
+                raise ValueError
+            model = validate_model_id(raw_model)
+            created, owner = record.get("created"), record.get("owned_by")
+            if (
+                model in seen
+                or type(created) is not int
+                or not 0 <= created <= 2**63 - 1
+                or not isinstance(owner, str)
+                or not 1 <= len(owner.encode("utf-8")) <= 1024
+                or any(unicodedata.category(character).startswith("C") for character in owner)
+            ):
+                raise ValueError
+            seen.add(model)
+            models.append(CatalogModel(model, created, owner))
+        return tuple(models)
+    except (ValueError, TypeError, UnicodeError, RecursionError, OverflowError):
+        raise ProviderError(ProviderErrorReason.INVALID_RESPONSE) from None
 
 
 def _validated_origin(kind: str, value: str) -> str:
@@ -266,9 +360,137 @@ class HTTPProvider:
             trust_env=False,
             **options,
         )
+        self._catalog: tuple[CatalogModel, ...] | None = None
+        self._catalog_until = 0.0
+        self._catalog_failure: ProviderErrorReason | None = None
+        self._catalog_failure_until = 0.0
+        self._catalog_flight: (
+            asyncio.Future[tuple[CatalogModel, ...] | ProviderErrorReason] | None
+        ) = None
+        self._catalog_leader: asyncio.Task[Any] | None = None
+        self._catalog_closed = False
 
     async def aclose(self) -> None:
-        await self._client.aclose()
+        self._catalog_closed = True
+
+        async def close() -> None:
+            leader = self._catalog_leader
+            if leader is not None and leader is not asyncio.current_task() and not leader.done():
+                leader.cancel()
+                await asyncio.gather(leader, return_exceptions=True)
+            await self._client.aclose()
+
+        await complete_cleanup(close())
+
+    async def get_models(self, *, deadline: float | None = None) -> tuple[CatalogModel, ...]:
+        """Read an account-scoped catalog; the first caller owns the single fetch.
+
+        Waiters shield only the shared result, never a detached network task. A
+        cancelled leader finishes owned HTTP cleanup before waking its waiters.
+        """
+        caller = asyncio.current_task()
+        if caller is not None and caller.cancelling():
+            raise asyncio.CancelledError
+        now = time.monotonic()
+        if deadline is not None and now >= deadline:
+            raise TimeoutError
+        if self._catalog_closed:
+            raise ProviderError(ProviderErrorReason.UNAVAILABLE) from None
+        if self._kind != "openai":
+            raise ProviderError(ProviderErrorReason.REJECTED) from None
+        if self._catalog is not None and now < self._catalog_until:
+            return self._catalog
+        if self._catalog_failure is not None and now < self._catalog_failure_until:
+            raise ProviderError(self._catalog_failure) from None
+        if self._catalog_flight is not None:
+            async with asyncio.timeout_at(deadline):
+                result = await asyncio.shield(self._catalog_flight)
+            if deadline is not None and time.monotonic() >= deadline:
+                raise TimeoutError
+            if isinstance(result, ProviderErrorReason):
+                raise ProviderError(result) from None
+            return result
+
+        flight: asyncio.Future[tuple[CatalogModel, ...] | ProviderErrorReason] = (
+            asyncio.get_running_loop().create_future()
+        )
+        self._catalog_flight = flight
+        self._catalog_leader = asyncio.current_task()
+        outcome: tuple[CatalogModel, ...] | ProviderErrorReason = ProviderErrorReason.UNAVAILABLE
+        until = (
+            min(now + CATALOG_FETCH_SECONDS, deadline)
+            if deadline is not None
+            else (now + CATALOG_FETCH_SECONDS)
+        )
+        try:
+            async with asyncio.timeout_at(until):
+                models = await self._fetch_models()
+            if time.monotonic() >= until:
+                raise TimeoutError
+            if self._catalog_closed:
+                raise asyncio.CancelledError
+            self._catalog = models
+            self._catalog_until = time.monotonic() + CATALOG_TTL_SECONDS
+            self._catalog_failure = None
+            outcome = models
+            return models
+        except asyncio.CancelledError:
+            raise
+        except Exception as error:
+            if caller is not None and caller.cancelling():
+                raise asyncio.CancelledError from None
+            # A caller's shorter deadline must not poison the account cache.
+            if deadline is not None and time.monotonic() >= deadline:
+                raise TimeoutError from None
+            if isinstance(error, ProviderError):
+                reason = error.reason
+            elif isinstance(error, (TimeoutError, httpx.TimeoutException)):
+                reason = ProviderErrorReason.TIMEOUT
+            elif isinstance(error, httpx.DecodingError):
+                reason = ProviderErrorReason.INVALID_RESPONSE
+            elif isinstance(error, httpx.TransportError):
+                reason = ProviderErrorReason.TRANSPORT
+            else:
+                reason = ProviderErrorReason.UNKNOWN
+            outcome = self._catalog_failure = reason
+            self._catalog_failure_until = time.monotonic() + CATALOG_FAILURE_SECONDS
+            raise ProviderError(reason) from None
+        finally:
+            self._catalog_flight = None
+            self._catalog_leader = None
+            flight.set_result(outcome)
+
+    async def _fetch_models(self) -> tuple[CatalogModel, ...]:
+        primary: BaseException | None = None
+        try:
+            async with self._client.stream(
+                "GET", self._origin + "/v1/models", headers=self._headers
+            ) as response:
+                try:
+                    if not isinstance(response.stream, httpx.AsyncByteStream):
+                        raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
+                    response.stream = _OwnedCloseStream(response.stream)
+                    if response.status_code != 200:
+                        raise ProviderError(ProviderErrorReason.UNAVAILABLE)
+                    media_type = (
+                        response.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+                    )
+                    if media_type != "application/json":
+                        raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
+                    body = bytearray()
+                    async for chunk in response.aiter_bytes():
+                        if len(chunk) > MAX_RESPONSE_BYTES - len(body):
+                            raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
+                        body.extend(chunk)
+                    models = _catalog_models(body)
+                except BaseException as error:
+                    primary = error
+                    raise
+            return models
+        except BaseException:
+            if primary is not None:
+                raise primary from None
+            raise
 
     async def complete_responses(
         self,
@@ -305,12 +527,12 @@ class HTTPProvider:
     def _request(
         self, request: ChatRequest, model: str | None = None, *, stream: bool = False
     ) -> tuple[str, dict[str, Any]]:
-        selected_model = self._model if model is None else model
-        if (
-            not isinstance(selected_model, str)
-            or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", selected_model) is None
-        ):
-            raise ProviderError()
+        try:
+            selected_model = validate_provider_model(
+                self._kind, self._model if model is None else model
+            )
+        except (TypeError, ValueError):
+            raise ProviderError(ProviderErrorReason.REJECTED) from None
         generation = {
             name: getattr(request, name)
             for name in (

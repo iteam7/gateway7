@@ -113,7 +113,7 @@ The OpenAI provider additionally supports streamed upstream Chat Completions and
 
 | Endpoint or field | Supported behavior |
 | --- | --- |
-| `GET /v1/models` | Lists the authenticated client's configured model IDs; does not contact the provider |
+| `GET /v1/models` | Authenticated, permission-filtered catalog; finite effective permissions are local, while unrestricted OpenAI access uses bounded cached discovery |
 | `POST /v1/chat/completions` | One assistant response, as JSON or SSE; full-response checks remain the streaming default |
 | `model` | Required; must be allowed for this client on the configured provider |
 | `messages` | Nonempty history; string text, plus the function-tool history described below |
@@ -142,6 +142,23 @@ An OpenAI `length` response without a tool call preserves partial or empty text,
 Invalid or incomplete calls still fail validation rather than becoming executable truncated results.
 When valid provider usage is available, `usage` has `prompt_tokens`, `completion_tokens` and `total_tokens`.
 Otherwise it is `null`, which must not be interpreted as zero consumption.
+
+### Model catalog and permission filtering
+
+`GET /v1/models` authenticates the caller and applies the [provider/client permission intersection](authentication.md#configure-clients).
+Finite effective permissions return a local configured catalog without upstream discovery, including a successful empty catalog when the effective set is empty; these entries do not certify provider-account availability.
+The response has `object: list` and `data` records containing only `id`, `object: model`, `created` and `owned_by`.
+Unrestricted OpenAI access discovers models from the same account through the provider's existing HTTP client, key and transport, using OpenAI's fixed official models endpoint.
+Unrestricted non-OpenAI providers retain a configured-default seed; the gateway invents no discovery API for them.
+The provider-instance discovery cache holds the validated model catalog, unfiltered by client permissions, for 300 seconds; permissions are still applied for each caller, not inherited from a cached client view.
+Fetch failures are cached for 1 second, but a caller's expired deadline or cancellation does not become a cached account failure.
+Each upstream catalog fetch has a 2-second budget clipped to its caller's request deadline, a 1 MiB response limit, at most 4096 models and maximum JSON depth 64.
+The full source passes strict UTF-8/JSON decoding, duplicate-key/nonfinite/depth and record validation before projection; malformed or oversized data fails instead of being truncated or replayed as raw metadata.
+Concurrent cache misses share caller-owned in-flight discovery: cancelling a waiter does not cancel its leader, while leader cancellation or shutdown waits for cleanup and wakes waiters.
+Discovery has no retries, background refresh or stale-after-expiry fallback, and never changes authentication or expands permissions after failure.
+Unavailable discovery returns HTTP 503, or HTTP 504 when the request deadline expires; failure is not reported as a successful empty catalog.
+Generation authorization is independent of catalog membership: a permitted requested ID is forwarded unchanged through the supported text Chat/Responses contract, without automatic endpoint, modality or parameter adaptation.
+Catalog presence certifies no tool support, context limit, modality, endpoint compatibility or successful generation.
 
 ### Upstream streaming and checked SSE
 

@@ -211,8 +211,9 @@ def test_sigterm_during_demo_startup_reaps_synthetic_child(tmp_path):
             assert "Traceback" not in logs.read()
 
 
+@pytest.mark.parametrize("model", ["allowed-model", "vendor/model:revision", "é" * 512])
 async def test_chat_sends_environment_bearer_and_optional_model_without_leaking_token(
-    monkeypatch, capsys
+    monkeypatch, capsys, model
 ):
     from gateway7 import cli
 
@@ -225,7 +226,7 @@ async def test_chat_sends_environment_bearer_and_optional_model_without_leaking_
         seen.append(request)
         assert request.headers["authorization"] == "Bearer " + key
         assert key not in request.content.decode() and key not in str(request.url)
-        assert json.loads(request.content)["model"] == "allowed-model"
+        assert json.loads(request.content)["model"] == model
         return httpx.Response(
             200,
             json={
@@ -247,7 +248,7 @@ async def test_chat_sends_environment_bearer_and_optional_model_without_leaking_
             "Synthetic input",
             32,
             token_env="SYNTHETIC_CLI_CLIENT",
-            model="allowed-model",
+            model=model,
         )
         == 0
     )
@@ -261,6 +262,20 @@ def test_chat_rejects_bad_token_value_without_echoing_it(monkeypatch, capsys):
     assert main(["chat", "--message", "synthetic"]) == 1
     output = capsys.readouterr()
     assert "synthetic secret with spaces" not in output.out + output.err
+
+
+@pytest.mark.parametrize(
+    "model", ["", "model name", "model\x00", "model\u200b", "\ud800", "é" * 513]
+)
+def test_chat_rejects_invalid_model_before_http_with_static_error(monkeypatch, capsys, model):
+    def forbidden(*args, **kwargs):
+        pytest.fail("Invalid model reached HTTP client creation")
+
+    monkeypatch.setattr("gateway7.cli.httpx.AsyncClient", forbidden)
+    assert main(["chat", "--message", "Synthetic input", "--model", model]) == 1
+    output = capsys.readouterr()
+    assert output.out == ""
+    assert output.err == "Gateway startup failed: --model must be a valid model identifier\n"
 
 
 def test_interrupted_chat_input_exits_130_without_output(monkeypatch, capsys):

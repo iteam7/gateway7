@@ -863,7 +863,7 @@ def test_transport_rejects_copied_extra_native_fields_before_building_core_paylo
         payload.core_request()
 
 
-@pytest.mark.parametrize("hidden", [{"model": True}, {"model": "../unsafe"}, {"stream": 1}])
+@pytest.mark.parametrize("hidden", [{"model": True}, {"model": "bad model"}, {"stream": 1}])
 def test_transport_authority_is_validated_even_when_hidden_by_a_forged_field_set(hidden):
     values = {"input": "Synthetic", "model": "synthetic-model", **hidden}
     payload = ResponsesCreateRequest.model_construct(_fields_set={"input"}, **values)

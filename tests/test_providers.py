@@ -497,6 +497,33 @@ def test_model_identifier_cannot_escape_gemini_path(model):
         ProviderConfig(kind="gemini", model=model)
 
 
+@pytest.mark.parametrize("model", ["../model", "model?key=synthetic", "model:otherOperation", "models/model", "a" * 129])
+async def test_gemini_routed_model_keeps_the_legacy_path_guard_before_transport(model):
+    seen = []
+    async with mocked_provider(lambda wire: seen.append(wire), kind="gemini") as provider:
+        with pytest.raises(ProviderError) as error:
+            await provider.complete(REQUEST, model=model)
+    assert error.value.reason is ProviderErrorReason.REJECTED and not seen
+
+
+@pytest.mark.parametrize("model", ["ft:synthetic/account:model/" + "x" * 160, "é" * 512])
+@pytest.mark.parametrize("stream", [False, True])
+async def test_openai_opaque_model_is_literal_in_json_and_sse_requests(model, stream):
+    seen = []
+
+    def handle(wire):
+        seen.append(wire)
+        assert json.loads(wire.content)["model"] == model
+        assert wire.url.path == "/v1/chat/completions"
+        if stream:
+            return streaming_response(sse_body(stream_chunk({"content": "pong"}, "stop", model=model)))
+        return httpx.Response(200, json=openai_reply())
+
+    async with mocked_provider(handle, kind="openai") as provider:
+        assert (await provider.complete(REQUEST, model=model, stream=stream)).text == "pong"
+    assert len(seen) == 1
+
+
 @pytest.mark.parametrize("value", [0, -1, 301, float("inf"), float("nan"), "30", True])
 def test_provider_timeout_is_strict_and_bounded(value):
     with pytest.raises(ValueError):

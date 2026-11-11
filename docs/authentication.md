@@ -1,11 +1,11 @@
 # Client authentication and model permissions
 
-Give each application its own gateway token and a list of models it may use.
-Gateway7 checks both before it runs middleware or calls the provider.
+Give each application its own gateway token and optionally restrict the models it may use.
+Gateway7 checks authentication and the effective provider/client permissions before it runs middleware or generates an answer.
 
 | Credential | Who holds it | What it authorizes |
 | --- | --- | --- |
-| Gateway client token | The calling application and gateway server | Calls to `/chat`, `/v1/chat/completions` and `/v1/models` |
+| Gateway client token | The calling application and gateway server | Calls to `/chat`, `/v1/chat/completions`, `/v1/responses` and `/v1/models` |
 | Provider API key | The gateway server | Outbound calls to the selected LLM provider |
 
 The application sends its gateway token in `Authorization: Bearer ...`.
@@ -81,10 +81,24 @@ auth:
       models: [gpt-4.1-mini, gpt-4.1]
 ```
 
-For any provider, use model IDs your account can access in `provider.model` and the client lists.
-`GET /v1/models` reports configured permissions without testing provider access.
+`provider.allowed_models` is an optional provider-wide restriction, and each client's `models` is an optional additional restriction; effective permissions are their intersection.
+The same rules apply independently at both levels:
 
-Supply both client tokens and the provider key through the server environment or secret manager; YAML holds variable names only.
+| Setting | Meaning |
+| --- | --- |
+| Omitted | No restriction at that level |
+| Explicit nonempty list | Permit only its distinct entries, at most 64 IDs |
+| `[]` | Deny every model |
+| Explicit `null`, wrong types or duplicate IDs | Configuration error, not unrestricted access |
+
+`provider.model` is the default, not a whitelist; a forbidden default is denied rather than replaced with another model.
+Use model IDs your provider account can access; permission at the gateway does not prove that the provider will accept a request.
+OpenAI IDs are opaque literal strings of at most 1024 UTF-8 bytes: colon and slash are supported, while whitespace, control, format and surrogate characters are rejected.
+Non-OpenAI providers retain their existing URL-safe ID validation.
+Permitted IDs are forwarded unchanged through the supported text Chat/Responses contracts; no endpoint, modality or parameter adaptation is inferred from the ID.
+The [authenticated catalog](api.md#model-catalog-and-permission-filtering) is permission-filtered, but missing catalog membership is not an authorization denial and discovery failure never broadens permissions.
+
+Supply both client tokens and the provider key through the server environment, secret manager or [explicit private startup file](setup.md#supply-server-credentials); YAML holds variable names only.
 Clients can store their own token as `GATEWAY7_TOKEN`.
 
 Client tokens must be distinct, 16–512 visible ASCII characters without spaces, and different from the provider key.
@@ -96,6 +110,7 @@ Validation needs no credentials and makes no provider call; startup checks crede
 Both commands load trusted middleware code, as described in [setup](setup.md#select-and-validate-a-config).
 
 Authentication may be disabled only for the fake provider, as in legacy `config/demo.yaml` and `config/reference.yaml` fixtures.
+Only the configured default may be used anonymously, and it must also pass `provider.allowed_models`; omitted restrictions do not enable anonymous real-provider access.
 The packaged demo and default Compose stack enable it.
 
 ## Use the CLI

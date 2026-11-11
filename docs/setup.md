@@ -232,8 +232,9 @@ The sample files already define a model, an authenticated client and the referen
 | `config/gemini.yaml` | `gemini-3.8-flash` | `GEMINI_API_KEY` |
 
 Your provider account must have access to the selected model.
-If you change it, update both `provider.model` and the client's `auth.clients.developer.models` list.
-The gateway does not discover or switch models for you.
+`provider.model` is a default, not an allowlist; requested model IDs are not silently replaced.
+When changing the default, keep it permitted by every explicit provider/client restriction; omitted allowlists do not need per-model edits.
+See [model permissions](authentication.md#configure-clients) for omitted, empty and explicit restrictions, and the [authenticated catalog](api.md#model-catalog-and-permission-filtering) for bounded OpenAI discovery.
 For Claude or Gemini with `.env`, change `GATEWAY_CONFIG_FILE` and `GATEWAY_KEY_ENV` to the matching file and variable, and add that provider key to the file.
 Keep the same two Compose file selectors and the separate gateway client token.
 For a network proxy or a custom outbound HTTP transport, see [provider transports](provider-transports.md).
@@ -265,7 +266,27 @@ A valid config does not prove that an account or model is available.
 
 Skip this section if you filled in `.env` above.
 Use a secret manager or private environment injection in a shared deployment.
-For a local Bash session, the prompts below read values without echoing them or putting them in shell history.
+For local Python startup, keep an external private JSON file with string values for the credential names referenced by the selected YAML; this example contains placeholders only:
+
+```json
+{
+  "OPENAI_API_KEY": "{{provider_api_key}}",
+  "GATEWAY7_CLIENT_TOKEN": "{{gateway_client_token}}"
+}
+```
+
+Create that file outside the repository with owner-only access; never commit it or put its values in command-line arguments.
+After the one-time `uv sync --locked` installation and initial configuration, start the normal server with one command:
+
+```sh
+uv run --locked gateway7 serve --config config/openai.yaml --secrets-file PATH
+```
+
+Replace `PATH` with the explicitly selected external private JSON file; no file is discovered automatically or evaluated as shell code.
+Existing environment variables win over file entries, including empty values; the entire selected file is still validated, even when its entries are shadowed.
+Only configured provider-key, client-token and explicitly selected built-in HTTP proxy variable names may appear; see the [file constraints](cli.md#run-a-configured-server).
+Supplying a proxy variable through this file still requires the explicit [HTTP proxy transport module and `settings.url_env`](provider-transports.md#configure-the-built-in-proxy); setting `HTTP_PROXY` alone does not enable routing.
+To keep using an environment-only local Bash session, the prompts below read values without echoing them or putting them in shell history.
 Create a separate random client token in your password manager: 16–512 visible ASCII characters, without spaces.
 Select OpenAI as shown, or use the matching config and key variable from the provider table:
 
@@ -288,6 +309,7 @@ Avoid printing the expanded live Compose config because it can contain injected 
 ### Start the server and send a request
 
 For the `.env` Compose flow, use the commands above.
+The private-file command above already starts the Python server; the alternatives below retain the existing environment-only and Compose flows.
 For a process-environment setup, stop the demo first if it uses port 8000.
 Choose one launch method:
 
@@ -413,13 +435,14 @@ Use the [architecture](architecture/README.md#customer-view), [middleware author
 | `provider.kind` | `fake`, `openai`, `claude` or `gemini` |
 | `provider.base_url` | Official HTTPS origin for a real provider; literal loopback HTTP for a fake provider |
 | `provider.key_env` | Name of the server environment variable holding the provider key |
-| `provider.model` | Default model, which must also be allowed for the client |
+| `provider.model` | Default model; using it must pass the effective provider/client restrictions |
+| `provider.allowed_models` | Optional provider-wide model restriction; omission is unrestricted, `[]` denies all |
 | `provider.timeout_seconds` | Provider transport timeout; default 30 seconds |
 | `limits.request_timeout_seconds` | Whole-request deadline; default 10 seconds, 60 in the real-provider samples |
 | `limits.hook_timeout_seconds` | A middleware's combined request/response work budget; default 2 seconds, excluding waits for the next handler |
 | `limits.max_body_bytes` | Request body limit; default 65,536 bytes |
 | `limits.max_concurrent_requests` | Active pipelines per process; default 64, configurable from 1 to 10,000 |
-| `auth` | Client token environment names and model allowlists |
+| `auth` | Client token environment names and optional per-client model restrictions, intersected with the provider restriction |
 | `plugins` | Named middleware instances and their validated settings |
 | `middleware` | Request order; buffered responses pass through the chain in reverse; early mode requires explicit request-only compatibility |
 

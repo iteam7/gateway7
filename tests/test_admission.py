@@ -78,6 +78,7 @@ def make_app(
     request_timeout=10,
     provider_fail=False,
     authenticated=False,
+    provider_policy=False,
 ):
     module = ModuleType("test_gateway7_admission_plugin")
     module.PLUGIN = PluginDescriptor("admission-test", 2, Settings, lambda _: gate)
@@ -101,10 +102,17 @@ def make_app(
         config = GatewayConfig.model_validate(
             {
                 **config.model_dump(),
+                "provider": {
+                    **config.provider.model_dump(),
+                    **({"allowed_models": ["fake"]} if provider_policy else {}),
+                },
                 "auth": {
                     "enabled": True,
                     "clients": {
-                        "test": {"token_env": "GATEWAY7_ADMISSION_CLIENT_TOKEN", "models": ["fake"]}
+                        "test": {
+                            "token_env": "GATEWAY7_ADMISSION_CLIENT_TOKEN",
+                            **({} if provider_policy else {"models": ["fake"]}),
+                        }
                     },
                 },
             }
@@ -414,21 +422,23 @@ async def test_abandoned_task_exception_is_consumed_without_unhandled_private_tr
         loop.set_exception_handler(original_handler)
 
 
-async def test_authentication_and_model_permissions_precede_full_capacity(monkeypatch):
+@pytest.mark.parametrize("provider_policy", [False, True])
+async def test_authentication_and_model_permissions_precede_full_capacity(monkeypatch, provider_policy):
     gate = Gate()
-    app, provider = make_app(monkeypatch, gate, authenticated=True)
+    app, provider = make_app(monkeypatch, gate, authenticated=True, provider_policy=provider_policy)
     headers = {"Authorization": "Bearer synthetic-admission-client-token"}
     async with app.router.lifespan_context(app), client_for(app) as client:
         pending = asyncio.create_task(client.post("/chat", json=body(), headers=headers))
         await asyncio.wait_for(gate.entered.get(), 1)
         try:
-            for path, openai in (("/chat", False), ("/v1/chat/completions", True)):
+            for path, openai in (("/chat", False), ("/v1/chat/completions", True), ("/v1/responses", True)):
+                request_body = {"model": "fake", "input": SENTINEL} if path == "/v1/responses" else body(openai=openai)
                 for bad_headers in ({}, {"Authorization": "Bearer synthetic-invalid-client-token"}):
-                    denied = await client.post(path, json=body(openai=openai), headers=bad_headers)
+                    denied = await client.post(path, json=request_body, headers=bad_headers)
                     assert denied.status_code == 401
                     assert denied.json()["error"]["code"] == "unauthorized"
                 forbidden = await client.post(
-                    path, json={**body(openai=openai), "model": "forbidden"}, headers=headers
+                    path, json={**request_body, "model": "forbidden"}, headers=headers
                 )
                 assert forbidden.status_code == 403
                 assert forbidden.json()["error"]["code"] == "model_forbidden"

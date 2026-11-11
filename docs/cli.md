@@ -39,16 +39,26 @@ Validation does not prove that credentials or a model will work.
 
 ## Run a configured server
 
-First [supply the server credentials](setup.md#supply-server-credentials), then run:
+After the one-time checkout installation and [private-file configuration](setup.md#supply-server-credentials), run:
 
 ```sh
-uv run --locked gateway7 serve --config config/openai.yaml --host 127.0.0.1 --port 8000
+uv run --locked gateway7 serve --config config/openai.yaml --secrets-file PATH
 ```
 
 Use `--config PATH` or set `GATEWAY_CONFIG` to the config path.
 The default host is `127.0.0.1` and the default port is `8000`.
+Explicit `--host HOST` and `--port PORT` options remain available.
 For local testing, `demo` provides a setup with no provider account.
 The earlier `python -m gateway7 --config PATH --host HOST --port PORT` form still works.
+
+`--secrets-file PATH` opts into one explicitly selected external file; omitting it preserves environment-only startup.
+The file is a strict flat UTF-8 JSON object, at most 64 KiB, mapping configured environment-variable names to nonempty visible-ASCII strings without spaces.
+Only names referenced by `provider.key_env`, configured client `token_env` settings and the explicitly selected built-in HTTP proxy's `settings.url_env` are accepted.
+On POSIX, the selected file must be a regular file owned by the current user with no group/other access; symlinks, FIFOs and devices are rejected.
+Unknown keys, duplicate JSON members, wrong types and invalid credential/proxy values are errors; the whole file is validated before environment mutation, even when environment values shadow its entries.
+Existing environment values take precedence, including empty strings; file-derived environment values are temporary and the original environment is restored before serving, including failed or cancelled startup paths.
+The loader does not discover files or evaluate shell code; pass only the file path as an argument, and loader diagnostics never expose its values.
+`validate`, plugin commands and offline execution do not read private startup files; no such file is required for their existing credential-free checks.
 
 ## Send a message
 
@@ -99,10 +109,13 @@ This is an explicit live check: after successful prechecks it sends one short ch
 It makes no automatic retries and sends no chat if a precheck fails.
 A missing client token or invalid token format fails locally before any request.
 
-The checks run in order: `/health`, `/ready`, anonymous `/v1/models` (must return 401), authenticated `/v1/models`, then `/chat`.
-The command expects authentication to be enabled; an anonymous server fails before the chat request.
-`--model`, when supplied, must appear in the authenticated model list.
-Omit it to use the server's configured default.
+The checks run in order: `/health` (HTTP 200, `status: ok`), `/ready` (HTTP 200, `status: ready`), anonymous `/v1/models` (HTTP 401), authenticated `/v1/models` (HTTP 200 with valid catalog shape), then authenticated `POST /chat`.
+A valid empty catalog passes; requested-ID membership is not checked.
+A catalog HTTP 503 fails smoke with `unexpected_status` and zero chat attempts; this smoke preflight rule does not block independently authorized direct generation.
+A deadline reports `timeout`, with zero chat attempts before POST or one once the POST attempt has begun.
+The command requires a gateway client token; a catalog result is never an authentication fallback.
+`--model`, when supplied, is sent unchanged; the server still applies the effective provider/client restrictions.
+Omit it to use the server's configured default, which is permission-checked rather than replaced with another model.
 Readiness only checks local initialization, and the command does not independently identify which provider the server uses.
 
 | Option | Meaning |

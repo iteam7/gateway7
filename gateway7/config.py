@@ -1,23 +1,51 @@
 """Strict, safe YAML configuration; credentials are resolved from the environment."""
 
 import os
+import re
+import unicodedata
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
 import yaml
 from pydantic import (
     BaseModel,
+    BeforeValidator,
     ConfigDict,
     Field,
+    SerializerFunctionWrapHandler,
     StringConstraints,
     ValidationError,
+    field_validator,
+    model_serializer,
     model_validator,
 )
 
 from gateway7.errors import StartupError
 
 InstanceName = Annotated[str, StringConstraints(pattern=r"^[A-Za-z][A-Za-z0-9_.-]{0,63}$")]
-ModelId = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")]
+
+
+def validate_model_id(value: str) -> str:
+    """Keep model IDs literal while bounding their UTF-8 wire representation."""
+    if (
+        not isinstance(value, str)
+        or not value
+        or any(c.isspace() or unicodedata.category(c) in ("Cc", "Cf", "Cs") for c in value)
+        or len(value.encode("utf-8")) > 1024
+    ):
+        raise ValueError("Invalid model ID")
+    return value
+
+
+def validate_provider_model(kind: str, value: str) -> str:
+    """OpenAI IDs are opaque; other adapters retain their path-safe contract."""
+    value = validate_model_id(value)
+    if kind != "openai" and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", value) is None:
+        raise ValueError("Invalid provider model ID")
+    return value
+
+
+ModelId = Annotated[str, BeforeValidator(validate_model_id)]
 ModuleName = Annotated[
     str,
     StringConstraints(
@@ -42,9 +70,8 @@ class ProviderConfig(StrictConfig):
     key_env: str = Field(
         default="FAKE_LLM_API_KEY", pattern=r"^[A-Za-z_][A-Za-z0-9_]*$", max_length=128
     )
-    # Real adapters require an explicit model. Restrict IDs to a path-safe
-    # alphabet because Gemini puts this server-controlled value in its URL.
-    model: str = Field(default="fake", pattern=r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
+    model: ModelId = "fake"
+    allowed_models: list[ModelId] | None = Field(default=None, max_length=64)
     timeout_seconds: float = Field(default=30.0, gt=0, le=300, allow_inf_nan=False)
     transport: TransportConfig | None = None
 
@@ -66,6 +93,30 @@ class ProviderConfig(StrictConfig):
             value.setdefault("key_env", environment)
         return value
 
+    @field_validator("allowed_models", mode="before")
+    @classmethod
+    def explicit_model_policy(cls, value: Any) -> Any:
+        if value is None:
+            raise ValueError("Omit allowed_models for unrestricted access")
+        return value
+
+    @model_validator(mode="after")
+    def valid_models(self) -> "ProviderConfig":
+        validate_provider_model(self.kind, self.model)
+        if self.allowed_models is not None:
+            if len(self.allowed_models) != len(set(self.allowed_models)):
+                raise ValueError("Provider allowed_models must be unique")
+            for model in self.allowed_models:
+                validate_provider_model(self.kind, model)
+        return self
+
+    @model_serializer(mode="wrap")
+    def serialize_model_policy(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        data = handler(self)
+        if self.allowed_models is None:
+            data.pop("allowed_models", None)
+        return data
+
 
 class LimitsConfig(StrictConfig):
     request_timeout_seconds: float = Field(default=10.0, gt=0, le=300, allow_inf_nan=False)
@@ -83,13 +134,27 @@ class PluginConfig(StrictConfig):
 
 class ClientConfig(StrictConfig):
     token_env: str = Field(pattern=r"^[A-Za-z_][A-Za-z0-9_]*$", max_length=128)
-    models: list[ModelId] = Field(min_length=1, max_length=64)
+    models: list[ModelId] | None = Field(default=None, max_length=64)
+
+    @field_validator("models", mode="before")
+    @classmethod
+    def explicit_model_policy(cls, value: Any) -> Any:
+        if value is None:
+            raise ValueError("Omit models for unrestricted access")
+        return value
 
     @model_validator(mode="after")
     def unique_models(self) -> "ClientConfig":
-        if len(self.models) != len(set(self.models)):
+        if self.models is not None and len(self.models) != len(set(self.models)):
             raise ValueError("Client models must be unique")
         return self
+
+    @model_serializer(mode="wrap")
+    def serialize_model_policy(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        data = handler(self)
+        if self.models is None:
+            data.pop("models", None)
+        return data
 
 
 class AuthConfig(StrictConfig):
@@ -116,6 +181,10 @@ class GatewayConfig(StrictConfig):
     def real_providers_require_authentication(self) -> "GatewayConfig":
         if self.provider.kind != "fake" and not self.auth.enabled:
             raise ValueError("Real providers require gateway client authentication")
+        for client in self.auth.clients.values():
+            if client.models is not None:
+                for model in client.models:
+                    validate_provider_model(self.provider.kind, model)
         return self
 
 

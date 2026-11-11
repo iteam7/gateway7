@@ -333,7 +333,7 @@ def early_http(monkeypatch):
     monkeypatch.setenv("GATEWAY7_NATIVE_EARLY_TOKEN", TOKEN)
 
     @asynccontextmanager
-    async def open_http(upstream=None, **updates):
+    async def open_http(upstream=None, *, model=MODEL, **updates):
         upstream = Upstream() if upstream is None else upstream
         attempts, requests = [], []
 
@@ -343,24 +343,24 @@ def early_http(monkeypatch):
             assert request.headers["authorization"] == "Bearer " + KEY
             assert not any(name.startswith("x-gateway7-") for name in request.headers)
             payload = json.loads(request.content)
-            assert payload["model"] == MODEL and payload["stream"] is True
+            assert payload["model"] == model and payload["stream"] is True
             assert payload["store"] is False and "messages" not in payload
             return httpx.Response(
                 200, headers={"content-type": "text/event-stream"}, stream=upstream
             )
 
         provider = build_provider(
-            ProviderConfig(kind="openai", model=MODEL), KEY, transport=httpx.MockTransport(handle)
+            ProviderConfig(kind="openai", model=model), KEY, transport=httpx.MockTransport(handle)
         )
         config = GatewayConfig.model_validate(
             {
-                "provider": {"kind": "openai", "model": MODEL},
+                "provider": {"kind": "openai", "model": model},
                 "auth": {
                     "enabled": True,
                     "clients": {
                         "synthetic": {
                             "token_env": "GATEWAY7_NATIVE_EARLY_TOKEN",
-                            "models": [MODEL],
+                            "models": [model],
                         }
                     },
                 },
@@ -575,6 +575,22 @@ async def test_leading_nonempty_native_text_precedes_upstream_eof(early_http):
         await raw.finish()
         assert_native(raw, events[-1]["response"])
         assert len(attempts) == 1 and up.closed.is_set() and app.state.admission.active == 0
+
+
+async def test_opaque_requested_model_keeps_native_early_source_identity_and_controls(early_http):
+    selected = "ft:synthetic/account:model/" + "x" * 160
+    events = native_events([message(), tool()], tools=[FUNCTION])
+    async with early_http(
+        Upstream(events, gate_after=first_delta(events)), model=selected
+    ) as (_, up, attempts, post):
+        raw = post(body={**BODY, "model": selected, "tools": [FUNCTION]})
+        await raw.wait_for(raw.first_text)
+        assert_tools_withheld(raw)
+        up.release.set()
+        await raw.finish()
+        assert_native(raw, events[-1]["response"])
+        assert len(attempts) == 1 and attempts[0].method == "POST"
+        assert json.loads(attempts[0].content)["model"] == selected
 
 
 @pytest.mark.parametrize(

@@ -76,3 +76,22 @@
 - Use: Checked repository/course rules, the report-only diff, source/configuration preservation, remote branch and Task/PR mapping, and prepared publication of the completed proxy verification in the existing Draft PR.
 - Boundary: No product source or configuration changed and no tests, harnesses or provider calls were repeated; the bounded proxy PASS does not establish the historical HTTP 403 cause or universal compatibility.
 - Team assessment: TODO
+
+## 2026-11-11 — Task 222 startup and model access
+
+- Tool: OpenCode.
+- Use: Implemented and documented [Task #222](https://github.com/iteam7/gateway7/issues/222): explicit `serve --secrets-file` startup and optional provider/client model limits.
+- Access: Effective limits intersect; an absent list imposes no restriction at that level and `[]` denies all models, with authentication and privacy preserved.
+- Catalog: Added authenticated, bounded cached OpenAI discovery and opaque model IDs for the supported text Chat/Responses APIs; catalog presence does not prove endpoint or modality compatibility.
+- Review: Independent actual-diff reviews approved the implementation, documentation and two-fixture correction after the CLI lifecycle findings were closed.
+- Verification: Final full pytest passed 3566 tests without failures, errors, skips or deselections; formatting, lint, types, compilation, synthetic demo, wheel build, outside-checkout locked runtime installation, installed CLI/authoring/synthetic smoke and corrected provenance checks passed.
+- Documentation: Strict site validation, corrected current-checkout Markdown and the five-page link check passed.
+- Boundary: Historical failing runs remain historical; no real provider-account, upstream catalog or live generation verification was performed for this task, and universal compatibility is not claimed.
+- Team assessment: TODO
+
+## 2026-11-11 — Task 222 publication preparation
+
+- Tool: OpenCode.
+- Use: Checked current rules, Task #222 and branch/PR mapping, reviewed the intended diff and prepared its authorized commit and Draft PR publication.
+- Boundary: Reused the closed implementation checks without repeating product, provider or live-account tests; publication does not establish rollout, universal compatibility or human approval.
+- Team assessment: TODO

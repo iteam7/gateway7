@@ -7,6 +7,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- Explicit private JSON credential loading for local `gateway7 serve` startup, with existing environment values taking precedence and no automatic file discovery.
+- Optional provider/client model restrictions and an authenticated, bounded cached OpenAI model catalog; catalog membership neither gates authorization nor certifies endpoint compatibility.
 - Opt-in early Chat Completions text via `X-Gateway7-Stream-Mode: early` for compatible request-only middleware, with backpressure and delayed validated tool calls; full-response checked delivery remains the default.
 - A bounded `gateway7_http_request_outcomes_total` counter separates terminal stream failures and cancellations from the HTTP status sent, including requests ending without a response.
 - A closed native `/v1/responses` HTTP subset with native policy hooks, ordered structured tool turns, default checked JSON/SSE and independent opaque-content/hosted-tool consent; this does not establish full Responses or live Codex compatibility.

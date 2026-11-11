@@ -44,7 +44,7 @@ def record(**changes):
     [
         {"id": "unsafe\nevent: injected"},
         {"id": ""},
-        {"model": "../unsafe"},
+        {"model": "bad model"},
         {"created_at": -1.0},
         {"created_at": float("nan")},
         {"created_at": float("inf")},

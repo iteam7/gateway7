@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from collections.abc import Awaitable, Callable
 import json
 import math
@@ -13,6 +12,7 @@ from pydantic import TypeAdapter
 
 from gateway7.config import ModelId
 from gateway7.errors import ProviderError, ProviderErrorReason
+from gateway7.http_lifecycle import _OwnedCloseStream as _OwnedCloseStream
 from gateway7.responses_events import ResponsesTextDelta, ResponsesTextSink
 from gateway7.responses_models import (
     ResponseFunctionTool,
@@ -34,38 +34,6 @@ if TYPE_CHECKING:
     from gateway7.providers import HTTPProvider
 
 _MODEL = TypeAdapter(ModelId)
-
-
-class _OwnedCloseStream(httpx.AsyncByteStream):
-    """Keep HTTPX's decoding while owning its EOF/context-exit close to completion."""
-
-    def __init__(self, stream: httpx.AsyncByteStream) -> None:
-        self._stream = stream
-        self._close_task: asyncio.Task[None] | None = None
-
-    async def __aiter__(self):
-        async for chunk in self._stream:
-            yield chunk
-
-    async def aclose(self) -> None:
-        if self._close_task is None:
-            self._close_task = asyncio.create_task(self._stream.aclose())
-        cancelled: asyncio.CancelledError | None = None
-        while not self._close_task.done():
-            try:
-                await asyncio.shield(self._close_task)
-            except asyncio.CancelledError as error:
-                if self._close_task.cancelled():
-                    break
-                if cancelled is None:
-                    cancelled = error
-            except BaseException:
-                break
-        try:
-            self._close_task.result()
-        finally:
-            if cancelled is not None:
-                raise cancelled from None
 
 
 def _reported_usage(value: object) -> ResponsesUsage | None:

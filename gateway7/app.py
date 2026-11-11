@@ -20,9 +20,9 @@ from starlette.types import ASGIApp, Message as ASGIMessage, Receive, Scope, Sen
 
 from gateway7 import __version__
 from gateway7.analytics import Analytics
-from gateway7.config import GatewayConfig, load_config, provider_key
+from gateway7.config import GatewayConfig, load_config, provider_key, validate_provider_model
 from gateway7.auth import AccessControl
-from gateway7.errors import GatewayError, StartupError
+from gateway7.errors import GatewayError, ProviderError, StartupError
 from gateway7.loader import complete_cleanup, load_plugins, start_plugins, stop_plugins
 from gateway7.models import ChatRequest, ChatResponse
 from gateway7.metrics import HTTPRequestOutcome, Metrics
@@ -36,7 +36,7 @@ from gateway7.openai_api import (
 )
 from gateway7.pipeline import Pipeline
 from gateway7.plugin_api import EarlyStreamUnsupported, ResponsesUnsupported
-from gateway7.providers import build_provider
+from gateway7.providers import CatalogModel, build_provider
 from gateway7.responses_api import EarlyResponsesEncoder, response_json, response_sse
 from gateway7.responses_events import ResponsesTextDelta
 from gateway7.responses_models import ResponsesConsent, ResponsesCreateRequest, ResponsesResponse
@@ -368,6 +368,15 @@ async def _watch_disconnect(request: Request) -> None:
             return
 
 
+def _select_model(request: Request, requested: str | None) -> str:
+    config = request.app.state.config.provider
+    selected = request.state.principal.select_model(requested, config.model)
+    try:
+        return validate_provider_model(config.kind, selected)
+    except (TypeError, ValueError):
+        raise GatewayError("invalid_request") from None
+
+
 async def _run_connected(
     request: Request, payload: ChatRequest, selected_model: str, *, provider_stream: bool = False
 ) -> Any:
@@ -425,7 +434,11 @@ async def _run_connected_operation(
         for task in tasks:
             if not task.done():
                 task.cancel()
-        await asyncio.gather(*tasks, return_exceptions=True)
+
+        async def reap() -> None:
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+        await complete_cleanup(reap())
 
 
 class _CheckedBody(Response):
@@ -878,9 +891,7 @@ def create_app(
 
     @app.post("/chat")
     async def chat(payload: NativeChatRequest, request: Request) -> Response:
-        selected = request.state.principal.select_model(
-            payload.model, app.state.config.provider.model
-        )
+        selected = _select_model(request, payload.model)
         response = await _run_connected(request, payload.core_request(), selected)
         if response is None:
             return Response(status_code=499)
@@ -890,9 +901,7 @@ def create_app(
 
     @app.post("/v1/chat/completions")
     async def openai_chat(payload: OpenAIChatRequest, request: Request) -> Response:
-        selected = request.state.principal.select_model(
-            payload.model, app.state.config.provider.model
-        )
+        selected = _select_model(request, payload.model)
         if app.state.config.provider.kind != "openai" and payload.needs_openai_provider():
             raise GatewayError("invalid_request")
         if request.state.stream_mode == "early":
@@ -966,9 +975,7 @@ def create_app(
             core = payload.core_request(consent=consent)
         except (ValueError, TypeError, UnicodeError, RecursionError):
             raise GatewayError("invalid_request") from None
-        selected = request.state.principal.select_model(
-            payload.model, app.state.config.provider.model
-        )
+        selected = _select_model(request, payload.model)
         if app.state.config.provider.kind != "openai":
             raise GatewayError("invalid_request")
         if request.state.stream_mode == "early":
@@ -1035,13 +1042,51 @@ def create_app(
         return _CheckedBody(encoded, request.state.deadline, media_type="application/json")
 
     @app.get("/v1/models")
-    async def models(request: Request) -> dict[str, Any]:
-        return {
+    async def models(request: Request) -> Response:
+        permitted = request.state.principal.models
+        if permitted is not None:
+            catalog = tuple(CatalogModel(model, 0, "gateway7") for model in permitted)
+        elif app.state.config.provider.kind != "openai":
+            # These adapters have no discovery API. The seed describes local
+            # configuration, not verified capability of the provider account.
+            catalog = (CatalogModel(app.state.config.provider.model, 0, "gateway7"),)
+        else:
+
+            async def discover() -> tuple[CatalogModel, ...]:
+                try:
+                    async with asyncio.timeout_at(request.state.deadline):
+                        result = await app.state.pipeline.provider.get_models(
+                            deadline=request.state.deadline
+                        )
+                    if time.monotonic() >= request.state.deadline:
+                        raise TimeoutError
+                    return result
+                except TimeoutError:
+                    raise GatewayError("timeout") from None
+                except ProviderError:
+                    raise GatewayError("unavailable") from None
+
+            discovered = await _run_connected_operation(request, discover)
+            if discovered is None:
+                request.state.http_outcome = "cancelled"
+                return Response(status_code=499)
+            catalog = discovered
+        body = {
             "object": "list",
             "data": [
-                {"id": model, "object": "model", "created": 0, "owned_by": "gateway7"}
-                for model in request.state.principal.models
+                {
+                    "id": model.id,
+                    "object": model.object,
+                    "created": model.created,
+                    "owned_by": model.owned_by,
+                }
+                for model in catalog
             ],
         }
+        return _CheckedBody(
+            json.dumps(body, ensure_ascii=True, allow_nan=False).encode("ascii"),
+            request.state.deadline,
+            media_type="application/json",
+        )
 
     return app
