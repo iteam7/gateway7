@@ -888,12 +888,12 @@ def test_middleware_budget_excludes_downstream_provider_wait(monkeypatch):
 def test_pre_and_postprocessing_share_one_own_work_budget(monkeypatch):
     class Slow:
         async def handle(self, request, context, call_next):
-            await asyncio.sleep(0.04)
+            await asyncio.sleep(0.2)
             response = await call_next(request)
-            await asyncio.sleep(0.04)
+            await asyncio.sleep(0.2)
             return response
 
-    runner, provider = pipeline_for(monkeypatch, Slow(), limits={"hook_timeout_seconds": 0.06})
+    runner, provider = pipeline_for(monkeypatch, Slow(), limits={"hook_timeout_seconds": 0.3})
     with pytest.raises(GatewayError) as error:
         asyncio.run(runner.run(payload(), "cumulative-budget"))
     assert error.value.code == "timeout" and len(provider.calls) == 1
