@@ -315,3 +315,25 @@
 - Review: Independent actual-diff TechLead review approved the narrow handshake correction and regression; earlier Task #222 evidence above remains historical and unchanged.
 - Boundary: No real credential files, existing launcher/server, live providers, model permissions/catalog behavior, dependencies, deployment or merge were changed.
 - Team assessment: TODO
+
+## 2026-11-13 — Issue housekeeping for previous sprints
+
+- Tool: DeepSeek Harness (DSH).
+- Work: At the team lead's explicit instruction, the session closed the previous-sprint issues #175, #176, #178, #182, #185 and #189 as completed through the team lead's GitHub account (`ExFuseMe`); the issue events record the closures at `2026-11-13T14:38Z`, and the reopen-and-close of #175 and #185 during the review is part of that history.
+  The team lead confirmed that the work was delivered outside the repository and decided that the closures stand after the Formater review raised the missing record evidence.
+  The repository itself does not show the planned velocity for #176, the production scopes for #178 and #182, the QRT result for #185, the `REL-06` tag for #189, or the Customer acceptance for story #175; the closure of those items is the team lead's record decision, not new evidence.
+  The Formater review withheld its approval on that tracker state; the divergence is recorded here, and the reopen-and-close history is in the comments on [#175](https://github.com/iteam7/gateway7/issues/175) and [#185](https://github.com/iteam7/gateway7/issues/185).
+- Boundary: No code, documentation, release, tag or deployment changed; the closures and the reopen-and-close are tracker actions only.
+- Team assessment: TODO
+
+## 2026-11-13 — Task #267: UT-01 design and QR-06
+
+- Tool: DeepSeek Harness (DSH), with a Formater POST review and a TechLead gap review.
+- Work: Designed UT-01 under Assignment 7: the test record, the surveys, the consent template, the session template with its observation sheet and dry run, the results stub, QR-06 with its manual QRT-01, the quality matrix and testing-plan rows, ten glossary terms, four risks, and the site navigation.
+- Accepted: the course's standard SEQ and SUS instruments and the `Critical` / `Major` / `Minor` severity classes.
+- Changed: the severity scale, the placement of session dates, the stop rule, the Metric and Statistic definitions, and the results tables; each change came from a Formater finding against the course requirements.
+- Rejected: nothing; no generated requirement, finding or measurement was kept without a rule behind it.
+- No usability material: no participant data, session note or recording exists yet, so no agent was given one; only the design text was shared with the subagents.
+- Verification: markdownlint reported zero issues, `lychee --offline` zero errors, and `mkdocs build --strict` with `docs-build/check_site.py` passed.
+- Boundary: The design claims no participant data, usability result, verdict, Customer decision or release; nothing was committed, pushed or published by this entry.
+- Team assessment: TODO
