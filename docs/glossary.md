@@ -125,6 +125,68 @@ The optional path from gateway logs and duration observations to an environment'
 
 **Defined by:** [the observability plan](observability.md#the-pipeline).
 
+## Usability Testing
+
+### Usability Test
+
+A scripted session in which a participant outside the team runs the product's main task and two adjacent tasks, while an observer records the completion, the assistance, the time, the ratings, and the friction.
+
+**Defined by:** [UT-01](usability-tests/ut-01/README.md).
+
+### Participant
+
+An adult aged 18 or older who matches the test's participant profile and is not a teammate, the Customer, an instructor, or course staff.
+
+**Defined by:** [the participant profile](usability-tests/ut-01/README.md#participant-profile).
+
+### Usability Session
+
+One run of the test's tasks with one participant, from the welcome to the debrief, recorded under the participant's `P-nn` code.
+
+**Defined by:** [the session template](usability-tests/ut-01/sessions/README.md).
+
+### Consent
+
+The durable, signed agreement a participant gives before a counted session, covering the adult declaration, the recording, the sanitized public results, the withdrawal, and the deletion after grading.
+
+**Defined by:** [the consent template](usability-tests/ut-01/consent.md).
+
+### Recording
+
+The screen-and-audio capture of a counted session, mandatory for counting it, kept in the team's cloud folder and never published.
+
+**Defined by:** [the consent template](usability-tests/ut-01/consent.md).
+
+### Measure
+
+A quantity the test records for one participant and one task, such as the SEQ rating or the time on task.
+
+**Defined by:** [UT-01's measures](usability-tests/ut-01/README.md#measures).
+
+### Metric
+
+A product-analytics number computed from the gateway's events, such as successful gateway tasks per week; it is not a measure a usability session records.
+
+**Defined by:** [the analytics plan](analytics.md#the-value-and-the-metrics).
+
+### Statistic
+
+The summary computed from a measure's recorded values, such as a count, a proportion, a median, or a mean; the analysis plan reports it, and a quality requirement's criterion uses one.
+
+**Defined by:** [UT-01's analysis plan](usability-tests/ut-01/README.md#analysis-plan).
+
+### SUS
+
+The System Usability Scale: ten standard items answered from strongly disagree (1) to strongly agree (5), scored `SUS = 2.5 × (20 + sum(odd) - sum(even))` from the raw responses.
+
+**Defined by:** [the surveys](usability-tests/ut-01/surveys.md#sus-after-all-the-tasks).
+
+### SEQ
+
+The Single Ease Question asked after each task: `Overall, how difficult or easy was the task to complete?`, answered from 1 (very difficult) to 7 (very easy).
+
+**Defined by:** [the surveys](usability-tests/ut-01/surveys.md#seq-after-each-task).
+
 ## Demonstration
 
 ### Synthetic Provider

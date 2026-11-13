@@ -9,6 +9,7 @@ Each file under [`qr/`](qr/QR-01.md) carries the requirement's outcome, its ISO/
 | [QR-02](qr/QR-02.md) | A developer runs the checks covering the gateway's critical modules from a clean checkout without any provider account, and a change that breaks their contract fails those checks. | High | Medium | Maintainability | Testability | Active |
 | [QR-03](qr/QR-03.md) | No provider key, client token or message text appears in the gateway's logs, metrics or error responses. | High | Medium | Security | Confidentiality | Active |
 | [QR-05](qr/QR-05.md) | Within five seconds of a failed chat request, an operator finds its log point by request identifier in the staging observability organization, and within one minute the SLI-01 query shows the failure series. | High | Medium | Maintainability | Analysability | Active |
+| [QR-06](qr/QR-06.md) | A developer new to Gateway7 sends a first request on staging and rates the task's ease at a median of at least five of seven across the counted usability sessions. | High | Medium | Interaction Capability | Learnability | Active |
 | [QR-04](qr/QR-04.md) | An application using the official OpenAI Python SDK completes a non-streaming chat request through the gateway by changing only its base URL and API key. | Medium | Low | Compatibility | Interoperability | Active |
 
 The course rule's examples for the mandated testability requirement name a frontend entry point and a payment module.
