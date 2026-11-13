@@ -5,6 +5,7 @@ import importlib
 import json
 from collections import Counter
 from datetime import datetime
+from pathlib import Path
 from uuid import uuid4
 
 import httpx
@@ -602,3 +603,21 @@ async def test_merged_http_modes_export_one_terminal_result_without_changing_wir
     if early and result == "failure":
         payload = b"".join(message.get("body", b"") for message in sent)
         assert b"event: response.completed" not in payload and b"data: [DONE]" not in payload
+
+
+def test_metric_queries_exclude_smoke_and_usability_traffic():
+    root = Path(__file__).resolve().parents[1]
+    analytics_doc = (root / "docs" / "analytics.md").read_text(encoding="utf-8")
+    queries = [line for line in analytics_doc.splitlines() if line.startswith("- **Query:**")]
+    assert len(queries) == 4
+    for query in queries:
+        assert "source is not smoke" in query
+        assert "source is not usability-test" in query
+
+
+def test_dashboard_recipe_excludes_both_test_sources():
+    root = Path(__file__).resolve().parents[1]
+    deployment_doc = (root / "docs" / "deployment.md").read_text(encoding="utf-8")
+    recipes = [line for line in deployment_doc.splitlines() if "exclude `source=smoke`" in line]
+    assert recipes
+    assert all("source=usability-test" in line for line in recipes)
