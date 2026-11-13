@@ -337,3 +337,11 @@
 - Verification: markdownlint reported zero issues, `lychee --offline` zero errors, and `mkdocs build --strict` with `docs-build/check_site.py` passed.
 - Boundary: The design claims no participant data, usability result, verdict, Customer decision or release; nothing was committed, pushed or published by this entry.
 - Team assessment: TODO
+
+## 2026-11-13 — UT-01 design confirmation and issue #267 follow-up
+
+- Tool: Codex.
+- Work: Rebased the existing UT-01 design from closed PR #273 onto the current `main` base, checked it against the pinned Assignment 7 and usability-testing requirements, and added an explicit task-to-instrumentation map.
+- Team confirmation: DeniBorsh ratified the documented scenarios, participant profile, QR-06 Learnability measure and SEQ bar, SPRINT-08 run plan, and the facilitator, observer and data-custodian assignments on 13 November 2026.
+- Boundary: This entry records that team confirmation only. It does not claim Customer review, pilot, participant data, findings, QR verdict, or Week 7 results; Customer review/pilot remains tracked by #270.
+- Team assessment: TODO

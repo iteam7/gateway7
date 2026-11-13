@@ -96,24 +96,19 @@ The qualitative record is the observer's think-aloud notes and the open-ended po
 
 ## Instrumentation
 
-The gateway's existing `chat_started` and `chat_completed` events in [the analytics event registry](../../analytics.md#the-events) cover the two API tasks.
-During a session they carry `source=usability-test`, which only staging accepts, and the optional `participant_code` that [task #268](https://github.com/iteam7/gateway7/issues/268) adds to the event schema.
-The request identifier in the answer's `X-Request-ID` header links a participant's two events to the task the observer timed.
+The following map ties each research question to its evidence source. The gateway events record request lifecycle only; the observer's sheet and notes record whether the participant understood the result and completed the task.
 
-The session link is the `P-nn` participant code recorded in the private repository's identity mapping, plus the session's time window.
-The code is the exception to the opaque-identifier rule: it may appear in staging telemetry, and its mapping to a person stays private.
+| Research question and task | Record and emitter | Environment and store | Participant link |
+| --- | --- | --- | --- |
+| RQ1, main task: send a first request and identify the masked personal data | Reuse `chat_started` and `chat_completed`, emitted by the gateway container's analytics emitter for the HTTP request. `chat_completed` records the outcome and duration; it carries no prompt or answer text. | Staging gateway with the synthetic provider; the event goes to the staging OpenPanel project. The observer's outcome, time, SEQ and comprehension note go to the private usability-data repository. | Task #268 adds `participant_code=P-nn` to the event schema. The event `request_id`, also returned as `X-Request-ID`, pairs start/completion. The observer records the code and request ID on the session sheet. |
+| RQ2, secondary task: understand a model denial and recover with an allowed model | Reuse `chat_started` and `chat_completed` for each HTTP request, emitted by the gateway container's analytics emitter. The observer records whether the refusal was understood, whether recovery succeeded, any hint and time. | Staging gateway with a reset synthetic seed and synthetic provider; events go to the staging OpenPanel project. Task observations go to the private usability-data repository. | `participant_code=P-nn` groups the participant's request attempts; each `request_id` pairs one request's start/completion. The session time window disambiguates repeated attempts. |
+| RQ3, secondary task: check the middleware change offline | No analytics event is emitted. The local offline command produces its normal exit status; the observer records the status, reported outcome, help and time on the session sheet. | Prepared session-laptop checkout, offline with no provider account or network call; the sheet and notes go to the private usability-data repository. | The observer labels the sheet with `P-nn`; no participant code is sent to an analytics service for this task. |
 
-The offline middleware task emits no analytics event.
-The observer records its result and exit status on the observation sheet, and the analysis compares that record with the participant's report.
+For the two API tasks, the events carry `source=usability-test`, which only staging accepts, and the optional participant code that [task #268](https://github.com/iteam7/gateway7/issues/268) adds. The session link is the code recorded in the private repository's identity mapping, plus the session time window. The code may appear in staging telemetry; its mapping to a person stays private.
 
-The instrumentation does not cover the participant's comprehension, the reason for a hint, or the offline task's internal steps.
-The analysis reads those from the observation and the post-test, and states the gap.
+The instrumentation does not cover comprehension, the reason for a hint, or the offline task's internal steps. The observer's notes and post-test answers provide that evidence, and the results state the coverage gap.
 
-The data goes to the staging OpenPanel project; production receives none, and the test writes no production data.
-The session starts from a reset synthetic seed on staging, uses the synthetic provider, and makes no real payment.
-
-The instrumentation is verified before the first counted session: a teammate runs the main task's flow, confirms that both events reach the staging event list, confirms that the `participant_code` filter selects that run, and confirms that the production project receives no event.
-That verification is not a counted session and is recorded in the private repository and the Week 7 report.
+The test writes no production data and makes no real payment. The staging seed is reset before each session. Before the first counted session, a teammate verifies that the two API events reach the staging event list, the `participant_code` filter selects that run, and the production project receives no event. The verification is not counted; its evidence goes in the private repository and the Week 7 report. Consent and private-store provisioning remain in [task #269](https://github.com/iteam7/gateway7/issues/269).
 
 ## Analysis Plan
 
@@ -149,7 +144,7 @@ The Week 7 report claims no result, the `Results` cell in [the index](../README.
 - **Data custodian:** [@ExFuseMe](https://github.com/ExFuseMe) keeps the private repository, the identity mapping, and the analysis.
 
 A participant never fills a role, and no role changes between counted sessions without the team recording the change here before the session.
-The team confirms these role entries at the design review.
+DeniBorsh, the task owner, confirmed these role assignments and the documented scenarios, participant profile, QR-06 measure and bar, and SPRINT-08 run plan as team decisions on 2026-11-13. This records the team's design choice; it does not claim that the Customer review or non-counted pilot tracked in [task #270](https://github.com/iteam7/gateway7/issues/270) has occurred.
 
 ## Environment
 
