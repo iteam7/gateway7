@@ -194,6 +194,7 @@ Each gateway receives its own OpenPanel write client through the live Compose fi
 | `ANALYTICS_ENABLED` | `true` | `true` |
 | `GATEWAY7_ENVIRONMENT` | `staging` | `production` |
 | `ANALYTICS_SOURCE` | `web`; temporarily `smoke` for the pipeline check | `web` |
+| `ANALYTICS_PARTICIPANT_CODE` | Unset normally; assigned canonical code only with `source=usability-test` | Unset; any configured value is rejected |
 | `OPENPANEL_API_URL` | Self-hosted API base, including `/api` when behind the upstream proxy | Same backend API base |
 | `OPENPANEL_CLIENT_ID` and `OPENPANEL_CLIENT_SECRET` | Staging project's write client | Production project's different write client |
 
@@ -215,8 +216,22 @@ GATEWAY7_ENVIRONMENT=staging ANALYTICS_ENABLED=true ANALYTICS_SOURCE=web \
 ```
 
 The unauthenticated synthetic request must return `401`; it makes no provider call.
-Find its response request identifier in the raw-events view: both `chat_started` and `chat_completed` must carry `source=smoke` and stay out of the default metric chart.
+Find its response request identifier in the raw-events view: both `chat_started` and `chat_completed` must carry `source=smoke` and stay out of the default metric chart, as `source=usability-test` traffic does.
 Restore staging's source before accepting ordinary traffic; never send synthetic traffic to production to fill an empty chart.
+
+#### Coded usability runs
+
+Use the agreed UT-01 arrangement code, never a name, email, token or code-to-person mapping, as `ANALYTICS_PARTICIPANT_CODE` in the private staging gateway environment.
+Set `ANALYTICS_SOURCE=usability-test` and `GATEWAY7_ENVIRONMENT=staging` there, then recreate that isolated gateway so its process receives both settings.
+Only canonical codes `P-01` through `P-999999` are accepted; unset means no participant field, whereas an empty configured value is invalid.
+Every request to that gateway receives the configured code, so admit only that participant's synthetic traffic during the run.
+Before each participant, reset the synthetic seed using the UT-01 procedure; do not reuse a previous participant's browser state or gateway process configuration.
+Verify both task events in the staging raw-events view with `properties.source=usability-test` and the assigned `properties.participant_code`; retain the full deployed commit, session window and request IDs with the private observation record.
+Export only that code and window to the private usability-data repository; never put raw exports or the identity mapping in the public repository.
+After the run, remove `ANALYTICS_PARTICIPANT_CODE` from the private gateway environment entirely, restore `ANALYTICS_SOURCE=web`, recreate the gateway, and verify that a synthetic staging check has no participant property.
+Keep that check out of production; verify all product charts still exclude usability and smoke traffic on both ratio series.
+Remove temporary exports and session state according to the consent and private-store retention plan.
+These steps are an operator procedure; no deployed coded session or saved backend filter has been verified by the local exporter tests.
 
 ### Observability pipeline
 
@@ -249,7 +264,7 @@ Apply changes with `docker compose -p gateway7-staging up --build --detach --wai
 
 | Backend and scope | Dashboard | Chart configuration |
 | --- | --- | --- |
-| OpenPanel `staging` | `Gateway7 tasks (staging)` | `Task completion rate`: count `chat_completed` with `outcome=ok` as A, count `chat_started` as B, formula `A/B`, aggregate over the last seven days; exclude `source=smoke` on **both** event series |
+| OpenPanel `staging` | `Gateway7 tasks (staging)` | `Task completion rate`: count `chat_completed` with `outcome=ok` as A, count `chat_started` as B, formula `A/B`, aggregate over the last seven days; exclude `source=smoke` and `source=usability-test` on **both** event series |
 | OpenPanel `production` | `Gateway7 tasks (production)` | The same saved report and filters, using only the production project |
 | OpenObserve `staging` | `Gateway7 SLI (staging)` | Import the SLI-01 template into this organization |
 | OpenObserve `production` | `Gateway7 SLI (production)` | Import the identical template into this organization, without injecting test traffic |

@@ -345,3 +345,52 @@
 - Team confirmation: DeniBorsh ratified the documented scenarios, participant profile, QR-06 Learnability measure and SEQ bar, SPRINT-08 run plan, and the facilitator, observer and data-custodian assignments on 13 November 2026.
 - Boundary: This entry records that team confirmation only. It does not claim Customer review, pilot, participant data, findings, QR verdict, or Week 7 results; Customer review/pilot remains tracked by #270.
 - Team assessment: TODO
+
+## 2026-11-14 — Task #269 consent and private-data handoff
+
+- Tool: Codex, TechLead.
+- Work: Reconcile the confirmed #267 design with text-only consent storage, optional quotes, withdrawal/tool-copy deletion, arrangement-order codes, one authoritative artifact home and an authenticated private-repository link exclusion.
+- Source: PR #275 records DeniBorsh's 13 November confirmation of the profile, roles and SPRINT-08 arrangement; no replacement team decisions were inferred.
+- Verified setup: Formater created the required private text repository, initialized its address-free text homes, and verified private visibility, operator access and team collaborator permission metadata; this does not establish human read tests or instructor access.
+- Drive check: No accessible shared drive or matching project/team folder was found. Creation of an owner-only personal-root holding folder was rejected by automatic approval review; no folder or workaround was created.
+- Boundary: No participant data, signed consent, session or instructor read check is claimed; team-owned recording storage and instructor access remain separate gates.
+
+## 2026-11-14 — Task #270 Customer design-review preparation
+
+- Tool: Codex, TechLead.
+- Work: Prepare a 30-minute live review script against the team-confirmed UT-01 design in PR #275, with three separate permissions before recording, actual production/staging demonstrations, prior-source questions, execution-plan agreement and decision/action read-back.
+- Verification: Check the five required script sections, 30-minute agenda, question-to-agenda assignment and linked artifacts; the script distinguishes prepared design from demonstrated readiness.
+- Boundary: No meeting slot, review roles, pilot, permission answer, Customer decision or agreed action is invented; #270 remains incomplete until the actual pilot/review and rework are evidenced.
+
+## 2026-11-14 — Task #268 coded staging usability events
+
+- Tool: Codex developer and TechLead.
+- Work: Implement the participant-code link selected by the confirmed UT-01 design: an optional server-owned canonical code is accepted only for staging usability-test events, with matching event registry, ADR, setup/export/cleanup instructions and live Compose passthrough.
+  Caller headers/bodies cannot label events; codes remain outside operational logs, metrics labels and per-task profile identifiers.
+- Verification: Tested base c2f42a704f293350799ff09ce4de23d252e391c9 plus the uncommitted six-file scoped change; no new tested commit is implied.
+  The 81 focused analytics tests passed in 4.80 seconds; Ruff formatting/lint and Linux-target mypy passed for all 41 production files.
+  Native Windows mypy reported four unrelated POSIX-API errors; the explicit Linux target passed.
+  Actual docker compose config JSON rendering passed with the code unset and set to synthetic P-01, using an empty temporary env file and isolated Docker config; no engine or private values were used.
+  git diff --check passed.
+- Review: TechLead approved the actual six-file code, tests, Compose wiring and documentation diff.
+- Boundary: No deployed backend filters, private access check, human session, outcome, pilot or Customer approval is claimed; end-to-end code/session linkage and store readiness still require real verification.
+- Team assessment: TODO
+
+## 2026-11-14 — Task #268 Compose integration correction
+
+- Tool: Codex developer and TechLead.
+- Trigger: PR #280's first full CI run reported 4027 passes and five failures because strict live-Compose environment expectations omitted the new optional participant-code key, whose unset rendered value is null.
+- Work: Preserve exact environment assertions while adding the optional unset expectation and parameterizing the actual Compose-rendering test over unset and synthetic P-01 configuration.
+- Verification: TechLead approved the test-only correction; 81 analytics tests passed, while all 13 local Compose tests were skipped because that isolated Windows fixture could not locate the Compose plugin.
+  The earlier independent real Compose unset/set render remains separate evidence; these local skips are not reported as passes.
+  Ruff formatting/lint and whitespace checks passed; Linux CI must verify the corrected integration tests.
+- Boundary: No runtime configuration, production guard, privacy allowlist or unrelated test expectation was weakened.
+
+## 2026-11-14 — Task #266 sprint planning handoff
+
+- Tool: Codex, TechLead.
+- Work: Port only the prepared SPRINT-07–09 handoff onto the current confirmed-design branch; correct Week 7's due date, record the dated task-only 0 SP selection, and separate implementation, pre-session verification, counted sessions and results/release work.
+- Sources: Existing #266 refinement and the 13 November tracker audit supply the seven-task selection; PR #275 supplies the team-confirmed UT-01 profile, session roles and SPRINT-08 arrangement window.
+- Preservation: Existing product milestones, finished sprint/release history, quality-testing rows including QR-06, and monitoring text remain unchanged.
+- Boundary: The proposed sprint goal and future task allocations remain unconfirmed; no planning ceremony, capacity commitment, participant arrangement, Customer agreement, test pass, release or velocity closeout is invented. A fresh milestone API query timed out, so the earlier selection audit remains explicitly dated.
+- Team assessment: TODO

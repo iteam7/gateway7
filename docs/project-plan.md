@@ -147,27 +147,53 @@ Formal Actual Velocity is recorded when the sprint closes, after the release and
 
 ### SPRINT-07
 
-Provisional goal: a plugin author can assess synthetic examples offline and a non-author can reproduce the documented plugin workflow through the gateway's core request flow.
+Proposed goal, pending team confirmation: UT-01 has a runnable, instrumented usability-test design and a prepared recruitment and private-data path for counted sessions.
 
-- **Due:** 2026-11-14
-- **Sprint Backlog:** [SPRINT-07 milestone; selection pending](https://github.com/iteam7/gateway7/milestone/5)
+- **Due:** 2026-11-15
+- **Sprint Backlog:** [the issues scheduled into SPRINT-07](https://github.com/iteam7/gateway7/milestone/5)
+- **Planned Velocity:** 0; manually summed on 2026-11-13 from the milestone's selected work: seven tasks and no stories, so the story-point sum is 0.
+
+The current selection and dependency order are recorded in [planning issue #266](https://github.com/iteam7/gateway7/issues/266), not copied here.
+The 2026-11-13 tracker audit found native Priority High, distinct Responsible and Accountable values and exactly those two assignees on each of the seven selected tasks.
+These existing allocations are preserved; they do not appoint the later execution tasks' unconfirmed roles.
+This records the dated tracker audit, not a reconstructed planning ceremony or an agreed goal.
+Instrumentation implementation belongs to this sprint; the teammate pilot is non-counted and supplies no usability result or QR verdict.
+
+Before planning is complete, the team must confirm the proposed sprint goal and future execution allocations.
+The confirmed UT-01 design records the SPRINT-08 session arrangement window and session roles; exact private appointments and an actual Customer execution agreement remain outstanding.
+The design review must settle the execution agreement with Customer; no such agreement is asserted here.
+The proposed execution candidates and outstanding decisions stay in #266 until they can be opened from the task form and selected with native scheduling fields.
+
+Reconcile the planning and refinement criteria in [#176](https://github.com/iteam7/gateway7/issues/176), [#138](https://github.com/iteam7/gateway7/issues/138) and [#139](https://github.com/iteam7/gateway7/issues/139) against their original scope before any reschedule; this plan neither closes them nor reconstructs their past velocities or story estimates.
+The Week 6 release and closeout remain [#189](https://github.com/iteam7/gateway7/issues/189) and [#190](https://github.com/iteam7/gateway7/issues/190), with no duplicate Week 7 completion claim.
 
 #### REL-07
 
 ### SPRINT-08
 
-Provisional goal: a reviewer can reproduce a released gateway configuration and verify its dependency, secret and release controls from the documented baseline.
+Provisional: representative adults complete UT-01, its sanitized results and findings are triaged into the product backlog, and REL-08 records the usability QR/QRT verdict.
 
 - **Due:** 2026-11-21
-- **Sprint Backlog:** [the issues currently assigned to SPRINT-08](https://github.com/iteam7/gateway7/milestone/6)
+- **Sprint Backlog:** [the issues selected into SPRINT-08](https://github.com/iteam7/gateway7/milestone/6)
+
+The [UT-01 design](usability-tests/ut-01/README.md#schedule), confirmed by DeniBorsh on 13 November 2026, puts session arrangement in the Week 8 window.
+The team-confirmed profile, session roles, scenarios and QR-06 measure/bar are design decisions, not a claim of completed Customer review, arranged participants or successful instrumentation/private-store verification.
+A separate instrumentation verification must finish before the first counted session in that session's sprint, SPRINT-07 or SPRINT-08, and no later than the start of SPRINT-09 on 2026-11-22.
+It must verify the actual session-to-record link, private storage/export and exclusion from product metrics; a Week 7 pilot does not replace this check for sessions starting in Week 8.
+Counted-session work is selected into the sprint of the last counted session; sanitized session notes, results, findings, triage, the QR-06 QRT-01 verdict and REL-08 remain planned for SPRINT-08 even if all sessions run in Week 7.
+Until real selection, the future candidates in #266 have no milestone, role allocation or assignees and are not a claim of execution readiness.
+The previous [US-09](https://github.com/iteam7/gateway7/issues/38) direction is already marked Done in the live project and is not scheduled again; configuration-management evaluation remains a candidate, with usability execution and results accounted for before selecting other work.
 
 #### REL-08
 
 ### SPRINT-09
 
-Provisional goal: the final gateway release demonstrates the agreed core task, with usability findings, Customer decisions and evidence for every threshold outcome ready for the final presentation.
+Provisional: the final release is frozen on `main`, with the usability test findings addressed and every threshold goal settled.
 
 - **Due:** 2026-11-28
+
+Refinement considers triaged usability fixes and their regression checks, configuration-management evaluation, remaining quality checks and the final release/submission.
+No findings, fix scope, story estimates or Customer acceptance are assumed before evidence exists; each selected follow-up must reuse its owning issue and have runnable criteria and dependencies.
 
 #### REL-09
 

@@ -5,6 +5,7 @@ import importlib
 import json
 from collections import Counter
 from datetime import datetime
+from pathlib import Path
 from uuid import uuid4
 
 import httpx
@@ -65,17 +66,30 @@ def gateway_factory(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_both_chat_apis_record_the_core_task_and_failures_without_content(gateway_factory):
+@pytest.mark.parametrize(
+    "source,participant_code",
+    [("web", None), ("smoke", None), ("usability-test", None), ("usability-test", "P-01")],
+)
+async def test_both_chat_apis_record_the_core_task_and_failures_without_content(
+    gateway_factory, source, participant_code, caplog
+):
     sent = []
 
     async def collect(request):
         sent.append((request.url, dict(request.headers), json.loads(request.content)))
         return httpx.Response(200)
 
-    analytics = Analytics.from_environment(settings(), transport=httpx.MockTransport(collect))
+    env = settings(ANALYTICS_SOURCE=source)
+    if participant_code is not None:
+        env["ANALYTICS_PARTICIPANT_CODE"] = participant_code
+    analytics = Analytics.from_environment(env, transport=httpx.MockTransport(collect))
     app = gateway_factory(analytics)
     body = {"messages": [{"role": "user", "content": PRIVATE_TEXT}]}
-    headers = {"Authorization": "Bearer " + TOKEN, "X-Gateway7-Traffic-Source": "web"}
+    headers = {
+        "Authorization": "Bearer " + TOKEN,
+        "X-Gateway7-Traffic-Source": "smoke" if source == "web" else "web",
+        "X-Gateway7-Participant-Code": "P-99",
+    }
     async with app.router.lifespan_context(app):
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app), base_url="http://test"
@@ -87,12 +101,15 @@ async def test_both_chat_apis_record_the_core_task_and_failures_without_content(
                 json={**body, "model": "synthetic-private-model"},
             )
             denied = await client.post("/chat", json=body)
-            invalid = await client.post("/chat", headers=headers, json={"messages": []})
+            invalid = await client.post(
+                "/chat", headers=headers, json={"messages": [], "participant_code": "P-99"}
+            )
             forbidden = await client.post(
                 "/chat", headers=headers, json={**body, "model": "forbidden"}
             )
             for path in ("/health", "/ready", "/metrics", "/v1/models"):
                 assert (await client.get(path, headers=headers)).status_code == 200
+            metric_text = (await client.get("/metrics")).text
     assert [r.status_code for r in (native, openai, denied, invalid, forbidden)] == [
         200,
         200,
@@ -114,16 +131,20 @@ async def test_both_chat_apis_record_the_core_task_and_failures_without_content(
         properties = payload["properties"]
         request_id = properties["request_id"]
         assert payload["profileId"] == request_id
-        assert properties["source"] == "smoke" and properties["environment"] == "staging"
+        assert properties["source"] == source and properties["environment"] == "staging"
         assert datetime.fromisoformat(properties["occurred_at"]).utcoffset().total_seconds() == 0
         assert properties["__timestamp"] == properties["occurred_at"]
         expected = {"request_id", "route", "source", "environment", "occurred_at", "__timestamp"}
+        if participant_code is not None:
+            expected.add("participant_code")
+            assert properties["participant_code"] == participant_code
         if payload["name"] == "chat_completed":
             expected |= {"status", "outcome", "duration_ms"}
             assert properties["duration_ms"] >= 0
         assert set(properties) == expected
         by_id.setdefault(request_id, []).append(payload)
         exported = json.dumps(envelope)
+        assert "P-99" not in exported
         for private in (
             PRIVATE_TEXT,
             TOKEN,
@@ -133,6 +154,8 @@ async def test_both_chat_apis_record_the_core_task_and_failures_without_content(
             "synthetic-openpanel-secret",
         ):
             assert private not in exported
+    for code in ("P-01", "P-99"):
+        assert code not in metric_text and code not in caplog.text
     expected_status = {
         r.headers["x-request-id"]: r.status_code
         for r in (native, openai, denied, invalid, forbidden)
@@ -292,6 +315,80 @@ def test_disabled_collection_creates_no_http_client(monkeypatch):
         analytics = Analytics.from_environment(env)
         assert not analytics.enabled
         analytics.started(request_id=uuid4().hex, route="chat")
+
+
+@pytest.mark.parametrize("code", ["P-01", "P-09", "P-10", "P-99", "P-100", "P-999999"])
+def test_participant_code_is_optional_and_only_valid_for_staging_usability(code):
+    fields = dict(
+        name="chat_started",
+        request_id=uuid4().hex,
+        route="chat",
+        environment="staging",
+        source="usability-test",
+        occurred_at="2026-11-14T00:00:00+00:00",
+    )
+    event = TaskEvent(**fields, participant_code=code)
+    assert event.openpanel_payload()["payload"]["properties"]["participant_code"] == code
+    assert "participant_code" not in TaskEvent(**fields).model_dump(exclude_none=True)
+
+
+@pytest.mark.parametrize(
+    "code",
+    ["", "P-00", "P-0", "P-1", "P-001", "P-1000000", "p-01", " P-01", "P-01\n", PRIVATE_TEXT],
+)
+def test_invalid_participant_code_fails_before_client_creation_without_echo(monkeypatch, code):
+    def unexpected_client(*args, **kwargs):
+        raise AssertionError("invalid participant configuration must not create a client")
+
+    monkeypatch.setattr(httpx, "AsyncClient", unexpected_client)
+    with pytest.raises(StartupError) as error:
+        Analytics.from_environment(
+            settings(ANALYTICS_SOURCE="usability-test", ANALYTICS_PARTICIPANT_CODE=code)
+        )
+    assert str(error.value) == "Invalid analytics participant configuration"
+    with pytest.raises(ValidationError):
+        TaskEvent(
+            name="chat_started",
+            request_id=uuid4().hex,
+            route="chat",
+            environment="staging",
+            source="usability-test",
+            participant_code=code,
+            occurred_at="2026-11-14T00:00:00+00:00",
+        )
+
+
+@pytest.mark.parametrize(
+    "environment,source",
+    [
+        ("staging", "web"),
+        ("staging", "smoke"),
+        ("production", "web"),
+        ("production", "usability-test"),
+    ],
+)
+def test_participant_code_rejected_outside_staging_usability(environment, source):
+    with pytest.raises(StartupError) as error:
+        Analytics.from_environment(
+            settings(
+                GATEWAY7_ENVIRONMENT=environment,
+                ANALYTICS_SOURCE=source,
+                ANALYTICS_PARTICIPANT_CODE="P-01",
+            )
+        )
+    assert "P-01" not in str(error.value)
+    with pytest.raises(StartupError, match="Invalid analytics participant configuration"):
+        Analytics(environment=environment, source=source, participant_code="P-01")
+    with pytest.raises(ValidationError):
+        TaskEvent(
+            name="chat_started",
+            request_id=uuid4().hex,
+            route="chat",
+            environment=environment,
+            source=source,
+            participant_code="P-01",
+            occurred_at="2026-11-14T00:00:00+00:00",
+        )
 
 
 def test_event_contract_rejects_extra_fields_and_arbitrary_labels():
@@ -602,3 +699,21 @@ async def test_merged_http_modes_export_one_terminal_result_without_changing_wir
     if early and result == "failure":
         payload = b"".join(message.get("body", b"") for message in sent)
         assert b"event: response.completed" not in payload and b"data: [DONE]" not in payload
+
+
+def test_metric_queries_exclude_smoke_and_usability_traffic():
+    root = Path(__file__).resolve().parents[1]
+    analytics_doc = (root / "docs" / "analytics.md").read_text(encoding="utf-8")
+    queries = [line for line in analytics_doc.splitlines() if line.startswith("- **Query:**")]
+    assert len(queries) == 4
+    for query in queries:
+        assert "source is not smoke" in query
+        assert "source is not usability-test" in query
+
+
+def test_dashboard_recipe_excludes_both_test_sources():
+    root = Path(__file__).resolve().parents[1]
+    deployment_doc = (root / "docs" / "deployment.md").read_text(encoding="utf-8")
+    recipes = [line for line in deployment_doc.splitlines() if "exclude `source=smoke`" in line]
+    assert recipes
+    assert all("source=usability-test" in line for line in recipes)
