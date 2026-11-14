@@ -345,3 +345,11 @@
 - Team confirmation: DeniBorsh ratified the documented scenarios, participant profile, QR-06 Learnability measure and SEQ bar, SPRINT-08 run plan, and the facilitator, observer and data-custodian assignments on 13 November 2026.
 - Boundary: This entry records that team confirmation only. It does not claim Customer review, pilot, participant data, findings, QR verdict, or Week 7 results; Customer review/pilot remains tracked by #270.
 - Team assessment: TODO
+
+## 2026-11-14 — Task #270 Customer design-review preparation
+
+- Tool: Codex, TechLead.
+- Work: Prepare a 30-minute live review script against the team-confirmed UT-01 design in PR #275, with three separate permissions before recording, actual production/staging demonstrations, prior-source questions, execution-plan agreement and decision/action read-back.
+- Verification: Check the five required script sections, 30-minute agenda, question-to-agenda assignment and linked artifacts; the script distinguishes prepared design from demonstrated readiness.
+- Boundary: No meeting slot, review roles, pilot, permission answer, Customer decision or agreed action is invented; #270 remains incomplete until the actual pilot/review and rework are evidenced.
+- Team assessment: TODO
