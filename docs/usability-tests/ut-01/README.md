@@ -144,7 +144,18 @@ The Week 7 report claims no result, the `Results` cell in [the index](../README.
 - **Data custodian:** [@ExFuseMe](https://github.com/ExFuseMe) keeps the private repository, the identity mapping, and the analysis.
 
 A participant never fills a role, and no role changes between counted sessions without the team recording the change here before the session.
-DeniBorsh, the task owner, confirmed these role assignments and the documented scenarios, participant profile, QR-06 measure and bar, and SPRINT-08 run plan as team decisions on 2026-11-13. This records the team's design choice; it does not claim that the Customer review or non-counted pilot tracked in [task #270](https://github.com/iteam7/gateway7/issues/270) has occurred.
+DeniBorsh, the task owner, confirmed these role assignments and the documented scenarios, participant profile, QR-06 measure and bar, and SPRINT-08 run plan as team decisions on 2026-11-13. At that point this recorded the team's design choice, before the later pilot and Customer review confirmation below.
+
+## Pilot and Customer review
+
+DeniBorsh confirmed on 2026-11-14 that a teammate completed the non-counted pilot and that Customer reviewed the UT-01 design.
+The pilot checked the scenario wording, fixed order, time limits, help rules, recording and SUS readability, and the instrumentation path; the task owner reports that these checks passed.
+The pilot is not a counted participant session, supplies no usability result, and does not establish a QR-06 verdict.
+
+The task owner also confirmed that the Customer review passed and the design remains as recorded here for SPRINT-08.
+The supplied 2026-11-13 product-demo transcript does not contain the UT-01 review discussion, and the exact pilot date was not supplied.
+This dated note records the task owner's confirmation without attributing additional spoken feedback to Customer.
+No counted session or participant result is claimed.
 
 ## Environment
 

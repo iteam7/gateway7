@@ -353,3 +353,17 @@
 - Verification: Check the five required script sections, 30-minute agenda, question-to-agenda assignment and linked artifacts; the script distinguishes prepared design from demonstrated readiness.
 - Boundary: No meeting slot, review roles, pilot, permission answer, Customer decision or agreed action is invented; #270 remains incomplete until the actual pilot/review and rework are evidenced.
 - Team assessment: TODO
+
+## 2026-11-14 — Task #270 prior-source reconciliation
+
+- Tool: Codex.
+- Work: Reviewed the user-supplied Customer meeting transcripts dated 23 October, 6 November, 7 November and 13 November to add source-backed follow-ups to the prepared design-review script.
+- Boundary: The repository contains sanitized paraphrases only. The supplied files contain no participant/session material. No recording link, raw transcript, real name, timecode, permission answer, Customer verdict, assigned owner, due date or usability result was added or inferred.
+- Team assessment: TODO
+
+## 2026-11-14 — Task #270 pilot and Customer review evidence
+
+- Tool: Codex.
+- Work: Reviewed the user-supplied 13 November Customer-demo transcript and three screenshots; added sanitized screenshots and a meeting summary; recorded DeniBorsh's confirmation that the non-counted teammate pilot and UT-01 design review were completed successfully.
+- Boundary: The video, raw transcript, personal names and any credential or private address were not added. The transcript does not contain the UT-01 discussion or individual permission answers; the report distinguishes those limits from the task owner's confirmation. No participant result or QR-06 verdict is claimed.
+- Team assessment: TODO

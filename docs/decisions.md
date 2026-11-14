@@ -147,3 +147,13 @@ Accept OpenAI as a real provider for the US-01 demonstration alongside Claude an
 - **Made by:** Customer.
 - **Source:** [Week 05 requirement clarification](https://github.com/iteam7/gateway7/blob/7fa1eced4183c17f2cac9df41bb970a0075ef65f/reports/week-05/meeting-follow-up.md#requirement-clarification).
 - **Why:** azamatbayramov confirmed that OpenAI was shown and acceptable to Customer when asked about US-01's earlier Claude/Gemini-only wording. This clarifies the allowed provider choice; no change to plugin-name or startup-error criteria is inferred, and the existing live-request evidence must still state what was actually checked.
+
+## DEC-022
+
+Proceed with the current UT-01 design in SPRINT-08.
+
+- **Status:** Active
+- **Date:** 2026-11-14.
+- **Made by:** Customer, as confirmed by the task owner.
+- **Source:** [Week 7 Customer review record](../reports/week-07/meeting-report.md#decisions).
+- **Why:** DeniBorsh confirmed that Customer reviewed the test design and that the review passed with the current participant profile, scenario sequence, session roles, QR-06 measure and bar, and SPRINT-08 plan retained. The confirmation does not claim that counted sessions or usability results exist.
