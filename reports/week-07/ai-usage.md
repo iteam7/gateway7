@@ -345,3 +345,13 @@
 - Team confirmation: DeniBorsh ratified the documented scenarios, participant profile, QR-06 Learnability measure and SEQ bar, SPRINT-08 run plan, and the facilitator, observer and data-custodian assignments on 13 November 2026.
 - Boundary: This entry records that team confirmation only. It does not claim Customer review, pilot, participant data, findings, QR verdict, or Week 7 results; Customer review/pilot remains tracked by #270.
 - Team assessment: TODO
+
+## 2026-11-14 — Task #269 consent and private-data handoff
+
+- Tool: Codex, TechLead.
+- Work: Reconcile the confirmed #267 design with text-only consent storage, optional quotes, withdrawal/tool-copy deletion, arrangement-order codes, one authoritative artifact home and an authenticated private-repository link exclusion.
+- Source: PR #275 records DeniBorsh's 13 November confirmation of the profile, roles and SPRINT-08 arrangement; no replacement team decisions were inferred.
+- Verified setup: Formater created the required private text repository, initialized its address-free text homes, and verified private visibility, operator access and team collaborator permission metadata; this does not establish human read tests or instructor access.
+- Drive check: No accessible shared drive or matching project/team folder was found. Creation of an owner-only personal-root holding folder was rejected by automatic approval review; no folder or workaround was created.
+- Boundary: No participant data, signed consent, session or instructor read check is claimed; team-owned recording storage and instructor access remain separate gates.
+- Team assessment: TODO
