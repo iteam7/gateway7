@@ -107,6 +107,7 @@ The [demonstration guide](demo.md) keeps the longer walkthrough and acceptance e
 ## Project documentation
 
 - **Product:** [features](features.md), [vision](product-vision.md), [threshold of success](threshold-of-success.md), [threshold review proposal](threshold-review.md), [plan](project-plan.md), [risks](risks.md), [glossary](glossary.md).
+- **Usability:** [UT-01 design](usability-tests/ut-01/README.md), specified by [QR-06](quality-requirements/qr/QR-06.md).
 - **Requirements:** [functional requirements](functional-requirements/README.md), [FR-012 usage reporting specification](functional-requirements/fr/FR-012.md), [guarded function-tool turns](functional-requirements/fr/FR-013.md), [client request capacity](functional-requirements/fr/FR-016.md), [client request rates](functional-requirements/fr/FR-017.md), [additional client middleware](functional-requirements/fr/FR-018.md), [quality requirements and priority matrix](quality-requirements/README.md).
 - **Operator accounting:** [protected client usage snapshot](authentication.md#operator-usage-snapshot), specified by [FR-019](functional-requirements/fr/FR-019.md).
 - **Operator workspace:** [read-only client and middleware console](authentication.md#open-the-read-only-operator-console), specified by [FR-020](functional-requirements/fr/FR-020.md).

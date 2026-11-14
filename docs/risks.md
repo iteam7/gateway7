@@ -6,6 +6,10 @@
 | [RISK-03](#risk-03) | Open | Medium | Medium | The MUP's first demonstration uses a deterministic fake upstream (DEC-011), so a later switch to a real provider may surface integration defects the demo never caught. |
 | [RISK-04](#risk-04) | Open | Medium | Low | The existing plugin contract and fixtures may not cover a new company plugin's behavior, so integration could reveal a compatibility gap requiring core changes and failing TOS-03. |
 | [RISK-02](#risk-02) | Mitigated | High | Low | The stack and the first implementation sit on an unmerged pull request, so a late or blocked merge would leave `main` without a working gateway at the deadline. |
+| [RISK-05](#risk-05) | Open | High | Medium | The team may not recruit at least three representative participants before the run week ends, so the usability test cannot reach the sample its quality requirement needs. |
+| [RISK-06](#risk-06) | Open | Medium | Medium | A participant may withdraw or refuse the recording, so the session cannot be counted and its data must be removed. |
+| [RISK-07](#risk-07) | Open | High | Low | An instructor may not be able to open the private usability-data repository or the recordings folder, so the evidence cannot be reviewed. |
+| [RISK-08](#risk-08) | Open | High | Medium | The design review or the sessions may not finish before the Week 8 deadline, so the results and the quality requirement's verdict are not ready. |
 
 The response overview below summarizes the operative fields; each risk section retains their full wording and evidence.
 
@@ -15,6 +19,10 @@ The response overview below summarizes the operative fields; each risk section r
 | [RISK-02](#risk-02) | Implementation PR has no approval before release | Week 3, before first release; settled by PR #51 | Arrange independent review before release | Deliver the clean-checkout slice; track documentation follow-up |
 | [RISK-03](#risk-03) | First live provider rejects the request or its response cannot be parsed | Before US-01 AC-05 and MLS-03 acceptance | Validate the real adapter with one authorized live smoke call | Keep the deterministic demo usable while fixing the adapter; US-01 remains unfinished |
 | [RISK-04](#risk-04) | Adding another plugin requires a core edit | Week 4 plugin integration | Implement against only the documented contract | Revise the interface version and rerun both plugins' fixtures |
+| [RISK-05](#risk-05) | Fewer than three participants are confirmed 48 hours before the results deadline | Week 8, before Submission 8 | Recruit early through the course chat and personal contacts, keep a reserve list, and book sessions as soon as the design and verification are ready | Recruit replacements; if three still cannot be recruited, keep the QR/QRT row Not verified or move it to SPRINT-09, declare the shortfall, and claim no result |
+| [RISK-06](#risk-06) | A participant refuses the recording or withdraws | Any counted session in Week 8 | Collect the durable consent before every session, explain the recording and the withdrawal, and keep the code mapping private | Do not count the session, remove its raw text and recording, retire the code, and recruit a replacement under the next free code |
+| [RISK-07](#risk-07) | An instructor reports a missing repository, folder, or permission | Week 7 and Week 8, before submission | Create the private repository with the team and the instructors as readers, share the cloud folder with them, and verify both before the first session | Give the private text through a Moodle-only archive and declare the deviation; keep the recordings in the cloud folder |
+| [RISK-08](#risk-08) | No confirmed design-review slot by 14 November, or no sessions booked by 18 November | Week 7 and Week 8 | Book the design review early, run the design and instrumentation in parallel, and schedule sessions once the verification passes | Move the QR/QRT row to SPRINT-09 with a reason, declare it in the report, and claim no result |
 
 ## RISK-01
 
@@ -74,3 +82,59 @@ The existing plugin contract and fixtures may not cover a new company plugin's b
 - **Window:** the sprint in which the second plugin is added, per [TOS-03](threshold-of-success.md#tos-03)'s Week 4 measure.
 - **Mitigation:** write the second plugin against the documented contract alone, with no access to the first plugin's internals, before declaring the contract stable.
 - **Contingency:** patch the contract through a new minor version of the plugin interface and re-run both plugins' fixtures before merging.
+
+## RISK-05
+
+The team may not recruit at least three representative participants before the run week ends, so the usability test cannot reach the sample its quality requirement needs.
+
+- **Status:** Open
+- **Impact:** High
+  - Fewer than three counted sessions leave [`QR-06`](quality-requirements/qr/QR-06.md) `Not verified` and the Week 8 results incomplete.
+- **Likelihood:** Medium
+  - The sessions depend on personal contacts and the course chat inside a short window, and the test excludes the team, the Customer, the instructors, and the course staff.
+- **Trigger:** fewer than three participants are confirmed 48 hours before the results deadline.
+- **Window:** Week 8, before Submission 8 on 21 November 2026.
+- **Mitigation:** recruit through the course chat and personal contacts in Week 7, keep a reserve list, and book sessions as soon as the design and the instrumentation verification are ready.
+- **Contingency:** recruit replacements; when three still cannot be recruited, keep the `QR/QRT` row `Not verified` in `SPRINT-08` or move it to `SPRINT-09`, declare the shortfall, and claim no result.
+
+## RISK-06
+
+A participant may withdraw or refuse the recording, so the session cannot be counted and its data must be removed.
+
+- **Status:** Open
+- **Impact:** Medium
+  - A lost session costs a recruitment slot and can push the counted sample below three.
+- **Likelihood:** Medium
+  - The recording is mandatory for a counted session, and the consent allows withdrawal at any time.
+- **Trigger:** a participant refuses the recording before the session, or withdraws during or after it.
+- **Window:** any counted session in Week 8.
+- **Mitigation:** collect the durable [consent](usability-tests/ut-01/consent.md) before every session, explain the recording and the withdrawal in advance, and keep the identity mapping private.
+- **Contingency:** do not count the session, remove its raw text and recording, retire the code, and recruit a replacement under the next free code.
+
+## RISK-07
+
+An instructor may not be able to open the private usability-data repository or the recordings folder, so the evidence cannot be reviewed.
+
+- **Status:** Open
+- **Impact:** High
+  - The submission's private evidence is then unreadable to the grader, which weakens the Week 8 results and the Moodle wrapper.
+- **Likelihood:** Low
+  - Access is set when the private repository and the cloud folder are created, before the first session.
+- **Trigger:** an instructor reports a missing repository, a missing folder, or a missing permission.
+- **Window:** Week 7 and Week 8, before the submission.
+- **Mitigation:** create the private repository with the team and the instructors as readers, share the cloud recordings folder with them, and verify both before the first session.
+- **Contingency:** give the private text through a Moodle-only archive and declare the deviation; the recordings stay in the cloud folder.
+
+## RISK-08
+
+The design review or the sessions may not finish before the Week 8 deadline, so the results and the quality requirement's verdict are not ready.
+
+- **Status:** Open
+- **Impact:** High
+  - Submission 8 then loses the usability results and the `QR-06` verdict.
+- **Likelihood:** Medium
+  - The schedule depends on the Customer's review slot and on the participants' availability.
+- **Trigger:** no confirmed design-review slot by 14 November 2026, or no sessions booked by 18 November 2026.
+- **Window:** Week 7 and Week 8.
+- **Mitigation:** book the design review early, run the design and the instrumentation in parallel, and schedule sessions once the verification passes.
+- **Contingency:** move the `QR/QRT` row to `SPRINT-09` with a reason, declare it in the report, and claim no result.
