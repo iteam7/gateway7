@@ -315,3 +315,17 @@
 - Review: Independent actual-diff TechLead review approved the narrow handshake correction and regression; earlier Task #222 evidence above remains historical and unchanged.
 - Boundary: No real credential files, existing launcher/server, live providers, model permissions/catalog behavior, dependencies, deployment or merge were changed.
 - Team assessment: TODO
+
+## 2026-11-14 — Task #268 coded staging usability events
+
+- Tool: Codex developer and TechLead.
+- Work: Implement the participant-code link selected by the confirmed UT-01 design: an optional server-owned canonical code is accepted only for staging usability-test events, with matching event registry, ADR, setup/export/cleanup instructions and live Compose passthrough.
+  Caller headers/bodies cannot label events; codes remain outside operational logs, metrics labels and per-task profile identifiers.
+- Verification: Tested base c2f42a704f293350799ff09ce4de23d252e391c9 plus the uncommitted six-file scoped change; no new tested commit is implied.
+  The 81 focused analytics tests passed in 4.80 seconds; Ruff formatting/lint and Linux-target mypy passed for all 41 production files.
+  Native Windows mypy reported four unrelated POSIX-API errors; the explicit Linux target passed.
+  Actual docker compose config JSON rendering passed with the code unset and set to synthetic P-01, using an empty temporary env file and isolated Docker config; no engine or private values were used.
+  git diff --check passed.
+- Review: TechLead approved the actual six-file code, tests, Compose wiring and documentation diff.
+- Boundary: No deployed backend filters, private access check, human session, outcome, pilot or Customer approval is claimed; end-to-end code/session linkage and store readiness still require real verification.
+- Team assessment: TODO

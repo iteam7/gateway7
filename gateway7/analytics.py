@@ -10,6 +10,7 @@ import asyncio
 import logging
 import math
 import os
+import re
 from collections.abc import Mapping
 from datetime import datetime, timedelta, timezone
 from typing import Literal
@@ -30,6 +31,15 @@ CHAT_ROUTES = frozenset({"chat", "openai_chat", "openai_responses"})
 QUEUE_CAPACITY = 256
 EXPORT_TIMEOUT_SECONDS = 1.0
 SHUTDOWN_TIMEOUT_SECONDS = 2.0
+PARTICIPANT_CODE_PATTERN = r"^P-(?:0[1-9]|[1-9][0-9]{1,5})$"
+
+
+def _valid_participant_scope(code: str | None, environment: str, source: str) -> bool:
+    return code is None or (
+        environment == "staging"
+        and source == "usability-test"
+        and re.fullmatch(PARTICIPANT_CODE_PATTERN, code) is not None
+    )
 
 
 class TaskEvent(BaseModel):
@@ -42,6 +52,7 @@ class TaskEvent(BaseModel):
     route: Route
     environment: Environment
     source: Source
+    participant_code: str | None = Field(default=None, pattern=PARTICIPANT_CODE_PATTERN)
     occurred_at: AwareDatetime
     status: int | None = Field(default=None, ge=100, le=599)
     outcome: Outcome | None = None
@@ -49,6 +60,8 @@ class TaskEvent(BaseModel):
 
     @model_validator(mode="after")
     def completion_fields_match_event(self) -> TaskEvent:
+        if not _valid_participant_scope(self.participant_code, self.environment, self.source):
+            raise ValueError("Participant codes require staging usability-test events")
         if self.occurred_at.utcoffset() != timedelta(0):
             raise ValueError("Event time must use UTC")
         fields = (self.status, self.outcome, self.duration_ms)
@@ -91,9 +104,13 @@ class Analytics:
         client: httpx.AsyncClient | None = None,
         environment: Environment = "staging",
         source: Source = "web",
+        participant_code: str | None = None,
     ) -> None:
+        if not _valid_participant_scope(participant_code, environment, source):
+            raise StartupError("Invalid analytics participant configuration")
         self.environment = environment
         self.source = source
+        self.participant_code = participant_code
         self._client = client
         self._queue: asyncio.Queue[TaskEvent] = asyncio.Queue(maxsize=QUEUE_CAPACITY)
         self._worker: asyncio.Task[None] | None = None
@@ -126,6 +143,9 @@ class Analytics:
             raise StartupError("ANALYTICS_SOURCE must be web, usability-test or smoke")
         if environment == "production" and source != "web":
             raise StartupError("Production analytics requires ANALYTICS_SOURCE=web")
+        participant_code = env.get("ANALYTICS_PARTICIPANT_CODE")
+        if not _valid_participant_scope(participant_code, environment, source):
+            raise StartupError("Invalid analytics participant configuration")
         base_url = env.get("OPENPANEL_API_URL", "").rstrip("/")
         try:
             url = httpx.URL(base_url)
@@ -159,7 +179,12 @@ class Analytics:
             transport=transport,
         )
         # Membership above narrows the possible strings at runtime.
-        return cls(client=client, environment=environment, source=source)  # type: ignore[arg-type]
+        return cls(
+            client=client,
+            environment=environment,  # type: ignore[arg-type]
+            source=source,  # type: ignore[arg-type]
+            participant_code=participant_code,
+        )
 
     async def start(self) -> None:
         if self.enabled and self._worker is None:
@@ -198,6 +223,7 @@ class Analytics:
                 route=route,  # type: ignore[arg-type]
                 environment=self.environment,
                 source=self.source,
+                participant_code=self.participant_code,
                 occurred_at=datetime.now(timezone.utc),
                 status=status,
                 outcome=outcome,  # type: ignore[arg-type]
