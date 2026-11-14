@@ -1,1 +1,5 @@
 # Each excluded link must be justified here and verified manually in a browser.
+# UT-01 raw text evidence must remain private under course visibility rules.
+# This repository link requires authenticated team/instructor access; actual
+# instructor access must be checked privately before #269 can be accepted.
+^https://github\.com/iteam7/gateway7-usability-data/?$

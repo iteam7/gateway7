@@ -2,7 +2,8 @@
 
 This is the public, unfilled consent template.
 The team prints one copy per session, and the participant signs it before the session starts.
-The signed copies are kept in the private usability-data repository and are never committed to the product repository.
+Durable consent is recorded before every counted session; a signed form, email or message can provide it.
+Keep its text record in the private usability-data repository; do not commit scanned forms or recordings to either Git repository.
 
 ## Study
 
@@ -32,35 +33,44 @@ The recordings are never published.
 ## Private data and access
 
 The consent record, the identity mapping, the raw notes, the working analysis, and the test's filtered telemetry export are kept in the private `iteam7/gateway7-usability-data` repository.
-Only the team and the instructors can read it.
+Access is restricted to the team and the instructors and must be verified before data collection.
+An instructor unable to use GitHub receives a dated private text archive through Moodle.
 The session's telemetry uses a participant code, and its mapping to a person stays in that private repository.
 
 ## Tools
 
-The team uses the staging deployment of Gateway7, its analytics and observability backends, and the team's cloud storage for the recording.
+The team uses Gateway7 staging with a synthetic provider, OpenPanel analytics, OpenObserve observability, and private cloud storage for screen/audio recordings.
+Before consent, the facilitator fills and explains the actual tools, storage copies and withdrawal contact in the private participant copy:
+
+- Recorder and storage/copies: ______________________________
+- Survey/note tool and storage/copies: ______________________________
+- Other tool processing session data, or None: ______________________________
+- Facilitator/data-custodian contact for withdrawal: ______________________________
 No real payment is made, and the session does not touch production data.
 
 ## Withdrawal
 
 The participant can stop at any time and can withdraw after the session by contacting the team through the course.
 On withdrawal, the team removes the raw text and the recording, retires the participant code, and does not use the session's data in the results.
-The sanitized record already published is not rewritten, and the withdrawn session is reported as not counted.
+The team removes affected public notes and quotes and revises aggregate results it controls; the withdrawn session is not counted.
+Already downloaded copies of sanitized public material cannot be recalled.
 
 ## Deletion after grading
 
-The private repository, its history, and the recordings are deleted after the course has been graded.
+The private repository, its history, recordings, local clones, exports, recorder/survey-tool copies and team-controlled delivery copies are deleted after the course has been graded, including available trash/version copies.
 The sanitized public record, which contains no identity, stays in the product repository.
 
 ## Declaration
 
 - [ ] I am 18 years old or older.
-- [ ] I have read this form and I agree to the recording.
+- [ ] I have read this form, understand the explained tools/private access/withdrawal/deletion terms, and agree to participate.
+- [ ] I agree to the required screen/audio recording.
 - [ ] I agree to the sanitized public results.
 - [ ] I agree to the optional anonymized quotes (optional; the session is counted without them).
 
 Participant code: `P-__`
 
-Signature: ______________________________
+Signature or durable written agreement reference: ______________________________
 
 Date: ______________________________
 

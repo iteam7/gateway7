@@ -3,6 +3,11 @@
 This directory holds the sanitized session notes, one file per counted session, named by the participant code: `P-01.md`, `P-02.md`, and so on.
 A session's raw notes and its recording stay private; the file here is the sanitized note.
 
+Assign participant codes in arrangement order, never reuse a retired code, and give each replacement the next unused code.
+Keep the exact appointments, identity mapping, durable consent, raw notes and raw responses in the private text repository; recordings stay only in the team-owned private cloud folder.
+Before data collection, the custodian verifies team/instructor store access and the facilitator explains the actual tools and withdrawal contact.
+Raw responses are transcribed privately first; derive the public note only after sanitization, not by filling this public template with identifying answers.
+
 ## Facilitation script
 
 The facilitator reads this script at the start of every counted session.
@@ -38,16 +43,16 @@ Each session note records:
 | Field | Value |
 | --- | --- |
 | Participant code | `P-nn` |
-| Date and start time | the session's local time |
+| Session link | use the participant code; exact appointment/time window and raw linkage stay private |
 | Facilitator and observer | the GitHub usernames |
-| Pre-test answers | verbatim |
+| Pre-test answers | sanitized relation to target user, familiarity and device; raw answers stay private |
 | Task 1 outcome, time, SEQ | `Unaided`, `Assisted`, or `Failed`; minutes and seconds; 1–7 |
 | Task 2 outcome, time, SEQ | as above |
 | Task 3 outcome, time, SEQ | as above |
 | Hints | time, wording, task |
 | SUS raw responses | ten numbers, 1–5 |
 | SUS score | the computed score |
-| Post-test answers | verbatim, sanitized |
+| Post-test answers | sanitized themes; publish quotes only with separate consent |
 | Instrumentation check | the request identifiers, or the offline check's exit status |
 | Notes and friction | the observer's notes |
 | Stop rule | whether it was used, and why |
@@ -57,6 +62,9 @@ Each session note records:
 The session stops before the time limit when the participant asks to stop, when the participant withdraws, when the recording stops unintentionally, when a critical or security-sensitive problem appears, or when the facilitator judges that continuing would distress the participant.
 A session stopped before its data is complete is not counted, including a stop before the pre-test, a stop before all three tasks and the instruments are complete, and a refused recording.
 The team retires the participant code and recruits a replacement under the next free code.
+
+A completed session with a failed task still counts; an incomplete, withdrawn, unrecorded or unconsented session does not.
+Follow the [withdrawal and retention procedure](../README.md#consent-withdrawal-and-retention) for excluded data and later withdrawal.
 
 ## Roles
 
