@@ -354,4 +354,10 @@
 - Verified setup: Formater created the required private text repository, initialized its address-free text homes, and verified private visibility, operator access and team collaborator permission metadata; this does not establish human read tests or instructor access.
 - Drive check: No accessible shared drive or matching project/team folder was found. Creation of an owner-only personal-root holding folder was rejected by automatic approval review; no folder or workaround was created.
 - Boundary: No participant data, signed consent, session or instructor read check is claimed; team-owned recording storage and instructor access remain separate gates.
+## 2026-11-14 — Task #270 Customer design-review preparation
+
+- Tool: Codex, TechLead.
+- Work: Prepare a 30-minute live review script against the team-confirmed UT-01 design in PR #275, with three separate permissions before recording, actual production/staging demonstrations, prior-source questions, execution-plan agreement and decision/action read-back.
+- Verification: Check the five required script sections, 30-minute agenda, question-to-agenda assignment and linked artifacts; the script distinguishes prepared design from demonstrated readiness.
+- Boundary: No meeting slot, review roles, pilot, permission answer, Customer decision or agreed action is invented; #270 remains incomplete until the actual pilot/review and rework are evidenced.
 - Team assessment: TODO
