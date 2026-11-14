@@ -27,6 +27,10 @@ The requirement reads the main task's SEQ rating, which this record's [Measures]
 - **Recruitment target:** at least three completed sessions of representative adults aged 18 or older, with five as the design target.
 - **Recruitment plan:** the team arranges the sessions in the Week 8 window through its own contacts and a course-chat announcement, and records the arranged dates in the private usability-data repository before the first counted session.
   This repository records no participant names and no session dates.
+  Assign codes `P-01`, `P-02` and so on in arrangement order, not completion order.
+  Keep contact details, eligibility checks and appointments in the private arrangement register.
+  Incomplete, withdrawn, unconsented or recording-refused sessions do not count; retire their codes and give replacements the next unused code.
+  A failed task in an otherwise completed session still counts.
 
 ## The Tasks
 
@@ -159,24 +163,65 @@ The staging address and the client token stay in the private submission and the 
 Every counted session collects the durable consent in [consent.md](consent.md) before the session starts.
 The consent records the 18-or-older declaration, the mandatory recording, the sanitized public results, the optional quotes, the private access, the tools used, the withdrawal, and the deletion after grading.
 
-The consent records, the identity mapping, the raw notes, the working analysis, and the test's filtered telemetry export are kept in the private `iteam7/gateway7-usability-data` repository that [task #269](https://github.com/iteam7/gateway7/issues/269) creates, which the team and the instructors can read.
-The recordings are in the team's cloud folder, shared with the instructors, and are not committed to either repository.
+The authoritative text store is the [private usability-data repository](https://github.com/iteam7/gateway7-usability-data).
+The link needs authentication and is excluded from automated link checking for that reason.
+On 14 November 2026, private visibility, the initialized text-only homes and the current operator account's repository access were verified through authenticated GitHub readback.
+Team collaborator permission metadata includes the confirmed facilitator, observer and data custodian; this is evidence of configured access, not a claim that every person has opened the data.
+Instructor readership and successful instructor read checks remain unverified.
+The recordings belong in a team-owned cloud folder; its address and access instructions stay in the private repository and the Moodle PDF, never in a public product file.
+Recordings are never committed to either Git repository.
+Actual staging addresses, dashboard/backend addresses and credentials stay Moodle-only, not in the private text repository.
 
-The private repository, its history, and the recordings are deleted after the course is graded; the sanitized public record stays.
-A participant who withdraws has the raw text and the recording removed, the code retired, and a replacement recruited under the next free code.
+### Access and arrangement gates
+
+The team-confirmed profile, contact/course-chat recruitment channel, SPRINT-08 arrangement window and facilitator/observer/custodian roles above come from the confirmed #267 design; they are not replaced by issue assignees or guesses.
+Recruitment success, signed consent, a counted session and instructor access are not established by that design confirmation.
+Before collecting participant data, ExFuseMe must verify private repository visibility, team and instructor readers, cloud-folder ownership and a successful instructor read check, recording date, verifier and outcome privately in `access-and-retention.md`.
+An invitation sent or the operator's own access is not an instructor read check.
+The private text repository and its authoritative layout are provisioned; instructor access remains pending.
+No verified team-owned recordings folder is available: the connected Drive reports no shared drives and no matching project/team folder.
+No recording folder or sharing grant was created by this change, and no instructor read check is claimed.
+Keep data collection blocked until the recordings and instructor-access gates pass.
+
+If an instructor cannot use GitHub, deliver a dated text archive through Moodle only and declare the deviation in the weekly report; the repository remains the authoritative working home and the archive is a delivery copy.
+If recordings-folder access fails, repair sharing or choose another team-owned folder and verify access before sessions; never substitute public sharing or Git storage.
+If fewer than three representative complete sessions can be arranged, recruit replacements with the same eligibility, retain the open run window and declare/reschedule the gap; do not count disqualified sessions or lower the profile to fill the target.
+The non-counted pilot and Customer review in #270 and the separate pre-session instrumentation verification must pass before counted sessions.
+
+### Consent, withdrawal and retention
+
+Before each session, DeniBorsh explains the form and collects durable consent before recording or tasks; ExFuseMe retains the text record privately.
+A signed form, email or message can provide durable consent, but only text records belong in the private repository; never commit a scan or recording to Git.
+Fill the recorder, survey/note-tool and withdrawal-contact placeholders in each private participant copy before consent; keep the public template unsigned.
+Recording and sanitized public results are required; refusal of optional quotes does not exclude a participant.
+
+On withdrawal, remove the participant's raw text, consent, identity mapping, working analysis, filtered telemetry and recording/tool copies under team control, including retained versions/history; retire the code and exclude the session from analysis.
+Remove affected public notes and quotes and revise aggregates/findings as needed; do not publish the identity or withdrawal reason.
+Explain that copies of already downloaded sanitized public material cannot be recalled.
+Incomplete, unrecorded or unconsented data is removed and never counted.
+
+Keep the private repository and recordings until the course is graded.
+After grading, ExFuseMe deletes the private repository **and its history**, local clones, exports, team-controlled delivery copies, recorder/survey-tool copies and cloud recordings, including available trash/version copies; the sanitized public record stays.
+Maintain a private deletion checklist and coordinate instructor-held delivery-copy deletion through the course's private channel.
 
 ## Evidence Map
 
-| Item | Where it goes |
+| Item | Authoritative home |
 | --- | --- |
-| The record, the surveys, the consent template, and the session template | `docs/usability-tests/ut-01/` |
-| The sanitized session notes | `docs/usability-tests/ut-01/sessions/` |
-| The results, the findings, and the limitations | `docs/usability-tests/ut-01/results.md` |
-| The public screenshots, sanitized | `docs/usability-tests/ut-01/images/` |
-| The consent records and the identity mapping | the private usability-data repository |
-| The raw notes and the test's filtered telemetry export | the private usability-data repository |
-| The recordings | the team's cloud folder, linked from the private repository |
-| The private repository and folder links, and the access instructions | the Moodle submission only |
-| The Week 8 results report | `reports/week-08/README.md`, which links the results and claims no more than they state |
+| The record, surveys, blank consent and session template | Product repository: `docs/usability-tests/ut-01/` |
+| Sanitized session notes | Product repository: `docs/usability-tests/ut-01/sessions/P-nn.md` |
+| Results, findings and limitations | Product repository: `docs/usability-tests/ut-01/results.md` |
+| Sanitized public screenshots | Product repository: `docs/usability-tests/ut-01/images/` |
+| Durable consent text records | Private usability-data repository: `consent/` |
+| Identity mapping, screening and exact arrangement register | Private usability-data repository: `participants.md` |
+| Raw notes and raw survey responses | Private usability-data repository: `raw/` |
+| Working analysis | Private usability-data repository: `analysis/` |
+| Filtered test telemetry export | Private usability-data repository: `telemetry/`; text only, no IP, location, user agent, referrer or free text; the staging participant code is allowed but its identity mapping stays private |
+| Recordings | Team-owned private cloud folder, never Git; link and access instructions in the private repository's `recordings.md` and the Moodle PDF |
+| Store-access verification and retention checklist | Private usability-data repository: `access-and-retention.md` |
+| Actual staging/production addresses and dashboard/backend access/credentials | Moodle-only private submission, never either Git repository |
+| Week 8 results report | `reports/week-08/README.md`, linking the authoritative results rather than copying raw data |
+
+Moodle archive copies and filtered exports are dated delivery/analysis copies, not second authoritative stores.
 
 The results are in [results.md](results.md).
