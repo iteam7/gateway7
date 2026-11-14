@@ -215,7 +215,7 @@ GATEWAY7_ENVIRONMENT=staging ANALYTICS_ENABLED=true ANALYTICS_SOURCE=web \
 ```
 
 The unauthenticated synthetic request must return `401`; it makes no provider call.
-Find its response request identifier in the raw-events view: both `chat_started` and `chat_completed` must carry `source=smoke` and stay out of the default metric chart.
+Find its response request identifier in the raw-events view: both `chat_started` and `chat_completed` must carry `source=smoke` and stay out of the default metric chart, as `source=usability-test` traffic does.
 Restore staging's source before accepting ordinary traffic; never send synthetic traffic to production to fill an empty chart.
 
 ### Observability pipeline
@@ -249,7 +249,7 @@ Apply changes with `docker compose -p gateway7-staging up --build --detach --wai
 
 | Backend and scope | Dashboard | Chart configuration |
 | --- | --- | --- |
-| OpenPanel `staging` | `Gateway7 tasks (staging)` | `Task completion rate`: count `chat_completed` with `outcome=ok` as A, count `chat_started` as B, formula `A/B`, aggregate over the last seven days; exclude `source=smoke` on **both** event series |
+| OpenPanel `staging` | `Gateway7 tasks (staging)` | `Task completion rate`: count `chat_completed` with `outcome=ok` as A, count `chat_started` as B, formula `A/B`, aggregate over the last seven days; exclude `source=smoke` and `source=usability-test` on **both** event series |
 | OpenPanel `production` | `Gateway7 tasks (production)` | The same saved report and filters, using only the production project |
 | OpenObserve `staging` | `Gateway7 SLI (staging)` | Import the SLI-01 template into this organization |
 | OpenObserve `production` | `Gateway7 SLI (production)` | Import the identical template into this organization, without injecting test traffic |

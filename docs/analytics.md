@@ -37,7 +37,7 @@ Synthetic fixtures validate the instrumentation and never establish adoption or 
 
 - **Definition:** The number of `chat_completed` events with `outcome=ok` in the rolling seven-day window; unit: completed tasks per week.
 - **Source:** [`chat_completed`](#the-events).
-- **Query:** In the environment's OpenPanel project, use event `chat_completed`, aggregation `count`, property filter `outcome is ok`, property filter `source is not smoke`, and date range `Last 7 days`.
+- **Query:** In the environment's OpenPanel project, use event `chat_completed`, aggregation `count`, property filter `outcome is ok`, property filter `source is not smoke`, property filter `source is not usability-test`, and date range `Last 7 days`.
 
 Use event count, not unique profiles: `profileId` identifies a task, never a user.
 A retry is a new task and may count again.
@@ -46,7 +46,7 @@ A retry is a new task and may count again.
 
 - **Definition:** Completed task attempts whose outcome is not `ok`, divided by all completed task attempts in the same rolling seven days; unit: fraction, undefined when the denominator is zero.
 - **Source:** [`chat_completed`](#the-events).
-- **Query:** In OpenPanel, series `A` is `count(chat_completed)` with `outcome is not ok`; series `B` is `count(chat_completed)`; apply `source is not smoke` to both, set the date range to `Last 7 days`, and use formula `A/B`.
+- **Query:** In OpenPanel, series `A` is `count(chat_completed)` with `outcome is not ok`; series `B` is `count(chat_completed)`; apply `source is not smoke` and `source is not usability-test` to both, set the date range to `Last 7 days`, and use formula `A/B`.
 
 This includes policy denials, access failures, malformed requests, cancellations and server errors.
 Read it by outcome before treating an increase as harm: a correct policy denial may be the intended result.
@@ -55,7 +55,7 @@ Read it by outcome before treating an increase as harm: a correct policy denial 
 
 - **Definition:** Successful task completions divided by task starts in the same rolling seven days; unit: fraction, undefined when there are no starts.
 - **Source:** [`chat_started` and `chat_completed`](#the-events).
-- **Query:** In OpenPanel, series `A` is `count(chat_completed)` with `outcome is ok`; series `B` is `count(chat_started)`; apply `source is not smoke` to both, set the date range to `Last 7 days`, and use formula `A/B`.
+- **Query:** In OpenPanel, series `A` is `count(chat_completed)` with `outcome is ok`; series `B` is `count(chat_started)`; apply `source is not smoke` and `source is not usability-test` to both, set the date range to `Last 7 days`, and use formula `A/B`.
 
 The deployment guide records this exact chart recipe for both projects.
 Backend computation has not been demonstrated in this change: a member must execute the chart against the deployed project and retain the result before reporting a measured value.
@@ -65,9 +65,9 @@ Starts and completions can straddle the window boundary, and process termination
 
 - **Definition:** The number of `chat_started` events in the rolling seven-day window; unit: task attempts per week.
 - **Source:** [`chat_started`](#the-events).
-- **Query:** In the environment's OpenPanel project, use event `chat_started`, aggregation `count`, property filter `source is not smoke`, and date range `Last 7 days`.
+- **Query:** In the environment's OpenPanel project, use event `chat_started`, aggregation `count`, property filter `source is not smoke`, property filter `source is not usability-test`, and date range `Last 7 days`.
 
-All four queries include `web` and `usability-test` traffic and exclude `smoke`.
+All four queries exclude `smoke` and `usability-test` traffic, so only `web` traffic contributes.
 The deployment owns `source`; no request header or request body can change it.
 `web` means ordinary API traffic, including SDK clients; it does not enable browser tracking.
 
@@ -109,10 +109,19 @@ A prolonged backend outage can undercount events, so these metrics are not an au
 ## The Dashboard
 
 The intended dashboards are `Gateway7 tasks (staging)` and `Gateway7 tasks (production)`, in their corresponding projects.
-Each uses the [Task completion rate](#task-completion-rate) formula and its exact seven-day, non-smoke filters.
+Each uses the [Task completion rate](#task-completion-rate) formula and its exact seven-day filters that exclude `smoke` and `usability-test` traffic.
 The staging project's raw event list must show the smoke events while its metric chart excludes them; the production chart uses the same recipe and receives no pipeline-check traffic.
 Both backend and dashboard addresses and credentials belong in the private submission.
 The Week 6 report needs sanitized screenshots after a member actually provisions and checks these dashboards.
+
+## The Usability Funnel
+
+A usability session's events carry `source=usability-test` and are read in the staging project through that filter alone.
+The session link is its time window plus the `X-Request-ID` values the observer records, so the funnel stays separate from the product metrics and adds no participant field to the event schema.
+The funnel's counts are test records, not product values, and never appear in the focus metric or its three companion metrics.
+
+The setup sets `ANALYTICS_SOURCE=usability-test` on staging, resets the synthetic seed before a session, captures the session's events in the staging OpenPanel project, and restores `source=web` afterwards.
+The raw export stays in the private usability-data repository, and the funnel covers only the flows the gateway's own events record; the observer records the rest.
 
 ## Collected Data
 
