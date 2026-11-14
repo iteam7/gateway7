@@ -81,6 +81,7 @@ EXAMPLE_TELEMETRY = {
 EXAMPLE_ANALYTICS = {
     "ANALYTICS_ENABLED": "false",
     "ANALYTICS_SOURCE": "web",
+    "ANALYTICS_PARTICIPANT_CODE": None,
     "OPENPANEL_API_URL": "",
     "OPENPANEL_CLIENT_ID": "",
     "OPENPANEL_CLIENT_SECRET": "",
@@ -275,16 +276,19 @@ def test_process_variables_override_dotenv_and_can_select_another_provider(
     assert mounted_configuration(gateway)["source"] == str(project / "config" / f"{provider}.yaml")
 
 
-def test_process_variables_override_analytics_dotenv_defaults(dotenv_project):
+@pytest.mark.parametrize("participant_code", [None, "P-01"])
+def test_process_variables_override_analytics_dotenv_defaults(dotenv_project, participant_code):
     docker, environment, project = dotenv_project
     process_analytics = {
         "ANALYTICS_ENABLED": "true",
-        "ANALYTICS_SOURCE": "smoke",
+        "ANALYTICS_SOURCE": "usability-test" if participant_code is not None else "smoke",
         "OPENPANEL_API_URL": "http://analytics.invalid/api",
         "OPENPANEL_CLIENT_ID": "synthetic-process-openpanel-client",
         "OPENPANEL_CLIENT_SECRET": "synthetic-process-openpanel-secret",
     }
     environment.update(process_analytics)
+    if participant_code is not None:
+        environment["ANALYTICS_PARTICIPANT_CODE"] = participant_code
     environment["GATEWAY7_ENVIRONMENT"] = "staging"
     gateway = render_compose(
         [docker, "compose", "config", "--format", "json"], environment, project
@@ -297,6 +301,7 @@ def test_process_variables_override_analytics_dotenv_defaults(dotenv_project):
         **EXAMPLE_TELEMETRY,
         **process_analytics,
         "GATEWAY7_ENVIRONMENT": "staging",
+        "ANALYTICS_PARTICIPANT_CODE": participant_code,
     }
 
 
