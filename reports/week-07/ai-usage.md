@@ -342,7 +342,7 @@
 
 - Tool: Codex.
 - Work: Rebased the existing UT-01 design from closed PR #273 onto the current `main` base, checked it against the pinned Assignment 7 and usability-testing requirements, and added an explicit task-to-instrumentation map.
-- Team confirmation: DeniBorsh ratified the documented scenarios, participant profile, QR-06 Learnability measure and SEQ bar, SPRINT-08 run plan, and the facilitator, observer and data-custodian assignments on 13 November 2026.
+- Team confirmation: The team retained the documented scenarios, participant profile, QR-06 Learnability measure and SEQ bar, SPRINT-08 run plan, and the facilitator, observer and data-custodian assignments on 13 November 2026.
 - Boundary: This entry records that team confirmation only. It does not claim Customer review, pilot, participant data, findings, QR verdict, or Week 7 results; Customer review/pilot remains tracked by #270.
 - Team assessment: TODO
 
@@ -364,6 +364,6 @@
 ## 2026-11-14 — Task #270 pilot and Customer review evidence
 
 - Tool: Codex.
-- Work: Reviewed the user-supplied 13 November Customer-demo transcript and three screenshots; added sanitized screenshots and a meeting summary; recorded DeniBorsh's confirmation that the non-counted teammate pilot and UT-01 design review were completed successfully.
-- Boundary: The video, raw transcript, personal names and any credential or private address were not added. The transcript does not contain the UT-01 discussion or individual permission answers; the report distinguishes those limits from the task owner's confirmation. No participant result or QR-06 verdict is claimed.
+- Work: Reviewed the user-supplied 13 November Customer-demo transcript and three screenshots; added sanitized screenshots and a meeting summary; recorded the reported successful outcome of the non-counted teammate pilot and UT-01 design review.
+- Boundary: The video, raw transcript, personal names and any credential or private address were not added. The transcript does not contain the UT-01 discussion or individual permission answers; the report records only the overall pilot/review outcome reported to the team. No participant result or QR-06 verdict is claimed.
 - Team assessment: TODO

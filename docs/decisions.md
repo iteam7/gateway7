@@ -154,6 +154,6 @@ Proceed with the current UT-01 design in SPRINT-08.
 
 - **Status:** Active
 - **Date:** 2026-11-14.
-- **Made by:** Customer, as confirmed by the task owner.
-- **Source:** [Week 7 Customer review record](../reports/week-07/meeting-report.md#decisions).
-- **Why:** DeniBorsh confirmed that Customer reviewed the test design and that the review passed with the current participant profile, scenario sequence, session roles, QR-06 measure and bar, and SPRINT-08 plan retained. The confirmation does not claim that counted sessions or usability results exist.
+- **Made by:** Customer; the review outcome was reported by the task owner.
+- **Source:** [Week 7 Customer review record](https://github.com/iteam7/gateway7/blob/270-design-review-script/reports/week-07/meeting-report.md#decisions).
+- **Why:** The review outcome was reported as passed, with the current UT-01 design retained for SPRINT-08. The supplied meeting transcript does not contain the UT-01 review discussion or aspect-by-aspect feedback. No counted sessions or usability results are claimed.

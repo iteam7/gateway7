@@ -4,8 +4,8 @@
 
 Gateway7 lets developers send LLM requests through company policy plugins; this review must settle whether UT-01 tests a representative user's core workflow and agree the Week 8 execution plan, using demonstrated readiness rather than planned checks.
 This is preparation for [#270](https://github.com/iteam7/gateway7/issues/270), not evidence of a scheduled or held meeting.
-The [UT-01 design](../../docs/usability-tests/ut-01/README.md) records DeniBorsh's 13 November team confirmation of the backend-developer profile, fixed scenarios, session roles, QR-06 measure/bar and SPRINT-08 run plan.
-DeniBorsh confirmed on 14 November that the non-counted pilot and Customer design review were completed; the report records the available evidence and its limits.
+The [UT-01 design](../../docs/usability-tests/ut-01/README.md) documents the backend-developer profile, fixed scenarios, session roles, QR-06 measure/bar and SPRINT-08 run plan.
+The non-counted pilot and Customer design review were reported as completed successfully; detailed observations and review feedback are absent from the supplied meeting transcript.
 The 13 November product-demo transcript does not contain that UT-01 discussion or the individual permission answers.
 Arrange a 30-minute live review with Customer; request 60 minutes if available.
 Confirm the slot and roles privately before use.
