@@ -55,6 +55,7 @@ nav:
           - QR-03 Keep credentials and text out of output: quality-requirements/qr/QR-03.md
           - QR-04 Serve an unmodified OpenAI SDK client: quality-requirements/qr/QR-04.md
           - QR-05 Find a failed request from the staging signals: quality-requirements/qr/QR-05.md
+          - QR-06 Learn the gateway on a first request: quality-requirements/qr/QR-06.md
       - Functional requirements:
           - Index: functional-requirements/README.md
           - FR-001 Answer with the server-held key: functional-requirements/fr/FR-001.md
@@ -80,6 +81,14 @@ nav:
       - Decisions: decisions.md
       - Assumptions: assumptions.md
       - Definition of Done: definition-of-done.md
+      - Usability tests:
+          - Index: usability-tests/README.md
+          - UT-01 Send a first request:
+              - Record: usability-tests/ut-01/README.md
+              - Surveys: usability-tests/ut-01/surveys.md
+              - Consent: usability-tests/ut-01/consent.md
+              - Session template: usability-tests/ut-01/sessions/README.md
+              - Results: usability-tests/ut-01/results.md
       - Glossary: glossary.md
   - Research:
       - Alternatives: research/alternatives.md
