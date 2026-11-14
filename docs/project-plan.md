@@ -152,6 +152,7 @@ Proposed goal, pending team confirmation: UT-01 has a runnable, instrumented usa
 - **Due:** 2026-11-15
 - **Sprint Backlog:** [the issues scheduled into SPRINT-07](https://github.com/iteam7/gateway7/milestone/5)
 - **Planned Velocity:** 0; manually summed on 2026-11-13 from the milestone's selected work: seven tasks and no stories, so the story-point sum is 0.
+- **Actual Velocity:** 0; the sprint carried tasks only, so there are no completed stories to sum. The design, instrumentation and Customer-review work completed, and the counted sessions, results and verdict moved to SPRINT-08.
 
 The current selection and dependency order are recorded in [planning issue #266](https://github.com/iteam7/gateway7/issues/266), not copied here.
 The 2026-11-13 tracker audit found native Priority High, distinct Responsible and Accountable values and exactly those two assignees on each of the seven selected tasks.
@@ -168,6 +169,11 @@ Reconcile the planning and refinement criteria in [#176](https://github.com/itea
 The Week 6 release and closeout remain [#189](https://github.com/iteam7/gateway7/issues/189) and [#190](https://github.com/iteam7/gateway7/issues/190), with no duplicate Week 7 completion claim.
 
 #### REL-07
+
+- **Released:** [v0.4.0](https://github.com/iteam7/gateway7/releases/tag/v0.4.0) on 2026-11-14.
+- **Checked QRs:** None.
+
+The [Quality Requirement Testing Plan](#quality-requirement-testing-plan) records the result and sprint of each test.
 
 ### SPRINT-08
 
