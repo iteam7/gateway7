@@ -342,7 +342,7 @@
 
 - Tool: Codex.
 - Work: Rebased the existing UT-01 design from closed PR #273 onto the current `main` base, checked it against the pinned Assignment 7 and usability-testing requirements, and added an explicit task-to-instrumentation map.
-- Team confirmation: DeniBorsh ratified the documented scenarios, participant profile, QR-06 Learnability measure and SEQ bar, SPRINT-08 run plan, and the facilitator, observer and data-custodian assignments on 13 November 2026.
+- Team confirmation: The team retained the documented scenarios, participant profile, QR-06 Learnability measure and SEQ bar, SPRINT-08 run plan, and the facilitator, observer and data-custodian assignments on 13 November 2026.
 - Boundary: This entry records that team confirmation only. It does not claim Customer review, pilot, participant data, findings, QR verdict, or Week 7 results; Customer review/pilot remains tracked by #270.
 - Team assessment: TODO
 
@@ -393,4 +393,18 @@
 - Sources: Existing #266 refinement and the 13 November tracker audit supply the seven-task selection; PR #275 supplies the team-confirmed UT-01 profile, session roles and SPRINT-08 arrangement window.
 - Preservation: Existing product milestones, finished sprint/release history, quality-testing rows including QR-06, and monitoring text remain unchanged.
 - Boundary: The proposed sprint goal and future task allocations remain unconfirmed; no planning ceremony, capacity commitment, participant arrangement, Customer agreement, test pass, release or velocity closeout is invented. A fresh milestone API query timed out, so the earlier selection audit remains explicitly dated.
+- Team assessment: TODO
+
+## 2026-11-14 — Task #270 prior-source reconciliation
+
+- Tool: Codex.
+- Work: Reviewed the user-supplied Customer meeting transcripts dated 23 October, 6 November, 7 November and 13 November to add source-backed follow-ups to the prepared design-review script.
+- Boundary: The repository contains sanitized paraphrases only. The supplied files contain no participant/session material. No recording link, raw transcript, real name, timecode, permission answer, Customer verdict, assigned owner, due date or usability result was added or inferred.
+- Team assessment: TODO
+
+## 2026-11-14 — Task #270 pilot and Customer review evidence
+
+- Tool: Codex.
+- Work: Reviewed the user-supplied 13 November Customer-demo transcript and three screenshots; added sanitized screenshots and a meeting summary; recorded the reported successful outcome of the non-counted teammate pilot and UT-01 design review.
+- Boundary: The video, raw transcript, personal names and any credential or private address were not added. The transcript does not contain the UT-01 discussion or individual permission answers; the report records only the overall pilot/review outcome reported to the team. No participant result or QR-06 verdict is claimed.
 - Team assessment: TODO
