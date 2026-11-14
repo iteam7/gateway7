@@ -361,4 +361,28 @@
 - Work: Prepare a 30-minute live review script against the team-confirmed UT-01 design in PR #275, with three separate permissions before recording, actual production/staging demonstrations, prior-source questions, execution-plan agreement and decision/action read-back.
 - Verification: Check the five required script sections, 30-minute agenda, question-to-agenda assignment and linked artifacts; the script distinguishes prepared design from demonstrated readiness.
 - Boundary: No meeting slot, review roles, pilot, permission answer, Customer decision or agreed action is invented; #270 remains incomplete until the actual pilot/review and rework are evidenced.
+
+## 2026-11-14 — Task #268 coded staging usability events
+
+- Tool: Codex developer and TechLead.
+- Work: Implement the participant-code link selected by the confirmed UT-01 design: an optional server-owned canonical code is accepted only for staging usability-test events, with matching event registry, ADR, setup/export/cleanup instructions and live Compose passthrough.
+  Caller headers/bodies cannot label events; codes remain outside operational logs, metrics labels and per-task profile identifiers.
+- Verification: Tested base c2f42a704f293350799ff09ce4de23d252e391c9 plus the uncommitted six-file scoped change; no new tested commit is implied.
+  The 81 focused analytics tests passed in 4.80 seconds; Ruff formatting/lint and Linux-target mypy passed for all 41 production files.
+  Native Windows mypy reported four unrelated POSIX-API errors; the explicit Linux target passed.
+  Actual docker compose config JSON rendering passed with the code unset and set to synthetic P-01, using an empty temporary env file and isolated Docker config; no engine or private values were used.
+  git diff --check passed.
+- Review: TechLead approved the actual six-file code, tests, Compose wiring and documentation diff.
+- Boundary: No deployed backend filters, private access check, human session, outcome, pilot or Customer approval is claimed; end-to-end code/session linkage and store readiness still require real verification.
+- Team assessment: TODO
+
+## 2026-11-14 — Task #268 Compose integration correction
+
+- Tool: Codex developer and TechLead.
+- Trigger: PR #280's first full CI run reported 4027 passes and five failures because strict live-Compose environment expectations omitted the new optional participant-code key, whose unset rendered value is null.
+- Work: Preserve exact environment assertions while adding the optional unset expectation and parameterizing the actual Compose-rendering test over unset and synthetic P-01 configuration.
+- Verification: TechLead approved the test-only correction; 81 analytics tests passed, while all 13 local Compose tests were skipped because that isolated Windows fixture could not locate the Compose plugin.
+  The earlier independent real Compose unset/set render remains separate evidence; these local skips are not reported as passes.
+  Ruff formatting/lint and whitespace checks passed; Linux CI must verify the corrected integration tests.
+- Boundary: No runtime configuration, production guard, privacy allowlist or unrelated test expectation was weakened.
 - Team assessment: TODO

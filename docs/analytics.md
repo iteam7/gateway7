@@ -78,7 +78,7 @@ The event registry below is the complete property allowlist.
 
 | Event | Fires when | Fields | Collected at |
 | --- | --- | --- | --- |
-| `chat_started` | The gateway receives a request on `/chat`, `/v1/chat/completions` or `/v1/responses`, before authentication or validation. | `request_id` (random UUID hex, required), `route` (`chat`, `openai_chat` or `openai_responses`, required), `environment` (`staging` or `production`, required), `source` (`web`, `usability-test` or `smoke`, required), `occurred_at` (UTC ISO 8601, required), `__timestamp` (same timestamp, required by the queued transport) | `gateway`, staging and production |
+| `chat_started` | The gateway receives a request on `/chat`, `/v1/chat/completions` or `/v1/responses`, before authentication or validation. | `request_id` (random UUID hex, required), `route` (`chat`, `openai_chat` or `openai_responses`, required), `environment` (`staging` or `production`, required), `source` (`web`, `usability-test` or `smoke`, required), `participant_code` (optional canonical `P-01` through `P-999999`, staging usability traffic only), `occurred_at` (UTC ISO 8601, required), `__timestamp` (same timestamp, required by the queued transport) | `gateway`, staging and production |
 | `chat_completed` | That request finishes, fails or is cancelled, after the final response body has been sent or the failure has been observed. | All `chat_started` fields; `status` (HTTP status integer, required), `outcome` (`ok`, `client_error`, `cancelled` or `server_error`, required), `duration_ms` (nonnegative finite number, required) | `gateway`, staging and production |
 
 The shared `request_id` links the start and completion and is the same opaque identifier as the `X-Request-ID` response header.
@@ -99,6 +99,10 @@ Collection is off by default and is disabled with `ANALYTICS_ENABLED=false`.
 When enabled, startup requires the environment, API base, client ID and secret; invalid or incomplete settings stop startup without echoing their values.
 `ANALYTICS_SOURCE` is server configuration, defaults to `web` and changes on restart.
 Only staging accepts `smoke` or `usability-test`; production refuses to start with either source, so pipeline checks must target staging.
+The optional server setting `ANALYTICS_PARTICIPANT_CODE` is accepted only with staging and `source=usability-test`.
+Its canonical format is `P-` followed by a positive number padded to at least two digits and at most six digits, without redundant leading zeros (`P-01`, `P-10`, `P-100`; not `P-00` or `P-001`).
+When unset, neither event contains `participant_code`; an empty or invalid configured value stops enabled analytics startup without echoing the value.
+Clients cannot supply or override it through headers or request bodies.
 The configured credentials still determine the destination project: a member must verify project isolation before sending the first smoke request.
 
 Delivery uses a 256-event in-memory queue and one background worker, with a one-second HTTP timeout and no retries or redirects.
@@ -117,15 +121,20 @@ The Week 6 report needs sanitized screenshots after a member actually provisions
 ## The Usability Funnel
 
 A usability session's events carry `source=usability-test` and are read in the staging project through that filter alone.
-The session link is its time window plus the `X-Request-ID` values the observer records, so the funnel stays separate from the product metrics and adds no participant field to the event schema.
+The server-configured `participant_code`, session time window and `X-Request-ID` values the observer records link the task events to the coded observation record.
+The code is not an identity, and the code-to-person mapping remains only in private usability storage.
+It is never a Prometheus label, log field or OpenPanel `profileId`; that identifier remains the per-task random request identifier.
 The funnel's counts are test records, not product values, and never appear in the focus metric or its three companion metrics.
 
-The setup sets `ANALYTICS_SOURCE=usability-test` on staging, resets the synthetic seed before a session, captures the session's events in the staging OpenPanel project, and restores `source=web` afterwards.
+The setup isolates the participant's staging run, sets `ANALYTICS_SOURCE=usability-test` and `ANALYTICS_PARTICIPANT_CODE` to the assigned code, and recreates the gateway before the session.
+Reset the synthetic seed before each participant, capture only that code's session window from the staging OpenPanel project, then unset the code and restore `source=web` by recreating the gateway before ordinary traffic resumes.
+Changing the operator's shell variables alone does not change a running gateway.
 The raw export stays in the private usability-data repository, and the funnel covers only the flows the gateway's own events record; the observer records the rest.
+Local synthetic tests verify the event contract and exporter, not the deployed project's code filters, retention, access or session outcomes.
 
 ## Collected Data
 
-Events carry only the task identifier, fixed route, environment and source, event time, completion status, fixed outcome and duration from [the registry](#the-events).
+Events carry only the task identifier, fixed route, environment and source, optional staging-usability participant code, event time, completion status, fixed outcome and duration from [the registry](#the-events).
 They never carry prompts, answers, tool content, policy terms, client names, model names, credentials, IP addresses, client user agents, URLs or free-text errors.
 The exporter sends a fixed SDK user agent and never forwards the caller's IP or headers.
 Data is stored by OpenPanel outside the repository; disable export with `ANALYTICS_ENABLED=false` and use the backend's retention controls to remove old data.
