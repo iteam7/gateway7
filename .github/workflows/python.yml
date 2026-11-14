@@ -10,10 +10,13 @@ permissions:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    # All five product checks apply to the Python stack, so none is marked not applicable:
-    # formatting, linting, type checking, automated tests and build each have a named step.
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    timeout-minutes: 20
+    # Run the Python build and runtime checks independently on both operating systems.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
@@ -29,14 +32,16 @@ jobs:
       - name: Lint the gateway
         run: uv run --locked ruff check gateway7
       - name: Type-check the gateway
-        run: uv run --locked mypy gateway7
+        # Keep the standard-library platform view consistent; the gateway uses POSIX-only APIs.
+        run: uv run --locked mypy --platform linux gateway7
       - name: Run tests
         run: uv run --locked pytest
       - name: Exercise separate HTTP processes
         run: uv run --locked python -m demo.run
       - name: Build distribution
         run: uv build --wheel
-      - name: Check installed wheel outside the checkout
+      - name: Check installed wheel outside the checkout (Linux)
+        if: runner.os == 'Linux'
         run: |
           uv venv /tmp/gateway7-wheel
           uv export --locked --no-dev --no-emit-project --format requirements-txt --output-file /tmp/gateway7-runtime-requirements.txt
@@ -50,6 +55,31 @@ jobs:
           gateway_pid=$!
           trap 'kill "$gateway_pid"; wait "$gateway_pid" || true' EXIT
           python "$GITHUB_WORKSPACE/scripts/smoke_compose.py" --gateway-only
+
+      - name: Check installed wheel outside the checkout (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $wheel = Join-Path $env:RUNNER_TEMP 'gateway7-wheel'
+          $requirements = Join-Path $env:RUNNER_TEMP 'gateway7-runtime-requirements.txt'
+          uv venv $wheel
+          uv export --locked --no-dev --no-emit-project --format requirements-txt --output-file $requirements
+          $wheelPython = Join-Path $wheel 'Scripts/python.exe'
+          uv pip install --python $wheelPython --require-hashes -r $requirements
+          Get-ChildItem dist -Filter '*.whl' | ForEach-Object { uv pip install --python $wheelPython --no-deps $_.FullName }
+          $gateway = Join-Path $wheel 'Scripts/gateway7.exe'
+          & $gateway --help
+          & $gateway validate --config (Join-Path $env:GITHUB_WORKSPACE 'config/openai.yaml')
+          uv run --locked python scripts/smoke_authoring.py --python $wheelPython
+          $stdout = Join-Path $env:RUNNER_TEMP 'gateway7-wheel.stdout.log'
+          $stderr = Join-Path $env:RUNNER_TEMP 'gateway7-wheel.stderr.log'
+          $process = Start-Process -FilePath $gateway -ArgumentList 'demo' -WorkingDirectory $env:RUNNER_TEMP -WindowStyle Hidden -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+          try {
+            uv run --locked python (Join-Path $env:GITHUB_WORKSPACE 'scripts/smoke_compose.py') --gateway-only
+          }
+          finally {
+            if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force }
+          }
 
   compose:
     runs-on: ubuntu-latest
