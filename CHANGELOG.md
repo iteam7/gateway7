@@ -5,6 +5,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- Opt-in durable user administration in the operator console: create, edit, suspend and delete accounts, issue or revoke one-time client tokens, and apply model access, limits and additional middleware without restarting.
+- Persistent per-client, model and UTC-day usage reports with date filters and CSV export; private SQLite state requires a writable durable directory, with an optional Compose override and single-process ownership.
+
 ## [0.4.0] - 2026-11-14
 
 ### Added

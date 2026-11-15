@@ -175,10 +175,16 @@ class AuthConfig(StrictConfig):
     operator_token_env: str | None = Field(
         default=None, pattern=r"^[A-Za-z_][A-Za-z0-9_]*$", max_length=128
     )
+    management_db: str | None = Field(default=None, min_length=1, max_length=4096)
 
     @model_validator(mode="after")
     def consistent_clients(self) -> "AuthConfig":
-        if self.enabled != bool(self.clients):
+        if self.management_db is not None:
+            if not self.management_db.strip() or "\x00" in self.management_db:
+                raise ValueError("Invalid management database path")
+            if not self.enabled or self.operator_token_env is None:
+                raise ValueError("User management requires client and operator authentication")
+        elif self.enabled != bool(self.clients):
             raise ValueError(
                 "Enabled authentication requires clients; disabled authentication requires none"
             )

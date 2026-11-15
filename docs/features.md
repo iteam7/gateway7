@@ -41,10 +41,10 @@ The [rate guide](authentication.md#limit-a-clients-request-rate) explains contin
 
 ## Read a protected client usage snapshot
 
-An operator uses a separate credential to read each configured client's provider-attempt counts and known input/output token totals for this process's lifetime.
+An operator uses a separate credential to read each [client](glossary.md#client)'s provider usage, with durable daily model reports when managed accounts are enabled.
 Unknown usage remains explicit for each direction, including failed and cancelled attempts; response-side denials retain observed provider usage.
-The [operator snapshot guide](authentication.md#operator-usage-snapshot) explains credential separation, restart reset and the snapshot fields.
-This increment does not deliver the arbitrary-period, per-model history specified by FR-012 or a billing ledger.
+The [operator snapshot guide](authentication.md#operator-usage-snapshot) explains credential separation, persistence scope and the snapshot fields.
+Daily managed aggregates remain distinct from the arbitrary timestamp intervals specified by [FR-012](functional-requirements/fr/FR-012.md) and from a billing ledger.
 
 - **Stories:** [`US-13`](https://github.com/iteam7/gateway7/issues/141), partial increment
 - **Behavior:** [`FR-019`](functional-requirements/fr/FR-019.md)
@@ -105,10 +105,10 @@ An operator finds which [middleware](glossary.md#middleware) failed or slowed a 
 
 ## Inspect client access and middleware
 
-An operator can review each [client](glossary.md#client)'s access, configured limits, observed provider usage and middleware order in a read-only browser workspace.
+An operator can manage each [client](glossary.md#client)'s account, tokens, access, limits and additional middleware, and inspect its usage in one browser workspace when durable management is enabled.
 
 - **Stories:** [US-07](https://github.com/iteam7/gateway7/issues/36), [US-13](https://github.com/iteam7/gateway7/issues/141), [US-03](https://github.com/iteam7/gateway7/issues/32)
-- **Behavior:** [FR-020](functional-requirements/fr/FR-020.md), [FR-019](functional-requirements/fr/FR-019.md)
+- **Behavior:** [FR-021](functional-requirements/fr/FR-021.md), [FR-020](functional-requirements/fr/FR-020.md), [FR-019](functional-requirements/fr/FR-019.md)
 - **Decisions:** [ADR-003](architecture/adr/ADR-003.md)
 
 ## Start a middleware package

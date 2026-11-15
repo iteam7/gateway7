@@ -3,14 +3,14 @@
 from gateway7.config import GatewayConfig
 from gateway7.loader import LoadedPlugins
 from gateway7.pipeline import Pipeline
-from gateway7.usage import UsageLedger
+from gateway7.usage import PersistentUsageLedger, UsageLedger
 
 
 def build_client_pipelines(
     config: GatewayConfig,
     plugins: LoadedPlugins,
     pipeline: Pipeline,
-    usage_ledger: UsageLedger | None = None,
+    usage_ledger: UsageLedger | PersistentUsageLedger | None = None,
 ) -> dict[str, Pipeline]:
     """Append operator-selected policies to the immutable global chain per client."""
     return {

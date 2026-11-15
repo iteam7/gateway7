@@ -98,16 +98,32 @@ def operator_state(
                 ),
             }
         )
+    configuration: dict[str, Any] = {
+        "validation": "validated_at_startup",
+        "changes_require_restart": True,
+    }
+    if config.auth.management_db is not None:
+        configuration.update(
+            {
+                "management_enabled": True,
+                "client_changes_require_restart": False,
+            }
+        )
+    gateway: dict[str, Any] = {
+        "ready": ready,
+        "provider_kind": config.provider.kind,
+        "max_concurrent_requests": config.limits.max_concurrent_requests,
+    }
+    if config.auth.management_db is not None:
+        gateway.update(
+            {
+                "default_model": config.provider.model,
+                "allowed_models": config.provider.allowed_models,
+            }
+        )
     return {
-        "configuration": {
-            "validation": "validated_at_startup",
-            "changes_require_restart": True,
-        },
-        "gateway": {
-            "ready": ready,
-            "provider_kind": config.provider.kind,
-            "max_concurrent_requests": config.limits.max_concurrent_requests,
-        },
+        "configuration": configuration,
+        "gateway": gateway,
         "clients": clients,
         "middleware": {
             "global": list(config.middleware),

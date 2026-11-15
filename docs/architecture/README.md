@@ -42,12 +42,15 @@ The [deployment runbook](../deployment.md#telemetry-pipelines) describes setup; 
 
 | Container | Responsibilities |
 | --- | --- |
-| `gateway` | Authenticates callers and checks model permissions; runs company middleware and invokes the configured provider; owns startup settings, credentials, temporary request state and in-memory observations |
+| `gateway` | Authenticates callers and checks model permissions; runs company middleware and invokes the configured provider; owns startup settings, credentials, temporary request state and observations, plus managed client policies and usage when enabled |
 | `prometheus` | Collects numeric gateway observations; retains time-series samples in its own data volume; serves queries over those samples |
 | `grafana` | Queries operational time series; renders provisioned dashboards; owns application runtime state in its own data volume |
 
 The gateway core keeps no durable chat history or original-text restoration map.
 Request context, active-pipeline counts and metric counters live in memory; process restart resets them.
+With managed administration enabled, the same gateway process also owns a private SQLite file containing client policies, token digests and numeric usage aggregates, as proposed in [ADR-008](adr/ADR-008.md).
+This embedded file adds no network service or deployment container and contains no conversation history.
+Managed policies and usage survive restart; the [administration guide](../authentication.md) distinguishes this from the original process-lifetime snapshot.
 Plugins share that process and are responsible for any state they choose to keep.
 Prometheus retains numeric samples in `prometheus-data`, bounded by seven days and 512 MB; Grafana keeps its state in `grafana-data` and reads the provisioned dashboard and datasource files.
 These volumes survive `docker compose down`; `--volumes` removes them.
@@ -93,9 +96,15 @@ The [middleware API](../plugins.md#descriptor-and-hooks) defines the contract; a
 Provider networking has a separate [startup transport interface](../provider-transports.md): `transport_api.py` defines its descriptor, `transport_loader.py` validates modules, and `transports/` holds the shipped proxy module.
 It belongs to the provider adapter component, outside the per-request middleware chain.
 
+Managed administration extends the existing HTTP boundary and access component rather than deploying another application.
+`gateway7/admin_runtime.py` validates operator DTOs and publishes client policies; `gateway7/admin_store.py` owns the embedded client and usage transactions.
+`gateway7/usage.py` selects the legacy process ledger or persistent ledger, and the packaged operator console renders both modes.
+The request pipeline and provider adapter remain shared with ordinary client traffic; a request captures its own observer so accounting follows its selected client and model.
+
 ### Startup and shutdown
 
-`serve` loads strict YAML, resolves the provider key and client tokens from environment variables, checks plugin descriptors/settings, creates instances and the HTTP adapter, then awaits startup hooks.
+`serve` loads strict YAML, resolves the provider key and bootstrap credentials, checks plugin descriptors/settings, creates instances and the HTTP adapter, then awaits startup hooks.
+Configured-client mode resolves tokens from the environment on each startup; managed mode initializes or opens its store and loads the authoritative client policies and token digests.
 If configured, a provider transport factory runs once before the adapter client is created.
 Startup closes a valid transport if client construction fails; after construction, the client owns it and closes it with the provider during lifespan cleanup.
 The built-in proxy keeps this shared client but uses request-owned connections so a cancelled TLS handshake cannot leave a tunnel occupying a shared pool slot; proxied requests do not reuse keep-alive connections.
@@ -112,7 +121,8 @@ On shutdown, readiness becomes false, hooks are attempted in reverse instance or
 Cleanup defers an external cancellation until those cooperative cleanup attempts finish, then preserves the cancellation.
 A blocking or cancellation-resistant plugin cannot be forcibly stopped by Python timeouts.
 The demo command also stops and waits for its synthetic upstream child.
-Install, configuration and credential changes take effect after restart.
+Install, provider configuration and bootstrap credential changes take effect after restart.
+Managed client policies, credentials and limits are validated, persisted and published live; existing request leases continue to drain without losing their capacity accounting.
 
 ## Sequence View
 
@@ -255,6 +265,7 @@ The product vision keeps the separate [system context](../product-vision.md#cont
 | [ADR-005](adr/ADR-005.md) | Proposed | [FR-001](../functional-requirements/fr/FR-001.md), [FR-003](../functional-requirements/fr/FR-003.md), [FR-005](../functional-requirements/fr/FR-005.md), [FR-013](../functional-requirements/fr/FR-013.md), [QR-01](../quality-requirements/qr/QR-01.md), [QR-02](../quality-requirements/qr/QR-02.md), [QR-03](../quality-requirements/qr/QR-03.md), [QR-04](../quality-requirements/qr/QR-04.md) | Collect actual provider streams, run full-response policies, then emit agent SSE |
 | [ADR-006](adr/ADR-006.md) | Proposed | [FR-015](../functional-requirements/fr/FR-015.md), [QR-02](../quality-requirements/qr/QR-02.md), [QR-03](../quality-requirements/qr/QR-03.md) | Export a bounded, privacy-safe core-task event stream to OpenPanel |
 | [ADR-007](adr/ADR-007.md) | Proposed | [FR-014](../functional-requirements/fr/FR-014.md), [QR-05](../quality-requirements/qr/QR-05.md) | Read per-request logs and a duration histogram from isolated OpenObserve organizations |
+| [ADR-008](adr/ADR-008.md) | Proposed | [FR-021](../functional-requirements/fr/FR-021.md), [FR-006](../functional-requirements/fr/FR-006.md), [FR-019](../functional-requirements/fr/FR-019.md), [QR-03](../quality-requirements/qr/QR-03.md) | Persist managed client policies and daily model usage in the gateway's embedded store |
 
 These Accepted records describe choices already in force through [PR #90](https://github.com/iteam7/gateway7/pull/90), approved in [DeniBorsh's implementation review](https://github.com/iteam7/gateway7/pull/90#pullrequestreview-5643522171) and merged on 25 October 2026.
 They are dated when written, not when an undocumented earlier discussion might have happened.

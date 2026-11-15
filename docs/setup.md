@@ -445,6 +445,8 @@ Use the [architecture](architecture/README.md#customer-view), [middleware author
 | `limits.max_body_bytes` | Request body limit; default 65,536 bytes |
 | `limits.max_concurrent_requests` | Active pipelines per process; default 64, configurable from 1 to 10,000 |
 | `auth` | Client token environment names and optional per-client model restrictions, intersected with the provider restriction |
+| `auth.operator_token_env` | Optional separate operator credential environment name; enables the console and protected usage reads |
+| `auth.management_db` | Optional private SQLite path; enables durable console management and usage with one process per database |
 | `auth.clients.<name>.limits.max_concurrent_requests` | Optional client request capacity, including delivery and cleanup; integer 1–10,000, absent/null means no additional client limit |
 | `auth.clients.<name>.limits.requests_per_minute` | Optional per-client token-bucket request rate; integer 1–1,000,000, absent/null means unlimited |
 | `plugins` | Named middleware instances and their validated settings |
@@ -452,7 +454,9 @@ Use the [architecture](architecture/README.md#customer-view), [middleware author
 
 Unknown fields, invalid settings and missing required middleware stop startup.
 `serve` also loads credentials and runs plugin startup hooks before becoming ready.
-Changing plugins, credentials or client access requires a restart.
+Changing middleware code/settings, provider configuration or the operator credential requires a restart.
+Enable [managed administration](authentication.md#manage-users-in-the-operator-console) to create users and change client tokens, permissions, limits and additional middleware assignments in the console without restarting.
+Configuration-only clients retain the YAML/environment and restart workflow.
 
 Capacity is checked after authentication and payload/model validation, just before middleware starts.
 When all slots are busy, a new chat request gets HTTP 503 with code `overloaded`; it is not queued and makes no provider call.
