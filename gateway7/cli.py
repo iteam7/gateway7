@@ -476,17 +476,6 @@ def _parser() -> argparse.ArgumentParser:
     )
     demo.add_argument("--host", default="127.0.0.1")
     demo.add_argument("--port", type=int, default=8000)
-    admin = subcommands.add_parser("admin", help="Offline management database maintenance")
-    admin_commands = admin.add_subparsers(dest="admin_command", required=True)
-    migrate = admin_commands.add_parser(
-        "migrate", help="Copy an offline SQLite registry into an empty PostgreSQL database"
-    )
-    migrate.add_argument("--sqlite", required=True, help="Existing initialized SQLite source")
-    migrate.add_argument(
-        "--database-url-env",
-        default="GATEWAY7_DATABASE_URL",
-        help="Environment variable holding the PostgreSQL destination URL",
-    )
     plugin = subcommands.add_parser("plugin", help="Create and test company middleware")
     plugin_commands = plugin.add_subparsers(dest="plugin_command", required=True)
     initialize = plugin_commands.add_parser(
@@ -530,12 +519,6 @@ def main(argv: list[str] | None = None) -> int:
     gateway_logger.setLevel(logging.INFO)
     gateway_logger.propagate = False
     try:
-        if args.command == "admin":
-            from gateway7.admin_migration import migrate_sqlite
-
-            result = migrate_sqlite(args.sqlite, args.database_url_env)
-            print("Management migration completed: " + json.dumps(result, sort_keys=True))
-            return 0
         if args.command == "smoke":
             code, report = asyncio.run(
                 run_smoke(

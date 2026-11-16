@@ -9,7 +9,6 @@ from datetime import datetime, timezone
 import psycopg
 import pytest
 
-from gateway7.admin_store import AdminStore, validate_snapshot
 from gateway7.config import ClientConfig, GatewayConfig
 from gateway7.errors import StartupError
 from gateway7.postgres_store import PostgresAdminStore
@@ -172,7 +171,10 @@ def test_postgres_lost_owner_session_never_reconnects_or_writes(pg_dsn, seed):
     next_owner.close()
 
 
-@pytest.mark.parametrize("corruption", ["version", "counters", "metadata"])
+@pytest.mark.parametrize(
+    "corruption",
+    ["version", "counters", "metadata", "live_tombstone", "orphan_history", "invalid_tombstone"],
+)
 def test_postgres_corrupted_or_unknown_schema_fails_closed(pg_dsn, seed, corruption):
     store = PostgresAdminStore(pg_dsn, seed)
     PersistentUsageLedger(store, seed.auth.clients).observer("synthetic_client", "fake")(
@@ -186,6 +188,16 @@ def test_postgres_corrupted_or_unknown_schema_fails_closed(pg_dsn, seed, corrupt
             )
         elif corruption == "metadata":
             connection.execute("DELETE FROM gateway7_admin.metadata WHERE name='started_at'")
+        elif corruption == "live_tombstone":
+            connection.execute(
+                "INSERT INTO gateway7_admin.tombstones(id) VALUES ('synthetic_client')"
+            )
+        elif corruption == "invalid_tombstone":
+            connection.execute(
+                "INSERT INTO gateway7_admin.tombstones(id) VALUES ('invalid identity')"
+            )
+        elif corruption == "orphan_history":
+            connection.execute("UPDATE gateway7_admin.usage SET client_id='synthetic_orphan'")
         else:
             row = json.loads(
                 connection.execute("SELECT counts FROM gateway7_admin.usage").fetchone()[0]
@@ -204,78 +216,3 @@ def test_postgres_invalid_seed_rolls_back_initialization_and_corrected_seed_retr
     corrected = PostgresAdminStore(pg_dsn, seed)
     assert corrected.load_clients()[0] == seed.auth.clients
     corrected.close()
-
-
-def test_postgres_import_keeps_entire_sqlite_snapshot_and_refuses_repeat(pg_dsn, seed, tmp_path):
-    source = AdminStore(str(tmp_path / "synthetic.sqlite3"), seed)
-    clients, digests = source.load_clients()
-    clients["synthetic_deleted"] = ClientConfig(token_env="PG_SYNTHETIC_DELETED", enabled=False)
-    source.save_clients(clients, digests)
-    ledger = PersistentUsageLedger(source, clients)
-    ledger.observer("synthetic_deleted", "synthetic-model")("complete", {"input_tokens": 9})
-    source.save_clients(seed.auth.clients, digests)
-    snapshot = source.export_snapshot()
-    source.close()
-    destination = PostgresAdminStore(pg_dsn, seed, initialize=False)
-    destination.import_snapshot(snapshot)
-    assert destination.export_snapshot() == snapshot
-    with pytest.raises(ValueError, match="empty"):
-        destination.import_snapshot(snapshot)
-    destination.close()
-    reopened = PostgresAdminStore(pg_dsn, seed)
-    assert reopened.export_snapshot() == snapshot
-    with pytest.raises(ValueError, match="cannot be reused"):
-        reopened.save_clients(clients, digests)
-    reopened.close()
-
-
-def test_postgres_invalid_snapshot_never_partially_imports(pg_dsn, seed, tmp_path):
-    source = AdminStore(str(tmp_path / "synthetic.sqlite3"), seed)
-    snapshot = source.export_snapshot()
-    source.close()
-    destination = PostgresAdminStore(pg_dsn, seed, initialize=False)
-    invalid = {**snapshot, "tombstones": {"synthetic_client"}}
-    with pytest.raises(ValueError, match="Invalid management migration snapshot"):
-        destination.import_snapshot(invalid)
-    assert destination.load_clients() == ({}, {})
-    destination.import_snapshot(snapshot)
-    assert destination.export_snapshot() == snapshot
-    destination.close()
-
-
-def test_snapshot_validator_rejects_duplicate_usage_keys(seed, tmp_path):
-    source = AdminStore(str(tmp_path / "synthetic.sqlite3"), seed)
-    PersistentUsageLedger(source, seed.auth.clients).observer("synthetic_client", "fake")(
-        "complete", None
-    )
-    snapshot = source.export_snapshot()
-    snapshot["usage_rows"] *= 2
-    with pytest.raises(ValueError):
-        validate_snapshot(snapshot)
-    source.close()
-
-
-def test_postgres_database_error_rolls_back_entire_snapshot_import(pg_dsn, seed, tmp_path):
-    source = AdminStore(str(tmp_path / "synthetic.sqlite3"), seed)
-    PersistentUsageLedger(source, seed.auth.clients).observer(
-        "synthetic_client", "synthetic-reject"
-    )("complete", {"input_tokens": 4})
-    snapshot = source.export_snapshot()
-    source.close()
-    destination = PostgresAdminStore(pg_dsn, seed, initialize=False)
-    with psycopg.connect(pg_dsn, autocommit=True) as connection:
-        connection.execute(
-            "ALTER TABLE gateway7_admin.usage ADD CONSTRAINT synthetic_rejection "
-            "CHECK (model <> 'synthetic-reject')"
-        )
-    with pytest.raises(StartupError, match="migration could not be completed"):
-        destination.import_snapshot(snapshot)
-    assert destination.load_clients() == ({}, {})
-    with psycopg.connect(pg_dsn, autocommit=True) as connection:
-        assert dict(connection.execute("SELECT name,value FROM gateway7_admin.metadata")) == {
-            "schema_version": "1"
-        }
-        connection.execute("ALTER TABLE gateway7_admin.usage DROP CONSTRAINT synthetic_rejection")
-    destination.import_snapshot(snapshot)
-    assert destination.export_snapshot() == snapshot
-    destination.close()

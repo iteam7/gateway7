@@ -18,7 +18,6 @@ from gateway7.admin_store import (
     _validate_counts,
     _validate_usage_row,
     _valid_client_ids,
-    validate_snapshot,
 )
 from gateway7.config import ClientConfig, GatewayConfig
 from gateway7.errors import StartupError, normalized_usage
@@ -31,7 +30,7 @@ SCHEMA_VERSION = "1"
 class PostgresAdminStore:
     """Private PostgreSQL registry and exact daily numeric accounting."""
 
-    def __init__(self, dsn: str, seed: GatewayConfig, *, initialize: bool = True) -> None:
+    def __init__(self, dsn: str, seed: GatewayConfig) -> None:
         self._lock = RLock()
         self._connection: psycopg.Connection[tuple[Any, ...]] | None = None
         self.started_at = ""
@@ -84,14 +83,13 @@ class PostgresAdminStore:
                     self.started_at = metadata["started_at"]
                     if datetime.fromisoformat(self.started_at).tzinfo is None:
                         raise ValueError("Invalid management start timestamp")
-                    self.export_snapshot()
+                    self._validate_persisted_state()
                 else:
                     if self._has_records() or set(metadata) - {"schema_version"}:
                         raise ValueError("Invalid uninitialized management database")
-                    if initialize:
-                        clients, digests = AdminStore._seed_clients(seed)
-                        self._write_clients(clients, digests)
-                        self._initialize(datetime.now(timezone.utc).isoformat())
+                    clients, digests = AdminStore._seed_clients(seed)
+                    self._write_clients(clients, digests)
+                    self._initialize(datetime.now(timezone.utc).isoformat())
         except Exception:
             self.close()
             raise StartupError("Management database is unavailable or invalid") from None
@@ -119,6 +117,20 @@ class PostgresAdminStore:
                 [("initialized", "1"), ("started_at", started_at)],
             )
         self.started_at = started_at
+
+    def _validate_persisted_state(self) -> None:
+        clients, _ = self.load_clients()
+        tombstones = {
+            row[0] for row in self._db.execute("SELECT id FROM gateway7_admin.tombstones")
+        }
+        for identity in tombstones:
+            _valid_client_ids([identity])
+        if tombstones & clients.keys():
+            raise ValueError("Invalid deleted client registry")
+        identities = clients.keys() | tombstones
+        for row in self.usage_rows(client_id=None, model=None, start=None, end=None):
+            if row["client_id"] not in identities:
+                raise ValueError("Invalid historical usage identity")
 
     def load_clients(self) -> tuple[dict[str, ClientConfig], dict[str, bytes]]:
         with self._lock:
@@ -252,64 +264,6 @@ class PostgresAdminStore:
                 self._db.execute("SELECT 1").fetchone()
             except psycopg.Error:
                 raise StartupError("Management database is unavailable") from None
-
-    def export_snapshot(self) -> dict[str, Any]:
-        with self._lock:
-            try:
-                with self._db.transaction():
-                    clients, digests = self.load_clients()
-                    return validate_snapshot(
-                        {
-                            "schema_version": 1,
-                            "started_at": self.started_at,
-                            "clients": clients,
-                            "digests": digests,
-                            "tombstones": {
-                                row[0]
-                                for row in self._db.execute(
-                                    "SELECT id FROM gateway7_admin.tombstones"
-                                )
-                            },
-                            "usage_rows": self.usage_rows(
-                                client_id=None, model=None, start=None, end=None
-                            ),
-                        }
-                    )
-            except (psycopg.Error, ValueError):
-                raise StartupError("Management database is unavailable or invalid") from None
-
-    def import_snapshot(self, snapshot: dict[str, Any]) -> None:
-        snapshot = validate_snapshot(snapshot)
-        with self._lock:
-            try:
-                with self._db.transaction():
-                    metadata = dict(
-                        self._db.execute("SELECT name,value FROM gateway7_admin.metadata")
-                    )
-                    if metadata != {"schema_version": SCHEMA_VERSION} or self._has_records():
-                        raise ValueError("Migration requires an empty management database")
-                    self._write_clients(snapshot["clients"], snapshot["digests"])
-                    with self._db.cursor() as cursor:
-                        cursor.executemany(
-                            "INSERT INTO gateway7_admin.tombstones(id) VALUES (%s)",
-                            [(identity,) for identity in snapshot["tombstones"]],
-                        )
-                        cursor.executemany(
-                            "INSERT INTO gateway7_admin.usage(client_id,model,day,counts) "
-                            "VALUES (%s,%s,%s,%s)",
-                            [
-                                (
-                                    row["client_id"],
-                                    row["model"],
-                                    row["day"],
-                                    json.dumps({key: row[key] for key in _empty_counts()}),
-                                )
-                                for row in snapshot["usage_rows"]
-                            ],
-                        )
-                    self._initialize(snapshot["started_at"])
-            except psycopg.Error:
-                raise StartupError("Management migration could not be completed") from None
 
     def close(self) -> None:
         with self._lock:

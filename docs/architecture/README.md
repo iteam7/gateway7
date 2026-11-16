@@ -60,7 +60,7 @@ These volumes survive `docker compose down`; `--volumes` removes them.
 This is monitoring history, not a billing ledger.
 
 The existing requirements assign gateway behavior to `gateway` in [FR-001](../functional-requirements/fr/FR-001.md) and [FR-009](../functional-requirements/fr/FR-009.md), and monitoring behavior to `prometheus` and `grafana` in [FR-010](../functional-requirements/fr/FR-010.md).
-The gateway's managed administration and migration behavior in [FR-021](../functional-requirements/fr/FR-021.md) and [FR-022](../functional-requirements/fr/FR-022.md) uses the `postgres` store.
+The gateway's managed administration and usage behavior in [FR-021](../functional-requirements/fr/FR-021.md) and [FR-019](../functional-requirements/fr/FR-019.md) uses the `postgres` store.
 
 ## Component View
 
@@ -102,7 +102,7 @@ It belongs to the provider adapter component, outside the per-request middleware
 
 Managed administration extends the existing HTTP boundary and access component, backed by the managed database container or an explicit local file.
 `gateway7/admin_runtime.py` validates operator DTOs and publishes client policies; `gateway7/admin_store.py` defines the storage contract and SQLite implementation, and `gateway7/postgres_store.py` implements PostgreSQL transactions.
-`gateway7/management_store.py` resolves the selected backend, while `gateway7/admin_migration.py` provides the explicit offline transfer.
+`gateway7/management_store.py` resolves the selected backend.
 `gateway7/usage.py` selects the legacy process ledger or persistent ledger, and the packaged operator console renders both modes.
 The request pipeline and provider adapter remain shared with ordinary client traffic; a request captures its own observer so accounting follows its selected client and model.
 
@@ -272,7 +272,7 @@ The product vision keeps the separate [system context](../product-vision.md#cont
 | [ADR-006](adr/ADR-006.md) | Proposed | [FR-015](../functional-requirements/fr/FR-015.md), [QR-02](../quality-requirements/qr/QR-02.md), [QR-03](../quality-requirements/qr/QR-03.md) | Export a bounded, privacy-safe core-task event stream to OpenPanel |
 | [ADR-007](adr/ADR-007.md) | Proposed | [FR-014](../functional-requirements/fr/FR-014.md), [QR-05](../quality-requirements/qr/QR-05.md) | Read per-request logs and a duration histogram from isolated OpenObserve organizations |
 | [ADR-008](adr/ADR-008.md) | Proposed | [FR-021](../functional-requirements/fr/FR-021.md), [FR-006](../functional-requirements/fr/FR-006.md), [FR-019](../functional-requirements/fr/FR-019.md), [QR-03](../quality-requirements/qr/QR-03.md) | Persist managed client policies and daily model usage in the gateway's embedded store |
-| [ADR-009](adr/ADR-009.md) | Proposed | [FR-021](../functional-requirements/fr/FR-021.md), [FR-022](../functional-requirements/fr/FR-022.md), [FR-019](../functional-requirements/fr/FR-019.md), [QR-03](../quality-requirements/qr/QR-03.md) | Use PostgreSQL for managed Compose with an explicit SQLite migration path |
+| [ADR-009](adr/ADR-009.md) | Proposed | [FR-021](../functional-requirements/fr/FR-021.md), [FR-022](../functional-requirements/fr/FR-022.md), [FR-019](../functional-requirements/fr/FR-019.md), [QR-03](../quality-requirements/qr/QR-03.md) | Use PostgreSQL for managed Compose with explicit SQLite compatibility |
 
 These Accepted records describe choices already in force through [PR #90](https://github.com/iteam7/gateway7/pull/90), approved in [DeniBorsh's implementation review](https://github.com/iteam7/gateway7/pull/90#pullrequestreview-5643522171) and merged on 25 October 2026.
 They are dated when written, not when an undocumented earlier discussion might have happened.

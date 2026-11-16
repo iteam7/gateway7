@@ -108,7 +108,7 @@ An operator finds which [middleware](glossary.md#middleware) failed or slowed a 
 An operator can manage each [client](glossary.md#client)'s account, tokens, access, limits and additional middleware, and inspect its usage in one browser workspace when durable management is enabled.
 
 - **Stories:** [US-07](https://github.com/iteam7/gateway7/issues/36), [US-13](https://github.com/iteam7/gateway7/issues/141), [US-03](https://github.com/iteam7/gateway7/issues/32)
-- **Behavior:** [FR-021](functional-requirements/fr/FR-021.md), [FR-020](functional-requirements/fr/FR-020.md), [FR-019](functional-requirements/fr/FR-019.md), [FR-022](functional-requirements/fr/FR-022.md)
+- **Behavior:** [FR-021](functional-requirements/fr/FR-021.md), [FR-020](functional-requirements/fr/FR-020.md), [FR-019](functional-requirements/fr/FR-019.md)
 - **Decisions:** [ADR-003](architecture/adr/ADR-003.md), [ADR-008](architecture/adr/ADR-008.md), [ADR-009](architecture/adr/ADR-009.md)
 
 ## Start a middleware package

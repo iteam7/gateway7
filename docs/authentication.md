@@ -392,43 +392,6 @@ Stop the gateway before copying the complete SQLite database for a consistent ba
 A second gateway process opening the file fails startup.
 Deleting or losing the file loses managed users and usage; a newly initialized store runs first-start bootstrap again.
 
-### Migrate SQLite administration to PostgreSQL
-
-Migration is an explicit offline operation; selecting PostgreSQL does not automatically import SQLite data.
-Stop the gateway that owns the SQLite source and back up that source first.
-Prepare an empty PostgreSQL target with no existing managed schema or account state, and keep the source stopped until the migrated gateway has been verified.
-The migration copies client profiles, credential digests and revocations, reserved deleted IDs, usage aggregates and the original accounting start timestamp without changing the SQLite source.
-It does not need raw client tokens or bootstrap token environment variables.
-A nonempty target, incompatible schema, invalid source or active target owner is rejected instead of merging or overwriting accounts.
-
-From a Python checkout with the target connection settings in the environment:
-
-```sh
-uv run --locked gateway7 admin migrate \
-  --sqlite /srv/gateway7/admin-state/admin.sqlite3 \
-  --database-url-env GATEWAY7_DATABASE_URL
-```
-
-For the supplied Compose target, after stopping the old SQLite gateway, run:
-
-```sh
-export GATEWAY_CONFIG_FILE=./config/admin-postgres.yaml
-export GATEWAY7_SQLITE_SOURCE=/srv/gateway7/admin-state/admin.sqlite3
-docker compose -f compose.yaml -f compose.admin.yaml build gateway
-docker compose -f compose.yaml -f compose.admin.yaml up --detach --wait postgres
-docker compose -f compose.yaml -f compose.admin.yaml run --rm --no-deps \
-  --volume "$GATEWAY7_SQLITE_SOURCE:/migration/admin.sqlite3:ro" \
-  gateway admin migrate --sqlite /migration/admin.sqlite3 \
-  --database-url-env GATEWAY7_DATABASE_URL
-docker compose -f compose.yaml -f compose.admin.yaml up --build --detach --wait
-```
-
-The build step prepares this version's migration command without starting the gateway.
-The source bind mount is read-only and the target must remain empty until migration succeeds.
-The CLI's `--database-url-env` argument names an environment variable; it never takes the connection string or password as a command-line argument.
-After startup, verify existing client credentials, revocations, deleted-ID protection and historical usage in the console before retiring the source backup.
-Keep source files, database volumes, connection secrets and backups outside the public repository.
-
 ### Operator API
 
 The console uses these same protected endpoints:

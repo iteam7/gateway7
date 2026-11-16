@@ -60,24 +60,6 @@ Existing environment values take precedence, including empty strings; file-deriv
 The loader does not discover files or evaluate shell code; pass only the file path as an argument, and loader diagnostics never expose its values.
 `validate`, plugin commands and offline execution do not read private startup files; no such file is required for their existing credential-free checks.
 
-## Migrate managed administration
-
-Stop the SQLite-backed gateway, back up its state, and select an empty PostgreSQL target through a private environment variable:
-
-```sh
-uv run --locked gateway7 admin migrate \
-  --sqlite /srv/gateway7/admin-state/admin.sqlite3 \
-  --database-url-env GATEWAY7_DATABASE_URL
-```
-
-`--sqlite` is required and names an existing initialized source file.
-`--database-url-env` defaults to `GATEWAY7_DATABASE_URL`; its value is an environment variable name, never a DSN or password.
-The command opens the stopped source read-only and imports accounts, credential digests, revocations, reserved deleted IDs, usage and the original accounting start timestamp into an empty PostgreSQL target as one transaction.
-Existing target state, active owners, incompatible schemas and invalid data are rejected; the source remains unchanged.
-Successful output contains import counts only; errors return a nonzero exit without connection secrets or private account details.
-Normal startup performs no implicit migration or backend fallback.
-See the [migration runbook](authentication.md#migrate-sqlite-administration-to-postgresql) for the Compose command and verification steps.
-
 ## Send a message
 
 With the demo running:
