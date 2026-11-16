@@ -286,7 +286,7 @@ uv run --locked gateway7 serve --config config/openai.yaml --secrets-file PATH
 
 Replace `PATH` with the explicitly selected external private JSON file; no file is discovered automatically or evaluated as shell code.
 Existing environment variables win over file entries, including empty values; the entire selected file is still validated, even when its entries are shadowed.
-Only configured provider-key, client-token and explicitly selected built-in HTTP proxy variable names may appear; see the [file constraints](cli.md#run-a-configured-server).
+Only configured provider-key, client-token, operator-token, PostgreSQL URL and explicitly selected built-in HTTP proxy variable names may appear; see the [file constraints](cli.md#run-a-configured-server).
 Supplying a proxy variable through this file still requires the explicit [HTTP proxy transport module and `settings.url_env`](provider-transports.md#configure-the-built-in-proxy); setting `HTTP_PROXY` alone does not enable routing.
 To keep using an environment-only local Bash session, the prompts below read values without echoing them or putting them in shell history.
 Create a separate random client token in your password manager: 16–512 visible ASCII characters, without spaces.
@@ -446,7 +446,8 @@ Use the [architecture](architecture/README.md#customer-view), [middleware author
 | `limits.max_concurrent_requests` | Active pipelines per process; default 64, configurable from 1 to 10,000 |
 | `auth` | Client token environment names and optional per-client model restrictions, intersected with the provider restriction |
 | `auth.operator_token_env` | Optional separate operator credential environment name; enables the console and protected usage reads |
-| `auth.management_db` | Optional private SQLite path; enables durable console management and usage with one process per database |
+| `auth.management_database_url_env` | Environment variable naming a PostgreSQL DSN; primary durable management backend, with one gateway process per database |
+| `auth.management_db` | Optional private SQLite path for explicit local management; mutually exclusive with the PostgreSQL selector |
 | `auth.clients.<name>.limits.max_concurrent_requests` | Optional client request capacity, including delivery and cleanup; integer 1–10,000, absent/null means no additional client limit |
 | `auth.clients.<name>.limits.requests_per_minute` | Optional per-client token-bucket request rate; integer 1–1,000,000, absent/null means unlimited |
 | `plugins` | Named middleware instances and their validated settings |

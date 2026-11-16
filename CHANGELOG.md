@@ -8,7 +8,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ### Added
 
 - Opt-in durable user administration in the operator console: create, edit, suspend and delete accounts, issue or revoke one-time client tokens, and apply model access, limits and additional middleware without restarting.
-- Persistent per-client, model and UTC-day usage reports with date filters and CSV export; private SQLite state requires a writable durable directory, with an optional Compose override and single-process ownership.
+- Persistent per-client, model and UTC-day usage reports with date filters and CSV export, backed primarily by PostgreSQL through a health-checked Compose service and durable volume; explicit local SQLite storage remains available.
+- Versioned managed database initialization and an explicit offline SQLite-to-PostgreSQL migration preserve client credentials, revocations, deleted identities and usage history while rejecting nonempty targets.
 
 ## [0.4.0] - 2026-11-14
 

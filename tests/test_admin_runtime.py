@@ -4,6 +4,7 @@ import asyncio
 import csv
 import importlib
 import io
+import os
 from datetime import datetime, timezone
 
 import httpx
@@ -66,18 +67,28 @@ class Provider:
         pass
 
 
-@pytest.fixture
-def managed(monkeypatch, tmp_path):
+@pytest.fixture(params=["sqlite", "postgres"])
+def managed(monkeypatch, tmp_path, request):
     monkeypatch.setenv("OPENAI_API_KEY", PROVIDER)
     monkeypatch.setenv("ADMIN_RUNTIME_OPERATOR", OPERATOR)
     monkeypatch.setenv("ADMIN_RUNTIME_SEED", SEED)
+    backend = {"management_db": str(tmp_path / "private" / "users.sqlite3")}
+    if request.param == "postgres":
+        dsn = os.environ.get("GATEWAY7_TEST_POSTGRES_DSN")
+        if not dsn:
+            pytest.skip("Set GATEWAY7_TEST_POSTGRES_DSN to test a disposable PostgreSQL database")
+        psycopg = pytest.importorskip("psycopg")
+        with psycopg.connect(dsn, autocommit=True) as connection:
+            connection.execute("DROP SCHEMA IF EXISTS gateway7_admin CASCADE")
+        monkeypatch.setenv("ADMIN_RUNTIME_DATABASE_URL", dsn)
+        backend = {"management_database_url_env": "ADMIN_RUNTIME_DATABASE_URL"}
     config = GatewayConfig.model_validate(
         {
             "provider": {"kind": "openai", "model": MODEL, "allowed_models": [MODEL, "model-b"]},
             "auth": {
                 "enabled": True,
                 "operator_token_env": "ADMIN_RUNTIME_OPERATOR",
-                "management_db": str(tmp_path / "private" / "users.sqlite3"),
+                **backend,
                 "clients": {},
             },
             "plugins": {"phone": {"module": "gateway7.plugins.phone_mask"}},
@@ -97,7 +108,10 @@ def managed(monkeypatch, tmp_path):
             telemetry=Telemetry.disabled(),
         ), provider
 
-    return build, config
+    yield build, config
+    if request.param == "postgres":
+        with psycopg.connect(dsn, autocommit=True) as connection:
+            connection.execute("DROP SCHEMA IF EXISTS gateway7_admin CASCADE")
 
 
 def create(client, identity="synthetic_user", **policy):
@@ -188,7 +202,8 @@ def test_live_policy_and_usage_survive_restart_without_bootstrap_env(managed, mo
         assert snapshot["usage"]["rows"][0]["model"] == MODEL
         assert snapshot["usage"]["clients"]["synthetic_user"]["provider_attempts"] == 1
         for secret in (token, rotated, OPERATOR, PROVIDER, "token_env", config.auth.management_db):
-            assert secret not in str(snapshot)
+            if secret is not None:
+                assert secret not in str(snapshot)
     monkeypatch.delenv("ADMIN_RUNTIME_SEED")
     app, provider = build(config)
     with TestClient(app) as client:
@@ -477,4 +492,34 @@ def test_operator_cannot_reuse_persisted_client_token_and_failed_start_closes_st
     monkeypatch.setenv("ADMIN_RUNTIME_OPERATOR", OPERATOR)
     app, _ = build()
     with TestClient(app) as client:
+        assert client.post("/chat", headers=bearer(token), json=body("/chat")).status_code == 200
+
+
+def test_postgres_session_loss_stops_cached_auth_and_requires_restart(managed):
+    build, config = managed
+    if config.auth.management_database_url_env is None:
+        pytest.skip("PostgreSQL session loss applies to the PostgreSQL backend")
+    import psycopg
+
+    app, provider = build()
+    with TestClient(app) as client:
+        token = create(client, models=[MODEL])
+        assert client.post("/chat", headers=bearer(token), json=body("/chat")).status_code == 200
+        pid = app.state.admin_store._db.info.backend_pid
+        dsn = os.environ[config.auth.management_database_url_env]
+        with psycopg.connect(dsn, autocommit=True) as connection:
+            assert connection.execute("SELECT pg_terminate_backend(%s)", (pid,)).fetchone()[0]
+        calls = len(provider.calls)
+        for path in ("/chat", "/v1/chat/completions", "/v1/responses"):
+            response = client.post(path, headers=bearer(token), json=body(path))
+            assert response.status_code == 503
+            assert response.json()["error"]["code"] == "unavailable"
+            assert dsn not in response.text
+        assert client.get("/v1/models", headers=bearer(token)).status_code == 503
+        assert client.get("/operator/state", headers=READ).status_code == 503
+        assert client.get("/ready").status_code == 503
+        assert len(provider.calls) == calls
+    app, _ = build()
+    with TestClient(app) as client:
+        assert client.get("/ready").status_code == 200
         assert client.post("/chat", headers=bearer(token), json=body("/chat")).status_code == 200

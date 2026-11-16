@@ -9,7 +9,7 @@ from datetime import date, datetime, timezone
 from threading import Lock, RLock
 from typing import Any
 
-from gateway7.admin_store import AdminStore, _add_counts, _empty_counts, _valid_client_ids
+from gateway7.admin_store import ManagementStore, _add_counts, _empty_counts, _valid_client_ids
 from gateway7.auth import _valid_token
 from gateway7.config import GatewayConfig, validate_model_id
 from gateway7.errors import GatewayError, StartupError, normalized_usage
@@ -137,7 +137,7 @@ class UsageLedger:
 class PersistentUsageLedger:
     """Daily client/model aggregates retained across management-enabled restarts."""
 
-    def __init__(self, store: AdminStore, client_ids: Iterable[str]) -> None:
+    def __init__(self, store: ManagementStore, client_ids: Iterable[str]) -> None:
         self.store = store
         self._lock = RLock()
         self._clients = store.usage_identities()

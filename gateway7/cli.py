@@ -29,6 +29,7 @@ from gateway7.config import GatewayConfig, load_config, validate_model_id
 from gateway7.errors import StartupError
 from gateway7.loader import load_plugins
 from gateway7.models import ChatRequest, ChatResponse, Message
+from gateway7.management_store import validate_postgres_url
 from gateway7.providers import validate_provider_config
 from gateway7.offline import print_report, run_offline
 from gateway7.scaffold import create_plugin_project
@@ -80,7 +81,11 @@ def _read_secrets_file(path: str, config: GatewayConfig) -> dict[str, str]:
         if not isinstance(data, dict):
             raise ValueError
         token_names = {client.token_env for client in config.auth.clients.values()}
+        if config.auth.operator_token_env is not None:
+            token_names.add(config.auth.operator_token_env)
         allowed = {config.provider.key_env, *token_names}
+        if config.auth.management_database_url_env is not None:
+            allowed.add(config.auth.management_database_url_env)
         proxy_name = None
         transport = config.provider.transport
         if transport is not None and transport.module == "gateway7.transports.http_proxy":
@@ -103,6 +108,8 @@ def _read_secrets_file(path: str, config: GatewayConfig) -> dict[str, str]:
                 raise ValueError
             if name == proxy_name:
                 _proxy_url(value)
+            if name == config.auth.management_database_url_env:
+                validate_postgres_url(value)
         return data
     except (ValueError, UnicodeError, RecursionError, StartupError):
         raise StartupError("Invalid secrets file") from None
@@ -469,6 +476,17 @@ def _parser() -> argparse.ArgumentParser:
     )
     demo.add_argument("--host", default="127.0.0.1")
     demo.add_argument("--port", type=int, default=8000)
+    admin = subcommands.add_parser("admin", help="Offline management database maintenance")
+    admin_commands = admin.add_subparsers(dest="admin_command", required=True)
+    migrate = admin_commands.add_parser(
+        "migrate", help="Copy an offline SQLite registry into an empty PostgreSQL database"
+    )
+    migrate.add_argument("--sqlite", required=True, help="Existing initialized SQLite source")
+    migrate.add_argument(
+        "--database-url-env",
+        default="GATEWAY7_DATABASE_URL",
+        help="Environment variable holding the PostgreSQL destination URL",
+    )
     plugin = subcommands.add_parser("plugin", help="Create and test company middleware")
     plugin_commands = plugin.add_subparsers(dest="plugin_command", required=True)
     initialize = plugin_commands.add_parser(
@@ -512,6 +530,12 @@ def main(argv: list[str] | None = None) -> int:
     gateway_logger.setLevel(logging.INFO)
     gateway_logger.propagate = False
     try:
+        if args.command == "admin":
+            from gateway7.admin_migration import migrate_sqlite
+
+            result = migrate_sqlite(args.sqlite, args.database_url_env)
+            print("Management migration completed: " + json.dumps(result, sort_keys=True))
+            return 0
         if args.command == "smoke":
             code, report = asyncio.run(
                 run_smoke(

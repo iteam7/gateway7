@@ -225,7 +225,7 @@ with urlopen(request, timeout=10) as response:
 ```
 
 Use HTTPS when reaching a shared deployment.
-Without `auth.management_db`, the result includes `scope: process_lifetime`, its UTC `started_at`, `reset_on_restart: true` and a `clients` object keyed by configured client identity.
+Without a configured management database, the result includes `scope: process_lifetime`, its UTC `started_at`, `reset_on_restart: true` and a `clients` object keyed by configured client identity.
 Each client row contains:
 
 | Field | Meaning |
@@ -247,7 +247,7 @@ This bounded view is not durable accounting, an arbitrary-period or per-model us
 
 ## Open the read-only operator console
 
-This section describes the console when `auth.management_db` is absent.
+This section describes the console when neither `auth.management_database_url_env` nor `auth.management_db` is configured.
 Enable [managed users](#manage-users-in-the-operator-console) to administer accounts in the same workspace.
 
 After configuring the separate operator credential above, open `/operator/console` on your gateway and enter that token.
@@ -269,27 +269,30 @@ A hook can reject a particular request or configuration, so its presence is not 
 Disabled middleware has validated configuration but no instantiated hooks.
 Policy terms/settings, provider origins, credential references and conversations are excluded from the snapshot.
 
-Without `auth.management_db`, the console changes no account, permission, limit or middleware setting.
+Without a configured management database, the console changes no account, permission, limit or middleware setting.
 Update the server configuration, run the existing [configuration validation](cli.md#validate-configuration) and appropriate [isolated middleware fixtures](cli.md#generate-and-test-middleware), then restart to apply a change.
 Malformed configuration prevents startup, while runtime policy/plugin failures retain their existing fail-closed behavior.
 [FR-020](functional-requirements/fr/FR-020.md) specifies the console boundary.
 
 ## Manage users in the operator console
 
-Enable durable administration once in the server YAML:
+Enable PostgreSQL-backed administration once in the server YAML:
 
 ```yaml
 auth:
   enabled: true
   operator_token_env: GATEWAY7_OPERATOR_TOKEN
-  management_db: /var/lib/gateway7/admin.sqlite3
+  management_database_url_env: GATEWAY7_DATABASE_URL
   clients: {}
 ```
 
 Keep the rest of the provider, middleware and request-limit configuration.
-Supply the operator token and the provider key privately, create a private writable database directory, validate the configuration, and restart once.
-`management_db` requires client authentication and a separate operator credential; an empty client set is allowed so the operator can create the first user in the console.
-For a local Python process, choose a persistent directory writable only by its service account, outside the checkout.
+Supply the operator token, provider key and PostgreSQL connection settings privately, validate the configuration, and restart once.
+The named database URL variable is resolved only at runtime; YAML contains its environment name, never a DSN or password.
+For a local Python process, set `GATEWAY7_DATABASE_URL` to your PostgreSQL DSN and supply its password through `PGPASSWORD` or your existing libpq credential mechanism.
+Managed administration requires client authentication and a separate operator credential; an empty client set is allowed so the operator can create the first user in the console.
+PostgreSQL is the primary managed deployment; the explicit [SQLite alternative](#optional-local-sqlite-storage) remains available for local use.
+Configure exactly one backend: `management_database_url_env` and `management_db` are mutually exclusive.
 
 Open `/operator/console`, connect with the operator token, and use the user controls to:
 
@@ -327,26 +330,104 @@ There is no usage-reset control, monetary billing or hard token/currency budget.
 
 ### Persist managed state with Compose
 
-The root filesystem stays read-only; mount a separate durable directory for the database.
+Use `compose.yaml` with `compose.admin.yaml` to run the gateway, PostgreSQL and monitoring services.
+The default managed configuration is `config/admin-postgres.yaml`; unlike the legacy single-client example, it needs no bootstrap client token.
+Set a private provider key, a distinct random operator token and a database password in your environment or local uncommitted Compose `.env` file:
+
+```sh
+export GATEWAY_KEY_ENV=OPENAI_API_KEY
+export GATEWAY_CONFIG_FILE=./config/admin-postgres.yaml
+read -r -s -p 'OpenAI API key: ' OPENAI_API_KEY
+printf '\n'
+read -r -s -p 'Operator token: ' GATEWAY7_OPERATOR_TOKEN
+printf '\n'
+read -r -s -p 'PostgreSQL password: ' GATEWAY7_POSTGRES_PASSWORD
+printf '\n'
+export OPENAI_API_KEY GATEWAY7_OPERATOR_TOKEN GATEWAY7_POSTGRES_PASSWORD
+docker compose -f compose.yaml -f compose.admin.yaml \
+  up --build --detach --wait
+```
+
+Alternatively set `COMPOSE_FILE=compose.yaml:compose.admin.yaml` and `GATEWAY_CONFIG_FILE=./config/admin-postgres.yaml` in the local Compose `.env`, fill the same private variables, and run `docker compose up --build --detach --wait`.
+For another provider, select equivalent provider settings and `GATEWAY_KEY_ENV`; managed accounts and the database are independent of the provider.
+Adding `compose.admin.yaml` after `compose.live.yaml` is supported when you need its telemetry/proxy environment forwarding.
+
+The managed override provides a pinned PostgreSQL 17 image, a persistent `postgres-data` named volume, a database health check and a gateway startup dependency on that health check.
+It publishes no PostgreSQL host port.
+The default DSN is `postgresql://gateway7@postgres:5432/gateway7`; Compose passes the password separately as `PGPASSWORD` to the gateway and `POSTGRES_PASSWORD` to PostgreSQL, so special characters in passwords need no URI encoding.
+An explicit `GATEWAY7_DATABASE_URL` overrides the gateway connection string; it does not provision a different server or change an existing database user's password.
+Do not print expanded live Compose configuration, since it contains injected credentials.
+
+First startup initializes the `gateway7_admin` schema and version metadata, then imports optional seed clients once.
+Subsequent starts validate the schema version and stored state instead of overwriting them from YAML.
+An unavailable database, incompatible schema, invalid stored state or another gateway holding the database ownership lock prevents readiness; the gateway does not silently switch to SQLite or create an empty replacement registry.
+If the active PostgreSQL connection is lost, client requests fail closed until the gateway has been restarted with a healthy database.
+
+Run one gateway process per management database: PostgreSQL session ownership prevents several processes from serving divergent access rules or independent client limits.
+Concurrent/rate counters remain process-local and restart-reset, while stored limit settings and usage survive.
+Container restart, recreation or ordinary `docker compose down` preserves the named volume.
+`docker compose down --volumes` removes it and its managed accounts and usage; use that only for intentionally disposable data.
+Back up the PostgreSQL database with the normal PostgreSQL backup tooling and keep backups private.
+The image initializes its password only for a new volume; changing an existing user's password requires an explicit database administration step and matching gateway credential update.
+
+### Optional local SQLite storage
+
+For an explicit local alternative, set `auth.management_db` to a private SQLite file and omit `management_database_url_env`.
+The `config/admin-sqlite.yaml` example uses `/var/lib/gateway7/admin.sqlite3` with no seeded users.
 For a Docker host using the supplied image's service UID/GID `10001:10001`, prepare a private directory outside the checkout:
 
 ```sh
 sudo install -d -o 10001 -g 10001 -m 0700 /srv/gateway7/admin-state
 export GATEWAY7_ADMIN_STATE_DIR=/srv/gateway7/admin-state
-read -r -s -p 'Operator token: ' GATEWAY7_OPERATOR_TOKEN
-printf '\n'
-export GATEWAY7_OPERATOR_TOKEN
-docker compose -f compose.yaml -f compose.live.yaml -f compose.admin.yaml \
+export GATEWAY_CONFIG_FILE=./config/admin-sqlite.yaml
+docker compose -f compose.yaml -f compose.admin-sqlite.yaml \
   up --build --detach --wait
 ```
 
-First set `auth.management_db: /var/lib/gateway7/admin.sqlite3` and the operator configuration above in the YAML selected by `GATEWAY_CONFIG_FILE`.
-The `compose.admin.yaml` override forwards `GATEWAY7_OPERATOR_TOKEN` and bind-mounts that directory; mounting `/tmp` would lose state when the container is replaced.
-Keep the directory and its backups private, since they contain access-control records and usage.
-Stop the gateway before copying the complete database for a consistent backup, and restore it with the same service ownership.
-Deleting or losing the database loses managed users and usage; creating a new empty database runs initial bootstrap again.
-Run one gateway process per database: another worker using the same file fails startup instead of serving stale permissions or independent limits.
-Concurrent/rate counters remain process-local and restart-reset, while stored limit settings and usage survive.
+Supply the same provider key and operator token as above; this alternative needs no PostgreSQL password.
+Use the SQLite override instead of the PostgreSQL override.
+Its private directory is writable while the root filesystem remains read-only; the directory must already exist with service ownership.
+For a local Python process, choose a persistent directory writable only by its service account, outside the checkout.
+Stop the gateway before copying the complete SQLite database for a consistent backup, and restore it with the same service ownership.
+A second gateway process opening the file fails startup.
+Deleting or losing the file loses managed users and usage; a newly initialized store runs first-start bootstrap again.
+
+### Migrate SQLite administration to PostgreSQL
+
+Migration is an explicit offline operation; selecting PostgreSQL does not automatically import SQLite data.
+Stop the gateway that owns the SQLite source and back up that source first.
+Prepare an empty PostgreSQL target with no existing managed schema or account state, and keep the source stopped until the migrated gateway has been verified.
+The migration copies client profiles, credential digests and revocations, reserved deleted IDs, usage aggregates and the original accounting start timestamp without changing the SQLite source.
+It does not need raw client tokens or bootstrap token environment variables.
+A nonempty target, incompatible schema, invalid source or active target owner is rejected instead of merging or overwriting accounts.
+
+From a Python checkout with the target connection settings in the environment:
+
+```sh
+uv run --locked gateway7 admin migrate \
+  --sqlite /srv/gateway7/admin-state/admin.sqlite3 \
+  --database-url-env GATEWAY7_DATABASE_URL
+```
+
+For the supplied Compose target, after stopping the old SQLite gateway, run:
+
+```sh
+export GATEWAY_CONFIG_FILE=./config/admin-postgres.yaml
+export GATEWAY7_SQLITE_SOURCE=/srv/gateway7/admin-state/admin.sqlite3
+docker compose -f compose.yaml -f compose.admin.yaml build gateway
+docker compose -f compose.yaml -f compose.admin.yaml up --detach --wait postgres
+docker compose -f compose.yaml -f compose.admin.yaml run --rm --no-deps \
+  --volume "$GATEWAY7_SQLITE_SOURCE:/migration/admin.sqlite3:ro" \
+  gateway admin migrate --sqlite /migration/admin.sqlite3 \
+  --database-url-env GATEWAY7_DATABASE_URL
+docker compose -f compose.yaml -f compose.admin.yaml up --build --detach --wait
+```
+
+The build step prepares this version's migration command without starting the gateway.
+The source bind mount is read-only and the target must remain empty until migration succeeds.
+The CLI's `--database-url-env` argument names an environment variable; it never takes the connection string or password as a command-line argument.
+After startup, verify existing client credentials, revocations, deleted-ID protection and historical usage in the console before retiring the source backup.
+Keep source files, database volumes, connection secrets and backups outside the public repository.
 
 ### Operator API
 
@@ -440,7 +521,7 @@ The public `gateway7_rate_limit_rejections_total` counter has no client identity
 
 ## Deployment boundary
 
-With `auth.management_db`, use the console for users, credentials, permissions, limits and policy assignments.
+With a management database configured, use the console for users, credentials, permissions, limits and policy assignments.
 Without it, change clients through server configuration/environment and restart.
 Provider configuration, the operator credential and middleware code/settings remain server administration; billing is not provided.
 

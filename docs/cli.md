@@ -53,12 +53,30 @@ The earlier `python -m gateway7 --config PATH --host HOST --port PORT` form stil
 
 `--secrets-file PATH` opts into one explicitly selected external file; omitting it preserves environment-only startup.
 The file is a strict flat UTF-8 JSON object, at most 64 KiB, mapping configured environment-variable names to nonempty visible-ASCII strings without spaces.
-Only names referenced by `provider.key_env`, configured client `token_env` settings and the explicitly selected built-in HTTP proxy's `settings.url_env` are accepted.
+Only names referenced by `provider.key_env`, configured client `token_env` settings, `auth.operator_token_env`, `auth.management_database_url_env` and the explicitly selected built-in HTTP proxy's `settings.url_env` are accepted.
 On POSIX, the selected file must be a regular file owned by the current user with no group/other access; symlinks, FIFOs and devices are rejected.
-Unknown keys, duplicate JSON members, wrong types and invalid credential/proxy values are errors; the whole file is validated before environment mutation, even when environment values shadow its entries.
+Unknown keys, duplicate JSON members, wrong types and invalid credential, PostgreSQL connection or proxy values are errors; the whole file is validated before environment mutation, even when environment values shadow its entries.
 Existing environment values take precedence, including empty strings; file-derived environment values are temporary and the original environment is restored before serving, including failed or cancelled startup paths.
 The loader does not discover files or evaluate shell code; pass only the file path as an argument, and loader diagnostics never expose its values.
 `validate`, plugin commands and offline execution do not read private startup files; no such file is required for their existing credential-free checks.
+
+## Migrate managed administration
+
+Stop the SQLite-backed gateway, back up its state, and select an empty PostgreSQL target through a private environment variable:
+
+```sh
+uv run --locked gateway7 admin migrate \
+  --sqlite /srv/gateway7/admin-state/admin.sqlite3 \
+  --database-url-env GATEWAY7_DATABASE_URL
+```
+
+`--sqlite` is required and names an existing initialized source file.
+`--database-url-env` defaults to `GATEWAY7_DATABASE_URL`; its value is an environment variable name, never a DSN or password.
+The command opens the stopped source read-only and imports accounts, credential digests, revocations, reserved deleted IDs, usage and the original accounting start timestamp into an empty PostgreSQL target as one transaction.
+Existing target state, active owners, incompatible schemas and invalid data are rejected; the source remains unchanged.
+Successful output contains import counts only; errors return a nonzero exit without connection secrets or private account details.
+Normal startup performs no implicit migration or backend fallback.
+See the [migration runbook](authentication.md#migrate-sqlite-administration-to-postgresql) for the Compose command and verification steps.
 
 ## Send a message
 

@@ -26,7 +26,6 @@ from starlette.types import ASGIApp, Message as ASGIMessage, Receive, Scope, Sen
 from gateway7 import __version__
 from gateway7.analytics import Analytics
 from gateway7.admin_runtime import AdminController, ClientPolicy, CreateClient, usage_csv
-from gateway7.admin_store import AdminStore
 from gateway7.client_policies import build_client_pipelines
 from gateway7.config import GatewayConfig, load_config, provider_key, validate_provider_model
 from gateway7.auth import AccessControl
@@ -34,6 +33,7 @@ from gateway7.errors import GatewayError, ProviderError, StartupError
 from gateway7.loader import complete_cleanup, load_plugins, start_plugins, stop_plugins
 from gateway7.models import ChatRequest, ChatResponse
 from gateway7.metrics import HTTPRequestOutcome, Metrics
+from gateway7.management_store import open_management_store
 from gateway7.openai_api import (
     EarlyChatEncoder,
     NativeChatRequest,
@@ -265,12 +265,33 @@ class GatewayBoundaryMiddleware:
             )
 
         try:
+            if route == "ready" and self.owner.state.admin_store is not None:
+                try:
+                    self.owner.state.admin_store.ensure_available()
+                except StartupError:
+                    self.owner.state.ready = False
             if scope.get("method") == "GET" and route in ("health", "ready", "metrics"):
                 await self.app(scope, receive, safe_send)
                 return
             if not getattr(self.owner.state, "ready", False):
                 await fail("unavailable")
                 return
+            if self.owner.state.admin_store is not None and (
+                route in ("chat", "openai_chat", "openai_responses", "models")
+                or operator_path
+                and scope.get("path")
+                not in {
+                    "/operator/console",
+                    "/operator/assets/console.css",
+                    "/operator/assets/console.js",
+                }
+            ):
+                try:
+                    self.owner.state.admin_store.ensure_available()
+                except StartupError:
+                    self.owner.state.ready = False
+                    await fail("unavailable")
+                    return
             if operator_path:
                 try:
                     access = self.owner.state.operator_access
@@ -626,6 +647,7 @@ class _PipelineAdmission:
 
 
 def _admit_request(request: Request) -> _AdmissionLease:
+    _ensure_management_available(request.app)
     principal = getattr(request.state, "principal", None)
     lease = request.app.state.admission.acquire(
         None if principal is None else principal.client_id,
@@ -646,6 +668,7 @@ async def _watch_disconnect(request: Request) -> None:
 def _select_model(request: Request, requested: str | None) -> str:
     config = request.app.state.config.provider
     if request.app.state.admin_store is not None:
+        _ensure_management_available(request.app)
         # Body delivery can await while a user is suspended or their token rotates.
         request.state.principal = request.app.state.access.authenticate(
             request.scope.get("headers", [])
@@ -657,6 +680,16 @@ def _select_model(request: Request, requested: str | None) -> str:
         return selected
     except (TypeError, ValueError):
         raise GatewayError("invalid_request") from None
+
+
+def _ensure_management_available(app: FastAPI) -> None:
+    store = app.state.admin_store
+    if store is not None:
+        try:
+            store.ensure_available()
+        except StartupError:
+            app.state.ready = False
+            raise GatewayError("unavailable") from None
 
 
 def _client_pipeline(request: Request) -> Pipeline:
@@ -1051,8 +1084,8 @@ def create_app(
         active_config = config if config is not None else load_config(path)
         key = provider_key(active_config.provider)
         token_digests = None
-        if active_config.auth.management_db is not None:
-            store = AdminStore(active_config.auth.management_db, active_config)
+        if active_config.auth.management_enabled:
+            store = open_management_store(active_config)
             app.state.admin_store = store
             clients, token_digests = store.load_clients()
             data = active_config.model_dump()

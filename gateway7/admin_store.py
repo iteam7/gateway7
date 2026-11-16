@@ -15,7 +15,7 @@ from collections.abc import Iterable
 from datetime import date, datetime, timezone
 from pathlib import Path
 from threading import RLock
-from typing import Any
+from typing import Any, Protocol
 
 from gateway7.config import ClientConfig, GatewayConfig, validate_model_id
 from gateway7.errors import StartupError, normalized_usage
@@ -85,6 +85,99 @@ def _valid_client_ids(client_ids: Iterable[str]) -> tuple[str, ...]:
 
 def _valid_token(token: str) -> bool:
     return 16 <= len(token) <= 512 and token.isascii() and all(33 <= ord(c) <= 126 for c in token)
+
+
+class ManagementStore(Protocol):
+    """Durable backend boundary shared by SQLite and PostgreSQL."""
+
+    started_at: str
+
+    def load_clients(self) -> tuple[dict[str, ClientConfig], dict[str, bytes]]: ...
+
+    def save_clients(self, clients: dict[str, ClientConfig], digests: dict[str, bytes]) -> None: ...
+
+    def usage_identities(self) -> set[str]: ...
+
+    def record_usage(
+        self, client_id: str, model: str, outcome: str, usage: dict[str, int] | None
+    ) -> None: ...
+
+    def usage_rows(
+        self, *, client_id: str | None, model: str | None, start: str | None, end: str | None
+    ) -> list[dict[str, Any]]: ...
+
+    def ensure_available(self) -> None: ...
+
+    def export_snapshot(self) -> dict[str, Any]: ...
+
+    def close(self) -> None: ...
+
+
+def validate_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
+    """Validate a private offline migration snapshot without exposing its contents."""
+    try:
+        if type(snapshot) is not dict or snapshot.keys() != {
+            "schema_version",
+            "started_at",
+            "clients",
+            "digests",
+            "tombstones",
+            "usage_rows",
+        }:
+            raise ValueError
+        if type(snapshot["schema_version"]) is not int or snapshot["schema_version"] != 1:
+            raise ValueError
+        started_at = snapshot["started_at"]
+        if type(started_at) is not str or datetime.fromisoformat(started_at).tzinfo is None:
+            raise ValueError
+        clients, digests = snapshot["clients"], snapshot["digests"]
+        if type(clients) is not dict or type(digests) is not dict:
+            raise ValueError
+        AdminStore._validate_clients(clients, digests)
+        tombstones = snapshot["tombstones"]
+        if type(tombstones) is not set or tombstones & clients.keys():
+            raise ValueError
+        for identity in tombstones:
+            _valid_client_ids([identity])
+        rows = snapshot["usage_rows"]
+        if type(rows) is not list:
+            raise ValueError
+        seen: set[tuple[str, str, str]] = set()
+        normalized_rows = []
+        for row in rows:
+            if type(row) is not dict or row.keys() != {
+                "client_id",
+                "model",
+                "day",
+                *_empty_counts().keys(),
+            }:
+                raise ValueError
+            key = (row["client_id"], row["model"], row["day"])
+            if key in seen or key[0] not in clients.keys() | tombstones:
+                raise ValueError
+            seen.add(key)
+            counts = {name: row[name] for name in _empty_counts()}
+            normalized_rows.append(
+                {
+                    "client_id": key[0],
+                    "model": key[1],
+                    "day": key[2],
+                    **_validate_usage_row(*key, json.dumps(counts)),
+                }
+            )
+        return {
+            "schema_version": 1,
+            "started_at": started_at,
+            "clients": {
+                identity: ClientConfig.model_validate(client.model_dump())
+                for identity, client in clients.items()
+            },
+            "digests": dict(digests),
+            "tombstones": set(tombstones),
+            "usage_rows": normalized_rows,
+        }
+    except Exception:
+        raise ValueError("Invalid management migration snapshot") from None
 
 
 class AdminStore:
@@ -335,6 +428,34 @@ class AdminStore:
                 ]
             except (sqlite3.Error, ValueError, TypeError):
                 raise StartupError("Management accounting is unavailable or invalid") from None
+
+    def ensure_available(self) -> None:
+        with self._lock:
+            try:
+                self._db.execute("SELECT 1").fetchone()
+            except sqlite3.Error:
+                raise StartupError("Management database is unavailable") from None
+
+    def export_snapshot(self) -> dict[str, Any]:
+        with self._lock:
+            try:
+                clients, digests = self.load_clients()
+                return validate_snapshot(
+                    {
+                        "schema_version": 1,
+                        "started_at": self.started_at,
+                        "clients": clients,
+                        "digests": digests,
+                        "tombstones": {
+                            row[0] for row in self._db.execute("SELECT id FROM tombstones")
+                        },
+                        "usage_rows": self.usage_rows(
+                            client_id=None, model=None, start=None, end=None
+                        ),
+                    }
+                )
+            except (sqlite3.Error, ValueError):
+                raise StartupError("Management database is unavailable or invalid") from None
 
     def close(self) -> None:
         with self._lock:

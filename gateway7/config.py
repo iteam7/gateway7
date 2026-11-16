@@ -176,12 +176,22 @@ class AuthConfig(StrictConfig):
         default=None, pattern=r"^[A-Za-z_][A-Za-z0-9_]*$", max_length=128
     )
     management_db: str | None = Field(default=None, min_length=1, max_length=4096)
+    management_database_url_env: str | None = Field(
+        default=None, pattern=r"^[A-Za-z_][A-Za-z0-9_]*$", max_length=128
+    )
+
+    @property
+    def management_enabled(self) -> bool:
+        return self.management_db is not None or self.management_database_url_env is not None
 
     @model_validator(mode="after")
     def consistent_clients(self) -> "AuthConfig":
+        if self.management_db is not None and self.management_database_url_env is not None:
+            raise ValueError("Select only one management database backend")
         if self.management_db is not None:
             if not self.management_db.strip() or "\x00" in self.management_db:
                 raise ValueError("Invalid management database path")
+        if self.management_enabled:
             if not self.enabled or self.operator_token_env is None:
                 raise ValueError("User management requires client and operator authentication")
         elif self.enabled != bool(self.clients):

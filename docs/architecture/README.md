@@ -14,14 +14,15 @@ For a working first request, use the [quickstart](../quickstart.md).
 
 ## Container View
 
-The product runs as the containers below, and [ADR-001](adr/ADR-001.md) records their split and stack.
+The product runs as the containers below: [ADR-001](adr/ADR-001.md) records the original split and stack, and [ADR-009](adr/ADR-009.md) adds the managed PostgreSQL store.
 
-![Gateway7 container view: three product containers, the provider and two optional external telemetry systems](container.svg)
+![Gateway7 container view: gateway, monitoring, the managed PostgreSQL store, provider and optional external telemetry](container.svg)
 
 [Open the full-size container image](container.svg) · [Image source](container.py)
 
 The [Compose definition](https://github.com/iteam7/gateway7/blob/8cdf230c77e029074d0b3b9ad82e3edc6d25b59b/compose.yaml) starts `gateway`, `prometheus` and `grafana` together.
-Only `gateway` is on the chat path; the monitoring applications collect and display observations separately.
+The managed administration override also starts `postgres`, checks its health before the gateway, and retains its data in `postgres-data`.
+The gateway checks its managed store before protected requests; the monitoring applications collect and display observations separately.
 A container here is a running application or data store, not a Python module.
 The gateway can also run alone through its CLI.
 
@@ -45,11 +46,13 @@ The [deployment runbook](../deployment.md#telemetry-pipelines) describes setup; 
 | `gateway` | Authenticates callers and checks model permissions; runs company middleware and invokes the configured provider; owns startup settings, credentials, temporary request state and observations, plus managed client policies and usage when enabled |
 | `prometheus` | Collects numeric gateway observations; retains time-series samples in its own data volume; serves queries over those samples |
 | `grafana` | Queries operational time series; renders provisioned dashboards; owns application runtime state in its own data volume |
+| `postgres` | Stores managed client policies and token digests; retains reserved identifiers and numeric usage in its durable volume; applies transactional client and accounting updates |
 
 The gateway core keeps no durable chat history or original-text restoration map.
 Request context, active-pipeline counts and metric counters live in memory; process restart resets them.
-With managed administration enabled, the same gateway process also owns a private SQLite file containing client policies, token digests and numeric usage aggregates, as proposed in [ADR-008](adr/ADR-008.md).
-This embedded file adds no network service or deployment container and contains no conversation history.
+Managed Compose uses PostgreSQL for client policies, token digests and numeric usage aggregates, as proposed in [ADR-009](adr/ADR-009.md).
+An explicitly configured SQLite file remains supported for local installations under [ADR-008](adr/ADR-008.md).
+Neither store contains conversation history, and selecting a failed PostgreSQL backend never falls back to SQLite or seed configuration.
 Managed policies and usage survive restart; the [administration guide](../authentication.md) distinguishes this from the original process-lifetime snapshot.
 Plugins share that process and are responsible for any state they choose to keep.
 Prometheus retains numeric samples in `prometheus-data`, bounded by seven days and 512 MB; Grafana keeps its state in `grafana-data` and reads the provisioned dashboard and datasource files.
@@ -57,6 +60,7 @@ These volumes survive `docker compose down`; `--volumes` removes them.
 This is monitoring history, not a billing ledger.
 
 The existing requirements assign gateway behavior to `gateway` in [FR-001](../functional-requirements/fr/FR-001.md) and [FR-009](../functional-requirements/fr/FR-009.md), and monitoring behavior to `prometheus` and `grafana` in [FR-010](../functional-requirements/fr/FR-010.md).
+The gateway's managed administration and migration behavior in [FR-021](../functional-requirements/fr/FR-021.md) and [FR-022](../functional-requirements/fr/FR-022.md) uses the `postgres` store.
 
 ## Component View
 
@@ -96,8 +100,9 @@ The [middleware API](../plugins.md#descriptor-and-hooks) defines the contract; a
 Provider networking has a separate [startup transport interface](../provider-transports.md): `transport_api.py` defines its descriptor, `transport_loader.py` validates modules, and `transports/` holds the shipped proxy module.
 It belongs to the provider adapter component, outside the per-request middleware chain.
 
-Managed administration extends the existing HTTP boundary and access component rather than deploying another application.
-`gateway7/admin_runtime.py` validates operator DTOs and publishes client policies; `gateway7/admin_store.py` owns the embedded client and usage transactions.
+Managed administration extends the existing HTTP boundary and access component, backed by the managed database container or an explicit local file.
+`gateway7/admin_runtime.py` validates operator DTOs and publishes client policies; `gateway7/admin_store.py` defines the storage contract and SQLite implementation, and `gateway7/postgres_store.py` implements PostgreSQL transactions.
+`gateway7/management_store.py` resolves the selected backend, while `gateway7/admin_migration.py` provides the explicit offline transfer.
 `gateway7/usage.py` selects the legacy process ledger or persistent ledger, and the packaged operator console renders both modes.
 The request pipeline and provider adapter remain shared with ordinary client traffic; a request captures its own observer so accounting follows its selected client and model.
 
@@ -105,6 +110,7 @@ The request pipeline and provider adapter remain shared with ordinary client tra
 
 `serve` loads strict YAML, resolves the provider key and bootstrap credentials, checks plugin descriptors/settings, creates instances and the HTTP adapter, then awaits startup hooks.
 Configured-client mode resolves tokens from the environment on each startup; managed mode initializes or opens its store and loads the authoritative client policies and token digests.
+The managed adapter retains one ownership connection; losing a PostgreSQL session makes readiness and new protected requests fail until the gateway is restarted with a valid store connection.
 If configured, a provider transport factory runs once before the adapter client is created.
 Startup closes a valid transport if client construction fails; after construction, the client owns it and closes it with the provider during lifespan cleanup.
 The built-in proxy keeps this shared client but uses request-owned connections so a cancelled TLS handshake cannot leave a tunnel occupying a shared pool slot; proxied requests do not reuse keep-alive connections.
@@ -266,6 +272,7 @@ The product vision keeps the separate [system context](../product-vision.md#cont
 | [ADR-006](adr/ADR-006.md) | Proposed | [FR-015](../functional-requirements/fr/FR-015.md), [QR-02](../quality-requirements/qr/QR-02.md), [QR-03](../quality-requirements/qr/QR-03.md) | Export a bounded, privacy-safe core-task event stream to OpenPanel |
 | [ADR-007](adr/ADR-007.md) | Proposed | [FR-014](../functional-requirements/fr/FR-014.md), [QR-05](../quality-requirements/qr/QR-05.md) | Read per-request logs and a duration histogram from isolated OpenObserve organizations |
 | [ADR-008](adr/ADR-008.md) | Proposed | [FR-021](../functional-requirements/fr/FR-021.md), [FR-006](../functional-requirements/fr/FR-006.md), [FR-019](../functional-requirements/fr/FR-019.md), [QR-03](../quality-requirements/qr/QR-03.md) | Persist managed client policies and daily model usage in the gateway's embedded store |
+| [ADR-009](adr/ADR-009.md) | Proposed | [FR-021](../functional-requirements/fr/FR-021.md), [FR-022](../functional-requirements/fr/FR-022.md), [FR-019](../functional-requirements/fr/FR-019.md), [QR-03](../quality-requirements/qr/QR-03.md) | Use PostgreSQL for managed Compose with an explicit SQLite migration path |
 
 These Accepted records describe choices already in force through [PR #90](https://github.com/iteam7/gateway7/pull/90), approved in [DeniBorsh's implementation review](https://github.com/iteam7/gateway7/pull/90#pullrequestreview-5643522171) and merged on 25 October 2026.
 They are dated when written, not when an undocumented earlier discussion might have happened.

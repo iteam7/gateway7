@@ -102,7 +102,7 @@ def operator_state(
         "validation": "validated_at_startup",
         "changes_require_restart": True,
     }
-    if config.auth.management_db is not None:
+    if config.auth.management_enabled:
         configuration.update(
             {
                 "management_enabled": True,
@@ -114,7 +114,7 @@ def operator_state(
         "provider_kind": config.provider.kind,
         "max_concurrent_requests": config.limits.max_concurrent_requests,
     }
-    if config.auth.management_db is not None:
+    if config.auth.management_enabled:
         gateway.update(
             {
                 "default_model": config.provider.model,

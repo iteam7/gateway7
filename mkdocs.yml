@@ -38,6 +38,7 @@ nav:
       - Product event pipeline proposal: architecture/adr/ADR-006.md
       - Operating signal pipeline proposal: architecture/adr/ADR-007.md
       - Managed accounts and usage proposal: architecture/adr/ADR-008.md
+      - PostgreSQL management proposal: architecture/adr/ADR-009.md
       - ADR template: architecture/adr/TEMPLATE.md
   - Reference:
       - CLI commands: cli.md
@@ -80,6 +81,7 @@ nav:
           - FR-019 Read operator client usage: functional-requirements/fr/FR-019.md
           - FR-020 Inspect clients and middleware: functional-requirements/fr/FR-020.md
           - FR-021 Manage client accounts: functional-requirements/fr/FR-021.md
+          - FR-022 Migrate managed accounts: functional-requirements/fr/FR-022.md
       - Decisions: decisions.md
       - Assumptions: assumptions.md
       - Definition of Done: definition-of-done.md
