@@ -46,7 +46,7 @@ The [deployment runbook](../deployment.md#telemetry-pipelines) describes setup; 
 | `gateway` | Authenticates callers and checks model permissions; runs company middleware and invokes the configured provider; owns startup settings, credentials, temporary request state and observations, plus managed client policies and usage when enabled |
 | `prometheus` | Collects numeric gateway observations; retains time-series samples in its own data volume; serves queries over those samples |
 | `grafana` | Queries operational time series; renders provisioned dashboards; owns application runtime state in its own data volume |
-| `postgres` | Stores managed client policies and token digests; retains reserved identifiers and numeric usage in its durable volume; applies transactional client and accounting updates |
+| `postgres` | Stores managed policies, credential digests and encrypted provider settings; retains private audit, request accounting and budget reservations in its durable volume; applies transactional administrative and accounting updates |
 
 The gateway core keeps no durable chat history or original-text restoration map.
 Request context, active-pipeline counts and metric counters live in memory; process restart resets them.
@@ -106,6 +106,12 @@ Managed administration extends the existing HTTP boundary and access component, 
 `gateway7/usage.py` selects the legacy process ledger or persistent ledger, and the packaged operator console renders both modes.
 The request pipeline and provider adapter remain shared with ordinary client traffic; a request captures its own observer so accounting follows its selected client and model.
 
+The extended control plane in [ADR-010](adr/ADR-010.md) keeps database execution in `gateway7/db_execution.py`, versioned documents and private history in `gateway7/control_store.py`, and named credential policies in `gateway7/identity_admin.py` and `gateway7/identity_auth.py`.
+`gateway7/accounting.py` reserves budget allowance before provider invocation and settles numeric source usage afterward.
+`gateway7/provider_admin.py` prepares live provider replacements and encrypts their persisted credentials under [ADR-011](adr/ADR-011.md).
+Administrative services prepare and publish runtime state on the event loop; only their database calls run on the bounded worker.
+A committed mutation is owned through publication even when its HTTP caller leaves.
+
 ### Startup and shutdown
 
 `serve` loads strict YAML, resolves the provider key and bootstrap credentials, checks plugin descriptors/settings, creates instances and the HTTP adapter, then awaits startup hooks.
@@ -127,8 +133,9 @@ On shutdown, readiness becomes false, hooks are attempted in reverse instance or
 Cleanup defers an external cancellation until those cooperative cleanup attempts finish, then preserves the cancellation.
 A blocking or cancellation-resistant plugin cannot be forcibly stopped by Python timeouts.
 The demo command also stops and waits for its synthetic upstream child.
-Install, provider configuration and bootstrap credential changes take effect after restart.
+Installed middleware code and bootstrap credential or encryption-key configuration take effect after restart.
 Managed client policies, credentials and limits are validated, persisted and published live; existing request leases continue to drain without losing their capacity accounting.
+Managed provider configuration follows the same revision and audit boundary, and old provider clients close only after their captured work drains.
 
 ## Sequence View
 
@@ -273,6 +280,8 @@ The product vision keeps the separate [system context](../product-vision.md#cont
 | [ADR-007](adr/ADR-007.md) | Proposed | [FR-014](../functional-requirements/fr/FR-014.md), [QR-05](../quality-requirements/qr/QR-05.md) | Read per-request logs and a duration histogram from isolated OpenObserve organizations |
 | [ADR-008](adr/ADR-008.md) | Proposed | [FR-021](../functional-requirements/fr/FR-021.md), [FR-006](../functional-requirements/fr/FR-006.md), [FR-019](../functional-requirements/fr/FR-019.md), [QR-03](../quality-requirements/qr/QR-03.md) | Persist managed client policies and daily model usage in the gateway's embedded store |
 | [ADR-009](adr/ADR-009.md) | Proposed | [FR-021](../functional-requirements/fr/FR-021.md), [FR-022](../functional-requirements/fr/FR-022.md), [FR-019](../functional-requirements/fr/FR-019.md), [QR-03](../quality-requirements/qr/QR-03.md) | Use PostgreSQL for managed Compose with explicit SQLite compatibility |
+| [ADR-010](adr/ADR-010.md) | Proposed | [FR-021](../functional-requirements/fr/FR-021.md), [FR-023](../functional-requirements/fr/FR-023.md), [FR-024](../functional-requirements/fr/FR-024.md), [FR-026](../functional-requirements/fr/FR-026.md), [FR-027](../functional-requirements/fr/FR-027.md), [FR-028](../functional-requirements/fr/FR-028.md), [QR-03](../quality-requirements/qr/QR-03.md) | Version control state, reserve accounting and execute database work away from the event loop |
+| [ADR-011](adr/ADR-011.md) | Proposed | [FR-025](../functional-requirements/fr/FR-025.md), [FR-006](../functional-requirements/fr/FR-006.md), [QR-03](../quality-requirements/qr/QR-03.md) | Publish live provider snapshots with encrypted stored credentials |
 
 These Accepted records describe choices already in force through [PR #90](https://github.com/iteam7/gateway7/pull/90), approved in [DeniBorsh's implementation review](https://github.com/iteam7/gateway7/pull/90#pullrequestreview-5643522171) and merged on 25 October 2026.
 They are dated when written, not when an undocumented earlier discussion might have happened.

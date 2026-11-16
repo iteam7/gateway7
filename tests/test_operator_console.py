@@ -146,7 +146,7 @@ def test_packaged_static_shell_uses_external_same_origin_assets_and_safe_form():
     parser.feed(bytes(console_asset("index.html").body).decode())
     scripts = [attrs for tag, attrs in parser.elements if tag == "script"]
     styles = [attrs for tag, attrs in parser.elements if tag == "link"]
-    assert scripts == [{"src": "./assets/console.js", "defer": None}]
+    assert scripts == [{"src": "./assets/console.js", "type": "module"}]
     assert styles == [{"rel": "stylesheet", "href": "./assets/console.css"}]
     assert not [tag for tag, _ in parser.elements if tag in ("iframe", "style", "img")]
     token_input = next(attrs for tag, attrs in parser.elements if tag == "input")

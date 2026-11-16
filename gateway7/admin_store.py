@@ -17,6 +17,7 @@ from pathlib import Path
 from threading import RLock
 from typing import Any, Protocol
 
+from gateway7.control_store import ControlStoreMixin
 from gateway7.config import ClientConfig, GatewayConfig, validate_model_id
 from gateway7.errors import StartupError, normalized_usage
 
@@ -108,10 +109,42 @@ class ManagementStore(Protocol):
 
     def ensure_available(self) -> None: ...
 
+    def read_control(self) -> dict[str, Any]: ...
+
+    def write_control(
+        self,
+        expected_revision: int,
+        data: dict[str, Any],
+        audit: dict[str, Any],
+        *,
+        clients: Any = None,
+        digests: Any = None,
+    ) -> int: ...
+
+    def list_audit(
+        self,
+        *,
+        start: str | None = None,
+        end: str | None = None,
+        actor: str | None = None,
+        action: str | None = None,
+        target: str | None = None,
+        offset: int = 0,
+        limit: int = 50,
+    ) -> dict[str, Any]: ...
+
+    def touch_key(self, key_id: str, timestamp: str) -> None: ...
+
+    def key_last_used(self) -> dict[str, str]: ...
+
+    def backup_snapshot(self) -> dict[str, Any]: ...
+
+    def restore_backup(self, snapshot: dict[str, Any]) -> None: ...
+
     def close(self) -> None: ...
 
 
-class AdminStore:
+class AdminStore(ControlStoreMixin):
     """Atomic client policies, token digests, tombstones and daily counters."""
 
     def __init__(self, path: str, seed: GatewayConfig) -> None:
@@ -193,6 +226,7 @@ class AdminStore:
                 "SELECT 1 FROM clients INNER JOIN tombstones USING(id) LIMIT 1"
             ).fetchone():
                 raise ValueError("Invalid deleted client registry")
+            self._initialize_controls()
         except Exception:
             self.close()
             raise StartupError("Management database is unavailable or invalid") from None

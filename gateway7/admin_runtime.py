@@ -4,9 +4,10 @@ import csv
 import hashlib
 import io
 import secrets
+import unicodedata
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from gateway7.auth import AccessControl
 from gateway7.client_policies import build_client_pipelines
@@ -21,9 +22,30 @@ class ClientPolicy(BaseModel):
     models: list[ModelId] | None = Field(default=None, max_length=64)
     limits: ClientLimitsConfig = Field(default_factory=ClientLimitsConfig)
     additional_middleware: list[InstanceName] = Field(default_factory=list, max_length=64)
+    owner: str = Field(default="", max_length=128)
+    tags: list[str] = Field(default_factory=list, max_length=16)
+    default_model: ModelId | None = None
+
+    @field_validator("owner")
+    @classmethod
+    def safe_owner(cls, value: str) -> str:
+        if any(unicodedata.category(c).startswith("C") for c in value):
+            raise ValueError("Invalid owner label")
+        return value.strip()
+
+    @field_validator("tags")
+    @classmethod
+    def safe_tags(cls, values: list[str]) -> list[str]:
+        import re
+
+        if len(set(values)) != len(values) or any(
+            re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,31}", value) is None for value in values
+        ):
+            raise ValueError("Invalid account tags")
+        return values
 
     def client_config(self) -> ClientConfig:
-        data = self.model_dump()
+        data = self.model_dump(exclude={"owner", "tags", "default_model"})
         if self.models is None:
             data.pop("models")
         return ClientConfig.model_validate({"token_env": "GATEWAY7_MANAGED_CLIENT", **data})
@@ -33,7 +55,7 @@ class CreateClient(ClientPolicy):
     id: InstanceName
 
     def client_config(self) -> ClientConfig:
-        data = self.model_dump(exclude={"id"})
+        data = self.model_dump(exclude={"id", "owner", "tags", "default_model"})
         if self.models is None:
             data.pop("models")
         return ClientConfig.model_validate({"token_env": "GATEWAY7_MANAGED_CLIENT", **data})

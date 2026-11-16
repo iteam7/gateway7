@@ -105,6 +105,10 @@ def observed_error_usage(error: BaseException) -> dict[str, int] | None:
 
 class GatewayError(Exception):
     _ERRORS = {
+        "conflict": (409, "Management state changed; refresh before retrying"),
+        "operator_forbidden": (403, "This operator cannot perform this action"),
+        "precondition_required": (428, "A management revision is required"),
+        "budget_exceeded": (429, "Configured usage budget is exhausted"),
         "unauthorized": (401, "Missing or invalid gateway bearer token"),
         "model_forbidden": (403, "Requested model is not allowed for this client"),
         "not_found": (404, "Requested endpoint does not exist"),

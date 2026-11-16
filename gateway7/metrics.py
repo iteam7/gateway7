@@ -27,6 +27,9 @@ class HTTPRequestOutcome(StrEnum):
     NOT_FOUND = "not_found"
     METHOD_NOT_ALLOWED = "method_not_allowed"
     INTERNAL_ERROR = "internal_error"
+    CONFLICT = "conflict"
+    OPERATOR_FORBIDDEN = "operator_forbidden"
+    BUDGET_EXCEEDED = "budget_exceeded"
 
     @classmethod
     def normalize(cls, value: object) -> "HTTPRequestOutcome":
@@ -53,6 +56,7 @@ class HTTPRequestOutcome(StrEnum):
             403: cls.POLICY_DENIED,
             404: cls.NOT_FOUND,
             405: cls.METHOD_NOT_ALLOWED,
+            409: cls.CONFLICT,
             413: cls.BODY_TOO_LARGE,
             422: cls.INVALID_REQUEST,
             429: cls.RATE_LIMITED,
@@ -149,6 +153,44 @@ class Metrics:
             registry=self.registry,
             buckets=(0.0001, 0.001, 0.005, 0.01, 0.025, 0.1, 0.5, 1, 2.5, 5, 10),
         )
+        self.ready = Gauge(
+            "gateway7_ready",
+            "Gateway can accept protected client requests.",
+            registry=self.registry,
+        )
+        self.management_database_available = Gauge(
+            "gateway7_management_database_available",
+            "Last management database ownership and connection check succeeded.",
+            registry=self.registry,
+        )
+        self.exporter_enabled = Gauge(
+            "gateway7_exporter_enabled",
+            "Configured optional signal exporters.",
+            ("exporter",),
+            registry=self.registry,
+        )
+        self.exporter_events = Counter(
+            "gateway7_exporter_events_total",
+            "Optional exporter delivery results.",
+            ("exporter", "outcome"),
+            registry=self.registry,
+        )
+        self.exporter_last_success = Gauge(
+            "gateway7_exporter_last_success_timestamp_seconds",
+            "Unix time of the last successful optional export.",
+            ("exporter",),
+            registry=self.registry,
+        )
+        self.analytics_queue_depth = Gauge(
+            "gateway7_analytics_queue_depth",
+            "Queued product events awaiting delivery.",
+            registry=self.registry,
+        )
+        for exporter in ("analytics", "telemetry_logs", "telemetry_metrics"):
+            self.exporter_enabled.labels(exporter).set(0)
+            self.exporter_last_success.labels(exporter).set(0)
+            for outcome in ("success", "failure", "dropped"):
+                self.exporter_events.labels(exporter, outcome).inc(0)
 
     def observe_http_outcome(self, route: str, outcome: object) -> None:
         safe_route = (
@@ -183,14 +225,17 @@ class Metrics:
         if outcome == "provider_error":
             reason = ProviderErrorReason.normalize(error_reason)
             self.provider_errors.labels(provider, reason.value).inc()
-        if usage is None or any(
-            type(usage.get(name)) is not int or not 0 <= usage[name] <= 2**63 - 1
-            for name in ("input_tokens", "output_tokens")
-        ):
+        known = {
+            direction: usage[direction + "_tokens"]
+            for direction in ("input", "output")
+            if isinstance(usage, dict)
+            and type(usage.get(direction + "_tokens")) is int
+            and 0 <= usage[direction + "_tokens"] <= 2**63 - 1
+        }
+        if len(known) != 2:
             self.provider_usage_unknown.labels(provider).inc()
-            return
-        self.provider_tokens.labels(provider, "input").inc(usage["input_tokens"])
-        self.provider_tokens.labels(provider, "output").inc(usage["output_tokens"])
+        for direction, count in known.items():
+            self.provider_tokens.labels(provider, direction).inc(count)
 
     def observe_middleware(self, name: str, phase: str, outcome: str, duration: float) -> None:
         self.middleware_steps.labels(name, phase, outcome).inc()

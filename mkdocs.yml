@@ -24,6 +24,9 @@ nav:
       - Features: features.md
       - Connect your application: api.md
       - Control client access: authentication.md
+      - Operate the administration console: admin-controls.md
+      - Operator identities and recovery: operator-identities.md
+      - Usage, pricing and budgets: accounting.md
       - Apply policies: middleware-catalog.md
       - Write a middleware: authoring.md
       - Measure product use: analytics.md
@@ -39,6 +42,8 @@ nav:
       - Operating signal pipeline proposal: architecture/adr/ADR-007.md
       - Managed accounts and usage proposal: architecture/adr/ADR-008.md
       - PostgreSQL management proposal: architecture/adr/ADR-009.md
+      - Versioned control and accounting proposal: architecture/adr/ADR-010.md
+      - Live provider and credential proposal: architecture/adr/ADR-011.md
       - ADR template: architecture/adr/TEMPLATE.md
   - Reference:
       - CLI commands: cli.md
@@ -82,6 +87,12 @@ nav:
           - FR-020 Inspect clients and middleware: functional-requirements/fr/FR-020.md
           - FR-021 Manage client accounts: functional-requirements/fr/FR-021.md
           - FR-022 Dropped account transfer proposal: functional-requirements/fr/FR-022.md
+          - FR-023 Authorize named operators: functional-requirements/fr/FR-023.md
+          - FR-024 Enforce usage budgets: functional-requirements/fr/FR-024.md
+          - FR-025 Manage provider and effective models: functional-requirements/fr/FR-025.md
+          - FR-026 Inspect protected client activity: functional-requirements/fr/FR-026.md
+          - FR-027 Audit administrative changes: functional-requirements/fr/FR-027.md
+          - FR-028 Back up managed state: functional-requirements/fr/FR-028.md
       - Decisions: decisions.md
       - Assumptions: assumptions.md
       - Definition of Done: definition-of-done.md

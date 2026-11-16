@@ -53,3 +53,24 @@
 - Review: TechLead approved the final actual diff, including the retained startup validation and backend/privacy regressions; the prior migration verification above remains historical rather than a current capability claim.
 - Boundary: No production deployment, external provider call, release or Customer acceptance is claimed; verification used disposable synthetic local services and private test credentials.
 - Team assessment: TODO
+
+## 2026-11-16 — Task #295 administration and operations audit closure
+
+- Tool: Codex, with Formater, TechLead and developer agents following the repository roles.
+- Work: Implemented the owner-requested five audit corrections and seven administration feature areas in one cohesive pull request: revision conflicts, effective model permissions, complete terminal streaming metrics, dependency readiness/alerts and bounded off-loop database work; budgets/pricing, diagnostics, safe audit, named expiring keys/operators, live provider/model controls, precise UTC usage and bounded private operations.
+- Verification: The final complete suite against real PostgreSQL 17 and SQLite passed 4365 tests with one intentional backend-specific skip in 142.41 seconds.
+  Compilation, Ruff formatting/lint and whole-package mypy passed for all 53 production files; the deterministic HTTP demo, wheel and final container image passed.
+  The wheel matched every frozen Python/console source byte for byte, packaged all external JavaScript modules and excluded the removed migration module.
+- Independent cross-domain checks: A separate ASGI harness verified stale-editor conflicts preserve current permissions, viewer writes fail before parsing, hard-budget denials add no provider call and protected projections exclude credentials/content.
+  Genuine pre-change installed-v1 SQLite and PostgreSQL fixtures retained profiles, old credentials, suspension/deletion, reserved IDs, original reporting epoch and known/unknown coarse usage under honest UTC-day bounds.
+  API-created identities, multiple keys/revocation, operator roles, audit, prices, budgets, usage and encrypted provider configuration survived actual offline CLI backup/restore and fresh application boot on both backends.
+  Missing master keys failed closed; the original external key recovered the active provider credential and subsequent calls, while initialized targets were refused and private backups contained no raw tokens, provider/master keys or conversation text.
+  The same recovery drill passed from the installed wheel outside the checkout.
+- Browser and operations: Real Chromium against PostgreSQL passed all console panels, mutations, stale-tab conflicts, exact Moscow/UTC expiry handling, numeric validation, database no-plaintext checks, logout clearing and mobile layout.
+  The complete Compose smoke passed gateway authentication/policies/usage, isolated PostgreSQL lifecycle and restarts/history/export, Prometheus configuration with four alert rules and the Grafana monitoring path.
+  Disposable verification projects were removed; session-only CA/proxy and public bind-mount permissions did not change repository TLS settings.
+- Documentation and review: Strict MkDocs/site validation passed for 86 maintained pages and 12817 links/assets, Markdownlint passed 143 files, and Lychee passed 534 changed-file link checks without errors or exclusions.
+  TechLead approved the final actual diff and Formater POST approved publication; the dependency resolver added only cryptography and its cffi/pycparser dependencies without upgrading existing packages or changing workflow gates.
+- Boundary: Estimated costs use configured model prices rather than provider invoices; external telemetry and notification delivery still require private deployment configuration.
+  No SSO, HA, simultaneous multiple-provider routing, SQLite-to-PostgreSQL migration, production deployment, billing reconciliation, Customer acceptance or human usability outcome is claimed.
+- Team assessment: TODO

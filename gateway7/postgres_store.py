@@ -19,15 +19,18 @@ from gateway7.admin_store import (
     _validate_usage_row,
     _valid_client_ids,
 )
+from gateway7.control_store import ControlStoreMixin
 from gateway7.config import ClientConfig, GatewayConfig
 from gateway7.errors import StartupError, normalized_usage
 
 # ASCII "G7ADMIN", below signed int64; this is the fixed per-database owner key.
 ADVISORY_LOCK_KEY = 0x473741444D494E
-SCHEMA_VERSION = "1"
+SCHEMA_VERSION = "2"
 
 
-class PostgresAdminStore:
+class PostgresAdminStore(ControlStoreMixin):
+    _backend_postgres = True
+
     """Private PostgreSQL registry and exact daily numeric accounting."""
 
     def __init__(self, dsn: str, seed: GatewayConfig) -> None:
@@ -73,10 +76,20 @@ class PostgresAdminStore:
                         "INSERT INTO gateway7_admin.metadata(name,value) VALUES ('schema_version',%s)",
                         (SCHEMA_VERSION,),
                     )
-                elif metadata["schema_version"] != SCHEMA_VERSION:
+                elif metadata["schema_version"] not in ("1", SCHEMA_VERSION):
                     raise ValueError("Unsupported management schema version")
                 if "initialized" in metadata:
-                    if set(metadata) != {"schema_version", "initialized", "started_at"}:
+                    if (
+                        set(metadata)
+                        - {
+                            "schema_version",
+                            "initialized",
+                            "started_at",
+                            "control_revision",
+                            "detail_retained_from",
+                        }
+                        or "started_at" not in metadata
+                    ):
                         raise ValueError("Invalid management metadata")
                     if metadata["initialized"] != "1":
                         raise ValueError("Invalid management initialization metadata")
@@ -90,6 +103,7 @@ class PostgresAdminStore:
                     clients, digests = AdminStore._seed_clients(seed)
                     self._write_clients(clients, digests)
                     self._initialize(datetime.now(timezone.utc).isoformat())
+                self._initialize_controls()
         except Exception:
             self.close()
             raise StartupError("Management database is unavailable or invalid") from None
