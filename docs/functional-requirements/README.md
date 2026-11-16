@@ -23,4 +23,6 @@ Each requirement states one behavior of Gateway7, the containers it runs in and 
 | [FR-017](fr/FR-017.md) | Limit Each Client's Request Rate | `gateway` | Active |
 | [FR-018](fr/FR-018.md) | Apply Additional Per-Client Middleware | `gateway` | Active |
 | [FR-019](fr/FR-019.md) | Read Client Usage Through A Protected Operator Snapshot | `gateway` | Active |
-| [FR-020](fr/FR-020.md) | Inspect Clients And Middleware In A Read-Only Operator Console | `gateway` | Active |
+| [FR-020](fr/FR-020.md) | Inspect Clients And Middleware In The Operator Console | `gateway` | Active |
+| [FR-021](fr/FR-021.md) | Manage Client Accounts In The Operator Console | `gateway` | Active |
+| [FR-022](fr/FR-022.md) | Migrate Managed Accounts From SQLite To PostgreSQL | `gateway` | Dropped |

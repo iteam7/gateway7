@@ -21,20 +21,24 @@
         <a class="nav-link" href="#clients"
           ><span aria-hidden="true">◉</span> Clients</a
         >
+        <a class="nav-link" href="#usage"
+          ><span aria-hidden="true">↗</span> Usage</a
+        >
         <a class="nav-link" href="#policies"
           ><span aria-hidden="true">≋</span> Middleware</a
         >
       </nav>
       <div class="sidebar-bottom">
         <span class="sidebar-dot"></span> Operator access<br /><small
-          >Read-only workspace</small
+          id="workspace-mode"
+          >Operator workspace</small
         >
       </div>
     </aside>
     <div class="workspace">
       <header class="topbar">
         <span>Gateway administration</span
-        ><span class="quiet-badge">READ ONLY</span>
+        ><span class="quiet-badge" id="mode-badge">OPERATOR</span>
       </header>
       <main id="overview">
         <div class="page-heading">
@@ -109,7 +113,7 @@
                 Provider attempts <span aria-hidden="true">↗</span>
               </div>
               <strong id="attempt-count">—</strong>
-              <p>Since this process started</p>
+              <p id="attempt-summary">Recorded provider observations</p>
             </article>
             <article class="summary-card">
               <div class="card-label">
@@ -131,9 +135,19 @@
               <div>
                 <div class="eyebrow">ACCESS & CAPACITY</div>
                 <h2 id="clients-title">Clients</h2>
-                <p>Configured permissions and limits for each account.</p>
+                <p>Permissions, credentials and capacity for each user.</p>
               </div>
-              <span class="small-tag" id="shared-limit"></span>
+              <div class="panel-actions">
+                <span class="small-tag" id="shared-limit"></span
+                ><button
+                  class="button primary"
+                  id="create-client"
+                  type="button"
+                  hidden
+                >
+                  Add user
+                </button>
+              </div>
             </div>
             <div class="table-scroll">
               <table>
@@ -144,26 +158,241 @@
                     <th scope="col">Model permissions</th>
                     <th scope="col">Concurrent requests</th>
                     <th scope="col">Requests / minute</th>
+                    <th scope="col" id="actions-heading" hidden>Manage</th>
                   </tr>
                 </thead>
                 <tbody id="clients-body"></tbody>
               </table>
             </div>
           </section>
-          <section class="panel" aria-labelledby="usage-title">
+          <section
+            class="panel editor-panel"
+            id="client-editor"
+            aria-labelledby="editor-title"
+            hidden
+          >
             <div class="panel-heading">
               <div>
-                <div class="eyebrow">PROCESS LIFETIME</div>
+                <div class="eyebrow">USER MANAGEMENT</div>
+                <h2 id="editor-title">Add user</h2>
+                <p>Changes apply to new requests immediately.</p>
+              </div>
+            </div>
+            <form id="client-form" class="editor-form" autocomplete="off">
+              <div class="form-grid">
+                <label
+                  >User ID<input
+                    id="client-id"
+                    required
+                    pattern="[A-Za-z][A-Za-z0-9_.-]{0,63}"
+                    maxlength="64"
+                    autocomplete="off"
+                    aria-describedby="client-id-note"
+                  /><small id="client-id-note"
+                    >Starts with a letter. Letters, numbers, underscores, dots
+                    and hyphens; cannot be changed or reused after
+                    deletion.</small
+                  ></label
+                >
+                <label
+                  >Status<select id="client-enabled">
+                    <option value="true">Enabled</option>
+                    <option value="false">Suspended</option>
+                  </select></label
+                >
+                <label
+                  >Model access<select id="client-model-mode">
+                    <option value="listed">Only listed models</option>
+                    <option value="all">
+                      All models allowed by this gateway
+                    </option>
+                    <option value="none">No models allowed</option>
+                  </select></label
+                >
+                <label id="model-list-field"
+                  >Allowed model IDs<textarea
+                    id="client-models"
+                    rows="3"
+                    placeholder="One model ID per line"
+                    spellcheck="false"
+                    aria-describedby="model-note"
+                  ></textarea
+                  ><small id="model-note"
+                    >Exact model IDs, one per line. Gateway-wide restrictions
+                    still apply.</small
+                  ><select
+                    id="model-suggestion"
+                    aria-label="Add a gateway model"
+                  >
+                    <option value="">Add a suggested gateway model</option>
+                  </select></label
+                >
+                <label
+                  >Concurrent requests<input
+                    id="client-concurrency"
+                    type="number"
+                    min="1"
+                    max="10000"
+                    step="1"
+                    placeholder="Shared limit only"
+                  /><small
+                    >Leave empty to use the shared concurrency cap.</small
+                  ></label
+                >
+                <label
+                  >Requests per minute<input
+                    id="client-rate"
+                    type="number"
+                    min="1"
+                    max="1000000"
+                    step="1"
+                    placeholder="No user rate cap"
+                  /><small>Leave empty for no user rate cap.</small></label
+                >
+              </div>
+              <label
+                >Additional middleware, in order<select id="middleware-choice">
+                  <option value="">
+                    Choose a configured middleware instance
+                  </option>
+                </select></label
+              >
+              <div class="input-row">
+                <button
+                  class="button secondary"
+                  id="add-middleware"
+                  type="button"
+                >
+                  Add middleware</button
+                ><small class="field-help"
+                  >The shared baseline always runs first.</small
+                >
+              </div>
+              <ol id="middleware-order" class="middleware-order"></ol>
+              <p
+                id="editor-message"
+                class="message"
+                role="status"
+                aria-live="polite"
+              ></p>
+              <div class="form-actions">
+                <button class="button primary" id="save-client" type="submit">
+                  Create user</button
+                ><button
+                  class="button secondary"
+                  id="cancel-edit"
+                  type="button"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </section>
+          <section
+            class="panel token-panel"
+            id="issued-token-panel"
+            aria-labelledby="issued-token-title"
+            hidden
+          >
+            <div class="panel-heading">
+              <div>
+                <div class="eyebrow">ONE-TIME CREDENTIAL</div>
+                <h2 id="issued-token-title">Save the new user token</h2>
+                <p id="issued-token-note"></p>
+              </div>
+            </div>
+            <div class="token-content">
+              <label for="issued-token">User token</label>
+              <div class="input-row">
+                <input
+                  id="issued-token"
+                  type="password"
+                  readonly
+                  autocomplete="off"
+                  spellcheck="false"
+                /><button
+                  class="button secondary"
+                  id="reveal-token"
+                  type="button"
+                >
+                  Reveal</button
+                ><button class="button secondary" id="copy-token" type="button">
+                  Copy
+                </button>
+              </div>
+              <p>
+                Save this token securely before dismissing. It cannot be
+                retrieved later. It is never saved in browser storage.
+              </p>
+              <button class="button primary" id="dismiss-token" type="button">
+                I have saved it — dismiss
+              </button>
+            </div>
+          </section>
+          <section class="panel" id="usage" aria-labelledby="usage-title">
+            <div class="panel-heading">
+              <div>
+                <div class="eyebrow" id="usage-scope">PROVIDER ACCOUNTING</div>
                 <h2 id="usage-title">Provider usage</h2>
                 <p id="usage-window"></p>
               </div>
-              <span class="small-tag">Resets on restart</span>
+              <span class="small-tag" id="usage-persistence"></span>
             </div>
+            <form id="usage-filters" class="usage-filters" hidden>
+              <label
+                >User ID<input
+                  id="usage-client"
+                  list="usage-client-options"
+                  placeholder="All users, including deleted"
+                  autocomplete="off" /><datalist
+                  id="usage-client-options"
+                ></datalist
+              ></label>
+              <label
+                >Model<input
+                  id="usage-model"
+                  placeholder="All models"
+                  autocomplete="off"
+                  spellcheck="false"
+              /></label>
+              <label
+                >From (UTC, inclusive)<input id="usage-start" type="date"
+              /></label>
+              <label
+                >To (UTC, inclusive)<input id="usage-end" type="date"
+              /></label>
+              <div class="form-actions">
+                <button class="button primary" id="apply-usage" type="submit">
+                  Apply filters</button
+                ><button
+                  class="button secondary"
+                  id="clear-usage"
+                  type="button"
+                >
+                  Clear</button
+                ><button
+                  class="button secondary"
+                  id="export-usage"
+                  type="button"
+                >
+                  Export CSV
+                </button>
+              </div>
+            </form>
+            <p
+              id="usage-message"
+              class="message inset-message"
+              role="status"
+              aria-live="polite"
+            ></p>
             <div class="table-scroll">
               <table>
                 <thead>
                   <tr>
                     <th scope="col">Client</th>
+                    <th scope="col" id="usage-model-heading" hidden>
+                      Model / UTC day
+                    </th>
                     <th scope="col">Attempts</th>
                     <th scope="col">Provider outcomes</th>
                     <th scope="col">Known input / output tokens</th>
@@ -225,10 +454,10 @@
           <footer class="footer-note">
             <div class="footer-icon" aria-hidden="true">i</div>
             <p>
-              <strong>Review a change before restarting.</strong><br />Update
-              server configuration, run the existing validation and isolated
-              plugin tests, then restart to apply account, limit or middleware
-              changes.
+              <strong id="management-note-title">Operator workspace</strong
+              ><br /><span id="management-note"
+                >Connect to view gateway access and usage.</span
+              >
             </p>
             <a
               href="https://github.com/iteam7/gateway7/blob/main/docs/cli.md"

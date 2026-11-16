@@ -53,9 +53,9 @@ The earlier `python -m gateway7 --config PATH --host HOST --port PORT` form stil
 
 `--secrets-file PATH` opts into one explicitly selected external file; omitting it preserves environment-only startup.
 The file is a strict flat UTF-8 JSON object, at most 64 KiB, mapping configured environment-variable names to nonempty visible-ASCII strings without spaces.
-Only names referenced by `provider.key_env`, configured client `token_env` settings and the explicitly selected built-in HTTP proxy's `settings.url_env` are accepted.
+Only names referenced by `provider.key_env`, configured client `token_env` settings, `auth.operator_token_env`, `auth.management_database_url_env` and the explicitly selected built-in HTTP proxy's `settings.url_env` are accepted.
 On POSIX, the selected file must be a regular file owned by the current user with no group/other access; symlinks, FIFOs and devices are rejected.
-Unknown keys, duplicate JSON members, wrong types and invalid credential/proxy values are errors; the whole file is validated before environment mutation, even when environment values shadow its entries.
+Unknown keys, duplicate JSON members, wrong types and invalid credential, PostgreSQL connection or proxy values are errors; the whole file is validated before environment mutation, even when environment values shadow its entries.
 Existing environment values take precedence, including empty strings; file-derived environment values are temporary and the original environment is restored before serving, including failed or cancelled startup paths.
 The loader does not discover files or evaluate shell code; pass only the file path as an argument, and loader diagnostics never expose its values.
 `validate`, plugin commands and offline execution do not read private startup files; no such file is required for their existing credential-free checks.

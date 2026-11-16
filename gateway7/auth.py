@@ -38,7 +38,9 @@ def _effective_models(
 class AccessControl:
     """Keep token digests, never caller tokens, in the running gateway state."""
 
-    def __init__(self, config: GatewayConfig) -> None:
+    def __init__(
+        self, config: GatewayConfig, *, token_digests: dict[str, bytes] | None = None
+    ) -> None:
         self.enabled = config.auth.enabled
         self.anonymous = Principal(
             _effective_models(config.provider.allowed_models, [config.provider.model])
@@ -50,12 +52,19 @@ class AccessControl:
         for client_id, specification in config.auth.clients.items():
             if not specification.enabled:
                 continue
-            token = os.environ.get(specification.token_env, "")
-            if not _valid_token(token):
-                raise StartupError(
-                    f"Gateway token in {specification.token_env} is missing or invalid"
-                )
-            digest = hashlib.sha256(token.encode("ascii")).digest()
+            if token_digests is not None:
+                digest = token_digests.get(client_id)
+                if digest is None:
+                    continue
+                if type(digest) is not bytes or len(digest) != 32:
+                    raise StartupError("Invalid stored gateway credential")
+            else:
+                token = os.environ.get(specification.token_env, "")
+                if not _valid_token(token):
+                    raise StartupError(
+                        f"Gateway token in {specification.token_env} is missing or invalid"
+                    )
+                digest = hashlib.sha256(token.encode("ascii")).digest()
             if hmac.compare_digest(digest, provider_digest):
                 raise StartupError("Gateway client tokens must differ from the provider credential")
             if any(hmac.compare_digest(digest, existing) for existing, _ in clients):

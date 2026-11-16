@@ -66,6 +66,9 @@ Add `--fail-with-body` when scripts should stop on HTTP errors.
 
 ## Configure clients
 
+For day-to-day administration in the browser, enable [managed users](#manage-users-in-the-operator-console).
+The YAML examples in this section describe legacy configuration and optional first-start imports.
+
 Keep the provider and middleware settings from an [OpenAI provider configuration](setup.md#real-providers).
 Replace its `auth` section, for example with these two applications:
 
@@ -109,7 +112,7 @@ The names under `auth.clients`, such as `chat_app` and `worker`, identify the ac
 Keep a client's name when rotating its token so its identity stays the same.
 The gateway does not add these names to prompts, ordinary chat responses, logs or metric labels.
 
-To suspend an account, set `enabled: false` on that client and restart:
+In configuration-only mode, suspend an account by setting `enabled: false` on that client and restarting:
 
 ```yaml
 worker:
@@ -176,11 +179,16 @@ The effective chain covers native chat, Chat Completions and Responses, includin
 Missing native/early hooks or response-dependent early policies reject before provider work instead of skipping an additional policy.
 Keep response inspection in buffered delivery unless every selected middleware explicitly supports request-only early processing.
 See [FR-018](functional-requirements/fr/FR-018.md) for the behavior and technical acceptance criteria.
-Policy changes take effect after validation and restart; selection adds no raw-prompt retention or client-identity fields to ordinary telemetry.
+In configuration-only mode, policy changes take effect after validation and restart.
+In managed mode, select already-loaded additional middleware in the console and save to apply it to subsequent requests.
+Installing middleware or changing its code/settings still requires validation and restart.
+Selection adds no raw-prompt retention or client-identity fields to ordinary telemetry.
 
 ## Operator usage snapshot
 
-To enable a read-only usage view, add `operator_token_env` to the authenticated server configuration:
+This section describes the original configuration-only snapshot; [managed mode](#manage-users-in-the-operator-console) adds persistent daily reports.
+
+To enable operator access, add `operator_token_env` to the authenticated server configuration:
 
 ```yaml
 auth:
@@ -195,7 +203,7 @@ auth:
 Supply the named operator variable through the server's environment or secret manager, with a distinct random token of 16–512 visible ASCII characters without spaces.
 It must differ from the provider key and all enabled client tokens.
 Configuration requires client authentication to be enabled; malformed, missing or conflicting configured values prevent startup without printing them.
-The supplied single-client Compose samples do not automatically forward this new variable; explicitly provide it to the server when enabling this optional capability.
+The supplied live Compose sample does not automatically forward this variable; the [managed Compose override](#persist-managed-state-with-compose) adds it, or explicitly provide it to the server.
 
 An operator request sends only that separate Bearer credential.
 Client credentials cannot read usage, and an operator credential cannot call chat or list models.
@@ -217,7 +225,7 @@ with urlopen(request, timeout=10) as response:
 ```
 
 Use HTTPS when reaching a shared deployment.
-The result includes `scope: process_lifetime`, its UTC `started_at`, `reset_on_restart: true` and a `clients` object keyed by configured client identity.
+Without a configured management database, the result includes `scope: process_lifetime`, its UTC `started_at`, `reset_on_restart: true` and a `clients` object keyed by configured client identity.
 Each client row contains:
 
 | Field | Meaning |
@@ -239,6 +247,9 @@ This bounded view is not durable accounting, an arbitrary-period or per-model us
 
 ## Open the read-only operator console
 
+This section describes the console when neither `auth.management_database_url_env` nor `auth.management_db` is configured.
+Enable [managed users](#manage-users-in-the-operator-console) to administer accounts in the same workspace.
+
 After configuring the separate operator credential above, open `/operator/console` on your gateway and enter that token.
 The shell and its packaged stylesheet/script contain no configured client, policy or usage data.
 The dashboard loads a protected `GET /operator/state` snapshot only after connecting, using an authorization header to the same gateway.
@@ -258,10 +269,150 @@ A hook can reject a particular request or configuration, so its presence is not 
 Disabled middleware has validated configuration but no instantiated hooks.
 Policy terms/settings, provider origins, credential references and conversations are excluded from the snapshot.
 
-The console changes no account, permission, limit or middleware setting.
+Without a configured management database, the console changes no account, permission, limit or middleware setting.
 Update the server configuration, run the existing [configuration validation](cli.md#validate-configuration) and appropriate [isolated middleware fixtures](cli.md#generate-and-test-middleware), then restart to apply a change.
 Malformed configuration prevents startup, while runtime policy/plugin failures retain their existing fail-closed behavior.
 [FR-020](functional-requirements/fr/FR-020.md) specifies the console boundary.
+
+## Manage users in the operator console
+
+Enable PostgreSQL-backed administration once in the server YAML:
+
+```yaml
+auth:
+  enabled: true
+  operator_token_env: GATEWAY7_OPERATOR_TOKEN
+  management_database_url_env: GATEWAY7_DATABASE_URL
+  clients: {}
+```
+
+Keep the rest of the provider, middleware and request-limit configuration.
+Supply the operator token, provider key and PostgreSQL connection settings privately, validate the configuration, and restart once.
+The named database URL variable is resolved only at runtime; YAML contains its environment name, never a DSN or password.
+For a local Python process, set `GATEWAY7_DATABASE_URL` to your PostgreSQL DSN and supply its password through `PGPASSWORD` or your existing libpq credential mechanism.
+Managed administration requires client authentication and a separate operator credential; an empty client set is allowed so the operator can create the first user in the console.
+PostgreSQL is the primary managed deployment; the explicit [SQLite alternative](#optional-local-sqlite-storage) remains available for local use.
+Configure exactly one backend: `management_database_url_env` and `management_db` are mutually exclusive.
+
+Open `/operator/console`, connect with the operator token, and use the user controls to:
+
+1. Create a user with a stable client ID, enabled state, model permissions, concurrent-request limit, request rate and ordered additional middleware.
+2. Copy the generated client token when it is shown and deliver it to the application through your normal secret channel.
+3. Edit access, enable or suspend the user, issue a replacement token, revoke a token, or delete the user.
+4. Filter usage by user, model and UTC dates, and export the selected report as CSV.
+
+Tokens are shown only after creation or replacement; later state and usage reads cannot recover them.
+The database stores token digests, and the browser keeps the operator token only in page memory.
+Replacing a token invalidates its predecessor; revoking it leaves the account without a credential until a fresh token is issued.
+Enabling an account whose token was revoked does not recreate that token.
+Keep user IDs pseudonymous because they are part of the protected usage report.
+
+Model permissions retain the same three choices: unrestricted at the client level (`null`), an explicit allowlist, or deny every model (`[]`).
+The independent provider-wide restriction still applies.
+The console can assign only enabled middleware already installed and loaded at startup; global policies always remain first and cannot be removed by a user edit.
+Save applies new permissions, state, limits and middleware selections to subsequent requests without restarting.
+Already-admitted requests finish under their existing policy chain; suspending or deleting an account does not retract a response already in progress.
+Editing a limit retains current admission occupancy and does not grant a fresh rate bucket through unrelated account edits.
+
+An existing `auth.clients` section can seed the database on its first initialization.
+Only that first initialization resolves and imports its client tokens; subsequent starts use stored profiles and digests, so bootstrap client environment variables are no longer required.
+Editing seed YAML or restoring an old bootstrap token does not overwrite managed changes or reactivate deleted users.
+The operator token and provider key remain server-managed credentials.
+Deleting a user retains its usage and reserves its ID so a new account cannot inherit old history.
+
+Managed usage reports use `scope: persistent` and `reset_on_restart: false`.
+They aggregate terminal provider observations by client, model and UTC day, preserving known input/output totals and unknown-usage attempt counts separately.
+`start` and `end` are inclusive UTC dates in `YYYY-MM-DD` format; use the same date for both to select one day.
+This daily report does not implement the arbitrary timestamp interval promised by [FR-012](functional-requirements/fr/FR-012.md).
+The selected report excludes requests denied before a provider attempt and retains observed usage when a later response policy denies delivery.
+Reports and exports contain no prompts, answers, tools or credentials; CSV exports contain the selected aggregate rows.
+There is no usage-reset control, monetary billing or hard token/currency budget.
+
+### Persist managed state with Compose
+
+Use `compose.yaml` with `compose.admin.yaml` to run the gateway, PostgreSQL and monitoring services.
+The default managed configuration is `config/admin-postgres.yaml`; unlike the legacy single-client example, it needs no bootstrap client token.
+Set a private provider key, a distinct random operator token and a database password in your environment or local uncommitted Compose `.env` file:
+
+```sh
+export GATEWAY_KEY_ENV=OPENAI_API_KEY
+export GATEWAY_CONFIG_FILE=./config/admin-postgres.yaml
+read -r -s -p 'OpenAI API key: ' OPENAI_API_KEY
+printf '\n'
+read -r -s -p 'Operator token: ' GATEWAY7_OPERATOR_TOKEN
+printf '\n'
+read -r -s -p 'PostgreSQL password: ' GATEWAY7_POSTGRES_PASSWORD
+printf '\n'
+export OPENAI_API_KEY GATEWAY7_OPERATOR_TOKEN GATEWAY7_POSTGRES_PASSWORD
+docker compose -f compose.yaml -f compose.admin.yaml \
+  up --build --detach --wait
+```
+
+Alternatively set `COMPOSE_FILE=compose.yaml:compose.admin.yaml` and `GATEWAY_CONFIG_FILE=./config/admin-postgres.yaml` in the local Compose `.env`, fill the same private variables, and run `docker compose up --build --detach --wait`.
+For another provider, select equivalent provider settings and `GATEWAY_KEY_ENV`; managed accounts and the database are independent of the provider.
+Adding `compose.admin.yaml` after `compose.live.yaml` is supported when you need its telemetry/proxy environment forwarding.
+
+The managed override provides a pinned PostgreSQL 17 image, a persistent `postgres-data` named volume, a database health check and a gateway startup dependency on that health check.
+It publishes no PostgreSQL host port.
+The default DSN is `postgresql://gateway7@postgres:5432/gateway7`; Compose passes the password separately as `PGPASSWORD` to the gateway and `POSTGRES_PASSWORD` to PostgreSQL, so special characters in passwords need no URI encoding.
+An explicit `GATEWAY7_DATABASE_URL` overrides the gateway connection string; it does not provision a different server or change an existing database user's password.
+Do not print expanded live Compose configuration, since it contains injected credentials.
+
+First startup initializes the `gateway7_admin` schema and version metadata, then imports optional seed clients once.
+Subsequent starts validate the schema version and stored state instead of overwriting them from YAML.
+An unavailable database, incompatible schema, invalid stored state or another gateway holding the database ownership lock prevents readiness; the gateway does not silently switch to SQLite or create an empty replacement registry.
+If the active PostgreSQL connection is lost, client requests fail closed until the gateway has been restarted with a healthy database.
+
+Run one gateway process per management database: PostgreSQL session ownership prevents several processes from serving divergent access rules or independent client limits.
+Concurrent/rate counters remain process-local and restart-reset, while stored limit settings and usage survive.
+Container restart, recreation or ordinary `docker compose down` preserves the named volume.
+`docker compose down --volumes` removes it and its managed accounts and usage; use that only for intentionally disposable data.
+Back up the PostgreSQL database with the normal PostgreSQL backup tooling and keep backups private.
+The image initializes its password only for a new volume; changing an existing user's password requires an explicit database administration step and matching gateway credential update.
+
+### Optional local SQLite storage
+
+For an explicit local alternative, set `auth.management_db` to a private SQLite file and omit `management_database_url_env`.
+The `config/admin-sqlite.yaml` example uses `/var/lib/gateway7/admin.sqlite3` with no seeded users.
+For a Docker host using the supplied image's service UID/GID `10001:10001`, prepare a private directory outside the checkout:
+
+```sh
+sudo install -d -o 10001 -g 10001 -m 0700 /srv/gateway7/admin-state
+export GATEWAY7_ADMIN_STATE_DIR=/srv/gateway7/admin-state
+export GATEWAY_CONFIG_FILE=./config/admin-sqlite.yaml
+docker compose -f compose.yaml -f compose.admin-sqlite.yaml \
+  up --build --detach --wait
+```
+
+Supply the same provider key and operator token as above; this alternative needs no PostgreSQL password.
+Use the SQLite override instead of the PostgreSQL override.
+Its private directory is writable while the root filesystem remains read-only; the directory must already exist with service ownership.
+For a local Python process, choose a persistent directory writable only by its service account, outside the checkout.
+Stop the gateway before copying the complete SQLite database for a consistent backup, and restore it with the same service ownership.
+A second gateway process opening the file fails startup.
+Deleting or losing the file loses managed users and usage; a newly initialized store runs first-start bootstrap again.
+
+### Operator API
+
+The console uses these same protected endpoints:
+
+| Method and path | Operation |
+| --- | --- |
+| `GET /operator/state` | Safe client, policy, limit and middleware snapshot |
+| `POST /operator/clients` | Create a client and return its one-time token |
+| `PUT /operator/clients/{id}` | Replace a client's editable settings |
+| `POST /operator/clients/{id}/token` | Issue or rotate a client token |
+| `DELETE /operator/clients/{id}/token` | Revoke the credential while keeping its account |
+| `DELETE /operator/clients/{id}` | Delete an account, retaining usage and its reserved ID |
+| `GET /operator/usage` | Usage report; optional `client_id`, `model`, `start`, `end` filters |
+| `GET /operator/usage/export` | CSV report with the same filters |
+
+Every endpoint requires the separate operator bearer credential.
+Mutations additionally require `X-Gateway7-Operator: true` and reject cross-origin requests; cookies and query parameters cannot authorize them.
+Client settings consist of `enabled`, `models`, `limits` with nullable `max_concurrent_requests`/`requests_per_minute`, and `additional_middleware`; creation also requires `id`.
+Credential input, arbitrary plugin settings and provider changes are outside that editable profile.
+Invalid edits leave the published profile and stored state unchanged.
+[FR-021](functional-requirements/fr/FR-021.md) specifies managed accounts, while [FR-019](functional-requirements/fr/FR-019.md) specifies usage and [FR-020](functional-requirements/fr/FR-020.md) specifies the inspection and browser boundary.
 
 ## Use the CLI
 
@@ -301,7 +452,7 @@ The global `active_pipelines` gauge continues to count pipeline tasks only, so i
 Health, readiness, metrics and model-list requests do not use client slots.
 Client names are not added to logs or public metric labels.
 Limits apply to one gateway process and reset on restart; separate workers or replicas do not share counters.
-Changing client limits requires a configuration change and restart.
+Change the limit in the managed console to apply it to subsequent requests, or edit YAML and restart in configuration-only mode.
 
 ## Limit a client's request rate
 
@@ -333,8 +484,9 @@ The public `gateway7_rate_limit_rejections_total` counter has no client identity
 
 ## Deployment boundary
 
-Change clients, permissions or tokens through server configuration/environment and restart.
-There is no token-management API, user database or billing.
+With a management database configured, use the console for users, credentials, permissions, limits and policy assignments.
+Without it, change clients through server configuration/environment and restart.
+Provider configuration, the operator credential and middleware code/settings remain server administration; billing is not provided.
 
 The supplied live Compose override forwards the provider key and `GATEWAY7_CLIENT_TOKEN` for the single-client samples.
 Using the two-client section above with Compose also requires forwarding `GATEWAY7_APP_TOKEN` and `GATEWAY7_WORKER_TOKEN`; see [setup](setup.md#real-providers).

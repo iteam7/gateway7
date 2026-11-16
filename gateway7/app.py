@@ -18,12 +18,14 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.routing import APIRoute
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from starlette.responses import JSONResponse, Response
+from starlette.datastructures import URL
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.routing import Match, Route
 from starlette.types import ASGIApp, Message as ASGIMessage, Receive, Scope, Send
 
 from gateway7 import __version__
 from gateway7.analytics import Analytics
+from gateway7.admin_runtime import AdminController, ClientPolicy, CreateClient, usage_csv
 from gateway7.client_policies import build_client_pipelines
 from gateway7.config import GatewayConfig, load_config, provider_key, validate_provider_model
 from gateway7.auth import AccessControl
@@ -31,6 +33,7 @@ from gateway7.errors import GatewayError, ProviderError, StartupError
 from gateway7.loader import complete_cleanup, load_plugins, start_plugins, stop_plugins
 from gateway7.models import ChatRequest, ChatResponse
 from gateway7.metrics import HTTPRequestOutcome, Metrics
+from gateway7.management_store import open_management_store
 from gateway7.openai_api import (
     EarlyChatEncoder,
     NativeChatRequest,
@@ -39,7 +42,7 @@ from gateway7.openai_api import (
     completion_sse,
     error_body,
 )
-from gateway7.operator_console import CONSOLE_HEADERS, OPERATOR_PATHS, console_asset, operator_state
+from gateway7.operator_console import CONSOLE_HEADERS, console_asset, operator_state
 from gateway7.pipeline import Pipeline
 from gateway7.plugin_api import EarlyStreamUnsupported, ResponsesUnsupported
 from gateway7.providers import CatalogModel, build_provider
@@ -48,7 +51,7 @@ from gateway7.responses_events import ResponsesTextDelta
 from gateway7.responses_models import ResponsesConsent, ResponsesCreateRequest, ResponsesResponse
 from gateway7.telemetry import Telemetry
 from gateway7.transport_loader import create_transport, validate_transport_config
-from gateway7.usage import OperatorAccess, UsageLedger
+from gateway7.usage import OperatorAccess, PersistentUsageLedger, UsageLedger
 
 logger = logging.getLogger("gateway7")
 _TIMEOUT_RESPONSE_GRACE_SECONDS = 0.1
@@ -93,6 +96,22 @@ def _error_response(
 
 def _openai_path(path: str) -> bool:
     return path.startswith("/v1/")
+
+
+def _check_operator_write(scope: Scope) -> None:
+    headers = scope.get("headers", [])
+    marker = [value for name, value in headers if name.lower() == b"x-gateway7-operator"]
+    origins = [value for name, value in headers if name.lower() == b"origin"]
+    fetch_sites = [value for name, value in headers if name.lower() == b"sec-fetch-site"]
+    if marker != [b"true"] or len(origins) > 1 or len(fetch_sites) > 1:
+        raise GatewayError("invalid_request")
+    if fetch_sites and fetch_sites[0] not in (b"same-origin", b"none"):
+        raise GatewayError("invalid_request")
+    if origins:
+        url = URL(scope=scope)
+        expected = f"{url.scheme}://{url.netloc}".encode("ascii")
+        if origins[0] != expected:
+            raise GatewayError("invalid_request")
 
 
 def _stream_mode(headers: list[tuple[bytes, bytes]]) -> Literal["buffered", "early"]:
@@ -246,19 +265,52 @@ class GatewayBoundaryMiddleware:
             )
 
         try:
+            if route == "ready" and self.owner.state.admin_store is not None:
+                try:
+                    self.owner.state.admin_store.ensure_available()
+                except StartupError:
+                    self.owner.state.ready = False
             if scope.get("method") == "GET" and route in ("health", "ready", "metrics"):
                 await self.app(scope, receive, safe_send)
                 return
             if not getattr(self.owner.state, "ready", False):
                 await fail("unavailable")
                 return
-            if scope.get("path") in OPERATOR_PATHS:
+            if self.owner.state.admin_store is not None and (
+                route in ("chat", "openai_chat", "openai_responses", "models")
+                or operator_path
+                and scope.get("path")
+                not in {
+                    "/operator/console",
+                    "/operator/assets/console.css",
+                    "/operator/assets/console.js",
+                }
+            ):
+                try:
+                    self.owner.state.admin_store.ensure_available()
+                except StartupError:
+                    self.owner.state.ready = False
+                    await fail("unavailable")
+                    return
+            if operator_path:
                 try:
                     access = self.owner.state.operator_access
-                    if scope.get("path") in {"/operator/usage", "/operator/state"}:
+                    if scope.get("path") not in {
+                        "/operator/console",
+                        "/operator/assets/console.css",
+                        "/operator/assets/console.js",
+                    }:
                         access.authenticate(scope.get("headers", []))
                     elif not access.enabled:
                         raise GatewayError("not_found")
+                    if scope.get("method") in {"POST", "PUT", "PATCH", "DELETE"} and scope.get(
+                        "path", ""
+                    ).startswith("/operator/clients"):
+                        if self.owner.state.admin_store is None and scope.get(
+                            "path", ""
+                        ).startswith("/operator/clients"):
+                            raise GatewayError("not_found")
+                        _check_operator_write(scope)
                 except GatewayError as error:
                     await fail(error.code)
                     return
@@ -449,9 +501,46 @@ class _PipelineAdmission:
             for name, client in config.auth.clients.items()
             if client.enabled and (limit := client.limits.requests_per_minute) is not None
         }
+        self._rate_enabled = set(self._rate_buckets)
+
+    def update(self, config: GatewayConfig) -> None:
+        """Replace future policy without releasing active or delivery-owned slots."""
+        self.limit = config.limits.max_concurrent_requests
+        self._authenticated = config.auth.enabled
+        self._client_limits = {
+            name: client.limits.max_concurrent_requests
+            for name, client in config.auth.clients.items()
+            if client.enabled
+        }
+        for name in self._client_limits:
+            self._client_active.setdefault(name, 0)
+        now = self._clock()
+        for name, client in config.auth.clients.items():
+            capacity = client.limits.requests_per_minute
+            if not client.enabled or capacity is None:
+                continue
+            bucket = self._rate_buckets.get(name)
+            if bucket is None:
+                self._rate_buckets[name] = _RateBucket(capacity, float(capacity), now)
+            elif bucket.capacity != capacity:
+                elapsed = max(0.0, now - bucket.updated)
+                available = min(
+                    float(bucket.capacity), bucket.tokens + elapsed * bucket.capacity / 60
+                )
+                bucket.tokens = min(float(capacity), available)
+                bucket.capacity = capacity
+                bucket.updated = now
+        # Retain retired buckets while leases can still refund their debit.
+        self._rate_enabled = {
+            name
+            for name, client in config.auth.clients.items()
+            if client.enabled and client.limits.requests_per_minute is not None
+        }
 
     def _debit_rate(self, client_id: str | None) -> bool:
         bucket = self._rate_buckets.get(client_id) if client_id is not None else None
+        if hasattr(self, "_rate_enabled") and client_id not in self._rate_enabled:
+            bucket = None
         if bucket is None:
             return False
         now = max(bucket.updated, self._clock())
@@ -558,6 +647,7 @@ class _PipelineAdmission:
 
 
 def _admit_request(request: Request) -> _AdmissionLease:
+    _ensure_management_available(request.app)
     principal = getattr(request.state, "principal", None)
     lease = request.app.state.admission.acquire(
         None if principal is None else principal.client_id,
@@ -577,11 +667,29 @@ async def _watch_disconnect(request: Request) -> None:
 
 def _select_model(request: Request, requested: str | None) -> str:
     config = request.app.state.config.provider
+    if request.app.state.admin_store is not None:
+        _ensure_management_available(request.app)
+        # Body delivery can await while a user is suspended or their token rotates.
+        request.state.principal = request.app.state.access.authenticate(
+            request.scope.get("headers", [])
+        )
     selected = request.state.principal.select_model(requested, config.model)
     try:
-        return validate_provider_model(config.kind, selected)
+        selected = validate_provider_model(config.kind, selected)
+        request.state.selected_model = selected
+        return selected
     except (TypeError, ValueError):
         raise GatewayError("invalid_request") from None
+
+
+def _ensure_management_available(app: FastAPI) -> None:
+    store = app.state.admin_store
+    if store is not None:
+        try:
+            store.ensure_available()
+        except StartupError:
+            app.state.ready = False
+            raise GatewayError("unavailable") from None
 
 
 def _client_pipeline(request: Request) -> Pipeline:
@@ -592,6 +700,17 @@ def _client_pipeline(request: Request) -> Pipeline:
     if pipeline is None:
         # An authenticated client must never fall back to a less restrictive chain.
         raise GatewayError("unavailable")
+    if request.app.state.admin_store is not None:
+        return Pipeline(
+            pipeline.plugins,
+            pipeline.provider,
+            pipeline.limits,
+            metrics=pipeline.metrics,
+            provider_name=pipeline.provider_name,
+            provider_observer=request.app.state.usage_ledger.observer(
+                client_id, request.state.selected_model
+            ),
+        )
     return pipeline
 
 
@@ -950,18 +1069,37 @@ def create_app(
             try:
                 await active_analytics.shutdown()
             finally:
-                app.state.telemetry = Telemetry.disabled()
-                # Flushing performs blocking HTTP export with its own timeout.
-                await asyncio.to_thread(active_telemetry.shutdown)
+                try:
+                    if app.state.admin_store is not None:
+                        app.state.admin_store.close()
+                        app.state.admin_store = None
+                finally:
+                    app.state.telemetry = Telemetry.disabled()
+                    # Flushing performs blocking HTTP export with its own timeout.
+                    await asyncio.to_thread(active_telemetry.shutdown)
 
     @asynccontextmanager
     async def gateway_lifespan(app: FastAPI):
         app.state.ready = False
         active_config = config if config is not None else load_config(path)
         key = provider_key(active_config.provider)
-        access = AccessControl(active_config)
-        operator_access = OperatorAccess(active_config)
-        usage_ledger = UsageLedger(active_config.auth.clients)
+        token_digests = None
+        if active_config.auth.management_enabled:
+            store = open_management_store(active_config)
+            app.state.admin_store = store
+            clients, token_digests = store.load_clients()
+            data = active_config.model_dump()
+            data["auth"]["clients"] = {
+                name: client.model_dump() for name, client in clients.items()
+            }
+            active_config = GatewayConfig.model_validate(data)
+            usage_ledger: UsageLedger | PersistentUsageLedger = PersistentUsageLedger(
+                store, clients
+            )
+        else:
+            usage_ledger = UsageLedger(active_config.auth.clients)
+        access = AccessControl(active_config, token_digests=token_digests)
+        operator_access = OperatorAccess(active_config, token_digests=token_digests)
         validated_transport = validate_transport_config(active_config.provider.transport)
         plugins = load_plugins(active_config)
         transport = create_transport(validated_transport)
@@ -994,6 +1132,7 @@ def create_app(
             app.state.access = access
             app.state.operator_access = operator_access
             app.state.usage_ledger = usage_ledger
+            app.state.token_digests = token_digests or {}
             app.state.pipeline = Pipeline(
                 plugins,
                 provider,
@@ -1040,6 +1179,8 @@ def create_app(
     app.state.admission = _PipelineAdmission(app.state.metrics)
     app.state.operator_access = None
     app.state.usage_ledger = None
+    app.state.admin_store = None
+    app.state.token_digests = {}
     app.state.telemetry = Telemetry.disabled()
     app.state.analytics = Analytics.disabled()
     app.state.client_pipelines = {}
@@ -1170,9 +1311,46 @@ def create_app(
         )
 
     @app.get("/operator/usage", include_in_schema=False)
-    async def operator_usage() -> JSONResponse:
-        return JSONResponse(
-            app.state.usage_ledger.snapshot(), headers={"Cache-Control": "no-store"}
+    async def operator_usage(
+        client_id: str | None = None,
+        model: str | None = None,
+        start: str | None = None,
+        end: str | None = None,
+    ) -> JSONResponse:
+        if app.state.admin_store is not None:
+            try:
+                snapshot = app.state.usage_ledger.snapshot(
+                    client_id=client_id, model=model, start=start, end=end
+                )
+            except ValueError:
+                raise GatewayError("invalid_request") from None
+            except StartupError:
+                raise GatewayError("unavailable") from None
+        else:
+            snapshot = app.state.usage_ledger.snapshot()
+        return JSONResponse(snapshot, headers={"Cache-Control": "no-store"})
+
+    @app.get("/operator/usage/export", include_in_schema=False)
+    async def operator_usage_export(
+        client_id: str | None = None,
+        model: str | None = None,
+        start: str | None = None,
+        end: str | None = None,
+    ) -> Response:
+        if app.state.admin_store is None:
+            raise GatewayError("not_found")
+        try:
+            snapshot = app.state.usage_ledger.snapshot(
+                client_id=client_id, model=model, start=start, end=end
+            )
+        except ValueError:
+            raise GatewayError("invalid_request") from None
+        except StartupError:
+            raise GatewayError("unavailable") from None
+        return Response(
+            usage_csv(snapshot),
+            media_type="text/csv",
+            headers={"Content-Disposition": 'attachment; filename="gateway7-usage.csv"'},
         )
 
     @app.get("/operator/state", include_in_schema=False)
@@ -1183,8 +1361,36 @@ def create_app(
             app.state.client_pipelines,
             ready=app.state.ready,
         )
-        snapshot["usage"] = app.state.usage_ledger.snapshot()
+        try:
+            snapshot["usage"] = app.state.usage_ledger.snapshot()
+        except StartupError:
+            raise GatewayError("unavailable") from None
+        if app.state.admin_store is not None:
+            for client in snapshot["clients"]:
+                client["credential_active"] = client["id"] in app.state.token_digests
         return JSONResponse(snapshot, headers=CONSOLE_HEADERS)
+
+    @app.post("/operator/clients", include_in_schema=False, status_code=201)
+    async def operator_create_client(payload: CreateClient) -> JSONResponse:
+        return JSONResponse(AdminController(app.state).create(payload), status_code=201)
+
+    @app.put("/operator/clients/{client_id}", include_in_schema=False)
+    async def operator_update_client(client_id: str, payload: ClientPolicy) -> JSONResponse:
+        return JSONResponse(AdminController(app.state).update(client_id, payload))
+
+    @app.post("/operator/clients/{client_id}/token", include_in_schema=False)
+    async def operator_rotate_token(client_id: str) -> JSONResponse:
+        return JSONResponse(AdminController(app.state).rotate(client_id))
+
+    @app.delete("/operator/clients/{client_id}/token", include_in_schema=False, status_code=204)
+    async def operator_revoke_token(client_id: str) -> Response:
+        AdminController(app.state).revoke(client_id)
+        return Response(status_code=204)
+
+    @app.delete("/operator/clients/{client_id}", include_in_schema=False, status_code=204)
+    async def operator_delete_client(client_id: str) -> Response:
+        AdminController(app.state).delete(client_id)
+        return Response(status_code=204)
 
     @app.get("/operator/console", include_in_schema=False)
     async def operator_console() -> Response:

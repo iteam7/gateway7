@@ -123,7 +123,8 @@ async def test_catalog_reuses_production_client_origin_credentials_and_proxy_tra
 
 
 async def test_catalog_ttl_is_account_instance_scoped_without_stale_fallback(monkeypatch):
-    clock = [time.monotonic()]
+    # Keep the exact expiry arithmetic independent of host uptime rounding.
+    clock = [1000.0]
     monkeypatch.setattr(PROVIDERS, "time", SimpleNamespace(monotonic=lambda: clock[0]))
     seen = []
 

@@ -29,6 +29,7 @@ from gateway7.config import GatewayConfig, load_config, validate_model_id
 from gateway7.errors import StartupError
 from gateway7.loader import load_plugins
 from gateway7.models import ChatRequest, ChatResponse, Message
+from gateway7.management_store import validate_postgres_url
 from gateway7.providers import validate_provider_config
 from gateway7.offline import print_report, run_offline
 from gateway7.scaffold import create_plugin_project
@@ -80,7 +81,11 @@ def _read_secrets_file(path: str, config: GatewayConfig) -> dict[str, str]:
         if not isinstance(data, dict):
             raise ValueError
         token_names = {client.token_env for client in config.auth.clients.values()}
+        if config.auth.operator_token_env is not None:
+            token_names.add(config.auth.operator_token_env)
         allowed = {config.provider.key_env, *token_names}
+        if config.auth.management_database_url_env is not None:
+            allowed.add(config.auth.management_database_url_env)
         proxy_name = None
         transport = config.provider.transport
         if transport is not None and transport.module == "gateway7.transports.http_proxy":
@@ -103,6 +108,8 @@ def _read_secrets_file(path: str, config: GatewayConfig) -> dict[str, str]:
                 raise ValueError
             if name == proxy_name:
                 _proxy_url(value)
+            if name == config.auth.management_database_url_env:
+                validate_postgres_url(value)
         return data
     except (ValueError, UnicodeError, RecursionError, StartupError):
         raise StartupError("Invalid secrets file") from None

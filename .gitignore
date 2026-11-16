@@ -17,6 +17,12 @@ desktop.ini
 *.pem
 *.key
 
+# Private user-management databases and their SQLite sidecars
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+
 # Intentionally public certificates/key for the isolated proxy TLS tests
 !tests/fixtures/proxy/synthetic-ca.pem
 !tests/fixtures/proxy/synthetic-server.pem
