@@ -85,6 +85,68 @@ Cleanup hooks run in an owned task and must not depend on the startup task's ide
 External cancellation waits for this cleanup and is then re-raised; if startup or the service body already failed, that original failure or cancellation takes precedence over cleanup interruptions.
 Instances are shared across requests; immutable settings and concurrency-safe resources belong on the instance, and temporary mutable data belongs in `context.state`.
 
+## Simple text policies
+
+Use `TextPolicyMiddleware` when the policy can be expressed as a pure synchronous text transformation or detector.
+The adapter implements the Chat, native Responses and guarded early-preparation hooks, while the normal runner retains forwarding, ordering, deadlines and payload validation.
+It does not convert Responses items into Chat messages.
+
+```python
+from pydantic import BaseModel, ConfigDict, Field
+
+from gateway7.plugin_api import PluginDescriptor
+from gateway7.text_policy import TextPolicyMiddleware
+
+
+class Settings(BaseModel):
+    model_config = ConfigDict(strict=True, extra="forbid", frozen=True)
+    term: str = Field(default="PRIVATE-TEST", min_length=1, max_length=128)
+    replacement: str = Field(default="[removed]", min_length=1, max_length=128)
+
+
+def create(settings: Settings) -> TextPolicyMiddleware:
+    def transform(text: str) -> tuple[str, int]:
+        return text.replace(settings.term, settings.replacement), text.count(settings.term)
+
+    return TextPolicyMiddleware(transform, phase="both", action="redact")
+
+
+PLUGIN = PluginDescriptor(
+    id="company-text-policy", api_version=2, settings_model=Settings,
+    create=create, supports_tools=True,
+)
+```
+
+The callback returns replacement text and a nonnegative integer match count.
+A changed string must have a positive count; malformed results become safe plugin failures.
+Do not use an async callback, block the event loop, access the network, or keep request text in callback closures or shared instance state.
+Capture only immutable policy configuration, as in this example.
+
+Choose `phase="request"`, `"response"` or `"both"` explicitly.
+With `action="block"`, a match denies the request or response and replacement text is ignored.
+A detector can therefore return `text, text.count(settings.term)`.
+With `action="redact"`, ordinary free text is transformed, while a match in protected structured or executable fields denies the turn rather than changing tool IDs, schemas or arguments.
+Native annotation-bearing text is also withheld rather than changing citation offsets.
+Consented opaque data remains byte-for-byte unchanged and adjacent plaintext is still inspected.
+
+Only `phase="request"` supports early delivery.
+The response and both-phase configurations explicitly refuse early preparation before provider work; the adapter never silently drops response checks.
+The descriptor's `supports_tools` flag remains an explicit opt-in: this example enables it because the shared adapter performs the structured checks.
+Do not copy that opt-in onto an unchecked custom `handle` implementation.
+The reference phone and email plugins use this adapter while retaining their existing detectors and configured phases.
+The content-policy plugin retains its specialized metadata-only logging implementation.
+
+## Public typing for advanced middleware
+
+The package includes a `py.typed` marker for external type checkers.
+The optional protocols `ChatMiddleware`, `EarlyChatMiddleware`, `ResponsesMiddleware`, `EarlyResponsesMiddleware` and `PluginLifecycle` are available from `gateway7.plugin_api`.
+`TextTransform`, `PolicyPhase` and `PolicyAction` are available from `gateway7.text_policy`.
+These annotations help editors and coding agents catch wrong hook parameters, return types and transform results before running fixtures.
+Runtime loading and policy checks still apply; satisfying a protocol does not certify a configured plugin's safety or supported modes.
+
+Use the raw API v2 hooks when a plugin needs custom asynchronous work, lifecycle resources or behavior beyond block/redact text policies.
+Optional native and early hooks remain separate contracts, and provider transport extensions retain their own API version and resource ownership.
+
 ## Tool-payload capability
 
 `PluginDescriptor` has an additive `supports_tools: bool = False` field; the middleware API remains version 2.

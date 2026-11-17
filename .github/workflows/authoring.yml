@@ -1,0 +1,52 @@
+name: Installed plugin authoring
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  authoring:
+    name: Authoring / ${{ matrix.os }} / Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.12.23"
+          python-version: ${{ matrix.python }}
+          enable-cache: true
+      - name: Build the gateway wheel
+        run: uv build --wheel
+      - name: Install outside checkout and exercise the complete author journey
+        shell: python
+        env:
+          AUTHORING_PYTHON: ${{ matrix.python }}
+        run: |
+          import os
+          from pathlib import Path
+          import subprocess
+          import tempfile
+          root = Path.cwd()
+          with tempfile.TemporaryDirectory(prefix="gateway7-installed-") as temporary:
+              directory = Path(temporary)
+              environment = directory / "environment"
+              subprocess.run(["uv", "venv", "--python", os.environ["AUTHORING_PYTHON"], str(environment)], check=True)
+              python = environment / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+              subprocess.run([str(python), "-c", "import sys; assert str(sys.version_info.major)+'.'+str(sys.version_info.minor) == sys.argv[1]", os.environ["AUTHORING_PYTHON"]], check=True)
+              requirements = directory / "requirements.txt"
+              subprocess.run(["uv", "export", "--locked", "--no-dev", "--no-emit-project", "--format", "requirements-txt", "--output-file", str(requirements)], check=True)
+              subprocess.run(["uv", "pip", "install", "--python", str(python), "--require-hashes", "-r", str(requirements)], check=True)
+              wheel = next((root / "dist").glob("*.whl"))
+              subprocess.run(["uv", "pip", "install", "--python", str(python), "--no-deps", str(wheel)], check=True)
+              os.environ.pop("PYTHONPATH", None)
+              subprocess.run([str(python), str(root / "scripts/smoke_authoring.py"), "--python", str(python)], cwd=directory, check=True)

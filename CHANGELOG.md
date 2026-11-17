@@ -12,6 +12,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Live single-provider settings and model aliases with write-only encrypted credentials, connection checks and safe draining of replaced adapters.
 - Installed same-backend backup/restore commands for private, versioned management snapshots, with validation and empty-target recovery.
 - Readiness/database and exporter delivery metrics, Responses-aware Grafana panels and operational Prometheus alert rules.
+- Project-aware plugin scaffolding with request-guard and two-way-redactor starters, a public typed text-policy helper, local agent contracts, editable unit tests and generated Ruff/strict mypy configuration.
+- Schema-2 synthetic fixtures for Chat, typed tools, native Responses and eligible early streams, with per-profile evidence, source-aware inspection and safe actionable diagnostics.
+- One-command loopback plugin development with owned synthetic HTTP services, scrubbed credentials, automatic ports and cross-platform cleanup; installed-wheel authoring checks cover Linux and Windows on Python 3.11–3.13.
 - Opt-in durable user administration in the operator console: create, edit, suspend and delete accounts, issue or revoke one-time client tokens, and apply model access, limits and additional middleware without restarting.
 - PostgreSQL-backed administration through a health-checked Compose service and durable volume, with explicit local SQLite storage retained as an alternative.
 
@@ -19,6 +22,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - Managed writes now require the current `If-Match` revision, and new usage reports use precise UTC `[start, end)` intervals; historical daily totals retain their original precision.
 - Prometheus token totals preserve independently known input and output counts when the other direction is unavailable.
+- Prepare the next development build as `0.5.0.dev0`; middleware API 2 and provider transport API 1 remain unchanged.
+
+### Breaking changes
+
+- Plugin authoring now requires `[tool.gateway7.plugin]` manifest schema 1 and fixture schema 2; the earlier `plugin test --config ... --fixtures ...` options and schema-1 fixtures are unsupported.
+  Regenerate a starter and port reviewed policy/cases to the declared profiles before testing or development serving.
 
 ## [0.4.0] - 2026-11-14
 
