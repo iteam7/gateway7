@@ -455,7 +455,8 @@ Use the [architecture](architecture/README.md#customer-view), [middleware author
 
 Unknown fields, invalid settings and missing required middleware stop startup.
 `serve` also loads credentials and runs plugin startup hooks before becoming ready.
-Changing middleware code/settings, provider configuration or the operator credential requires a restart.
+Changing middleware code/settings, the recovery operator credential or the control encryption key requires a server-side deployment and restart.
+In managed mode, the provider panel validates and publishes live provider settings; admitted requests drain through their existing adapter.
 Enable [managed administration](authentication.md#manage-users-in-the-operator-console) to create users and change client tokens, permissions, limits and additional middleware assignments in the console without restarting.
 Configuration-only clients retain the YAML/environment and restart workflow.
 

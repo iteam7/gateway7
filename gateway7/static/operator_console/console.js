@@ -1,4 +1,5 @@
 "use strict";
+import { createAdminWorkspace } from "./admin_console.js";
 
 (() => {
   const byId = (id) => document.getElementById(id);
@@ -18,7 +19,11 @@
   let session = 0;
   let latestLoad = 0;
   let snapshot = null;
+  let panels = null;
+  let clientOffset = 0;
+  let usageOffset = 0;
   let editingId = null;
+  let editingRevision = null;
   let middlewareOrder = [];
   let mutating = false;
   let filtering = false;
@@ -78,6 +83,7 @@
     byId("middleware-order").replaceChildren();
     middlewareOrder = [];
     editingId = null;
+    editingRevision = null;
   }
   function clearData() {
     for (const id of [
@@ -114,6 +120,9 @@
     closeEditor();
     clearIssuedToken();
     snapshot = null;
+    panels?.clear();
+    byId("client-directory-filters").reset();
+    clientOffset = usageOffset = 0;
   }
   function disconnect() {
     session += 1;
@@ -136,13 +145,21 @@
     clearData();
     setMutationBusy(false);
   }
-  async function request(path, { method = "GET", body, blob = false } = {}) {
+  async function request(
+    path,
+    { method = "GET", body, blob = false, revision } = {},
+  ) {
     const currentSession = session;
     const controller = new AbortController();
     pending.add(controller);
     try {
       const headers = { Authorization: `Bearer ${token}` };
-      if (method !== "GET") headers["X-Gateway7-Operator"] = "true";
+      if (method !== "GET") {
+        headers["X-Gateway7-Operator"] = "true";
+        const expectedRevision = revision ?? snapshot?.revision;
+        if (expectedRevision !== undefined)
+          headers["If-Match"] = String(expectedRevision);
+      }
       if (body !== undefined) headers["Content-Type"] = "application/json";
       const response = await fetch(path, {
         method,
@@ -166,9 +183,11 @@
             ? "not-found"
             : response.status === 409
               ? "conflict"
-              : [400, 403, 422].includes(response.status)
-                ? "rejected"
-                : "request-failed",
+              : response.status === 403
+                ? "forbidden"
+                : [400, 422].includes(response.status)
+                  ? "rejected"
+                  : "request-failed",
         );
       }
       const result =
@@ -185,7 +204,7 @@
   }
   function failureMessage(failure) {
     return failure?.message === "conflict"
-      ? "This user ID already exists or was previously deleted. Choose a new ID."
+      ? "Another operator changed this configuration. Refresh and apply your change again."
       : failure?.message === "not-found"
         ? "This item is unavailable. Refresh the workspace and try again."
         : failure?.message === "rejected"
@@ -197,19 +216,41 @@
       failure?.name === "AbortError" || failure?.message === "stale-session"
     );
   }
+  function clientQuery() {
+    const query = new URLSearchParams({
+      offset: String(clientOffset),
+      limit: "25",
+    });
+    for (const [name, id] of [
+      ["search", "client-search"],
+      ["status", "client-status"],
+      ["owner", "client-owner-filter"],
+      ["tag", "client-tag-filter"],
+    ])
+      if (byId(id).value.trim()) query.set(name, byId(id).value.trim());
+    return `?${query}`;
+  }
   function usageQuery() {
-    const query = new URLSearchParams();
+    const query = new URLSearchParams({
+      offset: String(usageOffset),
+      limit: "25",
+      bucket: byId("usage-bucket")?.value || "day",
+    });
     for (const [field, id] of [
       ["client_id", "usage-client"],
       ["model", "usage-model"],
-      ["start", "usage-start"],
-      ["end", "usage-end"],
-    ]) {
-      const value = byId(id).value.trim();
-      if (value) query.set(field, value);
+    ])
+      if (byId(id).value.trim()) query.set(field, byId(id).value.trim());
+    if (byId("usage-start").value)
+      query.set("start", `${byId("usage-start").value}T00:00:00Z`);
+    if (byId("usage-end").value) {
+      const end = new Date(`${byId("usage-end").value}T00:00:00Z`);
+      end.setUTCDate(end.getUTCDate() + 1);
+      query.set("end", end.toISOString());
     }
-    return query.size ? `?${query}` : "";
+    return `?${query}`;
   }
+
   function validateDates() {
     if (
       byId("usage-start").value &&
@@ -301,6 +342,7 @@
       );
       body.append(row);
     }
+    panels?.renderUsage(usage);
     if (!rows.length)
       emptyRow(
         "usage-body",
@@ -328,24 +370,32 @@
     snapshot = state;
     const clients = state.clients;
     const plugins = state.middleware.plugins;
-    const writable = managed();
+    const writable = managed() && state.actor?.role !== "viewer";
     byId("mode-badge").textContent = writable ? "LIVE MANAGEMENT" : "READ ONLY";
     byId("workspace-mode").textContent = writable
       ? "Live user management"
       : "Read-only workspace";
     byId("create-client").hidden = !writable;
     byId("actions-heading").hidden = !writable;
-    byId("usage-filters").hidden = !writable;
+    byId("usage-filters").hidden = !managed();
+    byId("client-directory-filters").hidden = !managed();
+    byId("previous-clients").disabled = clientOffset === 0;
+    byId("next-clients").disabled =
+      clientOffset + 25 >= (state.clients_total ?? clients.length);
+    byId("clients-page").textContent =
+      `${state.clients_total ? clientOffset + 1 : 0}–${Math.min(clientOffset + clients.length, state.clients_total ?? clients.length)} of ${state.clients_total ?? clients.length}`;
     byId("management-note-title").textContent = writable
       ? "User changes apply immediately."
       : "Enable user management in this console.";
     byId("management-note").textContent = writable
       ? "User access, credentials, limits and middleware are saved across restarts. Requests already in progress may finish; revoked credentials are denied on new requests. Provider and global middleware configuration still uses the server configuration."
-      : "Set auth.management_db to a writable SQLite path in the server configuration, retain that file across deployments, and restart once. Then manage users and usage here. This gateway currently uses configuration-file accounts.";
-    byId("client-count").textContent = formatted(clients.length);
+      : "Enable PostgreSQL administration using the server's management database and operator credential settings, then restart once. SQLite remains available for local setups. This gateway currently uses configuration-file accounts.";
+    byId("client-count").textContent = formatted(
+      state.clients_total ?? clients.length,
+    );
     const enabled = clients.filter((client) => client.enabled).length;
     byId("client-summary").textContent =
-      `${enabled} enabled · ${clients.length - enabled} suspended`;
+      `${enabled} enabled · ${clients.length - enabled} suspended on this page`;
     byId("plugin-count").textContent = formatted(
       plugins.filter((plugin) => plugin.in_chain).length,
     );
@@ -367,7 +417,16 @@
     clientBody.replaceChildren();
     for (const client of clients) {
       const row = element("tr");
-      clientName(cell(row), client.id);
+      const identity = cell(row);
+      clientName(identity, client.id);
+      if (client.owner || client.tags?.length)
+        identity.append(
+          element(
+            "span",
+            `${client.owner || "No owner"}${client.tags?.length ? ` · ${client.tags.join(", ")}` : ""}`,
+            "secondary-line",
+          ),
+        );
       const status = cell(row);
       status.append(
         badge(
@@ -377,9 +436,40 @@
       );
       if (writable && !client.credential_active)
         status.append(element("span", "No active token", "secondary-line"));
-      if (client.models === null) cell(row, "All gateway-allowed models");
-      else if (client.models.length === 0) cell(row, "No models allowed");
-      else pills(cell(row), client.models);
+      const permission = cell(row);
+      if (client.models === null)
+        permission.append(element("span", "All gateway-allowed models"));
+      else if (client.models.length === 0)
+        permission.append(element("span", "No models allowed"));
+      else pills(permission, client.models);
+      if (
+        client.effective_models &&
+        JSON.stringify(client.effective_models) !==
+          JSON.stringify(client.models)
+      )
+        permission.append(
+          element(
+            "span",
+            `Effective: ${client.effective_models.join(", ") || "No models"}`,
+            "secondary-line warning-text",
+          ),
+        );
+      if (client.default_denied)
+        permission.append(
+          element(
+            "span",
+            "The default model is denied; choose an allowed model explicitly.",
+            "secondary-line warning-text",
+          ),
+        );
+      if (client.default_model)
+        permission.append(
+          element(
+            "span",
+            `User default: ${client.default_model}`,
+            "secondary-line",
+          ),
+        );
       cell(
         row,
         client.limits.max_concurrent_requests === null
@@ -401,15 +491,10 @@
           actionButton(client.enabled ? "Suspend" : "Enable", () =>
             toggleClient(client),
           ),
-          actionButton(
-            client.credential_active ? "Rotate token" : "Issue token",
-            () => issueToken(client),
-          ),
+          actionButton("Keys", () => {
+            void panels.selectClient(client.id);
+          }),
         );
-        if (client.credential_active)
-          actions.append(
-            actionButton("Revoke token", () => revokeToken(client), "danger"),
-          );
         actions.append(
           actionButton("Delete", () => deleteClient(client), "danger"),
         );
@@ -541,6 +626,12 @@
     byId("connect").disabled = byId("refresh").disabled = true;
     try {
       const state = await request("./state");
+      if (state.configuration.management_enabled) {
+        const directory = await request(`./clients${clientQuery()}`);
+        state.clients = directory.items;
+        state.clients_total = directory.total;
+        state.revision = directory.revision;
+      }
       const usage =
         state.configuration.management_enabled && usageQuery()
           ? await request(`./usage${usageQuery()}`)
@@ -550,6 +641,7 @@
       byId("connection-panel").hidden = true;
       byId("dashboard").hidden = false;
       byId("connected-actions").hidden = false;
+      await panels.render(state);
     } catch (failure) {
       if (
         ignorable(failure) ||
@@ -567,6 +659,9 @@
   function editable(client) {
     return {
       enabled: client.enabled,
+      owner: client.owner ?? "",
+      tags: client.tags ?? [],
+      default_model: client.default_model ?? null,
       models: client.models,
       limits: { ...client.limits },
       additional_middleware: [...client.additional_middleware],
@@ -608,6 +703,7 @@
     if (!managed() || mutating) return;
     closeEditor();
     editingId = client?.id ?? null;
+    editingRevision = client?.revision ?? snapshot?.revision;
     byId("client-id").value = editingId ?? "";
     byId("client-id").disabled = editingId !== null;
     byId("editor-title").textContent = client
@@ -617,6 +713,9 @@
       ? "Save changes"
       : "Create user & issue token";
     byId("client-enabled").value = String(client?.enabled ?? true);
+    byId("client-owner").value = client?.owner ?? "";
+    byId("client-tags").value = (client?.tags ?? []).join(", ");
+    byId("client-default-model").value = client?.default_model ?? "";
     byId("client-model-mode").value = client
       ? client.models === null
         ? "all"
@@ -696,7 +795,7 @@
     }
   }
   async function mutate(path, options, onSuccess, target = "message") {
-    if (mutating || !managed()) return;
+    if (mutating || !managed() || snapshot?.actor?.role === "viewer") return;
     const currentSession = session;
     setMutationBusy(true);
     byId(target).textContent = "";
@@ -726,7 +825,7 @@
       throw new Error("invalid-token-response");
     byId("issued-token").value = value;
     byId("issued-token-note").textContent =
-      `New token for ${id}. Previous credentials for this user no longer work.`;
+      `New credential for ${id}. Save it now; it cannot be retrieved again.`;
     byId("issued-token-panel").hidden = false;
     byId("issued-token-panel").scrollIntoView({ block: "center" });
     byId("reveal-token").focus();
@@ -735,6 +834,7 @@
     void mutate(`./clients/${encodeURIComponent(client.id)}`, {
       method: "PUT",
       body: { ...editable(client), enabled: !client.enabled },
+      revision: client.revision,
     });
   }
   function issueToken(client) {
@@ -782,7 +882,7 @@
   }
   byId("client-form").addEventListener("submit", (event) => {
     event.preventDefault();
-    if (mutating || !managed()) return;
+    if (mutating || !managed() || snapshot?.actor?.role === "viewer") return;
     const mode = byId("client-model-mode").value;
     const models = byId("client-models")
       .value.split(/\r?\n/)
@@ -799,6 +899,11 @@
     const id = editingId ?? byId("client-id").value.trim();
     const body = {
       enabled: byId("client-enabled").value === "true",
+      owner: byId("client-owner").value.trim(),
+      tags: byId("client-tags")
+        .value.split(/[,\s]+/)
+        .filter(Boolean),
+      default_model: byId("client-default-model").value.trim() || null,
       models: mode === "all" ? null : mode === "none" ? [] : models,
       limits: {
         max_concurrent_requests:
@@ -818,6 +923,7 @@
       creating ? "./clients" : `./clients/${encodeURIComponent(id)}`,
       {
         method: creating ? "POST" : "PUT",
+        revision: editingRevision,
         body: creating ? { id, ...body } : body,
       },
       (result) => {
@@ -894,10 +1000,12 @@
   }
   byId("usage-filters").addEventListener("submit", (event) => {
     event.preventDefault();
+    usageOffset = 0;
     void filterUsage();
   });
   byId("clear-usage").addEventListener("click", () => {
     byId("usage-filters").reset();
+    usageOffset = 0;
     void filterUsage();
   });
   byId("export-usage").addEventListener("click", async () => {
@@ -946,5 +1054,30 @@
   });
   byId("disconnect").addEventListener("click", disconnect);
   window.addEventListener("pagehide", disconnect);
+  byId("client-directory-filters").addEventListener("submit", (event) => {
+    event.preventDefault();
+    clientOffset = 0;
+    void load();
+  });
+  byId("previous-clients").addEventListener("click", () => {
+    clientOffset = Math.max(0, clientOffset - 25);
+    void load();
+  });
+  byId("next-clients").addEventListener("click", () => {
+    clientOffset += 25;
+    void load();
+  });
+  panels = createAdminWorkspace({
+    request,
+    reload: load,
+    connected: () => snapshot !== null && token !== "",
+    canWrite: () => managed() && snapshot?.actor?.role !== "viewer",
+    showToken: showIssuedToken,
+    setRevision: () => {},
+    usagePage: (offset) => {
+      usageOffset = offset;
+      void filterUsage();
+    },
+  });
   clearData();
 })();

@@ -7,14 +7,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- Named expiring application keys and administrator/viewer operator credentials, searchable user metadata and defaults, revision-checked edits and attributable audit history.
+- Precise UTC usage history with hourly/daily series, captured model prices, estimated costs, durable daily/monthly token and cost budget reservations, protected request diagnostics and configurable retention.
+- Live single-provider settings and model aliases with write-only encrypted credentials, connection checks and safe draining of replaced adapters.
+- Installed same-backend backup/restore commands for private, versioned management snapshots, with validation and empty-target recovery.
+- Readiness/database and exporter delivery metrics, Responses-aware Grafana panels and operational Prometheus alert rules.
 - Project-aware plugin scaffolding with request-guard and two-way-redactor starters, a public typed text-policy helper, local agent contracts, editable unit tests and generated Ruff/strict mypy configuration.
 - Schema-2 synthetic fixtures for Chat, typed tools, native Responses and eligible early streams, with per-profile evidence, source-aware inspection and safe actionable diagnostics.
 - One-command loopback plugin development with owned synthetic HTTP services, scrubbed credentials, automatic ports and cross-platform cleanup; installed-wheel authoring checks cover Linux and Windows on Python 3.11–3.13.
 - Opt-in durable user administration in the operator console: create, edit, suspend and delete accounts, issue or revoke one-time client tokens, and apply model access, limits and additional middleware without restarting.
-- Persistent per-client, model and UTC-day usage reports with date filters and CSV export, backed primarily by PostgreSQL through a health-checked Compose service and durable volume; explicit local SQLite storage remains available.
+- PostgreSQL-backed administration through a health-checked Compose service and durable volume, with explicit local SQLite storage retained as an alternative.
 
 ### Changed
 
+- Managed writes now require the current `If-Match` revision, and new usage reports use precise UTC `[start, end)` intervals; historical daily totals retain their original precision.
+- Prometheus token totals preserve independently known input and output counts when the other direction is unavailable.
 - Prepare the next development build as `0.5.0.dev0`; middleware API 2 and provider transport API 1 remain unchanged.
 
 ### Breaking changes

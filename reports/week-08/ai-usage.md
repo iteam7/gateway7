@@ -54,6 +54,27 @@
 - Boundary: No production deployment, external provider call, release or Customer acceptance is claimed; verification used disposable synthetic local services and private test credentials.
 - Team assessment: TODO
 
+## 2026-11-16 — Task #295 administration and operations audit closure
+
+- Tool: Codex, with Formater, TechLead and developer agents following the repository roles.
+- Work: Implemented the owner-requested five audit corrections and seven administration feature areas in one cohesive pull request: revision conflicts, effective model permissions, complete terminal streaming metrics, dependency readiness/alerts and bounded off-loop database work; budgets/pricing, diagnostics, safe audit, named expiring keys/operators, live provider/model controls, precise UTC usage and bounded private operations.
+- Verification: The final complete suite against real PostgreSQL 17 and SQLite passed 4365 tests with one intentional backend-specific skip in 142.41 seconds.
+  Compilation, Ruff formatting/lint and whole-package mypy passed for all 53 production files; the deterministic HTTP demo, wheel and final container image passed.
+  The wheel matched every frozen Python/console source byte for byte, packaged all external JavaScript modules and excluded the removed migration module.
+- Independent cross-domain checks: A separate ASGI harness verified stale-editor conflicts preserve current permissions, viewer writes fail before parsing, hard-budget denials add no provider call and protected projections exclude credentials/content.
+  Genuine pre-change installed-v1 SQLite and PostgreSQL fixtures retained profiles, old credentials, suspension/deletion, reserved IDs, original reporting epoch and known/unknown coarse usage under honest UTC-day bounds.
+  API-created identities, multiple keys/revocation, operator roles, audit, prices, budgets, usage and encrypted provider configuration survived actual offline CLI backup/restore and fresh application boot on both backends.
+  Missing master keys failed closed; the original external key recovered the active provider credential and subsequent calls, while initialized targets were refused and private backups contained no raw tokens, provider/master keys or conversation text.
+  The same recovery drill passed from the installed wheel outside the checkout.
+- Browser and operations: Real Chromium against PostgreSQL passed all console panels, mutations, stale-tab conflicts, exact Moscow/UTC expiry handling, numeric validation, database no-plaintext checks, logout clearing and mobile layout.
+  The complete Compose smoke passed gateway authentication/policies/usage, isolated PostgreSQL lifecycle and restarts/history/export, Prometheus configuration with four alert rules and the Grafana monitoring path.
+  Disposable verification projects were removed; session-only CA/proxy and public bind-mount permissions did not change repository TLS settings.
+- Documentation and review: Strict MkDocs/site validation passed for 86 maintained pages and 12817 links/assets, Markdownlint passed 143 files, and Lychee passed 534 changed-file link checks without errors or exclusions.
+  TechLead approved the final actual diff and Formater POST approved publication; the dependency resolver added only cryptography and its cffi/pycparser dependencies without upgrading existing packages or changing workflow gates.
+- Boundary: Estimated costs use configured model prices rather than provider invoices; external telemetry and notification delivery still require private deployment configuration.
+  No SSO, HA, simultaneous multiple-provider routing, SQLite-to-PostgreSQL migration, production deployment, billing reconciliation, Customer acceptance or human usability outcome is claimed.
+- Team assessment: TODO
+
 ## 2026-11-17 — Task #297 plugin authoring
 
 - Tool: Codex, with Formater, TechLead and developer agents following the repository roles, plus a separate agent given only a generated project and its installed Gateway7 environment.
@@ -89,4 +110,24 @@
   Managed-container verification used only a temporary CA-secret build mount and an internal-service proxy bypass; repository trust settings were unchanged.
 - Review boundary: TechLead independently replayed the seven original probes against the corrected implementation.
   Plugins remain trusted code; no hostile-code sandbox, real provider call, deployment, release, human usability result or course-completion result is claimed.
+- Team assessment: TODO
+
+## 2026-11-17 — Resolve PR #298 conflicts with current main
+
+- Tool: Codex, with Formater, TechLead and developer agents following the repository roles.
+- Work: Merged current main `e2e13968a5dce9f11b99c4e3337166e5285dbf18`, containing administration PR #296, into the existing plugin-authoring branch through a normal merge.
+  Resolved six documentation/evidence conflicts by preserving both histories, guide sets, navigation, ADRs and functional requirements; retained backup/restore and plugin commands, asynchronous accounting and native denial attribution together.
+  The resolver reproduced the combined dependency lock unchanged, retaining cryptography and the development package version `0.5.0.dev0` without unrelated upgrades.
+- Verification: The combined regression run had 4363 passing tests, 145 skips and one pre-existing wall-clock-sensitive native timeout fixture.
+  Its test-only correction uses a pipeline-local controlled clock while retaining the original timeout, phase and exact provider-call assertions; all 226 tests in the affected native pipeline file passed.
+  Compilation, Ruff formatting/lint and mypy passed for all 59 production files; the deterministic HTTP demo and final wheel/container builds passed.
+- Installed package: A fresh environment outside the checkout passed both complete authoring journeys and the private offline backup/restore drill, including encrypted provider recovery, identities and pending accounting state.
+  The backup tests passed two SQLite cases and skipped the optional PostgreSQL unit case; real PostgreSQL HTTP lifecycle checks are exercised by the Compose smoke.
+  All 68 packaged source/assets matched the merged checkout, including public typing, external console modules, backup and fresh-source loading.
+  Gateway, real PostgreSQL lifecycle and Prometheus checks passed locally; Grafana verification was interrupted by executor disk exhaustion, so final complete monitoring verification is left to the clean CI runner.
+  Only this task's disposable containers/volumes and completed temporary environments were removed to recover space; repository tools, source and final package evidence were preserved.
+- Review and documentation: TechLead approved the resolved documentation and semantic combination; runtime independently passed 86 focused cross-domain tests.
+  Strict site validation passed for 91 maintained pages and 13987 links/assets; Markdownlint passed 148 files and actionlint passed.
+- Boundary: This updates the existing pull request branch; it does not merge the pull request into main, publish a release, deploy the product or claim Customer acceptance.
+  Both historical AI-usage entries and their TODO assessments remain preserved; the team's assessment of this merge is also pending.
 - Team assessment: TODO

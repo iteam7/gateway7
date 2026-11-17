@@ -4,7 +4,7 @@ import hashlib
 import hmac
 import os
 import re
-from collections.abc import Callable, Iterable
+from collections.abc import Awaitable, Callable, Iterable
 from datetime import date, datetime, timezone
 from threading import Lock, RLock
 from typing import Any
@@ -14,7 +14,7 @@ from gateway7.auth import _valid_token
 from gateway7.config import GatewayConfig, validate_model_id
 from gateway7.errors import GatewayError, StartupError, normalized_usage
 
-ProviderObserver = Callable[[str, dict[str, int] | None], None]
+ProviderObserver = Callable[[str, dict[str, int] | None], Awaitable[None] | None]
 _OUTCOMES = ("complete", "provider_error", "cancelled")
 
 

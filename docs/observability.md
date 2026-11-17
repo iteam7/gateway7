@@ -7,7 +7,7 @@ An operator reads the per-request log point and the SLI's aggregate in the obser
 
 Gateway7 emits two of the three [signal](glossary.md#signal) types: the metric and the log.
 It emits no trace span.
-No alert is defined; an alert would be a rule over one of these signals, not a signal of its own.
+The bundled Prometheus evaluates [operational alert rules](#operational-alerts) for service availability, readiness and exporter failures.
 
 | Signal | What it carries | Emitted by | Where it goes |
 | --- | --- | --- | --- |
@@ -152,7 +152,7 @@ sum by (route, outcome) (increase(gateway7_http_request_outcomes_total{route=~"c
 ```
 
 Use terminal outcomes when designing stream alerts: HTTP 200 alone does not establish successful completion.
-These are query examples, not installed alert rules or new Grafana panels.
+The local dashboard now uses terminal request outcomes for its failure panel, including checked and early Responses; these additional query examples remain available for investigation.
 
 Application p95 latency in seconds, below which about 95% of requests fall:
 
@@ -269,9 +269,9 @@ Before response headers, the client gets a safe 502 without the rejected answer 
 After early text has been delivered, a later failure instead produces a safe SSE error or an aborted stream; the terminal outcome records failure without changing the sent HTTP status or retracting the prefix.
 HTTP error bodies and incomplete or undecodable responses supply no usage.
 
-Both token counts must be integers from 0 through 2^63−1.
-Missing, incomplete, boolean, negative, fractional or overflowing counts stay unknown; reported `0/0` is known usage.
-That paired-count rule applies to the existing Prometheus input/output accounting: a native Responses usage object can still retain valid partial counts, cache details or reasoning details without inventing absent counts or zeroes.
+Each reported token direction must independently be an integer from 0 through 2^63−1.
+Missing, boolean, negative, fractional or overflowing counts stay unknown for that direction; reported `0/0` is known usage.
+Prometheus and protected accounting both retain an independently valid direction when the other count is unavailable, and the unknown-usage counter identifies attempts with an incomplete pair.
 The native API preserves provider response/item IDs in content, but they do not become metric labels; use `openai_responses` for its bounded route series.
 For Gemini, output usage includes reported thinking tokens even though hidden thoughts are not delivered.
 A failed or canceled call can still cost tokens that the gateway never receives in a usage report.
@@ -318,3 +318,30 @@ The Compose CI job builds the image and runs this check on Ubuntu.
 The Python tests cover metric behavior without containers.
 
 For changes to monitoring configuration, see the official [Prometheus reference](https://prometheus.io/docs/prometheus/latest/configuration/configuration/) and [Grafana provisioning guide](https://grafana.com/docs/grafana/latest/administration/provisioning/).
+
+## Operational alerts
+
+The bundled Prometheus loads `monitoring/alerts.yml` and evaluates four operational rules:
+
+| Alert | Trigger | Operator action |
+| --- | --- | --- |
+| `Gateway7Unavailable` | Scraping has failed for one minute | Check the gateway container and network |
+| `Gateway7NotReady` | Readiness or database availability is zero for 30 seconds | Restore PostgreSQL availability, then restart the gateway and verify `/ready` |
+| `Gateway7TerminalFailures` | Terminal server failures persist for two minutes | Inspect protected diagnostics and safe request IDs, including SSE failures after HTTP 200 |
+| `Gateway7ExporterDeliveryFailures` | Failed or dropped signal deliveries persist for one minute | Check the enabled destination, ingestion credentials and backend availability |
+
+Open the local Prometheus Alerts view to inspect pending and firing rules.
+These rules evaluate in Prometheus; external notification delivery requires an operator-configured alert receiver and is not claimed merely by a firing rule.
+The Grafana overview includes Responses traffic and latency, terminal request failures, readiness, management database availability and exporter delivery failures.
+Scrape `up` alone remains a transport check and does not prove that clients can use the gateway.
+
+`gateway7_ready` and `gateway7_management_database_available` expose the last known readiness and database check.
+A lost PostgreSQL connection fails closed; restoring the database does not automatically reconnect cached authority, so restart the gateway and confirm readiness before resuming clients.
+The database worker is single-threaded with a bounded queue, allowing other HTTP requests to remain responsive while SQL waits.
+Queued work is rejected under sustained saturation; running transactions and their publication are drained on cancellation instead of being abandoned.
+
+`gateway7_exporter_enabled` distinguishes an intentionally disabled exporter from an enabled pipeline with no successful deliveries.
+`gateway7_exporter_events_total` records delivery success, failure and dropped events by bounded exporter/outcome labels.
+`gateway7_exporter_last_success_timestamp_seconds` and `gateway7_analytics_queue_depth` support delivery-lag and backlog investigation.
+These signals contain no user identities, model IDs, credentials or destination URLs.
+Product analytics remains best effort and does not become a billing ledger.

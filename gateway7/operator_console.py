@@ -1,11 +1,13 @@
 """Read-only operator assets and an explicit, credential-free state projection."""
 
 from importlib.resources import files
-from typing import Any, Literal
+from typing import Any
 
 from starlette.responses import Response
 
+from gateway7.auth import _effective_models
 from gateway7.config import GatewayConfig
+from gateway7.errors import GatewayError
 from gateway7.pipeline import Pipeline
 
 CONSOLE_HEADERS = {
@@ -29,12 +31,30 @@ OPERATOR_PATHS = frozenset(
 )
 
 
-def console_asset(name: Literal["index.html", "console.css", "console.js"]) -> Response:
-    media_type = {
-        "index.html": "text/html",
-        "console.css": "text/css",
-        "console.js": "text/javascript",
-    }[name]
+STATIC_ASSETS = frozenset(
+    {
+        "index.html",
+        "console.css",
+        "console.js",
+        "admin_console.js",
+        "admin_forms.js",
+        "provider_panel.js",
+        "identity_panel.js",
+        "reporting_panel.js",
+    }
+)
+
+
+def console_asset(name: str) -> Response:
+    if name not in STATIC_ASSETS:
+        raise GatewayError("not_found")
+    media_type = (
+        "text/html"
+        if name == "index.html"
+        else "text/css"
+        if name == "console.css"
+        else "text/javascript"
+    )
     body = files("gateway7").joinpath("static", "operator_console", name).read_bytes()
     return Response(body, media_type=media_type, headers=CONSOLE_HEADERS)
 
@@ -50,7 +70,7 @@ def operator_state(
     configured_chains = {plugin.name for plugin in pipeline.plugins.middleware_chain}
     for pipeline_view in client_pipelines.values():
         configured_chains.update(plugin.name for plugin in pipeline_view.plugins.middleware_chain)
-    clients = []
+    clients: list[dict[str, Any]] = []
     for client_id, client_specification in config.auth.clients.items():
         client_pipeline = client_pipelines.get(client_id)
         clients.append(
@@ -74,6 +94,11 @@ def operator_state(
                 ),
             }
         )
+    if config.auth.management_enabled:
+        for row in clients:
+            effective = _effective_models(config.provider.allowed_models, row["models"])
+            row["effective_models"] = None if effective is None else list(effective)
+            row["default_denied"] = effective is not None and config.provider.model not in effective
     plugins = []
     for name, plugin_specification in config.plugins.items():
         loaded = pipeline.plugins.instances.get(name)

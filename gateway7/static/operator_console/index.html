@@ -6,7 +6,7 @@
     <meta name="referrer" content="no-referrer" />
     <title>Gateway7 · Operator console</title>
     <link rel="stylesheet" href="./assets/console.css" />
-    <script src="./assets/console.js" defer></script>
+    <script src="./assets/console.js" type="module"></script>
   </head>
   <body>
     <aside class="sidebar">
@@ -24,6 +24,15 @@
         <a class="nav-link" href="#usage"
           ><span aria-hidden="true">↗</span> Usage</a
         >
+        <a class="nav-link" href="#provider-management"
+          ><span aria-hidden="true">◇</span> Models</a
+        >
+        <a class="nav-link" href="#operator-management"
+          ><span aria-hidden="true">◈</span> Operators</a
+        >
+        <a class="nav-link" href="#accounting-management"
+          ><span aria-hidden="true">$</span> Budgets</a
+        >
         <a class="nav-link" href="#policies"
           ><span aria-hidden="true">≋</span> Middleware</a
         >
@@ -37,7 +46,8 @@
     </aside>
     <div class="workspace">
       <header class="topbar">
-        <span>Gateway administration</span
+        <span
+          >Gateway administration <small id="operator-identity"></small></span
         ><span class="quiet-badge" id="mode-badge">OPERATOR</span>
       </header>
       <main id="overview">
@@ -149,6 +159,39 @@
                 </button>
               </div>
             </div>
+            <form id="client-directory-filters" class="usage-filters" hidden>
+              <label
+                >Search user IDs or owners<input id="client-search"
+              /></label>
+              <label
+                >Status<select id="client-status">
+                  <option value="">All states</option>
+                  <option value="enabled">Enabled</option>
+                  <option value="suspended">Suspended</option>
+                  <option value="revoked">No active keys</option>
+                </select></label
+              >
+              <label>Owner<input id="client-owner-filter" /></label>
+              <label>Tag<input id="client-tag-filter" /></label>
+              <div class="form-actions">
+                <button class="button secondary" type="submit">
+                  Search users</button
+                ><button
+                  class="button secondary"
+                  id="previous-clients"
+                  type="button"
+                >
+                  Previous users</button
+                ><span id="clients-page"></span
+                ><button
+                  class="button secondary"
+                  id="next-clients"
+                  type="button"
+                >
+                  Next users
+                </button>
+              </div>
+            </form>
             <div class="table-scroll">
               <table>
                 <thead>
@@ -180,6 +223,24 @@
             </div>
             <form id="client-form" class="editor-form" autocomplete="off">
               <div class="form-grid">
+                <label>Owner<input id="client-owner" maxlength="128" /></label>
+                <label
+                  >Tags<input
+                    id="client-tags"
+                    placeholder="team, project"
+                  /><small
+                    >Comma-separated tags using letters, numbers, dots,
+                    underscores or hyphens.</small
+                  ></label
+                >
+                <label
+                  >User default canonical model<input
+                    id="client-default-model"
+                  /><small
+                    >Leave empty to use the gateway default. An explicit default
+                    must be allowed for this user.</small
+                  ></label
+                >
                 <label
                   >User ID<input
                     id="client-id"
@@ -361,6 +422,12 @@
               <label
                 >To (UTC, inclusive)<input id="usage-end" type="date"
               /></label>
+              <label
+                >Time bucket<select id="usage-bucket">
+                  <option value="day">Day (UTC)</option>
+                  <option value="hour">Hour (UTC)</option>
+                </select></label
+              >
               <div class="form-actions">
                 <button class="button primary" id="apply-usage" type="submit">
                   Apply filters</button
@@ -385,6 +452,7 @@
               role="status"
               aria-live="polite"
             ></p>
+            <div id="usage-extra"></div>
             <div class="table-scroll">
               <table>
                 <thead>
@@ -451,6 +519,13 @@
               plugin checks.
             </p>
           </section>
+          <p
+            id="extended-message"
+            class="message"
+            role="status"
+            aria-live="polite"
+          ></p>
+          <div id="extended-admin" hidden></div>
           <footer class="footer-note">
             <div class="footer-icon" aria-hidden="true">i</div>
             <p>

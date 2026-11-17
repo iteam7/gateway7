@@ -60,6 +60,33 @@ Existing environment values take precedence, including empty strings; file-deriv
 The loader does not discover files or evaluate shell code; pass only the file path as an argument, and loader diagnostics never expose its values.
 `validate`, plugin commands and offline execution do not read private startup files; no such file is required for their existing credential-free checks.
 
+## Back up and restore managed state
+
+Stop the gateway before either operation so its exclusive management owner has released the database.
+Keep the PostgreSQL service running, and make its connection settings available to the command through the environment referenced by the selected YAML.
+Compose `.env` files are not automatically read by a local Python invocation.
+
+```sh
+uv run --locked gateway7 backup --config config/admin-postgres.yaml \
+  --output /private/gateway7-backup.json
+uv run --locked gateway7 restore --config /private/empty-target.yaml \
+  --input /private/gateway7-backup.json
+```
+
+The target YAML selects a separate empty management database of the same backend.
+Restore rejects an existing nonempty target, invalid schema or checksum, unsupported backup version and cross-backend transfer.
+This is backup recovery, and supplies no SQLite-to-PostgreSQL migration command.
+
+The bounded, versioned backup contains profiles, credential digests, operators, encrypted provider settings, revisions, audit history, usage and reservations.
+It contains no recoverable raw client/operator tokens or encryption key, but is still private access-control data.
+The output is a new owner-only regular file; existing paths and symlinks are rejected rather than overwritten.
+Keep `GATEWAY7_CONTROL_KEY` separately available when recovering encrypted provider credentials.
+Verify a backup by restoring it into an isolated empty database and checking users, key revocations, operators, settings, usage and pending reservations before depending on it.
+
+For Compose, run the installed command in a one-off gateway container after stopping the normal gateway, mounting a private backup directory writable by service UID/GID `10001:10001`.
+Do not run a restore against the live production database or use `down --volumes` as a restart procedure.
+The [managed deployment guide](authentication.md#persist-managed-state-with-compose) describes volume ownership and the operational boundary.
+
 ## Send a message
 
 With the demo running:
