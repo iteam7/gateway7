@@ -341,7 +341,7 @@ async def test_actual_usage_is_preserved_once_without_filling_unknown_counts(usa
     assert metric(metrics, "provider_calls_total", provider="openai", outcome="complete") == 1
     assert metric(metrics, "provider_usage_unknown_total", provider="openai") == int(not known)
     assert metric(metrics, "provider_tokens_total", provider="openai", direction="input") == (
-        usage["input_tokens"] if known else 0
+        (usage or {}).get("input_tokens", 0)
     )
     assert len(provider.calls) == 1
 
@@ -771,16 +771,16 @@ async def test_provider_contract_is_checked_before_any_response_hook(early, usag
         and usage is not None
         and all(name in usage for name in ("input_tokens", "output_tokens"))
     )
-    # Existing metrics require both reported directions; never synthesize a missing count.
+    # Independently valid source counts survive a request-relative rejection;
+    # malformed/nonterminal provider DTOs still supply no trusted measurement.
     assert metric(metrics, "provider_usage_unknown_total", provider="openai") == int(not known_pair)
-    assert metric(metrics, "provider_tokens_total", provider="openai", direction="input") == (
-        8 if known_pair else 0
-    )
-    assert metric(metrics, "provider_tokens_total", provider="openai", direction="output") == (
-        2 if known_pair else 0
-    )
-    if not known_pair:
-        for direction in ("input", "output"):
+    valid_source = violation not in ("malformed", "terminal") and usage is not None
+    for direction, expected in (("input", 8), ("output", 2)):
+        known_direction = valid_source and direction + "_tokens" in usage
+        assert metric(metrics, "provider_tokens_total", provider="openai", direction=direction) == (
+            expected if known_direction else 0
+        )
+        if not known_direction:
             assert (
                 metrics.registry.get_sample_value(
                     "gateway7_provider_tokens_total",

@@ -63,7 +63,7 @@ def test_postgres_bootstrap_once_persists_revocation_deletion_and_no_raw_tokens(
             dict(connection.execute("SELECT name,value FROM gateway7_admin.metadata"))[
                 "schema_version"
             ]
-            == "1"
+            == "2"
         )
     store.save_clients(clients, {})
     store.close()

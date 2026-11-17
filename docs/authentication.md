@@ -294,12 +294,13 @@ Managed administration requires client authentication and a separate operator cr
 PostgreSQL is the primary managed deployment; the explicit [SQLite alternative](#optional-local-sqlite-storage) remains available for local use.
 Configure exactly one backend: `management_database_url_env` and `management_db` are mutually exclusive.
 
-Open `/operator/console`, connect with the operator token, and use the user controls to:
+Open `/operator/console` and connect with the operator token.
+The [admin controls guide](admin-controls.md) follows the available panels; use the user controls to:
 
-1. Create a user with a stable client ID, enabled state, model permissions, concurrent-request limit, request rate and ordered additional middleware.
+1. Create a user with a stable client ID, owner label, tags, enabled state, model permissions, default model, request limits and ordered additional middleware.
 2. Copy the generated client token when it is shown and deliver it to the application through your normal secret channel.
-3. Edit access, enable or suspend the user, issue a replacement token, revoke a token, or delete the user.
-4. Filter usage by user, model and UTC dates, and export the selected report as CSV.
+3. Edit access, enable or suspend the user, create separately named application keys, rotate or revoke one key, revoke all keys, or delete the user.
+4. Filter usage by user, model and precise UTC interval, inspect request diagnostics and budgets, and export the selected report as CSV.
 
 Tokens are shown only after creation or replacement; later state and usage reads cannot recover them.
 The database stores token digests, and the browser keeps the operator token only in page memory.
@@ -320,13 +321,59 @@ Editing seed YAML or restoring an old bootstrap token does not overwrite managed
 The operator token and provider key remain server-managed credentials.
 Deleting a user retains its usage and reserves its ID so a new account cannot inherit old history.
 
+### Named keys and operators
+
+The [operator identity guide](operator-identities.md) details credential lifecycle, role boundaries and recovery.
+
+Each user can hold several named application keys, with separate expiry, last-used time, rotation and revocation.
+New credentials expire after 90 days by default; an explicit expiry must be in the future and within 366 days.
+Revoking one key preserves the other applications belonging to that user, and all of the user's keys share its access rules and budgets.
+The original user-level token rotation endpoint replaces all of that user's active keys; use the individual key controls when replacing only one application credential.
+Imported legacy keys retain their existing expiry behavior.
+
+Named operators have an `admin` or `viewer` role and an expiring credential.
+Viewers can inspect users, reports, audit records and diagnostics, and download reports.
+Admins can change managed settings and issue or revoke credentials.
+The separately configured environment operator token remains the recovery administrator; the console cannot delete or demote that recovery capability.
+The browser holds the selected operator token in page memory and uses authorization headers, without cookies or browser storage.
+
+Every managed write requires `If-Match` with the current global revision returned by the state snapshot, plus `X-Gateway7-Operator: true`.
+A stale revision returns HTTP 409 without overwriting another operator's change; refresh, review the new state and submit again.
+The gateway rechecks the operator's current role and credential before committing a change.
+Changes record the operator identity, action, target, time, request ID and a sanitized difference in the protected audit view; raw credentials never appear there.
+The user list supports search, enabled status, owner, tag and bounded pages.
+
+### Defaults, aliases and provider settings
+
+A user's default model is an optional canonical model ID; otherwise requests without a model use the gateway default.
+Aliases map directly to canonical IDs, without alias chains, and authorization applies after resolving an alias.
+Client and provider allowlists continue to intersect; choosing a default or alias does not broaden access.
+A forbidden default is reported as denied instead of being silently replaced.
+
+The provider panel controls the instance's one provider, endpoint, default and allowed models, aliases, provider timeout and global concurrency limit.
+Model discovery and explicit refresh show the provider catalog when supported, with a visible fallback to configured models when discovery is unavailable.
+Catalog membership is separate from permission and endpoint compatibility.
+A candidate provider configuration is checked before publication; running requests retain their captured adapter until they finish and cleanup completes.
+
+A provider credential entered through the console is write-only and encrypted in managed storage.
+Set a private Fernet key in `GATEWAY7_CONTROL_KEY` before saving such a credential, and retain that key separately from database backups.
+Generate and store it with your secret manager; changing or losing it makes stored provider credentials unreadable.
+The initial environment provider key remains usable until a managed credential is saved.
+The connection test uses model discovery for OpenAI; other adapters can send one synthetic request with an output limit of one token, which can incur provider charges.
+Provider configuration changes and connection tests require an administrator.
+Installing middleware code or changing its settings still requires server deployment and restart.
+
+### Usage, budgets and diagnostics
+
 Managed usage reports use `scope: persistent` and `reset_on_restart: false`.
-They aggregate terminal provider observations by client, model and UTC day, preserving known input/output totals and unknown-usage attempt counts separately.
-`start` and `end` are inclusive UTC dates in `YYYY-MM-DD` format; use the same date for both to select one day.
-This daily report does not implement the arbitrary timestamp interval promised by [FR-012](functional-requirements/fr/FR-012.md).
-The selected report excludes requests denied before a provider attempt and retains observed usage when a later response policy denies delivery.
-Reports and exports contain no prompts, answers, tools or credentials; CSV exports contain the selected aggregate rows.
-There is no usage-reset control, monetary billing or hard token/currency budget.
+New provider attempts are selected by their actual UTC provider-start time, with inclusive `start` and exclusive `end` timestamps.
+The default interval is the last 30 days; hourly or daily series, user/model filters, bounded table pages and streamed CSV exports support inspection.
+Known token directions, unknown usage, captured pricing revisions and known costs remain separate.
+The [accounting guide](accounting.md) explains exact intervals, older daily precision, prices, token/cost budgets, unknown reservations and retention.
+
+The diagnostics view additionally includes authenticated requests denied before forwarding, terminal stream outcomes, latency, last-seen and key activity, active requests and remaining request-rate allowance.
+No prompt, answer, tool argument, bearer token or provider credential is included.
+User and key identities stay in protected operator reports rather than public Prometheus labels.
 
 ### Persist managed state with Compose
 
@@ -350,7 +397,8 @@ docker compose -f compose.yaml -f compose.admin.yaml \
 
 Alternatively set `COMPOSE_FILE=compose.yaml:compose.admin.yaml` and `GATEWAY_CONFIG_FILE=./config/admin-postgres.yaml` in the local Compose `.env`, fill the same private variables, and run `docker compose up --build --detach --wait`.
 For another provider, select equivalent provider settings and `GATEWAY_KEY_ENV`; managed accounts and the database are independent of the provider.
-Adding `compose.admin.yaml` after `compose.live.yaml` is supported when you need its telemetry/proxy environment forwarding.
+Both managed overrides forward the optional telemetry and product-analytics settings.
+Adding `compose.admin.yaml` after `compose.live.yaml` remains supported for its explicit proxy environment forwarding.
 
 The managed override provides a pinned PostgreSQL 17 image, a persistent `postgres-data` named volume, a database health check and a gateway startup dependency on that health check.
 It publishes no PostgreSQL host port.
@@ -367,7 +415,7 @@ Run one gateway process per management database: PostgreSQL session ownership pr
 Concurrent/rate counters remain process-local and restart-reset, while stored limit settings and usage survive.
 Container restart, recreation or ordinary `docker compose down` preserves the named volume.
 `docker compose down --volumes` removes it and its managed accounts and usage; use that only for intentionally disposable data.
-Back up the PostgreSQL database with the normal PostgreSQL backup tooling and keep backups private.
+Use the installed [backup and restore commands](cli.md#back-up-and-restore-managed-state), keep the backup and `GATEWAY7_CONTROL_KEY` separately private, and verify restoration in an isolated empty database.
 The image initializes its password only for a new volume; changing an existing user's password requires an explicit database administration step and matching gateway credential update.
 
 ### Optional local SQLite storage
@@ -398,21 +446,36 @@ The console uses these same protected endpoints:
 
 | Method and path | Operation |
 | --- | --- |
-| `GET /operator/state` | Safe client, policy, limit and middleware snapshot |
-| `POST /operator/clients` | Create a client and return its one-time token |
-| `PUT /operator/clients/{id}` | Replace a client's editable settings |
-| `POST /operator/clients/{id}/token` | Issue or rotate a client token |
-| `DELETE /operator/clients/{id}/token` | Revoke the credential while keeping its account |
-| `DELETE /operator/clients/{id}` | Delete an account, retaining usage and its reserved ID |
-| `GET /operator/usage` | Usage report; optional `client_id`, `model`, `start`, `end` filters |
-| `GET /operator/usage/export` | CSV report with the same filters |
+| `GET /operator/state` | Safe workspace snapshot, current revision and operator identity |
+| `GET /operator/clients` | Search and page users by query, status, owner and tag |
+| `POST /operator/clients` | Create a client and return its initial one-time key |
+| `PUT /operator/clients/{id}` | Replace the client's editable settings |
+| `DELETE /operator/clients/{id}` | Delete the account, retaining history and its reserved ID |
+| `GET, POST /operator/clients/{id}/keys` | List safe key metadata or issue a separately named key |
+| `POST /operator/clients/{id}/keys/{key_id}/rotate` | Replace one application key |
+| `DELETE /operator/clients/{id}/keys/{key_id}` | Revoke one application key |
+| `POST, DELETE /operator/clients/{id}/token` | Replace or revoke all keys for the user |
+| `GET, POST /operator/operators` | Inspect named operators or create an expiring credential |
+| `PUT, DELETE /operator/operators/{id}` | Edit a named operator or revoke its credential |
+| `POST /operator/operators/{id}/token` | Reissue a named operator credential |
+| `GET /operator/audit` | Filter and page attributable changes |
+| `GET, PUT /operator/provider` | Read or change live provider settings |
+| `POST /operator/provider/test` | Check current or candidate provider connectivity |
+| `GET /operator/models` | Inspect or refresh the model registry |
+| `GET /operator/accounting` | Read pricing, budgets and retention policy |
+| `PUT /operator/pricing` | Save model prices for subsequent attempts |
+| `PUT /operator/budgets` | Save daily/monthly user/model limits |
+| `GET /operator/budgets/status` | Read usage, reservations and warning/exhaustion status |
+| `GET /operator/usage` | Precise UTC interval report with client/model/bucket/page filters |
+| `GET /operator/usage/export` | Stream the selected provider history as CSV |
+| `GET /operator/diagnostics` | Inspect protected request outcomes and activity |
+| `PUT /operator/retention` | Set the bounded history retention period |
 
 Every endpoint requires the separate operator bearer credential.
-Mutations additionally require `X-Gateway7-Operator: true` and reject cross-origin requests; cookies and query parameters cannot authorize them.
-Client settings consist of `enabled`, `models`, `limits` with nullable `max_concurrent_requests`/`requests_per_minute`, and `additional_middleware`; creation also requires `id`.
-Credential input, arbitrary plugin settings and provider changes are outside that editable profile.
-Invalid edits leave the published profile and stored state unchanged.
-[FR-021](functional-requirements/fr/FR-021.md) specifies managed accounts, while [FR-019](functional-requirements/fr/FR-019.md) specifies usage and [FR-020](functional-requirements/fr/FR-020.md) specifies the inspection and browser boundary.
+Mutations require an administrator, the current `If-Match` revision and `X-Gateway7-Operator: true`; cross-origin requests, cookies and query parameters cannot authorize them.
+Client settings include `enabled`, `models`, `limits`, `additional_middleware`, `owner`, `tags` and `default_model`; creation also requires `id`.
+Invalid or stale edits leave the published profile and stored state unchanged.
+The [functional requirements index](functional-requirements/README.md) links the independent account, operator, provider, audit, budget and recovery contracts.
 
 ## Use the CLI
 
@@ -486,7 +549,9 @@ The public `gateway7_rate_limit_rejections_total` counter has no client identity
 
 With a management database configured, use the console for users, credentials, permissions, limits and policy assignments.
 Without it, change clients through server configuration/environment and restart.
-Provider configuration, the operator credential and middleware code/settings remain server administration; billing is not provided.
+The provider panel manages the single instance's provider settings and write-only credential.
+The recovery operator credential, encryption key and middleware code/settings remain server administration.
+Configured cost estimates and admission budgets are not provider invoice reconciliation.
 
 The supplied live Compose override forwards the provider key and `GATEWAY7_CLIENT_TOKEN` for the single-client samples.
 Using the two-client section above with Compose also requires forwarding `GATEWAY7_APP_TOKEN` and `GATEWAY7_WORKER_TOKEN`; see [setup](setup.md#real-providers).

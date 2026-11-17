@@ -7,8 +7,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- Named expiring application keys and administrator/viewer operator credentials, searchable user metadata and defaults, revision-checked edits and attributable audit history.
+- Precise UTC usage history with hourly/daily series, captured model prices, estimated costs, durable daily/monthly token and cost budget reservations, protected request diagnostics and configurable retention.
+- Live single-provider settings and model aliases with write-only encrypted credentials, connection checks and safe draining of replaced adapters.
+- Installed same-backend backup/restore commands for private, versioned management snapshots, with validation and empty-target recovery.
+- Readiness/database and exporter delivery metrics, Responses-aware Grafana panels and operational Prometheus alert rules.
 - Opt-in durable user administration in the operator console: create, edit, suspend and delete accounts, issue or revoke one-time client tokens, and apply model access, limits and additional middleware without restarting.
-- Persistent per-client, model and UTC-day usage reports with date filters and CSV export, backed primarily by PostgreSQL through a health-checked Compose service and durable volume; explicit local SQLite storage remains available.
+- PostgreSQL-backed administration through a health-checked Compose service and durable volume, with explicit local SQLite storage retained as an alternative.
+
+### Changed
+
+- Managed writes now require the current `If-Match` revision, and new usage reports use precise UTC `[start, end)` intervals; historical daily totals retain their original precision.
+- Prometheus token totals preserve independently known input and output counts when the other direction is unavailable.
 
 ## [0.4.0] - 2026-11-14
 

@@ -108,7 +108,7 @@ An operator finds which [middleware](glossary.md#middleware) failed or slowed a 
 An operator can manage each [client](glossary.md#client)'s account, tokens, access, limits and additional middleware, and inspect its usage in one browser workspace when durable management is enabled.
 
 - **Stories:** [US-07](https://github.com/iteam7/gateway7/issues/36), [US-13](https://github.com/iteam7/gateway7/issues/141), [US-03](https://github.com/iteam7/gateway7/issues/32)
-- **Behavior:** [FR-021](functional-requirements/fr/FR-021.md), [FR-020](functional-requirements/fr/FR-020.md), [FR-019](functional-requirements/fr/FR-019.md)
+- **Behavior:** [FR-021](functional-requirements/fr/FR-021.md), [FR-023](functional-requirements/fr/FR-023.md), [FR-027](functional-requirements/fr/FR-027.md), [FR-020](functional-requirements/fr/FR-020.md), [FR-019](functional-requirements/fr/FR-019.md)
 - **Decisions:** [ADR-003](architecture/adr/ADR-003.md), [ADR-008](architecture/adr/ADR-008.md), [ADR-009](architecture/adr/ADR-009.md)
 
 ## Start a middleware package
@@ -145,3 +145,27 @@ The [staging check](quality-requirements/qr/QR-05.md#qrt-01) verifies the visibi
 - **Stories:** [US-15](https://github.com/iteam7/gateway7/issues/175)
 - **Behavior:** [FR-014](functional-requirements/fr/FR-014.md)
 - **Design:** [ADR-007](architecture/adr/ADR-007.md)
+
+## Control usage and investigate client activity
+
+An operator can inspect each [client](glossary.md#client)'s model use and request outcomes, estimate known costs and control daily or monthly usage allowance.
+
+- **Stories:** [US-13](https://github.com/iteam7/gateway7/issues/141), [US-07](https://github.com/iteam7/gateway7/issues/36), [US-12](https://github.com/iteam7/gateway7/issues/140)
+- **Behavior:** [FR-024](functional-requirements/fr/FR-024.md), [FR-026](functional-requirements/fr/FR-026.md)
+- **Decisions:** [ADR-010](architecture/adr/ADR-010.md)
+
+## Change the provider without interrupting admitted work
+
+An operator can manage the gateway's [provider](glossary.md#provider), credential, model defaults and aliases while admitted requests finish through their existing adapter.
+
+- **Stories:** [US-01](https://github.com/iteam7/gateway7/issues/30), [US-07](https://github.com/iteam7/gateway7/issues/36)
+- **Behavior:** [FR-025](functional-requirements/fr/FR-025.md)
+- **Decisions:** [ADR-011](architecture/adr/ADR-011.md)
+
+## Recover managed administration from a private backup
+
+An operator can recover [client](glossary.md#client) access and accounting state into an empty database of the same backend.
+
+- **Stories:** [US-07](https://github.com/iteam7/gateway7/issues/36), [US-13](https://github.com/iteam7/gateway7/issues/141)
+- **Behavior:** [FR-028](functional-requirements/fr/FR-028.md)
+- **Decisions:** [ADR-010](architecture/adr/ADR-010.md)

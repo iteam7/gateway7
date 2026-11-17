@@ -4,10 +4,13 @@ import asyncio
 import json
 import logging
 import math
+import hashlib
 import os
 import time
+from datetime import datetime, timezone
 from collections.abc import Awaitable, Callable, Coroutine
 from contextlib import asynccontextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Generic, Literal, Protocol, TypeVar
@@ -17,7 +20,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.routing import APIRoute
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
-from starlette.responses import JSONResponse, Response
+from starlette.responses import JSONResponse, Response, StreamingResponse
 from starlette.datastructures import URL
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.routing import Match, Route
@@ -25,7 +28,7 @@ from starlette.types import ASGIApp, Message as ASGIMessage, Receive, Scope, Sen
 
 from gateway7 import __version__
 from gateway7.analytics import Analytics
-from gateway7.admin_runtime import AdminController, ClientPolicy, CreateClient, usage_csv
+from gateway7.admin_runtime import ClientPolicy, CreateClient
 from gateway7.client_policies import build_client_pipelines
 from gateway7.config import GatewayConfig, load_config, provider_key, validate_provider_model
 from gateway7.auth import AccessControl
@@ -34,6 +37,10 @@ from gateway7.loader import complete_cleanup, load_plugins, start_plugins, stop_
 from gateway7.models import ChatRequest, ChatResponse
 from gateway7.metrics import HTTPRequestOutcome, Metrics
 from gateway7.management_store import open_management_store
+from gateway7.db_execution import DBExecutor
+from gateway7.accounting import AccountingService
+from gateway7.control_store import ControlConflict
+from gateway7.identity_admin import IdentityAdmin, KeyRequest, OperatorRequest, OperatorUpdate
 from gateway7.openai_api import (
     EarlyChatEncoder,
     NativeChatRequest,
@@ -42,7 +49,15 @@ from gateway7.openai_api import (
     completion_sse,
     error_body,
 )
-from gateway7.operator_console import CONSOLE_HEADERS, console_asset, operator_state
+from gateway7.operator_console import CONSOLE_HEADERS, STATIC_ASSETS, console_asset, operator_state
+from gateway7.provider_admin import (
+    ProviderAdmin,
+    ProviderUpdate,
+    get_provider_aliases,
+    resolve_model_alias,
+    restore_provider_config,
+    validate_provider_credential,
+)
 from gateway7.pipeline import Pipeline
 from gateway7.plugin_api import EarlyStreamUnsupported, ResponsesUnsupported
 from gateway7.providers import CatalogModel, build_provider
@@ -55,6 +70,79 @@ from gateway7.usage import OperatorAccess, PersistentUsageLedger, UsageLedger
 
 logger = logging.getLogger("gateway7")
 _TIMEOUT_RESPONSE_GRACE_SECONDS = 0.1
+_OPERATOR_HEADERS: ContextVar[list[tuple[bytes, bytes]]] = ContextVar(
+    "gateway7_operator_headers", default=[]
+)
+
+
+def _public_operator_path(path: str) -> bool:
+    return path == "/operator/console" or (
+        path.startswith("/operator/assets/")
+        and path.removeprefix("/operator/assets/") in STATIC_ASSETS - {"index.html"}
+    )
+
+
+def _expected_revision(headers: list[tuple[bytes, bytes]]) -> int:
+    values = [value for name, value in headers if name.lower() == b"if-match"]
+    if len(values) != 1:
+        raise GatewayError("invalid_request")
+    value = values[0].decode("ascii", errors="replace")
+    if value.startswith('"') and value.endswith('"'):
+        value = value[1:-1]
+    if not value.isascii() or not value.isdecimal() or len(value) > 18:
+        raise GatewayError("invalid_request")
+    return int(value)
+
+
+async def _owned_mutation(
+    app: FastAPI, request: Request, operation: Callable[[Any, int], Awaitable[Any]]
+) -> Any:
+    """Finish the complete commit/publication even if its HTTP caller leaves."""
+
+    async def run() -> Any:
+        context = _OPERATOR_HEADERS.set(request.scope.get("headers", []))
+        try:
+            actor = app.state.validate_operator(getattr(request.state, "operator", None))
+            return await operation(actor, request.state.expected_revision)
+        finally:
+            _OPERATOR_HEADERS.reset(context)
+
+    task = asyncio.create_task(run(), name="gateway7-owned-management-mutation")
+    app.state.management_tasks.add(task)
+    task.add_done_callback(app.state.management_tasks.discard)
+    cancellation = None
+    while not task.done():
+        try:
+            await asyncio.shield(task)
+        except asyncio.CancelledError as error:
+            cancellation = cancellation or error
+        except Exception:
+            break
+    try:
+        return task.result()
+    finally:
+        if cancellation is not None:
+            raise cancellation
+
+
+async def _domain(operation: Awaitable[Any]) -> Any:
+    try:
+        return await operation
+    except ControlConflict:
+        raise GatewayError("conflict") from None
+    except (ValueError, TypeError):
+        raise GatewayError("invalid_request") from None
+    except StartupError:
+        raise GatewayError("unavailable") from None
+
+
+async def _periodic_retention(app: FastAPI) -> None:
+    while True:
+        await asyncio.sleep(3600)
+        try:
+            await app.state.accounting.purge()
+        except Exception:
+            logger.warning("request_id=- outcome=retention_error component=accounting")
 
 
 async def _close_provider_resource(resource: Any, timeout: float) -> None:
@@ -209,7 +297,9 @@ class GatewayBoundaryMiddleware:
             return
         request_id = uuid4().hex
         started = time.monotonic()
+        started_at = datetime.now(timezone.utc).isoformat()
         scope.setdefault("state", {})["request_id"] = request_id
+        scope["state"]["started_at"] = started_at
         scope["state"]["admission_delivery_owner"] = True
         response_started = False
         status_code: int | None = None
@@ -267,9 +357,10 @@ class GatewayBoundaryMiddleware:
         try:
             if route == "ready" and self.owner.state.admin_store is not None:
                 try:
-                    self.owner.state.admin_store.ensure_available()
-                except StartupError:
-                    self.owner.state.ready = False
+                    await _ensure_management_available(self.owner)
+                except GatewayError:
+                    await fail("unavailable")
+                    return
             if scope.get("method") == "GET" and route in ("health", "ready", "metrics"):
                 await self.app(scope, receive, safe_send)
                 return
@@ -279,38 +370,41 @@ class GatewayBoundaryMiddleware:
             if self.owner.state.admin_store is not None and (
                 route in ("chat", "openai_chat", "openai_responses", "models")
                 or operator_path
-                and scope.get("path")
-                not in {
-                    "/operator/console",
-                    "/operator/assets/console.css",
-                    "/operator/assets/console.js",
-                }
+                and not _public_operator_path(scope.get("path", ""))
             ):
                 try:
-                    self.owner.state.admin_store.ensure_available()
-                except StartupError:
-                    self.owner.state.ready = False
-                    await fail("unavailable")
+                    await _ensure_management_available(self.owner)
+                except GatewayError as error:
+                    await fail(error.code)
                     return
             if operator_path:
                 try:
                     access = self.owner.state.operator_access
-                    if scope.get("path") not in {
-                        "/operator/console",
-                        "/operator/assets/console.css",
-                        "/operator/assets/console.js",
-                    }:
-                        access.authenticate(scope.get("headers", []))
+                    if not _public_operator_path(scope.get("path", "")):
+                        actor = access.authenticate(scope.get("headers", []))
+                        scope["state"]["operator"] = actor
                     elif not access.enabled:
                         raise GatewayError("not_found")
-                    if scope.get("method") in {"POST", "PUT", "PATCH", "DELETE"} and scope.get(
-                        "path", ""
-                    ).startswith("/operator/clients"):
-                        if self.owner.state.admin_store is None and scope.get(
-                            "path", ""
-                        ).startswith("/operator/clients"):
+                    mutation_path = scope.get("path", "")
+                    writable_route = mutation_path.startswith(
+                        ("/operator/clients", "/operator/operators")
+                    ) or mutation_path in {
+                        "/operator/provider",
+                        "/operator/provider/test",
+                        "/operator/pricing",
+                        "/operator/budgets",
+                        "/operator/retention",
+                    }
+                    if scope.get("method") in {"POST", "PUT", "PATCH", "DELETE"} and (
+                        self.owner.state.admin_store is not None or writable_route
+                    ):
+                        if self.owner.state.admin_store is None:
                             raise GatewayError("not_found")
+                        actor.require_admin()
                         _check_operator_write(scope)
+                        scope["state"]["expected_revision"] = _expected_revision(
+                            scope.get("headers", [])
+                        )
                 except GatewayError as error:
                     await fail(error.code)
                     return
@@ -451,6 +545,31 @@ class GatewayBoundaryMiddleware:
                     error_code=error_code,
                     duration_ms=duration * 1000,
                 )
+            principal = scope["state"].get("principal")
+            accounting = getattr(self.owner.state, "accounting", None)
+            if accounting is not None and principal is not None and principal.client_id is not None:
+
+                async def persist_diagnostic() -> None:
+                    try:
+                        await accounting.record_http(
+                            client_id=principal.client_id,
+                            key_id=getattr(principal, "key_id", None),
+                            model=scope["state"].get("selected_model"),
+                            started_at=started_at,
+                            outcome=outcome.value,
+                            duration_ms=int(duration * 1000),
+                            request_id=request_id,
+                            route=route,
+                        )
+                    except Exception:
+                        self.owner.state.ready = False
+                        metrics.ready.set(0)
+                        logger.warning(
+                            "request_id=%s outcome=diagnostic_storage_error component=accounting",
+                            request_id,
+                        )
+
+                await complete_cleanup(persist_diagnostic())
 
 
 @dataclass(frozen=True, eq=False)
@@ -647,7 +766,6 @@ class _PipelineAdmission:
 
 
 def _admit_request(request: Request) -> _AdmissionLease:
-    _ensure_management_available(request.app)
     principal = getattr(request.state, "principal", None)
     lease = request.app.state.admission.acquire(
         None if principal is None else principal.client_id,
@@ -665,30 +783,38 @@ async def _watch_disconnect(request: Request) -> None:
             return
 
 
-def _select_model(request: Request, requested: str | None) -> str:
-    config = request.app.state.config.provider
+async def _select_model(request: Request, requested: str | None) -> str:
     if request.app.state.admin_store is not None:
-        _ensure_management_available(request.app)
+        await _ensure_management_available(request.app)
         # Body delivery can await while a user is suspended or their token rotates.
         request.state.principal = request.app.state.access.authenticate(
             request.scope.get("headers", [])
         )
-    selected = request.state.principal.select_model(requested, config.model)
+    config = request.app.state.config.provider
+    default = getattr(request.state.principal, "default_model", None) or config.model
+    canonical = resolve_model_alias(
+        default if requested is None else requested,
+        getattr(request.app.state, "provider_aliases", {}),
+    )
     try:
-        selected = validate_provider_model(config.kind, selected)
+        selected = validate_provider_model(config.kind, canonical)
         request.state.selected_model = selected
+        request.state.principal.select_model(selected, default)
         return selected
     except (TypeError, ValueError):
         raise GatewayError("invalid_request") from None
 
 
-def _ensure_management_available(app: FastAPI) -> None:
+async def _ensure_management_available(app: FastAPI) -> None:
     store = app.state.admin_store
     if store is not None:
         try:
-            store.ensure_available()
+            await app.state.db.call(store.ensure_available)
+            app.state.metrics.management_database_available.set(1)
         except StartupError:
             app.state.ready = False
+            app.state.metrics.ready.set(0)
+            app.state.metrics.management_database_available.set(0)
             raise GatewayError("unavailable") from None
 
 
@@ -701,15 +827,21 @@ def _client_pipeline(request: Request) -> Pipeline:
         # An authenticated client must never fall back to a less restrictive chain.
         raise GatewayError("unavailable")
     if request.app.state.admin_store is not None:
+        before, observer = request.app.state.accounting.bind(
+            client_id,
+            request.state.selected_model,
+            key_id=getattr(request.state.principal, "key_id", None),
+            request_id=request.state.request_id,
+            route=request.url.path,
+        )
         return Pipeline(
             pipeline.plugins,
             pipeline.provider,
             pipeline.limits,
             metrics=pipeline.metrics,
             provider_name=pipeline.provider_name,
-            provider_observer=request.app.state.usage_ledger.observer(
-                client_id, request.state.selected_model
-            ),
+            provider_before=before,
+            provider_observer=observer,
         )
     return pipeline
 
@@ -1055,11 +1187,20 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        active_telemetry = telemetry if telemetry is not None else Telemetry.from_environment()
+        app.state.db = DBExecutor()
+        active_telemetry = (
+            telemetry
+            if telemetry is not None
+            else Telemetry.from_environment(metrics=app.state.metrics)
+        )
         app.state.telemetry = active_telemetry
         active_analytics = Analytics.disabled()
         try:
-            active_analytics = analytics if analytics is not None else Analytics.from_environment()
+            active_analytics = (
+                analytics
+                if analytics is not None
+                else Analytics.from_environment(metrics=app.state.metrics)
+            )
             await active_analytics.start()
             app.state.analytics = active_analytics
             async with gateway_lifespan(app):
@@ -1071,8 +1212,9 @@ def create_app(
             finally:
                 try:
                     if app.state.admin_store is not None:
-                        app.state.admin_store.close()
+                        await app.state.db.call(app.state.admin_store.close)
                         app.state.admin_store = None
+                    await app.state.db.close()
                 finally:
                     app.state.telemetry = Telemetry.disabled()
                     # Flushing performs blocking HTTP export with its own timeout.
@@ -1082,22 +1224,34 @@ def create_app(
     async def gateway_lifespan(app: FastAPI):
         app.state.ready = False
         active_config = config if config is not None else load_config(path)
-        key = provider_key(active_config.provider)
         token_digests = None
         if active_config.auth.management_enabled:
-            store = open_management_store(active_config)
-            app.state.admin_store = store
-            clients, token_digests = store.load_clients()
-            data = active_config.model_dump()
-            data["auth"]["clients"] = {
-                name: client.model_dump() for name, client in clients.items()
-            }
-            active_config = GatewayConfig.model_validate(data)
-            usage_ledger: UsageLedger | PersistentUsageLedger = PersistentUsageLedger(
-                store, clients
+            opened = []
+
+            def open_store():
+                opened.append(open_management_store(active_config))
+
+            try:
+                await app.state.db.call(open_store)
+            finally:
+                if opened:
+                    app.state.admin_store = opened[0]
+            store = app.state.admin_store
+            clients, token_digests = await app.state.db.call(store.load_clients)
+            app.state.control = await app.state.db.call(store.read_control)
+            active_config, key = restore_provider_config(
+                active_config, app.state.control, clients=clients
             )
+            validate_provider_credential(active_config, key, app.state.control, token_digests)
+            app.state.provider_aliases = get_provider_aliases(app.state.control)
+            usage_ledger: UsageLedger | PersistentUsageLedger = await app.state.db.call(
+                PersistentUsageLedger, store, clients
+            )
+            app.state.accounting = AccountingService(store, app.state.db)
+            app.state.accounting.authorize = lambda: app.state.validate_operator()
         else:
             usage_ledger = UsageLedger(active_config.auth.clients)
+            key = provider_key(active_config.provider)
         access = AccessControl(active_config, token_digests=token_digests)
         operator_access = OperatorAccess(active_config, token_digests=token_digests)
         validated_transport = validate_transport_config(active_config.provider.transport)
@@ -1133,6 +1287,7 @@ def create_app(
             app.state.operator_access = operator_access
             app.state.usage_ledger = usage_ledger
             app.state.token_digests = token_digests or {}
+            app.state.provider_credential_digest = hashlib.sha256(key.encode("ascii")).digest()
             app.state.pipeline = Pipeline(
                 plugins,
                 provider,
@@ -1143,13 +1298,32 @@ def create_app(
             app.state.client_pipelines = build_client_pipelines(
                 active_config, plugins, app.state.pipeline, usage_ledger
             )
+            if active_config.auth.management_enabled:
+                await IdentityAdmin(app.state).initialize()
+                await app.state.accounting.purge()
+                app.state.retention_task = asyncio.create_task(
+                    _periodic_retention(app), name="gateway7-retention"
+                )
+            app.state.metrics.management_database_available.set(1)
             app.state.ready = True
+            app.state.metrics.ready.set(1)
             yield
         except BaseException:
             failed = True
             raise
         finally:
             app.state.ready = False
+            app.state.metrics.ready.set(0)
+            if app.state.retention_task is not None:
+                app.state.retention_task.cancel()
+                await asyncio.gather(app.state.retention_task, return_exceptions=True)
+                app.state.retention_task = None
+            while app.state.management_tasks:
+                await asyncio.gather(*app.state.management_tasks, return_exceptions=True)
+            if app.state.retired_provider_tasks:
+                await asyncio.gather(*app.state.retired_provider_tasks, return_exceptions=True)
+            active_pipeline = getattr(app.state, "pipeline", None)
+            active_provider = active_pipeline.provider if active_pipeline is not None else provider
             app.state.pipeline = None
             app.state.client_pipelines = {}
             app.state.access = None
@@ -1162,7 +1336,7 @@ def create_app(
                         await stop_plugins(plugins, active_config.limits.hook_timeout_seconds)
                 finally:
                     await _close_provider_resource(
-                        provider, active_config.limits.hook_timeout_seconds
+                        active_provider, active_config.limits.hook_timeout_seconds
                     )
 
             try:
@@ -1184,6 +1358,38 @@ def create_app(
     app.state.telemetry = Telemetry.disabled()
     app.state.analytics = Analytics.disabled()
     app.state.client_pipelines = {}
+    app.state.control = {"revision": 0, "data": {}}
+    app.state.accounting = None
+    app.state.provider_aliases = {}
+    app.state.provider_health = {"status": "not_checked"}
+    app.state.management_mutation_lock = asyncio.Lock()
+    app.state.management_lock = app.state.management_mutation_lock
+    app.state.management_tasks = set()
+    app.state.retired_provider_tasks = set()
+    app.state.retention_task = None
+
+    def validate_operator(expected=None):
+        actor = app.state.operator_access.authenticate(_OPERATOR_HEADERS.get())
+        actor.require_admin()
+        if expected is not None and actor.id != expected.id:
+            raise GatewayError("operator_forbidden")
+        return actor
+
+    app.state.validate_operator = validate_operator
+
+    def retire_provider(provider):
+        leases = set(app.state.admission._leases)
+
+        async def retire():
+            while leases & app.state.admission._leases:
+                await asyncio.sleep(0.01)
+            await _close_provider_resource(provider, app.state.config.limits.hook_timeout_seconds)
+
+        task = asyncio.create_task(retire(), name="gateway7-retired-provider")
+        app.state.retired_provider_tasks.add(task)
+        task.add_done_callback(app.state.retired_provider_tasks.discard)
+
+    app.state.retire_provider = retire_provider
     app.add_middleware(GatewayBoundaryMiddleware, owner=app)
 
     @app.exception_handler(RequestValidationError)
@@ -1310,25 +1516,66 @@ def create_app(
             headers={"Content-Type": CONTENT_TYPE_LATEST},
         )
 
+    def require_accounting():
+        if app.state.accounting is None:
+            raise GatewayError("not_found")
+        return app.state.accounting
+
+    async def identity_change(request, method, *args):
+        return await _domain(
+            _owned_mutation(
+                app,
+                request,
+                lambda actor, revision: method(
+                    *args,
+                    actor=actor,
+                    expected_revision=revision,
+                    request_id=request.state.request_id,
+                ),
+            )
+        )
+
+    async def accounting_change(request, field, value):
+        async def change(actor, revision):
+            async with app.state.management_mutation_lock:
+                actor = app.state.validate_operator(actor)
+                audit = {
+                    "actor": actor.id,
+                    "action": "accounting." + field,
+                    "target": field,
+                    "diff": {"fields": [field]},
+                    "request_id": request.state.request_id,
+                }
+                method = getattr(require_accounting(), "update_" + field)
+                result = await method(revision, value, audit)
+                app.state.control = await app.state.db.call(app.state.admin_store.read_control)
+                return result
+
+        return await _domain(_owned_mutation(app, request, change))
+
     @app.get("/operator/usage", include_in_schema=False)
     async def operator_usage(
         client_id: str | None = None,
         model: str | None = None,
         start: str | None = None,
         end: str | None = None,
-    ) -> JSONResponse:
-        if app.state.admin_store is not None:
-            try:
-                snapshot = app.state.usage_ledger.snapshot(
-                    client_id=client_id, model=model, start=start, end=end
-                )
-            except ValueError:
-                raise GatewayError("invalid_request") from None
-            except StartupError:
-                raise GatewayError("unavailable") from None
-        else:
-            snapshot = app.state.usage_ledger.snapshot()
-        return JSONResponse(snapshot, headers={"Cache-Control": "no-store"})
+        bucket: str = "day",
+        offset: int = 0,
+        limit: int = 50,
+    ):
+        if app.state.accounting is None:
+            return JSONResponse(app.state.usage_ledger.snapshot(), headers=CONSOLE_HEADERS)
+        return await _domain(
+            app.state.accounting.report(
+                client_id=client_id,
+                model=model,
+                start=start,
+                end=end,
+                bucket=bucket,
+                offset=offset,
+                limit=limit,
+            )
+        )
 
     @app.get("/operator/usage/export", include_in_schema=False)
     async def operator_usage_export(
@@ -1336,77 +1583,244 @@ def create_app(
         model: str | None = None,
         start: str | None = None,
         end: str | None = None,
-    ) -> Response:
-        if app.state.admin_store is None:
-            raise GatewayError("not_found")
-        try:
-            snapshot = app.state.usage_ledger.snapshot(
-                client_id=client_id, model=model, start=start, end=end
-            )
-        except ValueError:
-            raise GatewayError("invalid_request") from None
-        except StartupError:
-            raise GatewayError("unavailable") from None
-        return Response(
-            usage_csv(snapshot),
+    ):
+        accounting = require_accounting()
+        filters = dict(client_id=client_id, model=model, start=start, end=end)
+        await _domain(accounting.history(**filters, limit=1))
+        return StreamingResponse(
+            accounting.iter_csv(**filters),
             media_type="text/csv",
-            headers={"Content-Disposition": 'attachment; filename="gateway7-usage.csv"'},
+            headers={
+                "Content-Disposition": 'attachment; filename="gateway7-usage.csv"',
+                "Cache-Control": "no-store",
+            },
         )
 
     @app.get("/operator/state", include_in_schema=False)
-    async def operator_snapshot() -> JSONResponse:
+    async def operator_snapshot(request: Request):
         snapshot = operator_state(
-            app.state.config,
-            app.state.pipeline,
-            app.state.client_pipelines,
-            ready=app.state.ready,
+            app.state.config, app.state.pipeline, app.state.client_pipelines, ready=app.state.ready
         )
-        try:
-            snapshot["usage"] = app.state.usage_ledger.snapshot()
-        except StartupError:
-            raise GatewayError("unavailable") from None
         if app.state.admin_store is not None:
-            for client in snapshot["clients"]:
-                client["credential_active"] = client["id"] in app.state.token_digests
+            snapshot.update(
+                await _domain(IdentityAdmin(app.state).snapshot(request.state.operator))
+            )
+            snapshot["usage"] = await _domain(app.state.accounting.report())
+        else:
+            snapshot["usage"] = app.state.usage_ledger.snapshot()
         return JSONResponse(snapshot, headers=CONSOLE_HEADERS)
 
+    @app.get("/operator/clients", include_in_schema=False)
+    async def operator_clients(
+        q: str = "",
+        search: str = "",
+        owner: str = "",
+        tag: str = "",
+        status: str = "",
+        offset: int = 0,
+        limit: int = 50,
+    ):
+        require_accounting()
+        return await _domain(
+            IdentityAdmin(app.state).list_users(
+                q=q or search, owner=owner, tag=tag, status=status, offset=offset, limit=limit
+            )
+        )
+
     @app.post("/operator/clients", include_in_schema=False, status_code=201)
-    async def operator_create_client(payload: CreateClient) -> JSONResponse:
-        return JSONResponse(AdminController(app.state).create(payload), status_code=201)
+    async def operator_create_client(payload: CreateClient, request: Request):
+        return await identity_change(request, IdentityAdmin(app.state).create, payload)
 
     @app.put("/operator/clients/{client_id}", include_in_schema=False)
-    async def operator_update_client(client_id: str, payload: ClientPolicy) -> JSONResponse:
-        return JSONResponse(AdminController(app.state).update(client_id, payload))
+    async def operator_update_client(client_id: str, payload: ClientPolicy, request: Request):
+        return await identity_change(request, IdentityAdmin(app.state).update, client_id, payload)
 
     @app.post("/operator/clients/{client_id}/token", include_in_schema=False)
-    async def operator_rotate_token(client_id: str) -> JSONResponse:
-        return JSONResponse(AdminController(app.state).rotate(client_id))
+    async def operator_rotate_token(client_id: str, request: Request):
+        return await identity_change(request, IdentityAdmin(app.state).rotate, client_id)
 
     @app.delete("/operator/clients/{client_id}/token", include_in_schema=False, status_code=204)
-    async def operator_revoke_token(client_id: str) -> Response:
-        AdminController(app.state).revoke(client_id)
+    async def operator_revoke_token(client_id: str, request: Request):
+        await identity_change(request, IdentityAdmin(app.state).revoke, client_id)
         return Response(status_code=204)
 
     @app.delete("/operator/clients/{client_id}", include_in_schema=False, status_code=204)
-    async def operator_delete_client(client_id: str) -> Response:
-        AdminController(app.state).delete(client_id)
+    async def operator_delete_client(client_id: str, request: Request):
+        await identity_change(request, IdentityAdmin(app.state).delete, client_id)
         return Response(status_code=204)
+
+    @app.get("/operator/clients/{client_id}/keys", include_in_schema=False)
+    async def operator_client_keys(client_id: str):
+        require_accounting()
+        return await _domain(IdentityAdmin(app.state).list_keys(client_id))
+
+    @app.post("/operator/clients/{client_id}/keys", include_in_schema=False, status_code=201)
+    async def operator_create_key(client_id: str, payload: KeyRequest, request: Request):
+        return await identity_change(
+            request, IdentityAdmin(app.state).create_key, client_id, payload
+        )
+
+    @app.post("/operator/clients/{client_id}/keys/{key_id}/rotate", include_in_schema=False)
+    async def operator_rotate_key(
+        client_id: str, key_id: str, payload: KeyRequest, request: Request
+    ):
+        return await identity_change(
+            request, IdentityAdmin(app.state).rotate_key, client_id, key_id, payload
+        )
+
+    @app.delete(
+        "/operator/clients/{client_id}/keys/{key_id}", include_in_schema=False, status_code=204
+    )
+    async def operator_revoke_key(client_id: str, key_id: str, request: Request):
+        await identity_change(request, IdentityAdmin(app.state).revoke_key, client_id, key_id)
+        return Response(status_code=204)
+
+    @app.get("/operator/operators", include_in_schema=False)
+    async def operator_operators():
+        require_accounting()
+        return await _domain(IdentityAdmin(app.state).list_operators())
+
+    @app.post("/operator/operators", include_in_schema=False, status_code=201)
+    async def operator_create_operator(payload: OperatorRequest, request: Request):
+        return await identity_change(request, IdentityAdmin(app.state).create_operator, payload)
+
+    @app.put("/operator/operators/{operator_id}", include_in_schema=False)
+    async def operator_update_operator(operator_id: str, payload: OperatorUpdate, request: Request):
+        return await identity_change(
+            request, IdentityAdmin(app.state).update_operator, operator_id, payload
+        )
+
+    @app.delete("/operator/operators/{operator_id}", include_in_schema=False, status_code=204)
+    async def operator_revoke_operator(operator_id: str, request: Request):
+        await identity_change(request, IdentityAdmin(app.state).revoke_operator, operator_id)
+        return Response(status_code=204)
+
+    @app.post("/operator/operators/{operator_id}/token", include_in_schema=False)
+    async def operator_rotate_operator(operator_id: str, payload: KeyRequest, request: Request):
+        return await identity_change(
+            request, IdentityAdmin(app.state).rotate_operator, operator_id, payload
+        )
+
+    @app.get("/operator/audit", include_in_schema=False)
+    async def operator_audit(
+        actor: str | None = None,
+        action: str | None = None,
+        target: str | None = None,
+        start: str | None = None,
+        end: str | None = None,
+        offset: int = 0,
+        limit: int = 50,
+    ):
+        require_accounting()
+        return await _domain(
+            app.state.db.call(
+                app.state.admin_store.list_audit,
+                actor=actor,
+                action=action,
+                target=target,
+                start=start,
+                end=end,
+                offset=offset,
+                limit=limit,
+            )
+        )
+
+    @app.get("/operator/provider", include_in_schema=False)
+    async def operator_provider():
+        require_accounting()
+        return await _domain(ProviderAdmin(app.state).snapshot())
+
+    @app.put("/operator/provider", include_in_schema=False)
+    async def operator_update_provider(payload: ProviderUpdate, request: Request):
+        return await _domain(
+            _owned_mutation(
+                app,
+                request,
+                lambda actor, revision: ProviderAdmin(app.state).update(
+                    payload, revision, actor, request_id=request.state.request_id
+                ),
+            )
+        )
+
+    @app.post("/operator/provider/test", include_in_schema=False)
+    async def operator_test_provider(request: Request, payload: ProviderUpdate | None = None):
+        return await _domain(
+            _owned_mutation(
+                app, request, lambda actor, revision: ProviderAdmin(app.state).test(payload, actor)
+            )
+        )
+
+    @app.get("/operator/models", include_in_schema=False)
+    async def operator_models(refresh: bool = False):
+        require_accounting()
+        return await _domain(ProviderAdmin(app.state).models(refresh=refresh))
+
+    @app.get("/operator/accounting", include_in_schema=False)
+    async def operator_accounting():
+        return await _domain(require_accounting().policies())
+
+    @app.put("/operator/pricing", include_in_schema=False)
+    async def operator_pricing(payload: dict[str, Any], request: Request):
+        if set(payload) != {"prices"}:
+            raise GatewayError("invalid_request")
+        return await accounting_change(request, "pricing", payload["prices"])
+
+    @app.put("/operator/budgets", include_in_schema=False)
+    async def operator_budgets(payload: dict[str, Any], request: Request):
+        if set(payload) != {"rules"}:
+            raise GatewayError("invalid_request")
+        return await accounting_change(request, "budgets", payload["rules"])
+
+    @app.get("/operator/budgets/status", include_in_schema=False)
+    async def operator_budget_status(client_id: str | None = None, model: str | None = None):
+        return await _domain(require_accounting().budget_status(client_id, model))
+
+    @app.put("/operator/retention", include_in_schema=False)
+    async def operator_retention(payload: dict[str, Any], request: Request):
+        if set(payload) != {"days"}:
+            raise GatewayError("invalid_request")
+        result = await accounting_change(request, "retention", payload["days"])
+        await _domain(require_accounting().purge())
+        return result
+
+    @app.get("/operator/diagnostics", include_in_schema=False)
+    async def operator_diagnostics(
+        client_id: str | None = None,
+        model: str | None = None,
+        start: str | None = None,
+        end: str | None = None,
+        offset: int = 0,
+        limit: int = 50,
+    ):
+        result = await _domain(
+            require_accounting().diagnostics(
+                client_id=client_id, model=model, start=start, end=end, offset=offset, limit=limit
+            )
+        )
+        admission = app.state.admission
+        result["active_requests"] = dict(admission._client_active)
+        now = admission._clock()
+        result["rate_remaining"] = {
+            identity: min(
+                bucket.capacity,
+                int(bucket.tokens + max(0, now - bucket.updated) * bucket.capacity / 60),
+            )
+            for identity, bucket in admission._rate_buckets.items()
+            if identity in admission._rate_enabled
+        }
+        return result
 
     @app.get("/operator/console", include_in_schema=False)
     async def operator_console() -> Response:
         return console_asset("index.html")
 
-    @app.get("/operator/assets/console.css", include_in_schema=False)
-    async def operator_console_styles() -> Response:
-        return console_asset("console.css")
-
-    @app.get("/operator/assets/console.js", include_in_schema=False)
-    async def operator_console_script() -> Response:
-        return console_asset("console.js")
+    @app.get("/operator/assets/{name}", include_in_schema=False)
+    async def operator_console_asset(name: str) -> Response:
+        return console_asset(name)
 
     @app.post("/chat")
     async def chat(payload: NativeChatRequest, request: Request) -> Response:
-        selected = _select_model(request, payload.model)
+        selected = await _select_model(request, payload.model)
         response = await _run_connected(request, payload.core_request(), selected)
         if response is None:
             return Response(status_code=499)
@@ -1423,7 +1837,7 @@ def create_app(
 
     @app.post("/v1/chat/completions")
     async def openai_chat(payload: OpenAIChatRequest, request: Request) -> Response:
-        selected = _select_model(request, payload.model)
+        selected = await _select_model(request, payload.model)
         if app.state.config.provider.kind != "openai" and payload.needs_openai_provider():
             raise GatewayError("invalid_request")
         if request.state.stream_mode == "early":
@@ -1500,7 +1914,7 @@ def create_app(
             core = payload.core_request(consent=consent)
         except (ValueError, TypeError, UnicodeError, RecursionError):
             raise GatewayError("invalid_request") from None
-        selected = _select_model(request, payload.model)
+        selected = await _select_model(request, payload.model)
         if app.state.config.provider.kind != "openai":
             raise GatewayError("invalid_request")
         pipeline = _client_pipeline(request)

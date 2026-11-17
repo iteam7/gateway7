@@ -15,6 +15,7 @@ from pathlib import Path
 import secrets
 import subprocess
 import tempfile
+from datetime import datetime, timedelta, timezone
 import time
 from typing import Any
 import urllib.error
@@ -32,12 +33,15 @@ def _request(
     method: str = "GET",
     body: dict[str, Any] | None = None,
     operator_write: bool = False,
+    revision: int | None = None,
 ) -> tuple[int, bytes]:
     headers = {"Content-Type": "application/json"}
     if token is not None:
         headers["Authorization"] = "Bearer " + token
     if operator_write:
         headers["X-Gateway7-Operator"] = "true"
+        if revision is not None:
+            headers["If-Match"] = str(revision)
     request = urllib.request.Request(
         origin + path,
         None if body is None else json.dumps(body).encode(),
@@ -218,6 +222,11 @@ def check_postgres_admin() -> None:
             body: dict[str, Any] | None = None,
             write: bool = False,
         ) -> dict[str, Any]:
+            revision = None
+            if write:
+                status, state = _request(origin, "/operator/state", token=operator)
+                assert status == 200
+                revision = json.loads(state)["revision"]
             status, response = _request(
                 origin,
                 path,
@@ -225,6 +234,7 @@ def check_postgres_admin() -> None:
                 method=method,
                 body=body,
                 operator_write=write,
+                revision=revision,
             )
             assert status == expected, (
                 f"Admin smoke {method} {path.split('?')[0]} returned HTTP {status}; expected {expected}"
@@ -368,7 +378,15 @@ def check_postgres_admin() -> None:
             assert report["clients"][user_id]["known_output_tokens"] == 20
             days = sorted(row["day"] for row in report["rows"])
             filters = urllib.parse.urlencode(
-                {"client_id": user_id, "model": "fake", "start": days[0], "end": days[-1]}
+                {
+                    "client_id": user_id,
+                    "model": "fake",
+                    "start": days[0] + "T00:00:00Z",
+                    "end": (
+                        datetime.fromisoformat(days[-1]).replace(tzinfo=timezone.utc)
+                        + timedelta(days=1)
+                    ).isoformat(),
+                }
             )
             filtered = api("/operator/usage?" + filters)
             assert filtered["clients"][user_id]["provider_attempts"] == 4
@@ -378,7 +396,7 @@ def check_postgres_admin() -> None:
             assert rows and all(
                 row["client_id"] == user_id and row["model"] == "fake" for row in rows
             )
-            assert sum(int(row["provider_attempts"]) for row in rows) == 4
+            assert len(rows) == 4 and all(row["status"] == "complete" for row in rows)
             for secret in [
                 operator,
                 password,

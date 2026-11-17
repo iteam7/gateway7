@@ -444,6 +444,16 @@ def _parser() -> argparse.ArgumentParser:
         "validate", help="Validate config and trusted plugin factories offline"
     )
     validate.add_argument("--config", required=True)
+    backup = subcommands.add_parser("backup", help="Write a private offline management backup")
+    backup.add_argument("--config", required=True)
+    backup.add_argument(
+        "--output", required=True, help="New private backup file; never overwritten"
+    )
+    restore = subcommands.add_parser(
+        "restore", help="Restore a private backup into an empty database of the same backend"
+    )
+    restore.add_argument("--config", required=True)
+    restore.add_argument("--input", required=True, dest="backup_input")
     chat = subcommands.add_parser(
         "chat", help="Send text to a running gateway; omit --message to read stdin"
     )
@@ -519,6 +529,16 @@ def main(argv: list[str] | None = None) -> int:
     gateway_logger.setLevel(logging.INFO)
     gateway_logger.propagate = False
     try:
+        if args.command in ("backup", "restore"):
+            from gateway7.backup import backup_management, restore_management
+
+            result = (
+                backup_management(args.config, args.output)
+                if args.command == "backup"
+                else restore_management(args.config, args.backup_input)
+            )
+            print(f"Management {args.command} completed: " + json.dumps(result, sort_keys=True))
+            return 0
         if args.command == "smoke":
             code, report = asyncio.run(
                 run_smoke(
@@ -577,6 +597,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Gateway startup failed: {error}", file=sys.stderr)
         return 1
     except KeyboardInterrupt:
+        if args.command in ("backup", "restore"):
+            return 130
         if args.command in ("chat", "smoke"):
             return 130
         if args.command == "plugin" and args.plugin_command == "test":

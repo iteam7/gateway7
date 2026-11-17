@@ -7,6 +7,17 @@ services:
     environment:
       - ${GATEWAY_KEY_ENV:-OPENAI_API_KEY}
       - GATEWAY7_OPERATOR_TOKEN
+      - GATEWAY7_CONTROL_KEY
+      - TELEMETRY_ENABLED
+      - GATEWAY7_ENVIRONMENT
+      - OTEL_EXPORTER_OTLP_ENDPOINT
+      - OTEL_EXPORTER_OTLP_HEADERS
+      - ANALYTICS_ENABLED
+      - ANALYTICS_SOURCE
+      - ANALYTICS_PARTICIPANT_CODE
+      - OPENPANEL_API_URL
+      - OPENPANEL_CLIENT_ID
+      - OPENPANEL_CLIENT_SECRET
       - GATEWAY7_DATABASE_URL=${GATEWAY7_DATABASE_URL:-postgresql://gateway7@postgres:5432/gateway7}
       # libpq reads PGPASSWORD separately; no URI-escaping of the password is needed.
       - PGPASSWORD=${GATEWAY7_POSTGRES_PASSWORD:?Set a private database password}
