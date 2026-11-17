@@ -833,21 +833,34 @@ async def test_early_callback_cannot_forward_late_or_replace_interruption(interr
 
 
 @pytest.mark.parametrize("phase", ["request", "response"])
-async def test_synchronous_native_hook_deadline_is_terminal(phase):
+async def test_synchronous_native_hook_deadline_is_terminal(phase, monkeypatch):
+    from types import SimpleNamespace
+
+    import gateway7.pipeline as pipeline_module
+
+    # Only the selected synchronous hook consumes pipeline time; host load must
+    # not exhaust the request budget before the response-phase case reaches it.
+    clock = [time.monotonic()]
+    monkeypatch.setattr(pipeline_module, "time", SimpleNamespace(monotonic=lambda: clock[0]))
+    phases = []
+
     class Slow(Native):
         async def prepare_responses(self, request, context):
+            phases.append("request")
             if phase == "request":
-                time.sleep(0.03)
+                clock[0] += 0.03
             return request
 
         async def check_responses(self, response, context):
-            time.sleep(0.03)
+            phases.append("response")
+            clock[0] += 0.03
             return response
 
     pipeline, provider = runner(Slow(), limits=LimitsConfig(hook_timeout_seconds=0.01))
     with pytest.raises(GatewayError) as caught:
         await pipeline.run_responses(request())
     assert caught.value.code == "timeout" and len(provider.calls) == int(phase == "response")
+    assert phases == (["request"] if phase == "request" else ["request", "response"])
 
 
 async def test_early_total_timer_expiry_precedes_provider_failure(monkeypatch):

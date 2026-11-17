@@ -162,36 +162,44 @@ Passing smoke confirms the checked HTTP behavior, not complete privacy-policy co
 
 ## Generate and test middleware
 
-```sh
-uv run --locked gateway7 plugin init company_mask --directory .
-uv run --locked gateway7 plugin test \
-  --config company_mask/gateway.yaml --fixtures company_mask/fixtures.json
-```
-
-Expect `2/2 cases passed` from the generated example.
-`init` creates a package under an existing directory and refuses to overwrite a target that already exists.
-Use [the authoring guide](authoring.md) to edit and install the package.
-
-For machine-readable results or a longer test run:
+Activate the environment containing the reviewed Gateway7 build, then work in a separate authoring folder:
 
 ```sh
-uv run --locked gateway7 plugin test \
-  --config company_mask/gateway.yaml --fixtures company_mask/fixtures.json \
-  --json --timeout 60
+gateway7 plugin init company_guard --template guard --directory .
+gateway7 plugin inspect company_guard --json
+gateway7 plugin test company_guard --json --timeout 60
+gateway7 plugin dev company_guard --port 0
 ```
 
+`init` creates an installable project and refuses an existing target.
+The request-only `guard` starter has 12 cases across five profiles; the default `redact` starter has 10 cases and three positive profiles, with explicit early-mode refusals.
+Both include strict settings, a public text helper, typed fixtures, unit tests, `CONTRACT.md` and `AGENTS.md`.
+`test`, `inspect` and `dev` accept an optional project directory, defaulting to `.`.
+They resolve module/config/fixtures/profiles from `[tool.gateway7.plugin]` in `pyproject.toml` and use explicit current project source.
+Normal `validate`/`serve` load installed packages.
+
+`test` emits schema-2 expected/actual reports and a per-profile evidence matrix.
 `--timeout` accepts 1–300 seconds; the default is 30 for the whole suite.
-The report shows expected and actual values for each check.
-The separate worker uses a synthetic provider, removes inherited credentials and blocks Python network and subprocess calls.
-It is not an operating-system sandbox: test only trusted code and use synthetic fixtures.
+`inspect` emits safe descriptor/settings-schema/hook information without startup hooks or provider calls; inspection does not verify behavior.
+`dev` owns an IPv4-loopback gateway and synthetic upstream on automatic ports (`--port 0`), prints a platform-specific synthetic client command, and stops both after Ctrl-C.
+A specified `--port` selects the gateway port only; there is no public-host option.
+Dev uses the actual gateway HTTP pipeline, replaces credentials and management configuration in memory, and never changes project files.
+Restart it after source edits.
+
+The separate fixture worker removes inherited credentials and blocks Python networking and subprocess APIs.
+Dev permits its owned local HTTP fixture and runs trusted source in a separate child with a minimal environment.
+Neither path is an operating-system sandbox.
+Use only trusted code and synthetic fixtures; reports include fixture values.
+The authoring contract is Gateway7 `0.5.0.dev0`, project manifest 1 and fixture schema 2; the earlier explicit config/fixture flags and schema 1 are unsupported.
+Follow [the first-plugin guide](authoring.md), [cookbook](plugin-cookbook.md) or [agent guide](plugin-agent-guide.md).
 
 ## Exit codes and checks
 
 | Exit | Meaning |
 | --- | --- |
-| `0` | Success, including an orderly Ctrl-C shutdown of `serve` or `demo` |
+| `0` | Success, including an orderly Ctrl-C shutdown of `serve`, `demo` or `plugin dev` |
 | `1` | Command/startup failure; for `plugin test`, an expected/actual mismatch |
-| `2` | Invalid CLI arguments; for `plugin test`, invalid setup, worker failure, timeout or interruption |
+| `2` | Invalid CLI arguments; for plugin authoring, invalid setup, worker failure, timeout or interruption |
 | `130` | Interrupted `chat` or `smoke`, including while reading chat input |
 
 Interrupting `plugin test` stops its worker and reports a failed run.

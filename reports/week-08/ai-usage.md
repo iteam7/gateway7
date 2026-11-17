@@ -74,3 +74,60 @@
 - Boundary: Estimated costs use configured model prices rather than provider invoices; external telemetry and notification delivery still require private deployment configuration.
   No SSO, HA, simultaneous multiple-provider routing, SQLite-to-PostgreSQL migration, production deployment, billing reconciliation, Customer acceptance or human usability outcome is claimed.
 - Team assessment: TODO
+
+## 2026-11-17 — Task #297 plugin authoring
+
+- Tool: Codex, with Formater, TechLead and developer agents following the repository roles, plus a separate agent given only a generated project and its installed Gateway7 environment.
+- Work: Implemented the typed text-policy helper, reference-policy parity and native denial diagnostics; replaced the authoring workflow with project discovery, fixture schema 2, profile-aware execution, safe diagnostics, inspection and a disposable synthetic HTTP development service.
+  Added guard/redactor projects with bundled agent instructions and version-matched public-contract guidance, progressive guides and installed-package verification.
+- Compatibility: The owner authorized replacing older authoring flags and fixtures; raw middleware API 2 and transport API 1 remain supported independently.
+  The package and generated minimum use the unreleased development version `0.5.0.dev0`; no release or tag was published.
+- Independent agent trial: From the generated local instructions and installed public API, an agent added the synthetic rule `SYNTHETIC-AGENT-TRIAL`, observed failing fixtures, then passed 18 cases across all five profiles and two generated unit tests.
+  Actual local HTTP returned 200 for a benign request and 403 for the new rule; no gateway checkout or core implementation was supplied to that agent.
+  A separate real controlling-terminal test verifies Ctrl-C cleanup; the agent trial's terminal-wrapper termination behavior alone is not claimed as that proof.
+- Automated verification: The complete regression suite passed 4197 tests with 67 skips under the local test configuration and one Python PTY warning in 107.87 seconds.
+  The final template quality-tool correction separately passed 80 scaffold, version and secrets tests; fresh generated projects passed Ruff formatting/lint and strict mypy.
+  Compilation, Ruff formatting and lint and mypy passed for all 50 production files; the deterministic HTTP demo passed.
+- Packaging and operations: A fresh installed wheel outside the checkout passed both preset journeys, deliberate red/green changes, profile checks, generated unit tests, source-based development HTTP, normal installed-plugin HTTP with project source hidden and owned-process cleanup.
+  The complete Compose smoke passed the gateway, PostgreSQL administration restart/history checks, Prometheus and Grafana; its disposable containers and volumes were removed.
+  The local image build used the managed environment's CA through a temporary BuildKit-secret mount with TLS verification enabled; tracked trust settings were unchanged.
+- Documentation and review: Strict MkDocs/site validation passed for 80 maintained pages and 11518 links/assets; Markdownlint passed all 137 Markdown files, changed-file link checks passed without errors, and actionlint passed the workflows.
+  TechLead approved the actual code, profile oracle, confidentiality boundaries, packaged guidance and platform-verification design.
+- Boundary: Verification uses synthetic local services and trusted Python plugins with accidental-network/process protection; the worker is not an operating-system sandbox for hostile code.
+  No live provider call, production deployment, human usability study, Customer acceptance or course-completion result is claimed.
+- Team assessment: TODO
+
+## 2026-11-17 — PR #298 review corrections
+
+- Tool: Codex, with Formater, TechLead and developer agents following the repository roles.
+- Request and work: Fixed all seven confirmed review findings in the existing pull request: unsafe import-exception diagnostics, stale project bytecode, inconsistent native early-response heads, JSON tuple-field validation, named/required synthetic function selection, malformed-project JSON errors and normalized generated wheel-install filenames.
+  Added deterministic regressions for each finding, including same-size/same-timestamp cache files, custom native identities and tool metadata, actual public HTTP tool choices and real builds/installations for repeated underscores.
+- Verification: The complete final regression suite passed 4261 tests with 67 skips under the local test configuration and one existing PTY warning in 141.07 seconds.
+  Compilation, Ruff formatting/lint and mypy passed for 51 production files; the deterministic HTTP demo, wheel and container image builds passed.
+- Packaged checks: A fresh installed wheel outside the checkout passed both full authoring journeys with real Ruff/strict mypy, red/green fixtures, profile checks, current-source development HTTP, ordinary installed-plugin HTTP and owned-listener cleanup.
+  Additional installed-only probes passed custom native early heads with JSON-array metadata, safe import-failure JSON and malformed-TOML JSON; all 55 packaged source/assets matched the final checkout, including the new scoped source loader.
+- Operations and documentation: The complete monitoring/PostgreSQL Compose smoke and Prometheus configuration check passed; strict documentation validation passed for 80 pages and 11518 links/assets, and Markdownlint and actionlint passed.
+  Managed-container verification used only a temporary CA-secret build mount and an internal-service proxy bypass; repository trust settings were unchanged.
+- Review boundary: TechLead independently replayed the seven original probes against the corrected implementation.
+  Plugins remain trusted code; no hostile-code sandbox, real provider call, deployment, release, human usability result or course-completion result is claimed.
+- Team assessment: TODO
+
+## 2026-11-17 — Resolve PR #298 conflicts with current main
+
+- Tool: Codex, with Formater, TechLead and developer agents following the repository roles.
+- Work: Merged current main `e2e13968a5dce9f11b99c4e3337166e5285dbf18`, containing administration PR #296, into the existing plugin-authoring branch through a normal merge.
+  Resolved six documentation/evidence conflicts by preserving both histories, guide sets, navigation, ADRs and functional requirements; retained backup/restore and plugin commands, asynchronous accounting and native denial attribution together.
+  The resolver reproduced the combined dependency lock unchanged, retaining cryptography and the development package version `0.5.0.dev0` without unrelated upgrades.
+- Verification: The combined regression run had 4363 passing tests, 145 skips and one pre-existing wall-clock-sensitive native timeout fixture.
+  Its test-only correction uses a pipeline-local controlled clock while retaining the original timeout, phase and exact provider-call assertions; all 226 tests in the affected native pipeline file passed.
+  Compilation, Ruff formatting/lint and mypy passed for all 59 production files; the deterministic HTTP demo and final wheel/container builds passed.
+- Installed package: A fresh environment outside the checkout passed both complete authoring journeys and the private offline backup/restore drill, including encrypted provider recovery, identities and pending accounting state.
+  The backup tests passed two SQLite cases and skipped the optional PostgreSQL unit case; real PostgreSQL HTTP lifecycle checks are exercised by the Compose smoke.
+  All 68 packaged source/assets matched the merged checkout, including public typing, external console modules, backup and fresh-source loading.
+  Gateway, real PostgreSQL lifecycle and Prometheus checks passed locally; Grafana verification was interrupted by executor disk exhaustion, so final complete monitoring verification is left to the clean CI runner.
+  Only this task's disposable containers/volumes and completed temporary environments were removed to recover space; repository tools, source and final package evidence were preserved.
+- Review and documentation: TechLead approved the resolved documentation and semantic combination; runtime independently passed 86 focused cross-domain tests.
+  Strict site validation passed for 91 maintained pages and 13987 links/assets; Markdownlint passed 148 files and actionlint passed.
+- Boundary: This updates the existing pull request branch; it does not merge the pull request into main, publish a release, deploy the product or claim Customer acceptance.
+  Both historical AI-usage entries and their TODO assessments remain preserved; the team's assessment of this merge is also pending.
+- Team assessment: TODO

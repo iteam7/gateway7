@@ -10,10 +10,11 @@ from collections.abc import Awaitable, Callable, Coroutine
 from dataclasses import dataclass
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from gateway7.config import GatewayConfig
 from gateway7.errors import StartupError
+from gateway7.plugin_diagnostics import PluginDiagnosticError, diagnostic, validation_issues
 from gateway7.plugin_api import API_VERSION, PluginDescriptor
 
 logger = logging.getLogger("gateway7")
@@ -56,8 +57,11 @@ def _hook(instance: object, name: str, instance_name: str) -> AsyncHook | None:
         }.get(name, ())
         inspect.signature(value).bind(*arguments)
     except Exception:
-        raise StartupError(
-            f"Plugin instance {instance_name} has invalid async hook {name}"
+        raise diagnostic(
+            f"Plugin instance {instance_name} has invalid async hook {name}",
+            "plugin_hook_invalid",
+            f"plugins.{instance_name}.hooks.{name}",
+            "Declare the documented async hook with the required positional arguments",
         ) from None
     return value
 
@@ -93,22 +97,31 @@ def load_plugins(config: GatewayConfig) -> LoadedPlugins:
         try:
             module = importlib.import_module(specification.module)
         except Exception:
-            raise StartupError(
-                f"Cannot load module {specification.module} for plugin instance {name}; "
-                "check module imports and migrate API v1 hooks/Continue to API v2 handle"
+            raise diagnostic(
+                f"Cannot load module {specification.module} for plugin instance {name}; check module imports and dependencies",
+                "plugin_import_failed",
+                f"plugins.{name}.module",
+                "Check the declared project module and installed dependencies; imports and factories execute trusted code",
             ) from None
         try:
             descriptor = getattr(module, "PLUGIN", None)
         except Exception:
-            raise StartupError(f"Invalid PLUGIN descriptor for plugin instance {name}") from None
+            raise diagnostic(
+                f"Invalid PLUGIN descriptor for plugin instance {name}",
+                "plugin_descriptor_invalid",
+                f"plugins.{name}.PLUGIN",
+                "Export PluginDescriptor with API 2, strict frozen extra-forbid settings and a synchronous factory",
+            ) from None
         if (
             type(descriptor) is PluginDescriptor
             and type(descriptor.api_version) is int
-            and descriptor.api_version == 1
+            and descriptor.api_version != API_VERSION
         ):
-            raise StartupError(
-                f"Plugin instance {name} uses legacy API v1; "
-                "migrate to API v2 handle(request, context, call_next)"
+            raise diagnostic(
+                f"Invalid PLUGIN descriptor for plugin instance {name}",
+                "plugin_api_unsupported",
+                f"plugins.{name}.api_version",
+                f"Use API {API_VERSION}; this descriptor declares API {descriptor.api_version}",
             )
         try:
             if (
@@ -130,10 +143,15 @@ def load_plugins(config: GatewayConfig) -> LoadedPlugins:
                 raise ValueError
             inspect.signature(descriptor.create).bind(None)
         except Exception:
-            raise StartupError(f"Invalid PLUGIN descriptor for plugin instance {name}") from None
+            raise diagnostic(
+                f"Invalid PLUGIN descriptor for plugin instance {name}",
+                "plugin_descriptor_invalid",
+                f"plugins.{name}.PLUGIN",
+                "Export PluginDescriptor with API 2, strict frozen extra-forbid settings and a synchronous factory",
+            ) from None
         try:
             settings = descriptor.settings_model.model_validate(specification.settings, strict=True)
-        except Exception:
+        except Exception as error:
             action = specification.settings.get("action")
             if (
                 specification.module == "gateway7.plugins.content_policy"
@@ -145,7 +163,22 @@ def load_plugins(config: GatewayConfig) -> LoadedPlugins:
                 raise StartupError(
                     f"Unsupported content policy action {action} for plugin instance {name}"
                 ) from None
-            raise StartupError(f"Invalid settings for plugin instance {name}") from None
+            message = f"Invalid settings for plugin instance {name}"
+            if isinstance(error, ValidationError):
+                try:
+                    issues = validation_issues(
+                        error, model=descriptor.settings_model, prefix=f"plugins.{name}.settings"
+                    )
+                except Exception:
+                    issues = []
+                if issues:
+                    raise PluginDiagnosticError(message, issues) from None
+            raise diagnostic(
+                message,
+                "plugin_settings_invalid",
+                f"plugins.{name}.settings",
+                "Inspect the settings schema and use only declared strict field types",
+            ) from None
         descriptors[name] = (descriptor, settings)
 
     instances: dict[str, LoadedPlugin] = {}
@@ -156,7 +189,12 @@ def load_plugins(config: GatewayConfig) -> LoadedPlugins:
         try:
             instance = descriptor.create(settings)
         except Exception:
-            raise StartupError(f"Cannot construct plugin instance {name}") from None
+            raise diagnostic(
+                f"Cannot construct plugin instance {name}",
+                "plugin_factory_failed",
+                f"plugins.{name}.create",
+                "Keep constructors cheap; acquire and release resources in startup/shutdown",
+            ) from None
         if inspect.isawaitable(instance):
             if inspect.iscoroutine(instance):
                 instance.close()

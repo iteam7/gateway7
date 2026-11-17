@@ -21,6 +21,7 @@ from pydantic import (
 )
 
 from gateway7.errors import StartupError
+from gateway7.plugin_diagnostics import PluginDiagnosticError, diagnostic, validation_issues
 
 MAX_CONFIG_BYTES = 1_048_576
 MAX_CONFIG_NODES = 10_000
@@ -251,7 +252,13 @@ def _reject_duplicate_keys(node: yaml.Node | None) -> None:
                 if not isinstance(key, yaml.ScalarNode) or key.tag != "tag:yaml.org,2002:str":
                     raise StartupError("Configuration keys must be strings")
                 if key.value in keys:
-                    raise StartupError("Duplicate configuration key")
+                    raise diagnostic(
+                        "Duplicate configuration key",
+                        "config_duplicate_key",
+                        "config",
+                        "Remove the repeated YAML key",
+                        line=key.start_mark.line + 1,
+                    )
                 keys.add(key.value)
                 height = max(
                     height,
@@ -275,7 +282,12 @@ def load_config(path: str | Path) -> GatewayConfig:
             raise StartupError("Gateway configuration exceeds the file size limit")
         text = raw.decode("utf-8")
     except (OSError, UnicodeError):
-        raise StartupError("Cannot read gateway configuration") from None
+        raise diagnostic(
+            "Cannot read gateway configuration",
+            "config_unavailable",
+            "config",
+            "Use an existing bounded UTF-8 configuration file",
+        ) from None
     try:
         # Compose once, check graph structure and work limits, then construct only
         # safe YAML values. Memoized subtree heights keep alias checks linear.
@@ -294,8 +306,27 @@ def load_config(path: str | Path) -> GatewayConfig:
         return GatewayConfig.model_validate(data, strict=True)
     except StartupError:
         raise
-    except (yaml.YAMLError, ValidationError, TypeError, ValueError, RecursionError):
-        raise StartupError("Invalid gateway configuration") from None
+    except ValidationError as error:
+        raise PluginDiagnosticError(
+            "Invalid gateway configuration",
+            validation_issues(error, model=GatewayConfig, prefix="config"),
+        ) from None
+    except yaml.YAMLError as error:
+        mark = getattr(error, "problem_mark", None)
+        raise diagnostic(
+            "Invalid gateway configuration",
+            "config_yaml_invalid",
+            "config",
+            "Check YAML syntax at the reported line; input values are intentionally omitted",
+            line=None if mark is None else mark.line + 1,
+        ) from None
+    except (TypeError, ValueError, RecursionError):
+        raise diagnostic(
+            "Invalid gateway configuration",
+            "config_invalid",
+            "config",
+            "Check the documented closed configuration schema",
+        ) from None
 
 
 def provider_key(config: ProviderConfig) -> str:

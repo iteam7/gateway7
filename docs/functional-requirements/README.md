@@ -32,3 +32,5 @@ Each requirement states one behavior of Gateway7, the containers it runs in and 
 | [FR-026](fr/FR-026.md) | Inspect Protected Client Activity And Retain Bounded History | `gateway` | Active |
 | [FR-027](fr/FR-027.md) | Audit Versioned Administrative Changes | `gateway` | Active |
 | [FR-028](fr/FR-028.md) | Back Up And Restore Managed State Offline | `gateway` | Active |
+| [FR-029](fr/FR-029.md) | Inspect A Plugin Project Before Installation | `gateway` | Active |
+| [FR-030](fr/FR-030.md) | Try A Plugin Through A Local Synthetic Gateway | `gateway` | Active |

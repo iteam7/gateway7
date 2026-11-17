@@ -561,16 +561,12 @@ def test_nonserving_commands_do_not_load_secret_file(
         monkeypatch.setattr(cli, "create_plugin_project", lambda *args: tmp_path / "synthetic")
         arguments = ["plugin", "init", "synthetic"]
     else:
-        monkeypatch.setattr(cli, "run_offline", lambda *args: (0, {"passed": True}))
-        arguments = [
-            "plugin",
-            "test",
-            "--config",
-            "synthetic.yaml",
-            "--fixtures",
-            "synthetic.json",
-            "--json",
-        ]
+        from gateway7 import offline
+
+        monkeypatch.setattr(
+            offline, "run_project_tests", lambda *args, **kwargs: (0, {"passed": True})
+        )
+        arguments = ["plugin", "test", str(tmp_path), "--json"]
     assert cli.main(arguments) == 0
     assert capsys.readouterr().err == ""
 
