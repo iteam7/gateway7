@@ -609,7 +609,7 @@ class Pipeline:
                             raise GatewayError("plugin_error") from None
                         checkpoint(timer, own_deadline)
                         if type(result) is Deny:
-                            raise GatewayError("policy_denied")
+                            raise GatewayError("policy_denied", middleware=plugin.name)
                         try:
                             result = validate(result)
                         except Exception:

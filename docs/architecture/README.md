@@ -97,6 +97,9 @@ The rest of the repository supports those components:
 
 To add a company policy, use the [generate → test → install workflow](../authoring.md).
 The [middleware API](../plugins.md#descriptor-and-hooks) defines the contract; a new policy does not need a core edit.
+The profile-aware authoring increment in [ADR-012](adr/ADR-012.md) adds `gateway7/text_policy.py` for optional text-policy orchestration and `gateway7/plugin_project.py` for the common project metadata used by test, inspection and development commands.
+The fixture worker exercises actual pipeline profiles, while the private development worker owns a synthetic local HTTP environment; neither changes production package discovery.
+Generated author and coding-agent instructions travel with the installed wheel rather than requiring this source checkout.
 Provider networking has a separate [startup transport interface](../provider-transports.md): `transport_api.py` defines its descriptor, `transport_loader.py` validates modules, and `transports/` holds the shipped proxy module.
 It belongs to the provider adapter component, outside the per-request middleware chain.
 
@@ -122,6 +125,8 @@ It does not run startup hooks, and importing a plugin can have side effects.
 For a provider transport, it checks only the descriptor and settings: it does not call the transport factory or resolve the proxy environment variable.
 `plugin test` instead starts a limited worker with synthetic fixtures and Python-level networking guards; it is not an operating-system sandbox.
 That fixture path does not load provider transports.
+`plugin inspect` uses the same guarded authoring boundary and distinguishes descriptor declarations and hook presence from test results.
+`plugin dev` owns a separate child with scrubbed credentials, loopback listeners and the explicitly selected project source; its synthetic HTTP exercise does not establish live-provider compatibility.
 
 On shutdown, readiness becomes false, hooks are attempted in reverse instance order, and the provider client is closed even if a hook raises or cancels itself.
 Cleanup defers an external cancellation until those cooperative cleanup attempts finish, then preserves the cancellation.
@@ -273,6 +278,7 @@ The product vision keeps the separate [system context](../product-vision.md#cont
 | [ADR-007](adr/ADR-007.md) | Proposed | [FR-014](../functional-requirements/fr/FR-014.md), [QR-05](../quality-requirements/qr/QR-05.md) | Read per-request logs and a duration histogram from isolated OpenObserve organizations |
 | [ADR-008](adr/ADR-008.md) | Proposed | [FR-021](../functional-requirements/fr/FR-021.md), [FR-006](../functional-requirements/fr/FR-006.md), [FR-019](../functional-requirements/fr/FR-019.md), [QR-03](../quality-requirements/qr/QR-03.md) | Persist managed client policies and daily model usage in the gateway's embedded store |
 | [ADR-009](adr/ADR-009.md) | Proposed | [FR-021](../functional-requirements/fr/FR-021.md), [FR-022](../functional-requirements/fr/FR-022.md), [FR-019](../functional-requirements/fr/FR-019.md), [QR-03](../quality-requirements/qr/QR-03.md) | Use PostgreSQL for managed Compose with explicit SQLite compatibility |
+| [ADR-012](adr/ADR-012.md) | Proposed | [FR-003](../functional-requirements/fr/FR-003.md), [FR-007](../functional-requirements/fr/FR-007.md), [FR-008](../functional-requirements/fr/FR-008.md), [FR-029](../functional-requirements/fr/FR-029.md), [FR-030](../functional-requirements/fr/FR-030.md), [QR-01](../quality-requirements/qr/QR-01.md), [QR-02](../quality-requirements/qr/QR-02.md), [QR-03](../quality-requirements/qr/QR-03.md), [QR-06](../quality-requirements/qr/QR-06.md) | Use one project contract, profile-aware synthetic checks and an optional text-policy adapter |
 
 These Accepted records describe choices already in force through [PR #90](https://github.com/iteam7/gateway7/pull/90), approved in [DeniBorsh's implementation review](https://github.com/iteam7/gateway7/pull/90#pullrequestreview-5643522171) and merged on 25 October 2026.
 They are dated when written, not when an undocumented earlier discussion might have happened.

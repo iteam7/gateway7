@@ -53,3 +53,25 @@
 - Review: TechLead approved the final actual diff, including the retained startup validation and backend/privacy regressions; the prior migration verification above remains historical rather than a current capability claim.
 - Boundary: No production deployment, external provider call, release or Customer acceptance is claimed; verification used disposable synthetic local services and private test credentials.
 - Team assessment: TODO
+
+## 2026-11-17 — Task #297 plugin authoring
+
+- Tool: Codex, with Formater, TechLead and developer agents following the repository roles, plus a separate agent given only a generated project and its installed Gateway7 environment.
+- Work: Implemented the typed text-policy helper, reference-policy parity and native denial diagnostics; replaced the authoring workflow with project discovery, fixture schema 2, profile-aware execution, safe diagnostics, inspection and a disposable synthetic HTTP development service.
+  Added guard/redactor projects with bundled agent instructions and version-matched public-contract guidance, progressive guides and installed-package verification.
+- Compatibility: The owner authorized replacing older authoring flags and fixtures; raw middleware API 2 and transport API 1 remain supported independently.
+  The package and generated minimum use the unreleased development version `0.5.0.dev0`; no release or tag was published.
+- Independent agent trial: From the generated local instructions and installed public API, an agent added the synthetic rule `SYNTHETIC-AGENT-TRIAL`, observed failing fixtures, then passed 18 cases across all five profiles and two generated unit tests.
+  Actual local HTTP returned 200 for a benign request and 403 for the new rule; no gateway checkout or core implementation was supplied to that agent.
+  A separate real controlling-terminal test verifies Ctrl-C cleanup; the agent trial's terminal-wrapper termination behavior alone is not claimed as that proof.
+- Automated verification: The complete regression suite passed 4197 tests with 67 skips under the local test configuration and one Python PTY warning in 107.87 seconds.
+  The final template quality-tool correction separately passed 80 scaffold, version and secrets tests; fresh generated projects passed Ruff formatting/lint and strict mypy.
+  Compilation, Ruff formatting and lint and mypy passed for all 50 production files; the deterministic HTTP demo passed.
+- Packaging and operations: A fresh installed wheel outside the checkout passed both preset journeys, deliberate red/green changes, profile checks, generated unit tests, source-based development HTTP, normal installed-plugin HTTP with project source hidden and owned-process cleanup.
+  The complete Compose smoke passed the gateway, PostgreSQL administration restart/history checks, Prometheus and Grafana; its disposable containers and volumes were removed.
+  The local image build used the managed environment's CA through a temporary BuildKit-secret mount with TLS verification enabled; tracked trust settings were unchanged.
+- Documentation and review: Strict MkDocs/site validation passed for 80 maintained pages and 11518 links/assets; Markdownlint passed all 137 Markdown files, changed-file link checks passed without errors, and actionlint passed the workflows.
+  TechLead approved the actual code, profile oracle, confidentiality boundaries, packaged guidance and platform-verification design.
+- Boundary: Verification uses synthetic local services and trusted Python plugins with accidental-network/process protection; the worker is not an operating-system sandbox for hostile code.
+  No live provider call, production deployment, human usability study, Customer acceptance or course-completion result is claimed.
+- Team assessment: TODO

@@ -26,6 +26,8 @@ nav:
       - Control client access: authentication.md
       - Apply policies: middleware-catalog.md
       - Write a middleware: authoring.md
+      - Plugin policy recipes: plugin-cookbook.md
+      - Write plugins with an agent: plugin-agent-guide.md
       - Measure product use: analytics.md
       - Monitor the service: observability.md
   - Understand:
@@ -39,6 +41,7 @@ nav:
       - Operating signal pipeline proposal: architecture/adr/ADR-007.md
       - Managed accounts and usage proposal: architecture/adr/ADR-008.md
       - PostgreSQL management proposal: architecture/adr/ADR-009.md
+      - Profile-aware plugin authoring proposal: architecture/adr/ADR-012.md
       - ADR template: architecture/adr/TEMPLATE.md
   - Reference:
       - CLI commands: cli.md
@@ -82,6 +85,8 @@ nav:
           - FR-020 Inspect clients and middleware: functional-requirements/fr/FR-020.md
           - FR-021 Manage client accounts: functional-requirements/fr/FR-021.md
           - FR-022 Dropped account transfer proposal: functional-requirements/fr/FR-022.md
+          - FR-029 Inspect plugin projects: functional-requirements/fr/FR-029.md
+          - FR-030 Try plugins locally: functional-requirements/fr/FR-030.md
       - Decisions: decisions.md
       - Assumptions: assumptions.md
       - Definition of Done: definition-of-done.md

@@ -1,404 +1,540 @@
-"""Scaffold and offline execution work with isolated processes and synthetic data."""
+"""Project authoring uses real isolated workers and honest capability evidence."""
 
+import copy
 import json
 import os
+from pathlib import Path
 import signal
 import subprocess
 import sys
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-import threading
 import time
-import tomllib
 
 import pytest
 import yaml
-from packaging.requirements import Requirement
 
-from gateway7 import __version__
-from gateway7.cli import main
+from gateway7._offline_worker import _safe_schema
 from gateway7.errors import StartupError
-from gateway7.offline import MAX_FILE_BYTES, load_fixtures, run_offline
+from gateway7.offline import (
+    MAX_FILE_BYTES,
+    inspect_project,
+    load_fixtures,
+    print_report,
+    run_project_tests,
+)
+from gateway7.plugin_project import load_project
 from gateway7.scaffold import create_plugin_project
 
-
-@pytest.mark.parametrize("gateway_version", [__version__, "0.9.7", "1.2.3"])
-def test_generated_dependency_accepts_its_gateway_release_and_excludes_other_minors(
-    tmp_path, monkeypatch, gateway_version
-):
-    from gateway7 import scaffold
-
-    monkeypatch.setattr(scaffold, "__version__", gateway_version)
-    project = create_plugin_project("sample", tmp_path)
-    metadata = tomllib.loads((project / "pyproject.toml").read_text(encoding="utf-8"))
-    requirement = Requirement(metadata["project"]["dependencies"][0])
-    major, minor, _ = (int(part) for part in gateway_version.split("."))
-    assert requirement.name == "gateway7"
-    assert requirement.specifier.contains(gateway_version)
-    assert requirement.specifier.contains(f"{major}.{minor}.99")
-    assert not requirement.specifier.contains("0.1.0")
-    assert not requirement.specifier.contains(f"{major}.{minor + 1}.0")
-    assert metadata["project"]["dependencies"][0] in (
-        project / "README.md"
-    ).read_text(encoding="utf-8")
+PASS_PLUGIN = """from pydantic import BaseModel, ConfigDict, Field
+from gateway7.plugin_api import PluginDescriptor
+class Settings(BaseModel):
+    model_config = ConfigDict(strict=True, extra="forbid", frozen=True)
+    count: int = Field(default=1, ge=1)
+class Middleware:
+    async def handle(self, request, context, call_next):
+        return await call_next(request)
+    async def prepare_early_stream(self, request, context):
+        return request
+    async def prepare_responses(self, request, context):
+        return request
+    async def check_responses(self, response, context):
+        return response
+    async def prepare_early_responses(self, request, context):
+        return request
+PLUGIN = PluginDescriptor("fixture", 2, Settings, lambda settings: Middleware(), supports_tools=True)
+"""
 
 
-def test_generated_project_passes_offline_and_mismatch_exits_one(tmp_path, capsys):
-    assert main(["plugin", "init", "sample", "--directory", str(tmp_path)]) == 0
-    project = tmp_path / "sample"
-    assert (project / "pyproject.toml").is_file()
-    assert (project / "gateway7_plugin_sample" / "plugin.py").is_file()
-    capsys.readouterr()
-    arguments = [
-        "plugin",
-        "test",
-        "--config",
-        str(project / "gateway.yaml"),
-        "--fixtures",
-        str(project / "fixtures.json"),
-        "--json",
+def native_response(text="answer"):
+    return {
+        "id": "resp_fixture",
+        "created_at": 1,
+        "model": "fake",
+        "status": "completed",
+        "output": [
+            {
+                "type": "message",
+                "id": "msg_fixture",
+                "role": "assistant",
+                "phase": "final_answer",
+                "content": [{"type": "output_text", "text": text}],
+            }
+        ],
+        "usage": {"input_tokens": 8, "output_tokens": 3},
+    }
+
+
+def native_deltas():
+    return [
+        {
+            "head": {"id": "resp_fixture", "created_at": 1, "model": "fake"},
+            "sequence_number": index + 1,
+            "item_id": "msg_fixture",
+            "output_index": 0,
+            "content_index": 0,
+            "phase": "final_answer",
+            "delta": value,
+            "leading_prefix": True,
+        }
+        for index, value in enumerate(("ans", "wer"))
     ]
-    assert main(arguments) == 0
-    report = json.loads(capsys.readouterr().out)
-    assert report["passed"] is True and report["total"] == 2 and report["failed"] == 0
-    response = next(check for check in report["cases"][0]["checks"] if check["field"] == "response")
-    assert response["actual"]["text"] == response["expected"]["text"] == "Answer [removed]"
-    fixtures = json.loads((project / "fixtures.json").read_text())
-    fixtures["cases"][0]["expected"]["response"]["text"] = "Deliberately wrong expected value"
-    (project / "fixtures.json").write_text(json.dumps(fixtures))
-    assert main(arguments) == 1
-    report = json.loads(capsys.readouterr().out)
-    assert report["failed"] == 1 and report["cases"][0]["passed"] is False
-    response = next(check for check in report["cases"][0]["checks"] if check["field"] == "response")
-    assert response["actual"]["text"] == "Answer [removed]"
-    assert response["expected"]["text"] == "Deliberately wrong expected value"
 
 
-@pytest.mark.parametrize(
-    "name", ["../escape", "a/b", "a.b", "a-b", "class", "_private", "Upper", "a" * 49, "con"]
-)
-def test_scaffold_rejects_unsafe_or_nonportable_identifiers_without_output(name, tmp_path):
-    with pytest.raises(StartupError):
-        create_plugin_project(name, tmp_path)
-    assert list(tmp_path.iterdir()) == []
-
-
-@pytest.mark.parametrize("existing", ["file", "directory", "symlink"])
-def test_scaffold_never_overwrites_existing_target(existing, tmp_path):
-    target = tmp_path / "sample"
-    if existing == "file":
-        target.write_text("keep me")
-    elif existing == "directory":
-        target.mkdir()
-        (target / "keep").write_text("keep me")
-    else:
-        elsewhere = tmp_path / "elsewhere"
-        elsewhere.mkdir()
-        (elsewhere / "keep").write_text("keep me")
-        try:
-            target.symlink_to(elsewhere, target_is_directory=True)
-        except OSError:
-            pytest.skip("Symlinks unavailable")
-    with pytest.raises(StartupError, match="already exists"):
-        create_plugin_project("sample", tmp_path)
-    if existing == "file":
-        assert target.read_text() == "keep me"
-    else:
-        assert (target / "keep").read_text() == "keep me"
-        assert len(list(target.iterdir())) == 1
-
-
-def test_offline_real_provider_config_uses_no_credentials_and_suppresses_plugin_output(
-    tmp_path, monkeypatch, capsys
-):
-    project = create_plugin_project("sample", tmp_path)
-    config = yaml.safe_load((project / "gateway.yaml").read_text())
-    config["provider"] = {
-        "kind": "claude",
-        "model": "configured-test-model",
-        "key_env": "SYNTHETIC_PROVIDER_SECRET",
+def chat_case(name="ordinary", **changes):
+    request = {"messages": [{"role": "user", "content": "synthetic request"}]}
+    response = {"text": "answer", "usage": {"input_tokens": 8, "output_tokens": 3}}
+    return {
+        "name": name,
+        "profile": "chat",
+        "request": request,
+        "provider_response": response,
+        "expected": {"provider_calls": 1, "request": request, "response": response},
+        **changes,
     }
-    config["auth"] = {
-        "enabled": True,
-        "clients": {
-            "test": {"token_env": "SYNTHETIC_GATEWAY_SECRET", "models": ["configured-test-model"]}
-        },
-    }
-    (project / "gateway.yaml").write_text(yaml.safe_dump(config))
-    module = project / "gateway7_plugin_sample" / "plugin.py"
-    module.write_text(
-        "import os, sys\n"
-        "assert 'SYNTHETIC_PROVIDER_SECRET' not in os.environ\n"
-        "assert 'SYNTHETIC_GATEWAY_SECRET' not in os.environ\n"
-        "print('PLUGIN-NOISE-' * 10000)\n"
-        "print('PLUGIN-STDERR', file=sys.stderr)\n" + module.read_text()
+
+
+def project(tmp_path, *, source=PASS_PLUGIN, cases=None, profiles=("chat",), concurrency=1):
+    root = tmp_path / "project"
+    root.mkdir()
+    (root / "plugin_under_test.py").write_text(source, encoding="utf-8")
+    (root / "pyproject.toml").write_text(
+        '[tool.gateway7.plugin]\nschema_version=1\nmodule="plugin_under_test"\nconfig="gateway.yaml"\nfixtures="fixtures.json"\nprofiles='
+        + json.dumps(list(profiles))
+        + "\n",
+        encoding="utf-8",
     )
-    monkeypatch.setenv("SYNTHETIC_PROVIDER_SECRET", "synthetic-provider-secret")
-    monkeypatch.setenv("SYNTHETIC_GATEWAY_SECRET", "synthetic-gateway-secret")
+    (root / "gateway.yaml").write_text(
+        "plugins:\n  subject:\n    module: plugin_under_test\n    required: true\nmiddleware: [subject]\n",
+        encoding="utf-8",
+    )
+    (root / "fixtures.json").write_text(
+        json.dumps(
+            {"schema_version": 2, "concurrency": concurrency, "cases": cases or [chat_case()]}
+        ),
+        encoding="utf-8",
+    )
+    return root
+
+
+def test_generated_presets_run_real_profiles_and_do_not_certify_negative_early_support(tmp_path):
+    guard = create_plugin_project("guard", tmp_path, "guard")
+    redactor = create_plugin_project("redactor", tmp_path, "redact")
+    for root, supported in (
+        (guard, {"chat", "chat-tools", "chat-early", "responses", "responses-early"}),
+        (redactor, {"chat", "chat-tools", "responses"}),
+    ):
+        code, report = run_project_tests(root)
+        assert code == 0, report
+        assert report["schema_version"] == 2 and report["passed"]
+        assert set(report["capabilities"]["tested_profiles"]) == supported
+        assert report["execution"]["instance_lifecycle"] == "one_per_suite"
+    assert {row["profile"] for row in report["profiles"] if row["status"] == "negative_only"} == {
+        "chat-early",
+        "responses-early",
+    }
+
+
+def test_inspect_is_not_a_behavior_certificate_and_reports_actual_source_and_schema(tmp_path):
+    root = project(tmp_path)
+    code, report = inspect_project(root)
+    assert code == 0, report
+    assert report["plugin"]["source"] == {"mode": "project", "path": "plugin_under_test.py"}
+    assert report["plugin"]["api_version"] == report["plugin"]["gateway_api_version"] == 2
+    assert report["capabilities"]["tested_profiles"] == []
+    assert report["inspection"]["provider_calls"] == 0
     assert (
-        main(
-            [
-                "plugin",
-                "test",
-                "--config",
-                str(project / "gateway.yaml"),
-                "--fixtures",
-                str(project / "fixtures.json"),
-                "--json",
-            ]
-        )
-        == 0
+        not report["inspection"]["startup_executed"]
+        and not report["inspection"]["behavior_verified"]
     )
-    output = capsys.readouterr()
-    report = json.loads(output.out)
-    assert report["passed"] and not output.err
-    assert "PLUGIN-NOISE" not in output.out and "synthetic-provider-secret" not in output.out
+    schema = report["plugin"]["settings_schema"]
+    assert schema["properties"]["count"]["type"] == "integer"
+    assert "default" not in schema["properties"]["count"]
 
 
-def test_network_is_blocked_during_import_factory_startup_and_handler(tmp_path):
-    project = create_plugin_project("sample", tmp_path)
-    module = project / "gateway7_plugin_sample" / "plugin.py"
-    original = module.read_text()
-    probe = (
-        "import socket\n"
-        "def probe():\n"
-        "    with socket.socket() as connection:\n"
-        "        try:\n"
-        "            connection.connect(('127.0.0.1', 9))\n"
-        "        except PermissionError:\n"
-        "            return\n"
-        "        raise AssertionError('network guard missing')\n"
-        "probe()\n"
+def test_schema_annotation_redaction_preserves_reserved_property_and_literal_names():
+    schema = {
+        "properties": {
+            "default": {"type": "string", "default": "synthetic-private-default"},
+            "examples": {"enum": [{"default": "literal", "examples": [1]}]},
+        },
+        "$defs": {"default": {"const": {"default": "literal"}, "examples": ["private"]}},
+        "default": {"private": True},
+    }
+    output = _safe_schema(schema)
+    assert output["properties"]["default"] == {"type": "string"}
+    assert output["properties"]["examples"]["enum"] == [{"default": "literal", "examples": [1]}]
+    assert output["$defs"]["default"]["const"] == {"default": "literal"}
+    assert "synthetic-private-default" not in json.dumps(output)
+
+
+def test_mismatch_has_stable_json_and_concise_human_failure_details(tmp_path, capsys):
+    root = project(
+        tmp_path,
+        cases=[
+            chat_case(),
+            chat_case("mismatch", expected={"provider_calls": 1, "response": {"text": "wrong"}}),
+        ],
     )
-    source = probe + original
-    source = source.replace(
-        "    async def handle(",
-        "    async def startup(self):\n        probe()\n\n    async def handle(",
-    )
-    source = source.replace(
-        "        processed = request.model_copy",
-        "        probe()\n        processed = request.model_copy",
-    )
-    source = source.replace(
-        "    return LiteralMask(settings)", "    probe()\n    return LiteralMask(settings)"
-    )
-    module.write_text(source)
-    code, report = run_offline(project / "gateway.yaml", project / "fixtures.json")
-    assert code == 0 and report["passed"]
+    code, report = run_project_tests(root)
+    assert code == 1 and report["failed"] == 1 and report["total"] == 2
+    print_report(report, as_json=False)
+    human = capsys.readouterr().out
+    assert "PASS ordinary [chat]" in human and "FAIL mismatch [chat]" in human
+    assert human.count("expected:") == 1 and "wrong" in human
+    print_report(report, as_json=True)
+    assert json.loads(capsys.readouterr().out) == report
 
 
-def test_httpx_network_attempt_cannot_leave_offline_worker(tmp_path):
-    requests = []
+@pytest.mark.parametrize("phase", ["import", "factory", "startup", "handler"])
+def test_network_and_process_guard_is_installed_before_all_plugin_phases(tmp_path, phase):
+    guard = """import socket, subprocess
 
-    class Handler(BaseHTTPRequestHandler):
-        def do_GET(self):
-            requests.append(self.path)
-            self.send_response(200)
-            self.end_headers()
-            self.wfile.write(b"synthetic")
-
-        def log_message(self, *_arguments):
-            pass
-
-    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
+def probe():
     try:
-        project = create_plugin_project("sample", tmp_path)
-        module = project / "gateway7_plugin_sample" / "plugin.py"
-        source = module.read_text().replace(
-            "        processed = request.model_copy",
-            "        import httpx\n        async with httpx.AsyncClient(trust_env=False) as client:\n            try:\n"
-            f"                await client.get('http://127.0.0.1:{server.server_port}', timeout=1)\n"
-            "            except httpx.ConnectError:\n                pass\n            else:\n                raise AssertionError('network guard missing')\n        processed = request.model_copy",
+        socket.getaddrinfo("localhost", 9)
+    except PermissionError:
+        pass
+    else:
+        raise AssertionError("network guard absent")
+    try:
+        subprocess.run(["unused-synthetic-program"])
+    except PermissionError:
+        pass
+    else:
+        raise AssertionError("subprocess guard absent")
+"""
+    source = guard + PASS_PLUGIN
+    if phase == "import":
+        source += "\nprobe()\n"
+    elif phase == "factory":
+        source = source.replace(
+            "lambda settings: Middleware()", "lambda settings: (probe(), Middleware())[1]"
         )
-        module.write_text(source)
-        code, report = run_offline(project / "gateway.yaml", project / "fixtures.json")
-        assert code == 0 and report["passed"]
-        assert requests == []
-    finally:
-        server.shutdown()
-        server.server_close()
-        thread.join(timeout=2)
+    elif phase == "startup":
+        source = source.replace(
+            "class Middleware:", "class Middleware:\n    async def startup(self):\n        probe()"
+        )
+    else:
+        source = source.replace(
+            "        return await call_next(request)",
+            "        probe()\n        return await call_next(request)",
+        )
+    root = project(tmp_path, source=source)
+    code, report = run_project_tests(root)
+    assert code == 0, report
 
 
-def test_offline_wall_clock_limit_terminates_noncooperative_plugin(tmp_path):
-    project = create_plugin_project("sample", tmp_path)
-    module = project / "gateway7_plugin_sample" / "plugin.py"
-    module.write_text("while True:\n    pass\n")
+def test_worker_strips_credentials_proxy_startup_environment_and_discards_plugin_output(
+    tmp_path, monkeypatch
+):
+    variables = (
+        "SYNTHETIC_PROVIDER_SECRET",
+        "SYNTHETIC_GATEWAY_SECRET",
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "ALL_PROXY",
+        "HOME",
+        "PYTHONPATH",
+        "SSL_CERT_FILE",
+    )
+    for name in variables:
+        monkeypatch.setenv(name, "synthetic-private-marker-unique")
+    source = (
+        "import os,sys\nassert all(name not in os.environ for name in "
+        + repr(variables)
+        + ")\nprint('SYNTHETIC-PLUGIN-NOISE')\nprint('SYNTHETIC-STDERR-NOISE',file=sys.stderr)\n"
+        + PASS_PLUGIN
+    )
+    root = project(tmp_path, source=source)
+    for run in (run_project_tests, inspect_project):
+        code, report = run(root)
+        assert code == 0
+        assert "synthetic-private-marker-unique" not in json.dumps(report)
+        assert "SYNTHETIC-PLUGIN-NOISE" not in json.dumps(report)
+
+
+@pytest.mark.parametrize("phase", ["import", "factory", "startup", "handler"])
+def test_wall_clock_bound_stops_noncooperative_code(tmp_path, phase):
+    source = PASS_PLUGIN
+    if phase == "import":
+        source += "\nwhile True:\n    pass\n"
+    elif phase == "factory":
+        source = source.replace(
+            "PLUGIN =", "def blocked(settings):\n    while True:\n        pass\nPLUGIN ="
+        ).replace("lambda settings: Middleware()", "blocked")
+    elif phase == "startup":
+        source = source.replace(
+            "class Middleware:",
+            "class Middleware:\n    async def startup(self):\n        while True:\n            pass",
+        )
+    else:
+        source = source.replace(
+            "        return await call_next(request)", "        while True:\n            pass"
+        )
+    root = project(tmp_path, source=source)
     started = time.monotonic()
-    code, report = run_offline(project / "gateway.yaml", project / "fixtures.json", timeout=1)
+    code, report = run_project_tests(root, timeout=1)
     assert code == 2 and "wall-clock" in report["error"]
     assert time.monotonic() - started < 5
 
 
-def test_offline_checks_request_response_denial_and_provider_failure(tmp_path):
-    config = tmp_path / "gateway.yaml"
-    config.write_text(
-        yaml.safe_dump(
-            {
-                "plugins": {
-                    "guard": {
-                        "module": "gateway7.plugins.content_policy",
-                        "settings": {"terms": ["BLOCK-ME-TEST"], "action": "block"},
-                    }
-                },
-                "middleware": ["guard"],
-            }
-        )
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("config", "../outside.yaml"),
+        ("fixtures", "/tmp/private.json"),
+        ("config", "C:\\private.yaml"),
+    ],
+)
+def test_project_paths_are_confined_on_all_platforms(tmp_path, field, value):
+    root = project(tmp_path)
+    path = root / "pyproject.toml"
+    text = path.read_text().replace(
+        field + '="' + ("gateway.yaml" if field == "config" else "fixtures.json") + '"',
+        field + "=" + json.dumps(value),
     )
-    fixtures = tmp_path / "fixtures.json"
-    ordinary = {"messages": [{"role": "user", "content": "safe"}]}
-    fixtures.write_text(
-        json.dumps(
-            {
-                "schema_version": 1,
-                "cases": [
-                    {
-                        "name": "request denied",
-                        "request": {"messages": [{"role": "user", "content": "BLOCK-ME-TEST"}]},
-                        "expected": {"provider_calls": 0, "error": "policy_denied"},
-                    },
-                    {
-                        "name": "response denied",
-                        "request": ordinary,
-                        "provider_response": {"text": "BLOCK-ME-TEST"},
-                        "expected": {
-                            "provider_calls": 1,
-                            "request": ordinary,
-                            "error": "policy_denied",
-                        },
-                    },
-                    {
-                        "name": "provider failure",
-                        "request": ordinary,
-                        "provider_error": True,
-                        "expected": {
-                            "provider_calls": 1,
-                            "request": ordinary,
-                            "error": "provider_error",
-                        },
-                    },
-                ],
-            }
-        )
+    path.write_text(text)
+    with pytest.raises(StartupError) as caught:
+        load_project(root)
+    assert "project_path_invalid" in json.dumps(caught.value.issues)
+
+
+def test_missing_source_never_falls_back_to_installed_plugin(tmp_path):
+    root = project(tmp_path)
+    (root / "plugin_under_test.py").unlink()
+    code, report = inspect_project(root)
+    assert code == 2
+    assert report["issues"][0]["code"] == "project_source_unavailable"
+
+
+def test_manifest_module_must_be_enabled_in_the_actual_tested_chain(tmp_path):
+    root = project(tmp_path)
+    (root / "gateway.yaml").write_text("plugins: {}\nmiddleware: []\n")
+    for run in (run_project_tests, inspect_project):
+        code, report = run(root)
+        assert code == 2 and report["issues"][0]["code"] == "project_module_inactive"
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        lambda value: value.update(schema_version=1),
+        lambda value: value.update(schema_version=True),
+        lambda value: value["cases"][0].update(profile="unsupported"),
+        lambda value: value["cases"][0]["expected"].update(provider_calls=True),
+        lambda value: value["cases"][0].update(unknown="synthetic-private"),
+    ],
+)
+def test_only_current_closed_fixture_schema_is_accepted_without_value_leaks(tmp_path, change):
+    root = project(tmp_path)
+    path = root / "fixtures.json"
+    value = json.loads(path.read_text())
+    change(value)
+    path.write_text(json.dumps(value))
+    code, report = run_project_tests(root)
+    assert code == 2 and report["issues"]
+    assert "synthetic-private" not in json.dumps(report)
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        '{"schema_version":2,"schema_version":2}',
+        '{"schema_version":2,"cases":[],"bad":NaN}',
+        '{"schema_version":2,"cases":[],"bad":"\\ud800"}',
+    ],
+)
+def test_duplicate_nonfinite_and_invalid_unicode_fixture_json_is_rejected(tmp_path, content):
+    path = tmp_path / "fixtures.json"
+    path.write_text(content)
+    with pytest.raises(StartupError):
+        load_fixtures(path)
+
+
+def test_fixture_file_size_and_depth_are_bounded(tmp_path):
+    path = tmp_path / "fixtures.json"
+    for content in (" " * (MAX_FILE_BYTES + 1), "[" * 80 + "0" + "]" * 80):
+        path.write_text(content)
+        with pytest.raises(StartupError):
+            load_fixtures(path)
+
+
+def test_settings_diagnostic_contains_safe_path_line_hint_but_never_unknown_key_or_value(tmp_path):
+    root = project(tmp_path)
+    (root / "gateway.yaml").write_text(
+        "plugins:\n  subject:\n    module: plugin_under_test\n    settings:\n      count: 'synthetic-private-value'\n      synthetic_private_key: true\nmiddleware: [subject]\n"
     )
-    code, report = run_offline(config, fixtures)
-    assert code == 0 and report["total"] == 3
+    code, report = inspect_project(root)
+    assert code == 2
+    assert any(
+        row["path"] == "plugins.subject.settings.count" and row["line"] == 5
+        for row in report["issues"]
+    )
+    text = json.dumps(report)
+    assert "synthetic-private-value" not in text and "synthetic_private_key" not in text
+    assert "Traceback" not in text
+
+
+def test_api_and_import_failures_get_stage_specific_sanitized_diagnostics(tmp_path):
+    root = project(tmp_path, source=PASS_PLUGIN.replace('"fixture", 2,', '"fixture", 3,'))
+    code, report = inspect_project(root)
+    assert code == 2 and report["issues"][0]["code"] == "plugin_api_unsupported"
+    assert "API 2" in report["issues"][0]["hint"] and "API 3" in report["issues"][0]["hint"]
+    (root / "plugin_under_test.py").write_text(
+        "raise RuntimeError('synthetic-private-import-exception')"
+    )
+    code, report = inspect_project(root)
+    assert code == 2 and report["issues"][0]["code"] == "plugin_import_failed"
+    assert "synthetic-private-import-exception" not in json.dumps(report)
+    assert "migrate" not in json.dumps(report)
+
+
+def test_recursive_yaml_diagnostic_annotation_is_bounded(tmp_path):
+    root = project(tmp_path)
+    (root / "gateway.yaml").write_text("plugins: &cycle {again: *cycle}\n")
+    started = time.monotonic()
+    code, report = inspect_project(root, timeout=3)
+    assert code == 2 and "wall-clock" not in report.get("error", "")
+    assert time.monotonic() - started < 3
+
+
+def test_shared_lifecycle_and_concurrent_contexts_are_really_exercised(tmp_path):
+    source = PASS_PLUGIN.replace(
+        "class Middleware:",
+        """class Middleware:
+    def __init__(self):
+        self.active = 0
+        self.peak = 0
+        self.starts = 0
+    async def startup(self):
+        self.starts += 1
+    async def shutdown(self):
+        import json
+        from pathlib import Path
+        Path(__file__).with_name("lifecycle.json").write_text(json.dumps({"starts": self.starts, "peak": self.peak, "active": self.active}))""",
+    ).replace(
+        "        return await call_next(request)",
+        """        import asyncio
+        self.active += 1
+        self.peak = max(self.peak, self.active)
+        context.state["owner"] = context.request_id
+        await asyncio.sleep(0.01)
+        assert context.state["owner"] == context.request_id
+        result = await call_next(request)
+        self.active -= 1
+        return result""",
+    )
+    root = project(
+        tmp_path,
+        source=source,
+        cases=[chat_case("case " + str(index)) for index in range(4)],
+        concurrency=4,
+    )
+    code, report = run_project_tests(root)
+    assert code == 0, report
+    lifecycle = json.loads((root / "lifecycle.json").read_text())
+    assert lifecycle == {"starts": 1, "peak": 4, "active": 0}
+
+
+@pytest.mark.parametrize("profile", ["responses", "responses-early"])
+def test_native_profiles_preserve_full_dtos_and_metadata(profile, tmp_path):
+    response = native_response()
+    case = {
+        "name": "native",
+        "profile": profile,
+        "request": {"input": "synthetic"},
+        "provider_response": response,
+        "expected": {"provider_calls": 1, "request": {"input": "synthetic"}, "response": response},
+    }
+    if profile.endswith("early"):
+        case["provider_deltas"] = native_deltas()
+        case["expected"]["deltas"] = native_deltas()
+    root = project(tmp_path, cases=[case], profiles=(profile,))
+    code, report = run_project_tests(root)
+    assert code == 0, report
+    assert report["capabilities"]["tested_profiles"] == [profile]
+    if profile.endswith("early"):
+        actual = next(
+            check["actual"] for check in report["cases"][0]["checks"] if check["field"] == "deltas"
+        )
+        assert actual[0]["item_id"] == "msg_fixture" and actual[0]["phase"] == "final_answer"
 
 
 @pytest.mark.parametrize(
     "mutation",
     [
-        lambda data: data.update(schema_version=True),
-        lambda data: data.update(schema_version=2),
-        lambda data: data["cases"][0]["expected"].update(provider_calls=True),
-        lambda data: data["cases"].append(data["cases"][0]),
-        lambda data: data["cases"][0]["expected"].update(error="policy_denied"),
-        lambda data: data["cases"][0].update(unknown="synthetic-secret-value"),
+        lambda delta: delta[0]["head"].update(created_at=2),
+        lambda delta: delta[0].update(output_index=1),
+        lambda delta: delta[0].update(leading_prefix=False),
+        lambda delta: delta[1].update(sequence_number=1),
+        lambda delta: delta[0]["head"].update(parallel_tool_calls=False),
     ],
 )
-def test_fixture_schema_rejects_invalid_contract_without_echoing_values(tmp_path, mutation):
-    project = create_plugin_project("sample", tmp_path)
-    fixture = project / "fixtures.json"
-    data = json.loads(fixture.read_text())
-    mutation(data)
-    fixture.write_text(json.dumps(data))
-    with pytest.raises(StartupError) as caught:
-        load_fixtures(fixture)
-    assert "synthetic-secret-value" not in str(caught.value)
+def test_native_early_provider_oracle_rejects_contradictory_proof(tmp_path, mutation):
+    records = native_deltas()
+    mutation(records)
+    case = {
+        "name": "invalid native proof",
+        "profile": "responses-early",
+        "request": {"input": "synthetic"},
+        "provider_response": native_response(),
+        "provider_deltas": records,
+        "expected": {"provider_calls": 1, "error": "provider_error", "deltas": []},
+    }
+    root = project(tmp_path, cases=[case], profiles=("responses-early",))
+    code, report = run_project_tests(root)
+    assert code == 0, report
+    assert report["capabilities"]["tested_profiles"] == []
 
 
-def test_fixture_file_is_bounded_and_duplicate_keys_rejected(tmp_path):
-    fixture = tmp_path / "fixtures.json"
-    for raw in [b" " * (MAX_FILE_BYTES + 1), b'{"schema_version":1,"schema_version":1,"cases":[]}']:
-        fixture.write_bytes(raw)
-        with pytest.raises(StartupError):
-            load_fixtures(fixture)
-
-
-def test_human_report_includes_expected_actual_and_invalid_json_mode_is_structured(
-    tmp_path, capsys
-):
-    project = create_plugin_project("sample", tmp_path)
-    assert (
-        main(
-            [
-                "plugin",
-                "test",
-                "--config",
-                str(project / "gateway.yaml"),
-                "--fixtures",
-                str(project / "fixtures.json"),
-            ]
-        )
-        == 0
+@pytest.mark.parametrize("consent", [False, True])
+def test_native_consent_is_explicit_and_cannot_be_inferred_from_fixture_shape(tmp_path, consent):
+    request = {
+        "input": [
+            {"type": "reasoning", "id": "rs_fixture", "encrypted_content": "synthetic-opaque"}
+        ]
+    }
+    expected = (
+        {"provider_calls": 1, "request": request, "response": native_response()}
+        if consent
+        else {"provider_calls": 0, "error": "invalid_request"}
     )
-    output = capsys.readouterr().out
-    assert "expected:" in output and "actual:" in output and "2/2 cases passed" in output
-    assert (
-        main(
-            [
-                "plugin",
-                "test",
-                "--config",
-                str(tmp_path / "missing"),
-                "--fixtures",
-                str(project / "fixtures.json"),
-                "--json",
-            ]
-        )
-        == 2
-    )
-    report = json.loads(capsys.readouterr().out)
-    assert report["passed"] is False and "error" in report
+    case = {
+        "name": "opaque consent",
+        "profile": "responses",
+        "request": request,
+        "consent": {"allow_opaque": consent, "allow_hosted": False},
+        "provider_response": native_response(),
+        "expected": expected,
+    }
+    root = project(tmp_path, cases=[case], profiles=("responses",))
+    code, report = run_project_tests(root)
+    assert code == 0, report
 
 
-@pytest.mark.skipif(
-    os.name == "nt", reason="Windows terminate is an immediate kill, not a POSIX signal"
-)
+@pytest.mark.skipif(os.name == "nt", reason="POSIX signal semantics")
 @pytest.mark.parametrize("signum", [signal.SIGTERM, signal.SIGINT])
-def test_interrupted_offline_parent_reports_failure_and_reaps_worker(tmp_path, signum):
-    project = create_plugin_project("sample", tmp_path)
-    marker = project / "worker.pid"
-    module = project / "gateway7_plugin_sample" / "plugin.py"
-    module.write_text(
-        "import os\nfrom pathlib import Path\n"
-        f"Path({str(marker)!r}).write_text(str(os.getpid()))\n"
-        "while True:\n    pass\n"
-    )
+def test_interruption_reports_failure_and_reaps_isolated_worker(tmp_path, signum):
+    source = "import os\nfrom pathlib import Path\nPath(__file__).with_name('worker.pid').write_text(str(os.getpid()))\nwhile True:\n    pass\n"
+    root = project(tmp_path, source=source)
     process = subprocess.Popen(
-        [
-            sys.executable,
-            "-I",
-            "-m",
-            "gateway7",
-            "plugin",
-            "test",
-            "--config",
-            str(project / "gateway.yaml"),
-            "--fixtures",
-            str(project / "fixtures.json"),
-            "--json",
-        ],
-        cwd=tmp_path,
+        [sys.executable, "-I", "-m", "gateway7", "plugin", "test", str(root), "--json"],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
     )
     worker_pid = None
     try:
+        marker = root / "worker.pid"
         deadline = time.monotonic() + 10
-        while time.monotonic() < deadline and not marker.exists():
+        while not marker.exists() and time.monotonic() < deadline:
             assert process.poll() is None
             time.sleep(0.025)
-        assert marker.exists(), "Offline worker did not start"
+        assert marker.exists()
         worker_pid = int(marker.read_text())
         process.send_signal(signum)
-        stdout, stderr = process.communicate(timeout=10)
+        output, error = process.communicate(timeout=10)
         assert process.returncode == 2
-        report = json.loads(stdout)
-        assert report["passed"] is False and "interrupted" in report["error"]
-        assert "Traceback" not in stderr
+        assert "interrupted" in json.loads(output)["error"] and "Traceback" not in error
         with pytest.raises(ProcessLookupError):
             os.kill(worker_pid, 0)
     finally:
@@ -412,18 +548,52 @@ def test_interrupted_offline_parent_reports_failure_and_reaps_worker(tmp_path, s
                 pass
 
 
-def test_keyboard_interrupt_before_worker_cannot_report_success(monkeypatch, capsys):
-    from gateway7 import cli
+def test_nested_case_name_diagnostic_keeps_known_path_and_safe_size_hint(tmp_path):
+    root = project(tmp_path, cases=[chat_case("Case " + "x" * 128)])
+    code, report = run_project_tests(root)
+    assert code == 2
+    names = [item for item in report["issues"] if item["path"] == "fixtures.cases.0.name"]
+    assert len(names) == 1
+    assert names[0]["code"] == "field_size" and "128" in names[0]["hint"]
+    assert "Case " + "x" * 128 not in json.dumps(report)
 
-    def interrupted(*_arguments):
-        raise KeyboardInterrupt
 
-    monkeypatch.setattr(cli, "run_offline", interrupted)
-    assert (
-        main(
-            ["plugin", "test", "--config", "gateway.yaml", "--fixtures", "fixtures.json", "--json"]
-        )
-        == 2
+@pytest.mark.parametrize("emit_prefix", [False, True])
+def test_native_early_can_hold_all_or_extend_a_valid_prefix_until_final(tmp_path, emit_prefix):
+    response = native_response()
+    records = native_deltas()[:1] if emit_prefix else []
+    if not emit_prefix:
+        response["output"].insert(0, {"type": "reasoning", "id": "rs_fixture", "summary": []})
+    case = {
+        "name": "held final native response",
+        "profile": "responses-early",
+        "request": {"input": "synthetic"},
+        "provider_response": response,
+        "provider_deltas": records,
+        "expected": {"provider_calls": 1, "response": response, "deltas": records},
+    }
+    root = project(tmp_path, cases=[case], profiles=("responses-early",))
+    code, report = run_project_tests(root)
+    assert code == 0, report
+    assert report["capabilities"]["tested_profiles"] == (["responses-early"] if emit_prefix else [])
+
+
+@pytest.mark.parametrize("allow_hosted", [False, True])
+def test_hosted_tool_capability_is_explicit_in_synthetic_native_cases(tmp_path, allow_hosted):
+    request = {"input": "synthetic", "tools": [{"type": "web_search"}]}
+    expected = (
+        {"provider_calls": 1, "request": request, "response": native_response()}
+        if allow_hosted
+        else {"provider_calls": 0, "error": "invalid_request"}
     )
-    report = json.loads(capsys.readouterr().out)
-    assert report["passed"] is False and "interrupted" in report["error"]
+    case = {
+        "name": "hosted consent",
+        "profile": "responses",
+        "request": request,
+        "provider_response": native_response(),
+        "consent": {"allow_opaque": False, "allow_hosted": allow_hosted},
+        "expected": expected,
+    }
+    root = project(tmp_path, cases=[case], profiles=("responses",))
+    code, report = run_project_tests(root)
+    assert code == 0, report

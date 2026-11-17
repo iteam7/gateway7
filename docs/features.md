@@ -120,11 +120,21 @@ A plugin author or a coding agent gets a working middleware package to edit, wit
 
 ## Check a middleware offline
 
-A plugin author checks a middleware change against synthetic examples without a provider account or network access.
+A plugin author checks actual Chat, typed-tool, native Responses and eligible early-stream behavior against synthetic schema-2 examples without a provider account or external network access.
+The report separates declared hooks from positive passing profile evidence; the [authoring guide](authoring.md) starts with a generated guard or redactor.
 
 - **Stories:** [`US-08`](https://github.com/iteam7/gateway7/issues/37)
 - **Behavior:** [`FR-007`](functional-requirements/fr/FR-007.md)
 - **Decisions:** [`ADR-002`](architecture/adr/ADR-002.md)
+
+## Inspect and try a plugin project
+
+An author inspects the exact versioned descriptor/settings contract, then runs current source through a disposable loopback HTTP gateway with a synthetic upstream.
+The command owns ports and cleanup, replaces credentials and management configuration in memory, and never changes production import paths.
+The [cookbook](plugin-cookbook.md) and [agent guide](plugin-agent-guide.md) use the generated local contract to make a failing example pass before packaging a normal wheel.
+
+- **Behavior:** [FR-029](functional-requirements/fr/FR-029.md), [FR-030](functional-requirements/fr/FR-030.md)
+- **Design:** [ADR-012](architecture/adr/ADR-012.md)
 
 ## Understand core-task completion
 

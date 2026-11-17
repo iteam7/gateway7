@@ -1,4 +1,4 @@
-"""Verify authoring and a normal plugin installation beside an installed gateway wheel."""
+"""Exercise authoring from an installed wheel, outside its checkout, on every supported OS."""
 
 from __future__ import annotations
 
@@ -6,188 +6,339 @@ import argparse
 import json
 import os
 from pathlib import Path
+import queue
 import re
+import signal
 import socket
 import subprocess
 import tempfile
+import threading
 import time
+import urllib.error
 import urllib.request
 
-from openai import DefaultHttpx2Client, OpenAI, PermissionDeniedError
-import yaml
 
-TOKEN = "gateway7-synthetic-authoring-client"
-PROVIDER_KEY = "gateway7-synthetic-authoring-provider"
+def request(url, token=None, body=None):
+    headers = {"Content-Type": "application/json"}
+    if token:
+        headers["Authorization"] = "Bearer " + token
+    operation = urllib.request.Request(
+        url, None if body is None else json.dumps(body).encode(), headers
+    )
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    try:
+        with opener.open(operation, timeout=5) as response:
+            return response.status, response.read().decode()
+    except urllib.error.HTTPError as error:
+        return error.code, error.read().decode()
 
 
-def port() -> int:
-    with socket.socket() as listener:
-        listener.bind(("127.0.0.1", 0))
-        return listener.getsockname()[1]
-
-
-def wait_ready(url: str, process: subprocess.Popen[str]) -> None:
-    deadline = time.monotonic() + 15
-    while time.monotonic() < deadline:
-        assert process.poll() is None, "Installed service stopped during startup"
+def stop(process, *, interrupt=False):
+    if process.poll() is None:
+        if interrupt:
+            process.send_signal(signal.CTRL_BREAK_EVENT if os.name == "nt" else signal.SIGINT)
+        else:
+            process.terminate()
         try:
-            with urllib.request.urlopen(url, timeout=1) as response:
-                if response.status == 200:
-                    return
+            process.wait(timeout=15)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=5)
+            raise AssertionError("Owned service did not stop") from None
+
+
+def released(origin):
+    port = int(origin.rsplit(":", 1)[1])
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        with socket.socket() as client:
+            client.settimeout(0.1)
+            if client.connect_ex(("127.0.0.1", port)) != 0:
+                return
+        time.sleep(0.05)
+    raise AssertionError("Owned development listener survived shutdown")
+
+
+def wait_ready(origin, process):
+    deadline = time.monotonic() + 20
+    while time.monotonic() < deadline:
+        assert process.poll() is None, "Owned installed service stopped during startup"
+        try:
+            if request(origin + "/health")[0] == 200:
+                return
         except OSError:
             pass
         time.sleep(0.05)
     raise AssertionError("Installed service did not become ready")
 
 
-def metrics(url: str) -> tuple[float, str]:
-    with urllib.request.urlopen(url + "/metrics", timeout=2) as response:
-        text = response.read().decode()
-    values = re.findall(r"^gateway7_provider_calls_total\{[^\n]+\} ([0-9.eE+\-]+)$", text, re.M)
-    return sum(float(value) for value in values), text
+def free_port():
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        return listener.getsockname()[1]
 
 
-def stop(process: subprocess.Popen[str]) -> None:
-    if process.poll() is None:
-        process.terminate()
+def dev_flow(cli, project, environment, *, template):
+    process = subprocess.Popen(
+        [*cli, "plugin", "dev", str(project)],
+        cwd=project.parent,
+        env=environment,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0,
+    )
+    lines = queue.Queue()
+
+    def read_lines():
+        for line in process.stdout:
+            lines.put(line.strip())
+
+    reader = threading.Thread(target=read_lines, daemon=True)
+    reader.start()
+    origins = []
     try:
-        process.wait(timeout=15)
-    except subprocess.TimeoutExpired:
-        process.kill()
-        process.wait()
+        announced = [lines.get(timeout=35) for _ in range(4)]
+        for marker, line in zip(
+            ("Plugin development gateway: ", "Owned synthetic upstream: "), announced[:2]
+        ):
+            assert line.startswith(marker + "http://127.0.0.1:")
+            origins.append(line[len(marker) :])
+        token = re.search(r"gateway7-synthetic-client-[A-Za-z0-9_-]+", announced[3]).group()
+        for text, expected in [
+            ("hello", "pong — hello"),
+            ("PRIVATE-TEST", None if template == "guard" else "pong — [removed]"),
+        ]:
+            status, response = request(
+                origins[0] + "/chat",
+                token,
+                {"messages": [{"role": "user", "content": text}], "model": "synthetic-model"},
+            )
+            assert status == (403 if expected is None else 200), response
+            if expected:
+                assert json.loads(response)["text"] == expected
+        if template == "guard":
+            status, _ = request(
+                origins[0] + "/chat",
+                token,
+                {"messages": [{"role": "user", "content": "SOURCE-ONLY"}]},
+            )
+            assert status == 403, "Dev must use edited project source rather than installed wheel"
+    except queue.Empty:
+        raise AssertionError("Installed dev command did not announce startup") from None
+    finally:
+        stop(process, interrupt=True)
+        if process.stdout:
+            process.stdout.close()
+        reader.join(timeout=2)
+    assert process.returncode == 0, "Ctrl-C should cleanly stop the dev supervisor"
+    for origin in origins:
+        released(origin)
 
 
-def main() -> None:
+def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--python", required=True, help="Python in the normally installed gateway wheel environment"
+        "--python", required=True, help="Python containing the installed gateway wheel"
     )
     parser.add_argument("--uv", default="uv")
     args = parser.parse_args()
-    # Preserve the virtualenv executable path even when it is a symlink.
     python = os.path.abspath(args.python)
-    environment = dict(os.environ)
-    environment.pop("PYTHONPATH", None)
-
+    cli = [python, "-I", "-m", "gateway7"]
+    # Builds retain only the OS/cache/TLS/proxy settings they need, never live
+    # model, gateway or telemetry credentials from the invoking environment.
+    names = (
+        "PATH",
+        "SYSTEMROOT",
+        "WINDIR",
+        "TMP",
+        "TEMP",
+        "HOME",
+        "USERPROFILE",
+        "UV_CACHE_DIR",
+        "UV_NATIVE_TLS",
+        "UV_SYSTEM_CERTS",
+        "SSL_CERT_FILE",
+        "SSL_CERT_DIR",
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "ALL_PROXY",
+        "NO_PROXY",
+        "http_proxy",
+        "https_proxy",
+        "all_proxy",
+        "no_proxy",
+    )
+    environment = {name: os.environ[name] for name in names if name in os.environ}
+    environment["OPENAI_API_KEY"] = "SYNTHETIC_PARENT_KEY_MUST_NOT_REACH_PLUGIN"
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
     with tempfile.TemporaryDirectory(prefix="gateway7-authoring-") as temporary:
-        directory = Path(temporary)
-        project = directory / "smoke_mask"
-        cli = [python, "-m", "gateway7"]
+        root = Path(temporary)
 
-        def command(*arguments: str, expected_code: int = 0) -> subprocess.CompletedProcess[str]:
+        def command(*arguments, expected_code=0, cwd=root):
             result = subprocess.run(
                 [*cli, *arguments],
-                cwd=directory,
+                cwd=cwd,
                 env=environment,
-                text=True,
                 capture_output=True,
-                timeout=30,
+                text=True,
+                timeout=60,
                 check=False,
             )
             assert result.returncode == expected_code, (
-                f"Command failed: {arguments[0]}, exit={result.returncode}; {result.stderr}"
+                f"Command {arguments[:2]} returned {result.returncode}: {result.stdout} {result.stderr}"
             )
             return result
 
-        command("plugin", "init", "smoke_mask", "--directory", str(directory))
-        config_path = project / "gateway.yaml"
-        fixture_path = project / "fixtures.json"
-        result = command(
-            "plugin",
-            "test",
-            "--config",
-            str(config_path),
-            "--fixtures",
-            str(fixture_path),
-            "--json",
-        )
-        report = json.loads(result.stdout)
-        assert report["schema_version"] == 1 and report["passed"] is True
-        assert report["total"] >= 2 and report["failed"] == 0
+        for template, count in [("guard", 12), ("redact", 10)]:
+            name = "smoke_" + template
+            command("plugin", "init", name, "--template", template, "--directory", str(root))
+            project = root / name
+            # Install only the documented dev group: never resolve the generated
+            # project's unpublished Gateway7 requirement from a package index.
+            subprocess.run(
+                [args.uv, "pip", "install", "--python", python, "--group", "dev"],
+                cwd=project,
+                env=environment,
+                check=True,
+                timeout=120,
+            )
 
-        failing = json.loads(fixture_path.read_text())
-        failing["cases"][0]["expected"]["response"]["text"] = (
-            "Deliberately incorrect synthetic expectation"
-        )
-        failed_path = directory / "failing-fixtures.json"
-        failed_path.write_text(json.dumps(failing))
-        result = command(
-            "plugin",
-            "test",
-            "--config",
-            str(config_path),
-            "--fixtures",
-            str(failed_path),
-            "--json",
-            expected_code=1,
-        )
-        report = json.loads(result.stdout)
-        assert report["passed"] is False and report["failed"] >= 1
-        checks = [check for case in report["cases"] for check in case["checks"]]
-        assert any(
-            check["passed"] is False and check["actual"] != check["expected"] for check in checks
-        )
+            def dev_checks():
+                for arguments in (
+                    ("ruff", "format", "--check", "."),
+                    ("ruff", "check", "."),
+                    ("mypy",),
+                ):
+                    subprocess.run(
+                        [python, "-m", *arguments],
+                        cwd=project,
+                        env=environment,
+                        check=True,
+                        timeout=60,
+                    )
 
-        invalid_path = directory / "invalid-fixtures.json"
-        invalid_path.write_text('{"schema_version": 0}')
-        result = command(
-            "plugin",
-            "test",
-            "--config",
-            str(config_path),
-            "--fixtures",
-            str(invalid_path),
-            "--json",
-            expected_code=2,
-        )
-        assert isinstance(json.loads(result.stdout)["error"], str)
-
-        # A normal wheel-backed installation, never an editable source path.
-        subprocess.run(
-            [args.uv, "pip", "install", "--python", python, "--no-deps", str(project)],
-            cwd=directory,
-            env=environment,
-            check=True,
-            timeout=120,
-        )
-        imported = subprocess.run(
-            [
-                python,
-                "-I",
-                "-c",
-                "import gateway7_plugin_smoke_mask.plugin as p; print(p.__file__)",
-            ],
-            cwd=directory,
-            env=environment,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        module_path = Path(imported.stdout.strip()).resolve()
-        assert not module_path.is_relative_to(project)
-        command("validate", "--config", str(config_path))
-
-        upstream_port, gateway_port = port(), port()
-        config = yaml.safe_load(config_path.read_text())
-        config["provider"] = {
-            "kind": "fake",
-            "base_url": f"http://127.0.0.1:{upstream_port}",
-            "model": "fake",
-            "key_env": "GATEWAY7_DEMO_KEY",
-        }
-        config["auth"] = {
-            "enabled": True,
-            "clients": {
-                "smoke": {"token_env": "GATEWAY7_SMOKE_TOKEN", "models": ["fake"]},
-            },
-        }
-        config_path.write_text(yaml.safe_dump(config, sort_keys=False))
-        environment["GATEWAY7_DEMO_KEY"] = PROVIDER_KEY
-        environment["GATEWAY7_SMOKE_TOKEN"] = TOKEN
-        with (directory / "services.log").open("w") as log:
+            dev_checks()
+            inspection = json.loads(command("plugin", "inspect", str(project), "--json").stdout)
+            assert inspection["schema_version"] == 2
+            report = json.loads(command("plugin", "test", str(project), "--json").stdout)
+            assert report["passed"] is True and report["total"] == count
+            assert len(report["capabilities"]["tested_profiles"]) == (
+                5 if template == "guard" else 3
+            )
+            subprocess.run(
+                [python, "-B", "-m", "unittest", "discover", "-s", "tests", "-v"],
+                cwd=project,
+                env=environment,
+                check=True,
+                timeout=30,
+            )
+            source = project / ("gateway7_plugin_" + name) / "plugin.py"
+            if template == "guard":
+                fixtures = project / "fixtures.json"
+                suite = json.loads(fixtures.read_text())
+                suite["cases"].append(
+                    {
+                        "name": "new synthetic rule",
+                        "profile": "chat",
+                        "request": {"messages": [{"role": "user", "content": "SYNTHETIC-BLOCK"}]},
+                        "provider_response": {"text": "Ordinary answer"},
+                        "expected": {"provider_calls": 0, "error": "policy_denied"},
+                    }
+                )
+                fixtures.write_text(json.dumps(suite), encoding="utf-8")
+                red = json.loads(
+                    command("plugin", "test", str(project), "--json", expected_code=1).stdout
+                )
+                assert red["failed"] == 1
+                source.write_text(
+                    source.read_text().replace(
+                        "hits = text.count(settings.term)",
+                        'hits = text.count(settings.term) + text.count("SYNTHETIC-BLOCK")',
+                    ),
+                    encoding="utf-8",
+                )
+                assert json.loads(command("plugin", "test", str(project), "--json").stdout)[
+                    "passed"
+                ]
+            dev_checks()
+            # Normal installation is proven separately from explicit source-mode test/dev.
+            subprocess.run(
+                [args.uv, "build", "--wheel", "--out-dir", str(project / "dist"), str(project)],
+                cwd=root,
+                env=environment,
+                check=True,
+                timeout=120,
+            )
+            wheel = next((project / "dist").glob("*.whl"))
+            subprocess.run(
+                [args.uv, "pip", "install", "--python", python, "--no-deps", str(wheel)],
+                cwd=root,
+                env=environment,
+                check=True,
+                timeout=120,
+            )
+            installed = subprocess.run(
+                [
+                    python,
+                    "-I",
+                    "-c",
+                    f"import gateway7_plugin_{name}.plugin as p; print(p.__file__)",
+                ],
+                cwd=root,
+                env=environment,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            assert not Path(installed.stdout.strip()).resolve().is_relative_to(project)
+            command("validate", "--config", str(project / "gateway.yaml"))
+            # A different local rule must affect dev but never the installed wheel.
+            if template == "guard":
+                source.write_text(
+                    source.read_text().replace(
+                        'text.count("SYNTHETIC-BLOCK")',
+                        'text.count("SYNTHETIC-BLOCK") + text.count("SOURCE-ONLY")',
+                    ),
+                    encoding="utf-8",
+                )
+            source.write_text(
+                'import os\nassert "OPENAI_API_KEY" not in os.environ\n' + source.read_text(),
+                encoding="utf-8",
+            )
+            before = {
+                str(p.relative_to(project)): p.read_bytes()
+                for p in project.rglob("*")
+                if p.is_file()
+            }
+            dev_flow(cli, project, environment, template=template)
+            assert before == {
+                str(p.relative_to(project)): p.read_bytes()
+                for p in project.rglob("*")
+                if p.is_file()
+            }
+            # Hide source and run the ordinary installed gateway from a neutral cwd.
+            package = project / ("gateway7_plugin_" + name)
+            package.rename(project / "hidden-source")
+            upstream_port, gateway_port = free_port(), free_port()
+            private = root / (name + "-installed.yaml")
+            private.write_text(
+                f"provider:\n  kind: fake\n  model: fake\n  base_url: http://127.0.0.1:{upstream_port}\n"
+                "  key_env: GATEWAY7_DEMO_KEY\nauth:\n  enabled: true\n  clients:\n    smoke:\n"
+                "      token_env: GATEWAY7_SMOKE_TOKEN\nplugins:\n  sample:\n"
+                f"    module: gateway7_plugin_{name}.plugin\n    required: true\n"
+                "    settings:\n      term: PRIVATE-TEST\nmiddleware: [sample]\n",
+                encoding="utf-8",
+            )
+            service_env = {
+                **environment,
+                "GATEWAY7_DEMO_KEY": "gateway7-synthetic-provider-smoke",
+                "GATEWAY7_SMOKE_TOKEN": "gateway7-synthetic-client-smoke",
+            }
             upstream = subprocess.Popen(
                 [
                     python,
+                    "-I",
                     "-m",
                     "uvicorn",
                     "gateway7.demo:app",
@@ -197,61 +348,46 @@ def main() -> None:
                     str(upstream_port),
                     "--no-access-log",
                 ],
-                cwd=directory,
-                env=environment,
-                stdout=log,
-                stderr=subprocess.STDOUT,
-                text=True,
+                cwd=root,
+                env=service_env,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
             )
+            gateway = None
             try:
-                wait_ready(f"http://127.0.0.1:{upstream_port}/health", upstream)
+                wait_ready(f"http://127.0.0.1:{upstream_port}", upstream)
                 gateway = subprocess.Popen(
-                    [*cli, "serve", "--config", str(config_path), "--port", str(gateway_port)],
-                    cwd=directory,
-                    env=environment,
-                    stdout=log,
-                    stderr=subprocess.STDOUT,
-                    text=True,
+                    [*cli, "serve", "--config", str(private), "--port", str(gateway_port)],
+                    cwd=root,
+                    env=service_env,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
                 )
-                try:
-                    url = f"http://127.0.0.1:{gateway_port}"
-                    wait_ready(url + "/ready", gateway)
-                    with OpenAI(
-                        base_url=url + "/v1",
-                        api_key=TOKEN,
-                        max_retries=0,
-                        timeout=5,
-                        http_client=DefaultHttpx2Client(trust_env=False, follow_redirects=False),
-                    ) as client:
-                        assert [model.id for model in client.models.list().data] == ["fake"]
-                        answer = client.chat.completions.create(
-                            model="fake",
-                            messages=[{"role": "user", "content": "PRIVATE-TEST"}],
-                        )
-                        text = answer.choices[0].message.content
-                        assert (
-                            text is not None and "[removed]" in text and "PRIVATE-TEST" not in text
-                        )
-                        before, _ = metrics(url)
-                        try:
-                            client.chat.completions.create(
-                                model="forbidden-model",
-                                messages=[{"role": "user", "content": "ping"}],
-                            )
-                        except PermissionDeniedError:
-                            pass
-                        else:
-                            raise AssertionError("Forbidden model reached the installed server")
-                        after, exposed = metrics(url)
-                        assert before == after == 1
-                        assert TOKEN not in exposed and PROVIDER_KEY not in exposed
-                finally:
-                    stop(gateway)
+                origin = f"http://127.0.0.1:{gateway_port}"
+                wait_ready(origin, gateway)
+                status, response = request(
+                    origin + "/chat",
+                    service_env["GATEWAY7_SMOKE_TOKEN"],
+                    {"messages": [{"role": "user", "content": "SOURCE-ONLY"}]},
+                )
+                assert status == 200 and json.loads(response)["text"] == "pong — SOURCE-ONLY"
+                status, response = request(
+                    origin + "/chat",
+                    service_env["GATEWAY7_SMOKE_TOKEN"],
+                    {"messages": [{"role": "user", "content": "PRIVATE-TEST"}]},
+                )
+                assert status == (403 if template == "guard" else 200)
+                if template == "redact":
+                    assert json.loads(response)["text"] == "pong — [removed]"
             finally:
+                if gateway is not None:
+                    stop(gateway)
                 stop(upstream)
-        print(
-            "Generated plugin: offline pass/fail reports, normal install, validation and authorized SDK HTTP passed"
-        )
+            released(f"http://127.0.0.1:{gateway_port}")
+            released(f"http://127.0.0.1:{upstream_port}")
+            print(
+                f"Installed authoring: {template}, Ruff/mypy, red/green, profiles, source dev, wheel HTTP, cleanup PASS"
+            )
 
 
 if __name__ == "__main__":

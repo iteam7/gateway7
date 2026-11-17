@@ -26,3 +26,5 @@ Each requirement states one behavior of Gateway7, the containers it runs in and 
 | [FR-020](fr/FR-020.md) | Inspect Clients And Middleware In The Operator Console | `gateway` | Active |
 | [FR-021](fr/FR-021.md) | Manage Client Accounts In The Operator Console | `gateway` | Active |
 | [FR-022](fr/FR-022.md) | Migrate Managed Accounts From SQLite To PostgreSQL | `gateway` | Dropped |
+| [FR-029](fr/FR-029.md) | Inspect A Plugin Project Before Installation | `gateway` | Active |
+| [FR-030](fr/FR-030.md) | Try A Plugin Through A Local Synthetic Gateway | `gateway` | Active |

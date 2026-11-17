@@ -1,295 +1,247 @@
-# Generate, test and install a middleware
+# Build your first middleware
 
-Build a small Python package, check its behavior with synthetic data, then install it in the gateway environment.
-The generated example replaces `PRIVATE-TEST` with `[removed]` in request history and in the answer.
-No provider account is needed for the offline tests or local HTTP walkthrough.
+Start with a request guard, prove its behavior with synthetic fixtures, then try the same project over local HTTP.
+The generated project contains its own contract and agent instructions; a Gateway7 core checkout is not needed to edit it.
+This guide targets the unreleased Gateway7 `0.5.0.dev0`, middleware API **2**, project manifest **1** and fixture schema **2**.
 
 ## Generate a project
 
-Use the current Gateway7 checkout or an installed wheel from that checkout.
-If you are starting in the repository, prepare and activate its environment:
+Activate the environment containing the reviewed Gateway7 wheel and `uv`.
+For contributors starting from a Gateway7 checkout, run `uv sync --locked` there first and activate `.venv/bin/activate` on POSIX or `.venv\Scripts\Activate.ps1` in PowerShell.
+Keep that environment active, then move to a separate authoring folder:
 
 ```sh
-uv sync --locked
-. .venv/bin/activate
+gateway7 plugin init company_guard --template guard --directory .
+cd company_guard
+gateway7 plugin inspect .
+gateway7 plugin test .
+uv pip install --group dev
+ruff format --check .
+ruff check .
+mypy
+python -m unittest discover -s tests -v
 ```
 
-These examples use a POSIX shell; in PowerShell, activate with `.venv\Scripts\Activate.ps1`.
-If you already use an installed wheel, activate that environment instead.
-Keep the same environment active for the following steps.
-Run them in the folder where you want the new package:
+Expect inspection to describe the source plugin, **12/12 cases passed**, clean Ruff/strict mypy checks and **2 unit tests** passing.
+`uv pip install --group dev` installs the generated tool group into the active environment without resolving or replacing the reviewed Gateway7 wheel.
+Use `ruff format .` to repair formatting before repeating `--check`.
+No provider account or real credential is needed.
+`init` refuses to overwrite an existing target.
+Names contain a lowercase initial letter followed by lowercase letters, digits or underscores, up to 48 characters; Python keywords and Windows device names are rejected.
+The target's parent directory must already exist.
 
-```sh
-gateway7 plugin init company_mask --directory .
-gateway7 plugin test --config company_mask/gateway.yaml --fixtures company_mask/fixtures.json
-```
+| Choose a template | Policy | Positive fixture profiles |
+| --- | --- | --- |
+| `--template guard` | Reject a request containing `PRIVATE-TEST` before a provider call | Chat, typed Chat tools, native Responses, early Chat and early Responses |
+| `--template redact` (default) | Replace `PRIVATE-TEST` with `[removed]` in requests and complete responses | Chat, typed Chat tools and native Responses |
 
-Expect **2/2 cases passed** and exit code 0.
-The command refuses an existing target; choose a new name if `company_mask` already exists.
-Names start with a lowercase letter and contain only lowercase letters, digits or underscores, up to 48 characters.
-Python keywords and reserved Windows device names are rejected.
+The redactor generates **10 cases**, including explicit early-mode refusals.
+A negative test proves refusal, not early-stream support.
+The request guard does not filter model answers.
 
-| File inside `company_mask/` | What to edit |
+| File | Purpose |
 | --- | --- |
-| `gateway7_plugin_company_mask/plugin.py` | Middleware behavior and settings |
-| `gateway.yaml` | Plugin settings and chain order |
-| `fixtures.json` | Synthetic inputs and expected results |
-| `pyproject.toml` | Package metadata and dependencies |
-| `README.md` | Commands for this generated project |
+| `gateway7_plugin_company_guard/plugin.py` | Frozen settings, a pure text transform and the API-2 descriptor |
+| `gateway.yaml` | Plugin settings and middleware chain |
+| `fixtures.json` | Synthetic behavior and per-profile expectations |
+| `tests/test_policy.py` | Small editable unit checks |
+| `pyproject.toml` | Installable package and `[tool.gateway7.plugin]` metadata |
+| `CONTRACT.md`, `AGENTS.md`, `README.md` | Versioned local contract, agent workflow and commands |
 
-The offline worker can load it beside `gateway.yaml` before installation.
-`validate` and `serve` need the package installed; they do not load it from the current folder.
-The generated dependency accepts the Gateway7 minor release that created the project and excludes the next minor release.
-Review the plugin contract before widening that range; the loader also checks API v2 independently of package metadata.
+The project metadata selects the module, YAML, fixtures and declared profiles:
+
+```toml
+[tool.gateway7.plugin]
+schema_version = 1
+module = "gateway7_plugin_company_guard.plugin"
+config = "gateway.yaml"
+fixtures = "fixtures.json"
+profiles = ["chat", "chat-tools", "responses", "chat-early", "responses-early"]
+```
+
+Config and fixture paths are relative to the project root and confined to it.
+`test`, `inspect` and `dev` accept a project directory and default to the current directory.
+The selected module must be enabled in the global middleware chain.
+These authoring commands explicitly use that project's source; ordinary `validate` and `serve` require an installed package.
+There is no generated lockfile: run these commands in the active Gateway7 environment rather than assuming `uv run --locked` applies to the generated project.
+
+## Change one rule
+
+In `plugin.py`, `create()` returns the public `TextPolicyMiddleware` helper.
+Its synchronous transform returns `(replacement_text, hit_count)`.
+The helper owns typed request/response traversal, protected-field checks and profile hooks; see the [helper reference](plugins.md#simple-text-policies).
+For a request guard, zero hits allow the request and positive hits deny it:
+
+```python
+def create(settings: Settings) -> TextPolicyMiddleware:
+    def transform(text: str) -> tuple[str, int]:
+        hits = text.count(settings.term)
+        return text, hits
+
+    return TextPolicyMiddleware(transform, phase="request", action="block")
+```
+
+Add a failing synthetic fixture before changing the transform.
+The [agent guide](plugin-agent-guide.md#make-a-red-then-green-change) gives an executable example that adds `SYNTHETIC-BLOCK`, observes exit 1, edits this function and observes exit 0.
+Keep the original cases passing and run the unit tests again.
+Use the [cookbook](plugin-cookbook.md) for two-way redaction, typed tools, native payloads and early streams.
+
+## Try local HTTP
+
+From the project directory:
+
+```sh
+gateway7 plugin dev . --port 0
+```
+
+The command starts one owned child containing a gateway and a synthetic upstream, each bound to `127.0.0.1` on an automatically allocated port.
+It prints both URLs and a ready-to-run client command for your platform.
+Copy the printed command into another terminal with the same Gateway7 environment active.
+A benign message returns HTTP 200 with `pong — Hello synthetic`.
+Change its message to `PRIVATE-TEST`: the guard returns HTTP 403, while the redactor returns `pong — [removed]`.
+The printed token is generated synthetic data for this run only.
+Press Ctrl-C in the server terminal to stop both listeners and reap the child.
+
+`dev` runs the actual gateway HTTP parser, middleware pipeline and provider adapter against an owned local fixture.
+It supports synthetic text, typed tools, native Responses and their selected streaming paths; the fixture is not a real model or a certification of all upstream profiles.
+Use the fixture matrix for explicit profile evidence.
+Each run reads current project source, without auto-reloading edits; restart it after changing code.
+The command replaces provider credentials, client access and any management storage configuration in memory, disables inherited telemetry/transports, and leaves project files unchanged.
+The worker receives a small environment without parent API keys.
+This is trusted Python execution with local sockets, not a sandbox for hostile plugin code.
+
+If startup fails, first run `plugin inspect .` and `plugin test .`.
+Allow loopback sockets in the execution environment and use `--port 0` if a chosen port is occupied.
+A plugin startup hook can still fail or exceed the bounded startup wait.
 
 ## Read expected and actual results
 
-For a JSON report, add `--json`:
-
 ```sh
-gateway7 plugin test --config company_mask/gateway.yaml --fixtures company_mask/fixtures.json --json
+gateway7 plugin inspect . --json
+gateway7 plugin test . --json --timeout 60
 ```
 
-The report compares provider-call count, the request sent to the fixture provider, the final response and any error.
-It includes `passed`, `total`, `failed` and `cases`, with expected and actual values for each check.
+Inspection reports the module source, Gateway7/API versions, strict settings schema, available hooks, tool declaration and declared profiles.
+It imports the trusted descriptor and constructs factories but makes no provider call and runs no startup hook.
+Its `behavior_verified` field is false, and its `tested_profiles` list is empty.
+Run fixtures to obtain behavior evidence.
 
-| Exit code | Meaning |
+Test report schema 2 contains `passed`, `total`, `failed`, `cases`, `issues`, a profile matrix and `capabilities`.
+Each case compares expected/actual provider calls, forwarded request, final response or safe error, and early deltas where relevant.
+A positive passing case with an actual provider call contributes to `tested_profiles`.
+For early profiles, the case must also emit validated deltas before completion; successful empty-prefix preparation is checked separately and does not prove early emission.
+A failed case, denial-only test or unsupported-mode refusal does not certify a profile.
+Review the complete per-profile matrix before advertising support.
+Errors identify a safe stage/code/path, relevant source location when available, and a corrective hint; they do not echo arbitrary import exceptions or settings values.
+Reports include fixture text, so use synthetic values only.
+
+| Exit | Meaning |
 | --- | --- |
-| 0 | All cases pass |
-| 1 | At least one expected result differs from the actual result |
-| 2 | Invalid setup, worker failure, interruption or timeout |
-
-Try a failing expectation in a copy of the file:
-
-```sh
-python - <<'PY'
-import json
-from pathlib import Path
-path = Path("company_mask/fixtures.json")
-data = json.loads(path.read_text())
-data["cases"][0]["expected"]["response"]["text"] = "Deliberately wrong"
-path.with_name("fixtures-fail.json").write_text(json.dumps(data))
-PY
-gateway7 plugin test --config company_mask/gateway.yaml --fixtures company_mask/fixtures-fail.json
-```
-
-Expect one failed case, exit code 1, and actual text `Answer [removed]` beside the wrong expectation.
-Keep the original passing fixtures.
-Reports print fixture text, so use synthetic data only.
+| `0` | All cases pass; inspection succeeds; or `dev` stops orderly after Ctrl-C |
+| `1` | A fixture's expected and actual behavior differ |
+| `2` | Invalid project, invalid fixture, unsupported contract, worker failure, interruption or timeout |
 
 ## Fixture schema
 
-Save this complete example as `company_mask/fixtures-small.json`:
+Keep the suite selected by `fixtures` in the project manifest.
+This is a complete one-case guard suite:
 
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "cases": [
     {
-      "name": "mask both directions",
-      "request": {
-        "messages": [{"role": "user", "content": "PRIVATE-TEST"}]
-      },
-      "provider_response": {"text": "Answer PRIVATE-TEST"},
-      "expected": {
-        "provider_calls": 1,
-        "request": {
-          "messages": [{"role": "user", "content": "[removed]"}]
-        },
-        "response": {"text": "Answer [removed]"}
-      }
+      "name": "block synthetic request",
+      "profile": "chat",
+      "request": {"messages": [{"role": "user", "content": "PRIVATE-TEST"}]},
+      "provider_response": {"text": "Must never be requested"},
+      "expected": {"provider_calls": 0, "error": "policy_denied"}
     }
   ]
 }
 ```
 
-```sh
-gateway7 plugin test --config company_mask/gateway.yaml --fixtures company_mask/fixtures-small.json
-```
-
-Expect **1/1 cases passed**.
-`expected.request` is the text after request middleware; `expected.response` is the answer after response middleware.
-Add `usage` to a provider response and expected response when you want to check token-usage preservation.
-The generated larger suite also covers all history roles and unchanged benign text.
-
-For a request block, use `"expected": {"provider_calls": 0, "error": "policy_denied"}`.
-For a response block, expect one provider call and the same error.
-A case must expect either a response or a safe error code, with 0 or 1 provider calls.
-Set `provider_error: true` to simulate an upstream failure.
-Unknown fields, duplicate JSON keys and duplicate case names are rejected.
-
+A case names its profile: `chat`, `chat-tools`, `responses`, `chat-early` or `responses-early`.
+The request and provider response use that profile's actual public DTO shape.
+Copy the corresponding generated case before extending it; native Responses are not flattened into Chat.
+`expected.request` checks the request after middleware; `expected.response` checks the complete answer after middleware.
+A case expects either a response or a safe error with 0 or 1 provider calls.
+Early cases also supply typed `provider_deltas` and expected `deltas`.
+Use `provider_error: true` for an upstream failure.
+Unknown fields, duplicate JSON keys, duplicate case names and invalid nested DTOs are rejected.
+Case names start with an ASCII letter and contain at most 128 letters, digits, spaces, dots, underscores or hyphens.
 A suite supports 1–64 cases in a file up to 1 MiB; reports are capped at 4 MiB.
-The whole-suite timeout is 30 seconds by default; `--timeout` accepts 1–300 seconds.
-The configured middleware and request timeouts also apply to each case.
+An optional suite `concurrency` value from 1–8 checks shared-instance behavior with one plugin lifecycle.
+The whole-suite timeout defaults to 30 seconds; `--timeout` accepts 1–300 seconds.
+Configured hook/request timeouts also apply.
 
 ## Function-tool fixtures
 
-The generated middleware declares no tool capability and remains usable for ordinary text chat.
-Adding `supports_tools=True` to `PLUGIN` is an explicit promise to inspect and preserve the extended [tool payload contract](plugins.md#tool-payload-capability).
-The flag alone does not make a text-only implementation safe.
-
-Before opting in, add offline cases covering a call-only `ChatResponse` with empty `text`, one typed `tool_calls` entry and `finish_reason: tool_calls`.
-Include nullable assistant history followed by a string `role: tool` result with the matching `tool_call_id`, allowed argument JSON, and a denial for synthetic sensitive data in arguments or definition text.
-Verify that call IDs and function names survive unchanged, that invalid argument edits fail validation, and that provider usage remains original when a response is denied or transformed.
-Use only synthetic paths, arguments and tool results: offline reports include fixture values.
-
-In the default buffered mode, upstream streaming changes provider transport, while middleware still receives the complete normalized response.
-Do not yield partial unchecked text or execute functions from a plugin; the harness owns execution after the gateway approves the call.
+Both starters use the shared helper and explicitly declare `supports_tools=True`.
+Their fixtures cover call-only answers, typed history, identity/usage preservation and sensitive protected fields.
+Extend them for your policy's definitions, arguments and tool results.
+A match in protected executable arguments or tool identity must be denied, not silently rewritten.
+The declaration alone provides no compatibility evidence; keep positive and negative typed cases.
+See [tool payload capability](plugins.md#tool-payload-capability) for the lower-level contract.
 
 ## Early-stream authoring
 
-The optional [early-stream preparation hook](plugins.md#early-stream-preparation) is for request-only middleware, not a way to bypass response checks in the generated two-way example.
-Keep `handle` for normal buffered requests and extract its request checks into a helper shared by both paths.
-For a plugin with a validated `phase` setting and an existing `_prepare_request(request, context)` helper, the additional method is:
-
-```python
-from gateway7.models import ChatRequest
-from gateway7.plugin_api import Deny, EarlyStreamUnsupported, PluginContext
-
-
-async def prepare_early_stream(
-    self, request: ChatRequest, context: PluginContext
-) -> ChatRequest | Deny:
-    if self.settings.phase != "request":
-        raise EarlyStreamUnsupported()
-    return self._prepare_request(request, context)
-```
-
-Add this method to the middleware instance; the helper must perform all of its request-side policy work, including structured tool checks when tools are supported.
-Do not return the request unchanged merely to advertise compatibility, call the provider from the hook, or reuse a `both` configuration without its response policy.
-Without the hook the plugin remains valid for buffered delivery, but an explicit early request is rejected without provider work or a hidden fallback.
-
-Before offering the hook, add synthetic async tests for the shared request transformation, request denial with zero provider calls, and rejection of response-dependent settings.
-Exercise the early pipeline and HTTP stream as well as the existing whole-response fixtures: a nonempty text delta must arrive while the synthetic provider is still waiting, whereas malformed later data must produce no successful terminal marker or executable tool call.
-Also check slow-send backpressure, cancellation cleanup and admission-slot retention.
-These are authoring checks to run, not a claim that adding the method alone verifies a plugin.
+Use the request-only guard when you need early delivery.
+The helper's `phase="request"` prepares the checked request before a provider call.
+Two-way or response-dependent policies reject early mode before provider work, because unchecked answer text cannot be released safely.
+Keep both early profiles in the manifest only after their positive cases pass, alongside no-call denial and terminal delta checks.
+See [early-stream preparation](plugins.md#early-stream-preparation).
 
 ## Native Responses authoring
 
-The generator and `gateway7 plugin test` fixtures above exercise the Chat middleware contract; they do not certify native Responses support.
-For `/v1/responses`, add the separate [native preparation and checking hooks](plugins.md#native-responses-hooks) and use `ResponsesRequest`, `ResponsesResponse` and `ResponsesContext`, without flattening items into `ChatRequest`.
-Keep the existing `handle` method for Chat callers; native hooks are additive to API v2, not a replacement descriptor version.
-Every active middleware needs both native buffered hooks, even if a configured phase performs no changes; missing hooks reject the native request before provider work.
-
-Add direct synthetic native DTO/pipeline/HTTP tests for ordered parallel and namespaced calls, distinct item/call IDs, matched history, custom raw input and grammar definitions, reasoning text, metadata and client tool-search results.
-Test safe text transformation and denial of matches in protected IDs, schemas, executable strings and annotation-bearing text; never rewrite a tool identity or raw custom command to make a fixture pass.
-Test both independent consent defaults, exact encrypted/media string preservation with consent, and inspection of adjacent plaintext and ordinary keys named like opaque fields.
-For consented hosted search, verify that a denied returned record is withheld without pretending that response policy prevented upstream execution.
-Include partial/unknown usage, pre-provider rejection of Chat-only plugins, response-hook reverse order, malformed terminal native SSE, and consistency between checked deltas, item snapshots and final output.
-The [native API contract](api.md#native-responses-http) owns accepted fields and limits; the existing Chat fixture schema does not gain native fields automatically.
-
-For the implemented [native early contract](api.md#opt-in-to-native-early-text), keep both buffered native hooks and add request-only `prepare_early_responses`; do not bypass response-dependent settings or change consent through a payload.
-The public `responses_events` records and `ResponsesStream.drain_text_deltas()` preserve native response/item IDs, output/content positions, phase, source sequence and leading-prefix proof; bare text alone is not enough for native delivery.
-Test the eligible assistant message/output-text part at output/content indices `0/0` separately from reasoning/tool/refusal-first, interleaved and multiple-message profiles.
-Other items/parts, held non-text metadata and leading-part closure must permanently end prefix eligibility, while final checked delivery retains the complete profile without reindexing or flattening it.
-Check that tool/refusal/reasoning/opaque events stay held, the checked final text reconciles with any prefix, and a late failure emits only a sanitized native failure or abort rather than a false completion.
-Also test configured request-hook denial/refusal order, direct slow-send backpressure, deadline/disconnect cleanup and admission retention through the shared app lifecycle.
-These are component/integration authoring checks, not a claim that production typed-provider wiring, end-to-end/container early delivery or live Codex verification has passed.
+The generated `responses` cases exercise native request/check hooks and typed `ResponsesRequest`/`ResponsesResponse` values.
+Preserve item/call IDs, ordering, statuses, tool structure, consent and original provider usage.
+For `responses-early`, the guard's preparation hook is tested separately from the completed native response.
+These fixture and local HTTP checks do not establish full Responses or live Codex compatibility.
+See [native hooks](plugins.md#native-responses-hooks).
 
 ## Install normally and serve
 
-Install into the active Gateway7 environment with [uv](https://docs.astral.sh/uv/):
+After the fixtures and unit checks pass, build the plugin wheel:
 
 ```sh
-uv pip install --no-deps ./company_mask
-gateway7 validate --config company_mask/gateway.yaml
+uv build --wheel
+uv pip install --no-deps dist/gateway7_plugin_company_guard-0.1.0-py3-none-any.whl
+gateway7 validate --config gateway.yaml
 ```
 
-Expect `Configuration valid: provider=fake; middleware=1`.
-The server now loads the installed package from any folder.
-`--no-deps` keeps the current Gateway7 build; it must already be installed in this environment.
-The loader checks plugin API v2 when it loads the package.
-Package installation may download build requirements; only `plugin test` is an offline check.
+Install into the same environment as the reviewed Gateway7 build.
+Building may download build dependencies; synthetic fixture execution itself needs no provider or network.
+The generated package requires `gateway7>=0.5.0.dev0,<0.6`; middleware API compatibility is checked independently at load time.
+Validate from a different working directory using an absolute configuration path to verify normal installed loading.
+The authoring worker never falls back to a stale installed copy if project source is missing.
 
 ### Try the installed package without a provider account
 
-Use three terminals with the same Gateway7 environment active, in the folder containing `company_mask`.
-Ports 18000 and 18001 must be free.
-Create a separate local config, keeping the generated plugin and original fixtures:
-
-```sh
-python - <<'PY'
-from pathlib import Path
-import yaml
-
-source = Path("company_mask/gateway.yaml")
-config = yaml.safe_load(source.read_text())
-config["provider"].update(
-    base_url="http://127.0.0.1:18001", key_env="GATEWAY7_DEMO_KEY"
-)
-config["auth"] = {
-    "enabled": True,
-    "clients": {
-        "demo": {"token_env": "GATEWAY7_AUTHORING_TOKEN", "models": ["fake"]}
-    },
-}
-with source.with_name("gateway-local.yaml").open("x") as output:
-    yaml.safe_dump(config, output, sort_keys=False)
-PY
-```
-
-This refuses to overwrite an existing `gateway-local.yaml`; reuse that file when restarting.
-In the first terminal, start the packaged echo fixture on loopback:
-
-```sh
-GATEWAY7_DEMO_KEY=gateway7-synthetic-authoring-upstream \
-  python -m uvicorn gateway7.demo:app --host 127.0.0.1 --port 18001 --no-access-log
-```
-
-In the second terminal, validate and start the gateway with the installed plugin:
-
-```sh
-gateway7 validate --config company_mask/gateway-local.yaml
-GATEWAY7_DEMO_KEY=gateway7-synthetic-authoring-upstream \
-GATEWAY7_AUTHORING_TOKEN=gateway7-synthetic-authoring-client \
-  gateway7 serve --config company_mask/gateway-local.yaml --host 127.0.0.1 --port 18000
-```
-
-Wait for both servers to print `Uvicorn running on`, then send a request in the third terminal:
-
-```sh
-GATEWAY7_TOKEN=gateway7-synthetic-authoring-client \
-  gateway7 chat --url http://127.0.0.1:18000 --model fake --message 'PRIVATE-TEST'
-```
-
-Expect:
-
-```json
-{"text": "pong — [removed]", "usage": {"input_tokens": 12, "output_tokens": 4}}
-```
-
-The echo confirms that the installed middleware changed the request before the provider received it.
-The two-way offline fixture separately checks response filtering.
-These credentials and token counts are public synthetic values; neither process calls a real provider or records request text.
-After success or any error, stop both server terminals with Ctrl-C; the command-scoped credentials do not remain in the shell environment.
+`plugin dev` deliberately uses current source.
+For a final distribution check, install the wheel into a clean Gateway7 environment and use a separate authenticated synthetic-provider configuration with ordinary `serve`.
+The installed-wheel smoke in CI performs this step after hiding the project package and verifies HTTP policy behavior, then stops both services.
+It also demonstrates that a later local source edit affects `dev` while the previously installed wheel keeps its own behavior.
 
 ### Use a real provider or update the plugin
 
-For a real model, copy the `provider`, `auth` and `limits` sections from [provider setup](setup.md#real-providers) into `company_mask/gateway.yaml`, keeping its `plugins` and `middleware` sections.
-Supply the server credentials, validate the file, then run `gateway7 serve --config company_mask/gateway.yaml`.
-Use the [API guide](api.md) for an authenticated client request.
-The original generated fake-provider YAML is for fixtures; `serve` does not start an upstream for you.
-
-After a code change, rerun the fixtures, reinstall the package, and restart the server:
-
-```sh
-gateway7 plugin test --config company_mask/gateway.yaml --fixtures company_mask/fixtures.json
-uv pip install --reinstall --no-deps ./company_mask
-```
-
-Stop the running gateway with Ctrl+C, then run the same `serve` command again.
-Settings changes also need a restart; there is no hot loading.
-An exact dependency sync may remove extra company packages, so include their installation in your deployment steps.
+For deployment, copy the reviewed provider/auth/limits sections from [provider setup](setup.md#real-providers), keeping the plugin and chain sections.
+Supply credentials through the normal private startup path, validate, and restart the gateway with the installed package.
+For development, an explicit `uv pip install --no-deps -e .` is possible; repeat the final wheel check before shipping.
+After a normal package update, reinstall the new wheel and restart serving processes.
+No production import path is changed automatically by `test`, `inspect` or `dev`.
 
 ## Offline execution boundary
 
-The worker always uses the supplied fixture answer, even if the YAML selects a real provider.
-It does not import or initialize a configured [provider transport](provider-transports.md#offline-middleware-tests).
-It reads no provider key or client token and starts with a small operating-system environment.
-It blocks Python socket and subprocess calls before loading the plugin, discards plugin stdout/stderr, and stops on the suite timeout or interruption.
+The fixture worker removes inherited credentials, uses a synthetic provider and blocks Python networking and subprocess APIs.
+It starts/shuts down the configured plugin suite once and applies bounded suite/case timeouts.
+Inspection uses the same explicit source boundary without running startup hooks.
+These guards help prevent accidental external calls; they are not OS isolation against malicious Python, native extensions or resource exhaustion.
+Review plugin code before importing it, and keep prompts, answers and real keys out of fixtures and reports.
 
-This catches accidental network access; it is not a security sandbox for hostile Python or native code.
-Only test and install trusted plugins.
-`validate` and `serve` load that code with the gateway's normal environment and permissions.
-Keep original text and credentials out of logs and shared instance state.
-For implementation details, use the [middleware API reference](plugins.md#descriptor-and-hooks).
+## Update an earlier authoring project
+
+The `0.5.0.dev0` authoring contract requires project manifest 1 and fixture schema 2.
+Generate a fresh starter, move your reviewed pure policy and synthetic cases into it, select the actual profiles, then rerun inspect, fixtures, units and the wheel check.
+The earlier `plugin test --config ... --fixtures ...` form and schema-1 fixture files are unsupported.
+Middleware API 2 and provider transport API 1 are unchanged.
