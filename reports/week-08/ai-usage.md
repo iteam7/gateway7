@@ -87,3 +87,15 @@
 - Boundary: This is a repository-file inventory, not proof of live branch protection, private deployment or dashboard settings, instructor access, usability results, sprint planning agreement or Customer acceptance.
   Planning task #299 remains open; this documentary preparation does not assert its dependency complete.
 - Team assessment: TODO
+
+## 2026-11-18 — Task #303 goal-based configuration evaluation
+
+- Tool: Codex with Formater, TechLead and documentation agents.
+- Work: Evaluated artifact families against four local purposes using the frozen published configuration-inventory commit 3d4fac7fc2df677a59a8261e3d60682b51813669, its directed CFG connections, actual public source files and identified inherited-main CI results.
+  The evaluation states its reading method, concrete maintenance mechanisms, alternatives and tradeoffs, seven areas not judged and one first AI proposal; it implements or schedules none of the recommendations.
+- Inputs: Public sanitized configuration-plan/source/course material and published issue/CI metadata only; no usability material, raw recording, private notes, participant identity, private deployment values or credential was supplied.
+  The configuration plan was supplied to the agents for this evaluation; AI advice is distinguished from the team's own judgement and Customer acceptance.
+- Verification: Markdownlint passed the evaluation with zero errors; 66 immutable source-file links and 61 source anchors resolved against the frozen local baseline, changed-file privacy patterns found no matches and whitespace validation passed.
+  These source/anchor checks are narrower than live HTTP reachability; external links remain subject to PR CI.
+- Boundary: The baseline is published in PR #306, not asserted merged or released; administrator settings, private overlays, running images, live dashboards, update-job health and full build reproducibility remain explicitly unjudged.
+- Team assessment: TODO
