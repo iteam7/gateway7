@@ -74,3 +74,16 @@
 - Boundary: Estimated costs use configured model prices rather than provider invoices; external telemetry and notification delivery still require private deployment configuration.
   No SSO, HA, simultaneous multiple-provider routing, SQLite-to-PostgreSQL migration, production deployment, billing reconciliation, Customer acceptance or human usability outcome is claimed.
 - Team assessment: TODO
+
+## 2026-11-18 — Task #302 configuration inventory
+
+- Tool: Codex with Formater, TechLead and documentation agents.
+- Work: Read the current course requirements and Gateway7's tracked configuration, then documented 14 Active configuration items across the five required groups, their owners and directed connections; added the requested glossary terms, four configuration risks and navigation/instruction links.
+- Inputs: Public repository files, public course rules and public issue/CI metadata only; no usability material, raw recording, private note, participant identity, deployment address or credential was supplied to these agents.
+  The configuration plan was created and reviewed from those public sanitized inputs; the separate goal-based evaluation is not part of this task.
+- Verification: Hash-locked documentation tools and npm-locked assets installed successfully; strict MkDocs build passed and Markdownlint passed the five changed source Markdown files and the AI disclosure with zero errors.
+  The first generated-site check encountered the Windows default text encoding; the UTF-8 rerun passed for 87 maintained pages and 13266 links/assets, including anchors and report exclusion, without changing the repository checker.
+  Network link validation remains subject to the PR's full Lychee check because Lychee is not installed locally.
+- Boundary: This is a repository-file inventory, not proof of live branch protection, private deployment or dashboard settings, instructor access, usability results, sprint planning agreement or Customer acceptance.
+  Planning task #299 remains open; this documentary preparation does not assert its dependency complete.
+- Team assessment: TODO

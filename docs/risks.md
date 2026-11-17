@@ -10,6 +10,10 @@
 | [RISK-06](#risk-06) | Open | Medium | Medium | A participant may withdraw or refuse the recording, so the session cannot be counted and its data must be removed. |
 | [RISK-07](#risk-07) | Open | High | Low | An instructor may not be able to open the private usability-data repository or the recordings folder, so the evidence cannot be reviewed. |
 | [RISK-08](#risk-08) | Open | High | Medium | The design review or the sessions may not finish before the Week 8 deadline, so the results and the quality requirement's verdict are not ready. |
+| [RISK-09](#risk-09) | Open | High | Medium | Gateway and telemetry credentials can leak through public diffs, logs or agent context, granting unintended access. |
+| [RISK-10](#risk-10) | Open | Medium | Medium | A configuration change can leave its inventory or consumer stale, breaking deployment or evidence traceability. |
+| [RISK-11](#risk-11) | Open | High | Medium | A blocked dependency update can leave security or compatibility defects unresolved. |
+| [RISK-12](#risk-12) | Open | High | Medium | Manual promotion can leave staging and production on different images or settings, invalidating a verification claim. |
 
 The response overview below summarizes the operative fields; each risk section retains their full wording and evidence.
 
@@ -23,6 +27,10 @@ The response overview below summarizes the operative fields; each risk section r
 | [RISK-06](#risk-06) | A participant refuses the recording or withdraws | Any counted session in Week 8 | Collect the durable consent before every session, explain the recording and the withdrawal, and keep the code mapping private | Do not count the session, remove its raw text and recording, retire the code, and recruit a replacement under the next free code |
 | [RISK-07](#risk-07) | An instructor reports a missing repository, folder, or permission | Week 7 and Week 8, before submission | Create the private repository with the team and the instructors as readers, share the cloud folder with them, and verify both before the first session | Give the private text through a Moodle-only archive and declare the deviation; keep the recordings in the cloud folder |
 | [RISK-08](#risk-08) | No confirmed design-review slot by 14 November, or no sessions booked by 18 November | Week 7 and Week 8 | Book the design review early, run the design and instrumentation in parallel, and schedule sessions once the verification passes | Move the QR/QRT row to SPRINT-09 with a reason, declare it in the report, and claim no result |
+| [RISK-09](#risk-09) | Public disclosure of a credential | Every configuration change and publication | Keep values private and review output | Rotate/revoke, notify instructors, clean history and retain private incident account |
+| [RISK-10](#risk-10) | Configuration PR leaves a CFG entry or consumer stale | Before each configuration merge | Update inventory and connections in the same PR | Correct in the same PR; if merged, open immediate correction and state limitation |
+| [RISK-11](#risk-11) | Required dependency update fails checks | Each update and release review | Review proposals and regenerate/verify locks | Pin working version with reason, residual risk and an owned removal/upgrade task |
+| [RISK-12](#risk-12) | Running image/settings differ from reviewed candidate | Every promotion or rollback | Verify staging commit and running-image identity | Redeploy staging-passed commit through current runbook; use documented rollback if needed |
 
 ## RISK-01
 
@@ -138,3 +146,67 @@ The design review or the sessions may not finish before the Week 8 deadline, so 
 - **Window:** Week 7 and Week 8.
 - **Mitigation:** book the design review early, run the design and the instrumentation in parallel, and schedule sessions once the verification passes.
 - **Contingency:** move the `QR/QRT` row to `SPRINT-09` with a reason, declare it in the report, and claim no result.
+
+## RISK-09
+
+Secret leakage can invalidate Gateway7's configuration baseline or its evidence.
+
+- **Status:** Open
+- **Impact:** High
+  - A leaked provider key, operator token or ingestion credential can expose paid access, administrative state or private telemetry.
+- **Likelihood:** Medium
+  - Gateway7 has several private credentials across gateway and telemetry modes; ignored files alone do not prevent disclosure in output, prompts or history.
+- **Trigger:** A credential or private endpoint appears in a public diff, log, AI context or repository history.
+- **Window:** Every configuration change, deployment, AI-assisted session and publication.
+- **Mitigation:** Keep actual values outside Git and AI context, use separate environment credentials, review sanitized diffs/output and run the confidentiality check before publication.
+- **Contingency:** Stop publication and rotate or revoke affected credentials first; notify the instructors, remove exposed history through the authorized secret-removal exception and retain a private incident account without reproducing the secret.
+
+**Configuration:** [CFG-07](configuration-plan.md#cfg-07); recorded 2026-11-18 for [task #302](https://github.com/iteam7/gateway7/issues/302).
+
+## RISK-10
+
+Stale configuration inventory can invalidate Gateway7's configuration baseline or its evidence.
+
+- **Status:** Open
+- **Impact:** Medium
+  - A stale connection or check command can make a contributor change an overlay, workflow or runbook without updating its consumer, producing a broken deployment or false evidence.
+- **Likelihood:** Medium
+  - Gateway7 maintains multiple Compose modes, CI commands, agent instructions and documentation navigation that can evolve in separate tasks.
+- **Trigger:** A PR changes a configuration item's location, meaning or consumer without updating its CFG section and links.
+- **Window:** Every configuration PR, before review and merge.
+- **Mitigation:** Use the same-PR upkeep rule in AGENTS.md, inspect directed CFG connections and compare the inventory with the actual changed files.
+- **Contingency:** Correct the inventory and affected consumer/runbook in the same PR before approval; if already merged, open an immediate correction task and state the affected verification limitation rather than claiming the old evaluation still applies.
+
+**Configuration:** [CFG-11](configuration-plan.md#cfg-11); recorded 2026-11-18 for [task #302](https://github.com/iteam7/gateway7/issues/302).
+
+## RISK-11
+
+Unupdatable dependencies can invalidate Gateway7's configuration baseline or its evidence.
+
+- **Status:** Open
+- **Impact:** High
+  - A dependency update that cannot be adopted can leave known vulnerabilities or provider/tool incompatibility unresolved, while an untested upgrade can break the gateway or docs.
+- **Likelihood:** Medium
+  - Python, docs tooling, browser assets, Actions and container images have independent update paths; Dependabot covers four package ecosystems but not all deployed backend images.
+- **Trigger:** A security or compatibility update fails the relevant locked build/tests, or an update proposal remains blocked without an owner and reason.
+- **Window:** At each dependency proposal and release-baseline review.
+- **Mitigation:** Review weekly update proposals, regenerate locks with the documented resolver, verify wheel/Compose/docs behavior and review image digests privately before deployment.
+- **Contingency:** Temporarily pin the known working version, record the specific blocker and residual risk, and create an owned removal/upgrade task with a review condition; do not silently relax locks or label the blocked update safe.
+
+**Configuration:** [CFG-13](configuration-plan.md#cfg-13); recorded 2026-11-18 for [task #302](https://github.com/iteam7/gateway7/issues/302).
+
+## RISK-12
+
+Environment drift can invalidate Gateway7's configuration baseline or its evidence.
+
+- **Status:** Open
+- **Impact:** High
+  - Staging and production can run different images, overlays or telemetry settings, so a staging result may be wrongly applied to production and synthetic traffic may pollute product metrics.
+- **Likelihood:** Medium
+  - Gateway promotion is manual, with separate private directories, credentials, networks and backend scopes that repository templates cannot verify.
+- **Trigger:** Running-image revision differs from the selected commit, production settings differ from the reviewed runbook, or staging verification cannot be linked to the promoted image.
+- **Window:** Every promotion, rollback and private runtime-setting change.
+- **Mitigation:** Use clean tracked sources, record running image ID/revision, keep per-environment settings separate and verify staging before promoting the same commit using the current deployment runbook.
+- **Contingency:** Redeploy the commit that passed staging using the current reviewed runbook and reverify the running image and environment; if production fails, use the documented last-known-good rollback and record the incident rather than patching code manually on the VM.
+
+**Configuration:** [CFG-06](configuration-plan.md#cfg-06); recorded 2026-11-18 for [task #302](https://github.com/iteam7/gateway7/issues/302).

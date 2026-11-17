@@ -41,6 +41,7 @@ Run the checks your change touches before you push; CI runs them again on pull r
 - Markdown puts one sentence on a line and passes the rules in `.markdownlint-cli2.jsonc`.
 - A link from `docs/` to a file outside it is a full GitHub URL, because the site serves only `docs/`.
 - Identifiers such as `US-nn`, `DEC-nnn`, `CON-nn`, `BND-nn`, `TOS-nn`, `RISK-nn`, `ALT-nn`, `GAP-nn` and `VP-nn` appear in the heading of their own section or file, are never reused or renumbered, and a removed item is marked with a reason and date.
+- Configuration items are inventoried in [the configuration plan](docs/configuration-plan.md); update the affected CFG sections, connections and linked terms or risks in the same pull request as the configuration change.
 - A term from `docs/glossary.md` is used in the meaning the glossary gives; a change of meaning updates the glossary in the same pull request.
 
 ## Do Not Edit
