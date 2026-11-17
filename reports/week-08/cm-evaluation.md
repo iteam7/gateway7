@@ -1,0 +1,106 @@
+# CM Evaluation
+
+**Baseline:** [3d4fac7fc2df677a59a8261e3d60682b51813669](https://github.com/iteam7/gateway7/commit/3d4fac7fc2df677a59a8261e3d60682b51813669) on the published configuration-inventory branch in [PR #306](https://github.com/iteam7/gateway7/pull/306), not a release tag or a claim that this commit is on main.
+**Reviewed:** 2026-11-18.
+
+## Method
+
+Codex authored this AI evaluation on 2026-11-18 against the frozen baseline above, first reading the current [configuration management rule](https://github.com/inno-itpd/itpd/blob/main/requirements/configuration-management-requirements.md), then the [inventory](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md), its directed connections, AGENTS.md and CONTRIBUTING.md, the check/workflow and documentation sources, dependency manifests/locks, and deployment/monitoring procedures; the scope is public repository configuration and the recorded checks, not private values, live settings, team deliberations or Customer results, and file families are grouped below by the local purpose they jointly serve rather than by one finding per configuration item.
+This is AI-authored advice, not the team's assessment or a decision to implement, schedule or create backlog work.
+
+## Verify a change without missing a required gate
+
+- **Today:** [CFG-01](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-01) supplies the task/PR review route; [CFG-02](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-02) executes the gates, [CFG-04](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-04) configures their scope, and [CFG-05](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-05) checks rendered docs.
+  [CFG-11](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-11) and [CFG-12](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-12) tell the contributor/agent which checks and completion rules apply.
+  The Python command list appears in the [AGENTS check table](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/AGENTS.md#checks) and the [setup checks](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/setup.md#checks-and-tests); [CONTRIBUTING](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/CONTRIBUTING.md#checks-and-documentation) separately explains docs installation, build and link checks.
+  The workflow commands still provide the executable CI definition.
+
+- **A more convenient way:** **Merge** the maintained explanations of how to choose and run checks into one contributor-facing check entrypoint, linking to the actual workflow/configuration and the detailed environment setup.
+  Keep all named checks and the AGENTS area-to-check routing, but replace repeated full command lists with links to that entrypoint.
+  This follows [CFG-11](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-11)'s reads connection to [CFG-04](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-04) and [CFG-02](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-02)'s reads connections to [CFG-04](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-04)/[CFG-05](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-05); no workflow or gate is cut.
+
+- **Why:** During this review, the same Ruff, mypy, pytest, HTTP demo and wheel commands had to be compared across AGENTS and setup, while the docs environment needed a separate read of CONTRIBUTING.
+  Each repeated command is another place a tool name, option or check scope can become stale independently; one maintained list reduces that synchronization work.
+  There is evidence that the gates themselves are useful: the inherited-main [documentation run](https://github.com/iteam7/gateway7/actions/runs/44183265338/job/134392928085), [link run](https://github.com/iteam7/gateway7/actions/runs/44183265270/job/134392924947) and [Markdown run](https://github.com/iteam7/gateway7/actions/runs/44183265294/job/134392924689) passed on main commit e2e13968a5dce9f11b99c4e3337166e5285dbf18; these are earlier CI results, not checks of the new inventory.
+  The baseline's [task #302 verification disclosure](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/reports/week-08/ai-usage.md#2026-11-18--task-302-configuration-inventory) separately records the local strict build, generated-site check and changed-file lint.
+
+- **Tradeoffs:** The gain is one place to maintain each runnable command and a shorter agent instruction table; the loss is that a contributor must follow a link instead of copying every command directly from AGENTS.
+  The gain is worth that extra navigation if the entrypoint keeps clear area-to-check labels and stable anchors.
+  Removing commands from CI, dropping a mandatory gate or turning the check list into a stale copy of the workflows would defeat this recommendation.
+
+## Give readers and agents a reusable current workflow
+
+- **Today:** [CFG-11](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-11) routes agents through repository instructions and role definitions, [CFG-14](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-14) routes them to current course rules, and [CFG-12](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-12) separates maintained docs from weekly evidence.
+  [CFG-03](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-03) connects the release baseline with that evidence.
+  The maintained [release and submission handoff](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/CONTRIBUTING.md#release-and-submission-handoff) includes generally reusable steps but also names task #98, REL-04, Week 4's missing review, the Week 4 report path and a two-page Assignment 4 wrapper.
+  Those historical details are meaningful evidence for that week, but a current contributor has to distinguish them from the reusable release procedure.
+
+- **A more convenient way:** **Replace** the Week-4-specific wording in the maintained handoff with a current-week procedure whose inputs are the actual release task, assignment, reviewed sprint evidence and verified submission commit.
+  Keep historical findings in their existing weekly evidence and retain links to them where they explain a deviation.
+  Keep the actual Customer Review/rework prerequisite, version selection, protected tag/main checks, immutable snapshot URLs, private wrapper review and authorized submission.
+  The replacement must preserve [CFG-03](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-03)'s cites connection to [CFG-12](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-12) and [CFG-06](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-06)'s reads connection to [CFG-03](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-03); it changes how readers reach the evidence, not the evidence or release criteria.
+
+- **Why:** The review actually encountered a maintained page that instructs the reader to verify reports/week-04/README.md and fill Assignment 4 material while evaluating Week 8 preparation.
+  That mismatch creates a concrete navigation and interpretation cost: the reader must manually substitute the week and determine which old blockers still apply.
+  [CFG-11](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-11) instructs agents to read current rules, so keeping a past-week procedure in their maintained entrypoint also invites outdated context into a current task.
+  A reusable procedure can name its input sources without claiming that the Week 4 blockers were resolved.
+
+- **Tradeoffs:** The gain is a clearer current procedure with less obsolete material in the reader's or agent's context; the loss is the convenience of having Week 4's full exceptional handoff inline.
+  The gain is worth it if the replacement retains direct links to that historical evidence and explicitly checks the current assignment's wrapper requirements instead of freezing the old page limit.
+  Rewriting finished-week reports, deleting real decisions or treating generic wording as proof of a completed Customer Review would be unacceptable.
+
+## Reproduce the intended build without coupling unrelated dependencies
+
+- **Today:** [CFG-08](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-08) resolves runtime/dev Python packages; [CFG-09](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-09) separately locks MkDocs tools and Mermaid assets; [CFG-13](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-13) proposes updates.
+  [CFG-02](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-02) installs these dependencies for checks and [CFG-05](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-05) consumes the docs tools/assets.
+  The [Dockerfile](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/Dockerfile), [Python manifest](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/pyproject.toml), [docs hash lock](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/requirements-docs.txt), [npm lock](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs-build/package-lock.json) and [regeneration instructions](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/CONTRIBUTING.md#update-documentation-dependencies) identify different installation paths rather than one universal environment.
+
+- **A more convenient way:** **Keep** the separate runtime/dev, docs-Python and browser-asset baselines and their documented resolver commands.
+  Keep the local Mermaid bundle and the isolated installed-wheel check.
+  **Add** a short troubleshooting note to the existing docs-build instructions explaining UTF-8 mode for the Windows checker, without changing locks or the build hook.
+  Any such note would follow [CFG-09](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-09)'s cites connections to [CFG-05](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-05)/[CFG-02](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-02); combining all packages into the runtime environment is rejected.
+
+- **Why:** The task #302 work recorded in the [baseline AI disclosure](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/reports/week-08/ai-usage.md#2026-11-18--task-302-configuration-inventory) successfully installed hash-locked documentation tools and npm-locked assets, then passed the strict build and generated-site checks.
+  That actual use also encountered Windows's default text encoding when the checker read existing Unicode output; the UTF-8 rerun passed without a source change.
+  Separate locks made the dependency inputs explicit, while a platform note would avoid diagnosing that environment mismatch as a broken documentation change.
+  No repeated clean-build equivalence or bit-identical wheel experiment was performed, so lock presence is not asserted as proof of full reproducibility.
+
+- **Tradeoffs:** Keeping three dependency paths costs contributors additional installation commands and requires update coverage for each.
+  The gain is avoiding documentation/browser packages in the gateway runtime and retaining independently reviewable locks; that isolation is worth the setup cost.
+  A targeted encoding note adds one platform-specific instruction; it is justified by the recorded failure and successful rerun, whereas an additional wrapper script would introduce maintenance without demonstrated need.
+
+## Promote a verified version without mixing environment state
+
+- **Today:** [CFG-06](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-06) defines the Compose modes and manual staging-to-production procedure, [CFG-07](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-07) defines private value names/exclusions, [CFG-10](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-10) defines monitoring and backend scopes, and [CFG-03](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-03) identifies the release source baseline.
+  The [deployment runbook](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/deployment.md#manual-deployment) checks the clean source commit and actual running-image revision before promotion; its [telemetry procedure](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/deployment.md#telemetry-pipelines) keeps smoke/usability traffic and credentials separate by scope.
+  The public templates describe the configuration shape, while private overrides, current running revisions, backend settings and endpoint access are outside this evaluation.
+
+- **A more convenient way:** **Keep** one maintained deployment runbook and the explicit private-value contract, rather than copying deployment commands into a weekly report or replacing them with unverified direct VM edits.
+  Keep manual promotion and the staging checks; retain the environment-specific evidence references in weekly reports.
+  This preserves [CFG-06](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-06)'s reads connections to [CFG-03](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-03)/[CFG-07](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-07)/[CFG-10](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-10), and [CFG-10](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-10)'s produces connection to [CFG-12](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-12).
+  No automated production-deployment workflow is proposed.
+
+- **Why:** The inspected runbook distinguishes a checkout's HEAD from the already-running container image and describes the different project, port, credential and telemetry-source selections.
+  Collapsing those distinctions into a single unqualified deployment command would discard information needed to avoid stale-image or cross-scope mistakes.
+  The [configuration inventory](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-06) and [RISK-12](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/risks.md#risk-12) already identify that drift mechanism.
+  There is no new live-promotion observation in this review to justify changing the current procedure or claiming that a shorter alternative would be safer or faster.
+
+- **Tradeoffs:** The cost is a longer operator procedure and manual collection of image/commit evidence.
+  The gain is an explicit, reviewable promotion boundary with scope separation; retaining it is preferable to an untested simplification given the unavailable live evidence.
+  The runbook still needs real operator verification and cannot itself prove deployed readiness.
+
+## What We Could Not Judge
+
+| Item or connection | Why it could not be judged | Resulting risk |
+| --- | --- | --- |
+| [CFG-01](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-01) branch/tag protections, required checks and live project role fields | Only public repository files and published metadata were reviewed; administrator settings and current project field enforcement were not inspected | Documented review or tag immutability may not be enforced, and a scheduled issue may have inconsistent roles |
+| [CFG-05](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-05) actual Pages source and environment deployment policies | The workflow file was inspected, not the live administrator/environment settings | A valid docs build may not publish, or its live approval boundary may differ from the file |
+| [CFG-06](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-06)/[CFG-07](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-07) private overlays, secret storage and actual running image | No VM session, private values or current runtime inspection was part of the review | Staging/production drift, credential sharing or an obsolete running image can remain unseen |
+| [CFG-10](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-10) actual saved charts, scope credentials, retention and backend digests | Only public templates and runbook disclosures were inspected; no authenticated live backend review was performed | Correct template queries may coexist with stale deployed filters, missing data or unrepeatable backend images |
+| [CFG-13](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-13) update-job health, app permissions and unresolved dependency alerts | Dependabot configuration was read, but its administrative state and full alert/update history were not inspected | Weekly schedules may fail to deliver actionable updates or leave blocked pins unnoticed |
+| [CFG-11](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-11)/[CFG-14](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-14) actual user-level/private agent configuration and full context retention | Only repository instructions, role definitions and public course routing were available | An external instruction or lost context may alter behavior despite consistent repository guidance |
+| [CFG-08](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-08)/[CFG-09](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-09) full reproducibility across machines and repeated builds | No controlled repeated-build or artifact-equivalence experiment was performed; existing locks and successful checks have narrower scope | Mutable base tags, host tools or other environment inputs can change outputs despite matching source and lockfiles |
+
+## The First Change
+
+The first AI proposal is to replace the Week-4-specific maintained release/submission handoff in CONTRIBUTING.md with a reusable current-week procedure that explicitly takes the actual assignment, release task, reviewed evidence and verified full main SHA as inputs, while retaining all release/review/privacy/snapshot gates and direct links to the unchanged historical Week 4 findings; it would remove obsolete inline task/path/wrapper assumptions from the current entrypoint, giving up the inline historical handoff in exchange for less manual substitution and more trustworthy reader/agent context, with a final check that [CFG-03](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-03)'s evidence and [CFG-06](https://github.com/iteam7/gateway7/blob/3d4fac7fc2df677a59a8261e3d60682b51813669/docs/configuration-plan.md#cfg-06)'s promotion connections remain intact.
