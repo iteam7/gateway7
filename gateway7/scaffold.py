@@ -375,6 +375,8 @@ def _generated_tests(package: str, template: str) -> str:
 def _project_files(name: str, template: str = "redact") -> dict[str, str]:
     package = "gateway7_plugin_" + name
     distribution = "gateway7-plugin-" + name.replace("_", "-")
+    # Wheel distribution components collapse each run of name separators.
+    wheel_distribution = re.sub(r"[-_.]+", "_", distribution).lower()
     major, minor, _ = __version__.split(".", 2)
     gateway_requirement = f"gateway7>={__version__},<{major}.{int(minor) + 1}"
     guard = template == "guard"
@@ -445,7 +447,7 @@ def _project_files(name: str, template: str = "redact") -> dict[str, str]:
             + "The shared helper handles typed tools and native Responses without flattening their identities or altering provider usage.\n\n"
             "## Build and install\n\n"
             "```sh\nuv build --wheel\nuv pip install --no-deps dist/"
-            + distribution.replace("-", "_")
+            + wheel_distribution
             + "-0.1.0-py3-none-any.whl\n"
             "gateway7 validate --config gateway.yaml\n```\n\n"
             "Install the reviewed Gateway7 build in the same environment first. Building may download build dependencies; the isolated fixture execution does not.\n"

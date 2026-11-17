@@ -14,6 +14,7 @@ from typing import Any
 import yaml
 
 from gateway7 import __version__
+from gateway7._project_source import project_source_imports
 from gateway7.config import GatewayConfig, load_config
 from gateway7.errors import GatewayError, ProviderError, StartupError
 from gateway7.loader import LoadedPlugins, load_plugins, start_plugins, stop_plugins
@@ -127,7 +128,12 @@ class FixtureProvider:
 def _validate_native_deltas(records: list[ResponsesTextDelta], response: ResponsesResponse) -> None:
     seen: dict[tuple[int, int], str] = {}
     previous = -1
+    first_head = None
     for record in records:
+        head = json.dumps(record.head.wire_dict(), sort_keys=True, allow_nan=False)
+        if first_head is not None and head != first_head:
+            raise ProviderError()
+        first_head = head
         if (
             record.head.id != response.id
             or record.head.model != response.model
@@ -394,13 +400,15 @@ def _project_config(project: PluginProject) -> tuple[GatewayConfig, Any]:
             "Create the declared module inside this project; an installed stale package is not a source-mode fallback",
             file="pyproject.toml",
         )
-    # Only an explicit authoring project changes this disposable worker's path.
-    sys.path.insert(0, str(project.root))
+    return config, _project_module(project)
+
+
+def _project_module(project: PluginProject) -> Any:
     try:
-        module = _project_module(project)
-    except StartupError:
-        raise
-    except Exception:
+        module = importlib.import_module(project.module)
+    except BaseException:
+        # Exception classes exported by the core are also available to plugin
+        # code. Only diagnostics authored outside this import boundary are safe.
         raise diagnostic(
             "Cannot import the declared project plugin",
             "plugin_import_failed",
@@ -408,13 +416,14 @@ def _project_config(project: PluginProject) -> tuple[GatewayConfig, Any]:
             "Check project imports and installed dependencies; exception text is intentionally omitted",
             file="pyproject.toml",
         ) from None
-    return config, module
-
-
-def _project_module(project: PluginProject) -> Any:
-    module = importlib.import_module(project.module)
-    source_file = module.__file__
-    if source_file is None or not Path(source_file).resolve().is_relative_to(project.root):
+    try:
+        source_file = module.__file__
+        valid_source = source_file is not None and Path(source_file).resolve().is_relative_to(
+            project.root
+        )
+    except BaseException:
+        valid_source = False
+    if not valid_source:
         raise diagnostic(
             "Declared module was not imported from project source",
             "project_source_mismatch",
@@ -521,6 +530,11 @@ def _annotate(project: PluginProject, report: dict[str, Any]) -> None:
 
 async def _run(project_path: str, operation: str) -> dict[str, Any]:
     project = load_project(project_path)
+    with project_source_imports(project.root):
+        return await _run_project(project, operation)
+
+
+async def _run_project(project: PluginProject, operation: str) -> dict[str, Any]:
     try:
         config, module = _project_config(project)
         plugins = load_plugins(config)

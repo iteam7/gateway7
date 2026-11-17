@@ -292,3 +292,229 @@ def test_dev_terminal_ctrl_c_reaps_child_and_closes_both_listeners(tmp_path):
                 os.kill(child, signal.SIGKILL)
                 os.waitpid(child, 0)
         os.close(terminal)
+
+
+def _sse_documents(text):
+    return [
+        json.loads(line[6:])
+        for line in text.splitlines()
+        if line.startswith("data: ") and line != "data: [DONE]"
+    ]
+
+
+def _chat_tool_result(text, stream):
+    if not stream:
+        answer = json.loads(text)
+        return (
+            answer["choices"][0]["message"].get("tool_calls", []),
+            answer["choices"][0]["finish_reason"],
+            answer["usage"],
+        )
+    calls = {}
+    reason = None
+    usage = None
+    for event in _sse_documents(text):
+        if event.get("usage") is not None:
+            usage = event["usage"]
+        for choice in event["choices"]:
+            if choice.get("finish_reason"):
+                reason = choice["finish_reason"]
+            for fragment in choice["delta"].get("tool_calls", []):
+                call = calls.setdefault(fragment["index"], {"function": {"arguments": ""}})
+                if fragment.get("id"):
+                    call["id"] = fragment["id"]
+                function = fragment.get("function", {})
+                if function.get("name"):
+                    call["function"]["name"] = function["name"]
+                call["function"]["arguments"] += function.get("arguments", "")
+    assert "data: [DONE]" in text
+    return list(calls.values()), reason, usage
+
+
+@pytest.mark.parametrize("template", ["guard", "redact"])
+@pytest.mark.parametrize("api", ["chat", "responses"])
+@pytest.mark.parametrize("stream", [False, True])
+def test_dev_function_choices_preserve_names_ids_usage_and_controls(
+    tmp_path, template, api, stream
+):
+    project = create_plugin_project("function_choices", tmp_path, template)
+    process, lines, reader = _start(project)
+    origins = []
+    try:
+        gateway, upstream, token = _ready(process, lines)
+        origins = [gateway, upstream]
+        for selection in ("named", "required", "none", "auto"):
+            functions = [{"name": name, "parameters": {}} for name in ("first", "second")]
+            if api == "chat":
+                tools = [{"type": "function", "function": function} for function in functions]
+                choice = (
+                    {"type": "function", "function": {"name": "second"}}
+                    if selection == "named"
+                    else selection
+                )
+                body = {
+                    "model": "synthetic-model",
+                    "messages": [{"role": "user", "content": "synthetic request"}],
+                    "tools": tools,
+                    "tool_choice": choice,
+                    "stream": stream,
+                }
+                if stream:
+                    body["stream_options"] = {"include_usage": True}
+                path = "/v1/chat/completions"
+            else:
+                tools = [{"type": "function", **function} for function in functions]
+                choice = (
+                    {"type": "function", "name": "second"} if selection == "named" else selection
+                )
+                body = {
+                    "model": "synthetic-model",
+                    "input": "synthetic request",
+                    "tools": tools,
+                    "tool_choice": choice,
+                    "parallel_tool_calls": False,
+                    "stream": stream,
+                    "store": False,
+                }
+                path = "/v1/responses"
+            status, text = _request(gateway, path, token, body)
+            assert status == 200, text
+            expected_name = (
+                "second"
+                if selection == "named"
+                else "first"
+                if selection == "required" or (api == "chat" and selection == "auto")
+                else None
+            )
+            if api == "chat":
+                calls, reason, usage = _chat_tool_result(text, stream)
+                assert usage == {"prompt_tokens": 12, "completion_tokens": 4, "total_tokens": 16}
+                assert reason == ("tool_calls" if expected_name else "stop")
+                assert len(calls) == (1 if expected_name else 0)
+                if expected_name:
+                    assert calls[0]["id"]
+                    assert calls[0]["function"] == {"name": expected_name, "arguments": "{}"}
+            else:
+                events = _sse_documents(text) if stream else []
+                answer = (
+                    next(
+                        event["response"]
+                        for event in events
+                        if event["type"] == "response.completed"
+                    )
+                    if stream
+                    else json.loads(text)
+                )
+                assert answer["parallel_tool_calls"] is False
+                assert answer["tool_choice"] == choice
+                assert answer["tools"] == tools
+                assert answer["usage"] == {
+                    "input_tokens": 12,
+                    "output_tokens": 4,
+                    "total_tokens": 16,
+                }
+                if expected_name:
+                    assert len(answer["output"]) == 1
+                    call = answer["output"][0]
+                    assert call["type"] == "function_call" and call["name"] == expected_name
+                    assert call["id"] and call["call_id"] and call["id"] != call["call_id"]
+                    assert call["arguments"] == "{}" and call["status"] == "completed"
+                    if stream:
+                        done = next(
+                            event["item"]
+                            for event in events
+                            if event["type"] == "response.output_item.done"
+                        )
+                        assert done == call
+                        assert any(
+                            event["type"] == "response.function_call_arguments.delta"
+                            and event["delta"] == "{}"
+                            for event in events
+                        )
+                else:
+                    assert all(item["type"] == "message" for item in answer["output"])
+                    assert answer["output"][0]["content"][0]["text"] == "pong — synthetic request"
+    finally:
+        _stop(process)
+        reader.join(timeout=2)
+    assert process.returncode == 0
+    for origin in origins:
+        _assert_port_released(origin)
+
+
+@pytest.mark.parametrize("api", ["chat", "responses"])
+def test_dev_required_function_after_history_and_named_namespace_early_stream(tmp_path, api):
+    project = create_plugin_project("function_history", tmp_path, "guard")
+    process, lines, reader = _start(project)
+    origins = []
+    try:
+        gateway, upstream, token = _ready(process, lines)
+        origins = [gateway, upstream]
+        if api == "chat":
+            body = {
+                "model": "synthetic-model",
+                "stream": True,
+                "tool_choice": "required",
+                "stream_options": {"include_usage": True},
+                "tools": [{"type": "function", "function": {"name": "second", "parameters": {}}}],
+                "messages": [
+                    {"role": "user", "content": "synthetic request"},
+                    {
+                        "role": "assistant",
+                        "content": None,
+                        "tool_calls": [
+                            {
+                                "id": "old_call",
+                                "type": "function",
+                                "function": {"name": "second", "arguments": "{}"},
+                            }
+                        ],
+                    },
+                    {"role": "tool", "tool_call_id": "old_call", "content": "synthetic result"},
+                ],
+            }
+            status, text = _request(gateway, "/v1/chat/completions", token, body, early=True)
+            assert status == 200, text
+            calls, reason, usage = _chat_tool_result(text, True)
+            assert reason == "tool_calls" and len(calls) == 1
+            assert calls[0]["id"] and calls[0]["id"] != "old_call"
+            assert calls[0]["function"] == {"name": "second", "arguments": "{}"}
+            assert usage["total_tokens"] == 16
+        else:
+            choice = {"type": "function", "namespace": "synthetic", "name": "second"}
+            tools = [
+                {
+                    "type": "namespace",
+                    "name": "synthetic",
+                    "description": "Synthetic tools only",
+                    "tools": [{"type": "function", "name": "second", "parameters": {}}],
+                }
+            ]
+            body = {
+                "model": "synthetic-model",
+                "stream": True,
+                "store": False,
+                "input": "synthetic request",
+                "tools": tools,
+                "tool_choice": choice,
+                "parallel_tool_calls": False,
+            }
+            status, text = _request(gateway, "/v1/responses", token, body, early=True)
+            assert status == 200, text
+            answer = next(
+                event["response"]
+                for event in _sse_documents(text)
+                if event["type"] == "response.completed"
+            )
+            assert answer["tool_choice"] == choice and answer["tools"] == tools
+            call = answer["output"][0]
+            assert call["type"] == "function_call" and call["namespace"] == "synthetic"
+            assert call["name"] == "second" and call["arguments"] == "{}"
+            assert call["id"] != call["call_id"] and call["id"] and call["call_id"]
+            assert answer["usage"]["total_tokens"] == 16
+    finally:
+        _stop(process)
+        reader.join(timeout=2)
+    assert process.returncode == 0
+    for origin in origins:
+        _assert_port_released(origin)

@@ -75,3 +75,18 @@
 - Boundary: Verification uses synthetic local services and trusted Python plugins with accidental-network/process protection; the worker is not an operating-system sandbox for hostile code.
   No live provider call, production deployment, human usability study, Customer acceptance or course-completion result is claimed.
 - Team assessment: TODO
+
+## 2026-11-17 — PR #298 review corrections
+
+- Tool: Codex, with Formater, TechLead and developer agents following the repository roles.
+- Request and work: Fixed all seven confirmed review findings in the existing pull request: unsafe import-exception diagnostics, stale project bytecode, inconsistent native early-response heads, JSON tuple-field validation, named/required synthetic function selection, malformed-project JSON errors and normalized generated wheel-install filenames.
+  Added deterministic regressions for each finding, including same-size/same-timestamp cache files, custom native identities and tool metadata, actual public HTTP tool choices and real builds/installations for repeated underscores.
+- Verification: The complete final regression suite passed 4261 tests with 67 skips under the local test configuration and one existing PTY warning in 141.07 seconds.
+  Compilation, Ruff formatting/lint and mypy passed for 51 production files; the deterministic HTTP demo, wheel and container image builds passed.
+- Packaged checks: A fresh installed wheel outside the checkout passed both full authoring journeys with real Ruff/strict mypy, red/green fixtures, profile checks, current-source development HTTP, ordinary installed-plugin HTTP and owned-listener cleanup.
+  Additional installed-only probes passed custom native early heads with JSON-array metadata, safe import-failure JSON and malformed-TOML JSON; all 55 packaged source/assets matched the final checkout, including the new scoped source loader.
+- Operations and documentation: The complete monitoring/PostgreSQL Compose smoke and Prometheus configuration check passed; strict documentation validation passed for 80 pages and 11518 links/assets, and Markdownlint and actionlint passed.
+  Managed-container verification used only a temporary CA-secret build mount and an internal-service proxy bypass; repository trust settings were unchanged.
+- Review boundary: TechLead independently replayed the seven original probes against the corrected implementation.
+  Plugins remain trusted code; no hostile-code sandbox, real provider call, deployment, release, human usability result or course-completion result is claimed.
+- Team assessment: TODO

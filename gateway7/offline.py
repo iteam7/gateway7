@@ -16,18 +16,57 @@ import threading
 import time
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    TypeAdapter,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
 from gateway7.errors import StartupError
 from gateway7.models import ChatRequest, ChatResponse
 from gateway7.plugin_diagnostics import PluginDiagnosticError, diagnostic, issue, validation_issues
 from gateway7.plugin_project import load_project
 from gateway7.responses_events import ResponsesTextDelta
-from gateway7.responses_models import ResponsesConsent, ResponsesRequest, ResponsesResponse
+from gateway7.responses_models import (
+    ResponseTool,
+    ResponsesConsent,
+    ResponsesRequest,
+    ResponsesResponse,
+)
 
 MAX_FILE_BYTES = 1_048_576
 MAX_REPORT_BYTES = 4_194_304
 Profile = Literal["chat", "chat-tools", "chat-early", "responses", "responses-early"]
+_JSON_HEAD_TOOLS = TypeAdapter(tuple[ResponseTool, ...] | None)
+
+
+def _json_tool_echo_alias(tool: Any) -> Any:
+    # model_dump() uses the public Python field name; the wire schema uses
+    # "async". Normalize only this response-only echo, never tool parameters.
+    if type(tool) is dict and tool.get("type") == "function" and "async_" in tool:
+        if "async" in tool:
+            raise ValueError("Duplicate tool echo field")
+        return {"async" if key == "async_" else key: value for key, value in tool.items()}
+    return tool
+
+
+def _json_head_tools(value: Any) -> Any:
+    if type(value) is not list:
+        return value
+    tools = []
+    for tool in value:
+        if (
+            type(tool) is dict
+            and tool.get("type") == "namespace"
+            and type(tool.get("tools")) is list
+        ):
+            tool = {**tool, "tools": [_json_tool_echo_alias(child) for child in tool["tools"]]}
+        tools.append(_json_tool_echo_alias(tool))
+    return tools
 
 
 class StrictFixture(BaseModel):
@@ -124,7 +163,22 @@ class Case(StrictFixture):
 
     def deltas(self, values: list[str | dict[str, Any]]) -> list[Any]:
         if self.profile == "responses-early":
-            return [ResponsesTextDelta.model_validate(value, strict=True) for value in values]
+            records = []
+            for value in values:
+                if type(value) is dict and type(value.get("head")) is dict:
+                    value = dict(value)
+                    head = dict(value["head"])
+                    if "tools" in head:
+                        # Native records detach state in a wrap validator, so
+                        # JSON-aware tuple decoding must precede that strict
+                        # Python validation. All remaining fields stay strict.
+                        head["tools"] = _JSON_HEAD_TOOLS.validate_json(
+                            json.dumps(_json_head_tools(head["tools"]), allow_nan=False),
+                            strict=True,
+                        )
+                    value["head"] = head
+                records.append(ResponsesTextDelta.model_validate(value, strict=True))
+            return records
         if self.profile == "chat-early":
             if any(type(value) is not str or not value for value in values):
                 raise ValueError("Chat early deltas must be nonempty strings")

@@ -43,7 +43,7 @@ def _project_file(root: Path, value: Any, field: str) -> Path:
         if not resolved.is_relative_to(root) or not resolved.is_file():
             raise ValueError
         return resolved
-    except (OSError, ValueError):
+    except (OSError, ValueError, RuntimeError):
         raise diagnostic(
             "Plugin project file is missing or escapes the project",
             "project_file_unavailable",
@@ -66,7 +66,7 @@ def load_project(path: str | Path = ".") -> PluginProject:
         if len(raw) > MAX_PROJECT_BYTES:
             raise ValueError
         data = tomllib.loads(raw.decode("utf-8"))
-    except (OSError, ValueError, UnicodeError):
+    except (OSError, ValueError, UnicodeError, RuntimeError):
         raise diagnostic(
             "Cannot read plugin project manifest",
             "project_manifest_unavailable",

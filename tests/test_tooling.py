@@ -3,18 +3,18 @@
 import copy
 import json
 import os
-from pathlib import Path
+import py_compile
 import signal
 import subprocess
 import sys
 import time
 
 import pytest
-import yaml
 
 from gateway7._offline_worker import _safe_schema
 from gateway7.errors import StartupError
 from gateway7.offline import (
+    Case,
     MAX_FILE_BYTES,
     inspect_project,
     load_fixtures,
@@ -22,6 +22,7 @@ from gateway7.offline import (
     run_project_tests,
 )
 from gateway7.plugin_project import load_project
+from gateway7.responses_events import ResponsesTextDelta
 from gateway7.scaffold import create_plugin_project
 
 PASS_PLUGIN = """from pydantic import BaseModel, ConfigDict, Field
@@ -298,6 +299,78 @@ def test_project_paths_are_confined_on_all_platforms(tmp_path, field, value):
     assert "project_path_invalid" in json.dumps(caught.value.issues)
 
 
+@pytest.mark.parametrize("operation", ["test", "inspect"])
+@pytest.mark.parametrize(
+    "malformation", ["deep_toml", "config_cycle", "fixtures_cycle", "manifest_cycle"]
+)
+def test_malformed_project_returns_bounded_setup_json(tmp_path, operation, malformation):
+    root = project(tmp_path)
+    if malformation == "deep_toml":
+        manifest = root / "pyproject.toml"
+        manifest.write_text(
+            manifest.read_text()
+            + "\n[tool.synthetic_private]\ndeep="
+            + "[" * 1100
+            + "1"
+            + "]" * 1100
+        )
+        expected = "project_manifest_unavailable"
+    else:
+        target = (
+            root
+            / {
+                "config_cycle": "gateway.yaml",
+                "fixtures_cycle": "fixtures.json",
+                "manifest_cycle": "pyproject.toml",
+            }[malformation]
+        )
+        target.unlink()
+        try:
+            target.symlink_to(target.name)
+        except OSError:
+            pytest.skip("Symlink creation requires platform privileges")
+        expected = (
+            "project_manifest_unavailable"
+            if malformation == "manifest_cycle"
+            else "project_file_unavailable"
+        )
+    result = subprocess.run(
+        [sys.executable, "-m", "gateway7", "plugin", operation, str(root), "--json"],
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+    assert result.returncode == 2
+    report = json.loads(result.stdout)
+    assert report["schema_version"] == 2 and not report["passed"]
+    assert report["issues"][0]["code"] == expected
+    assert "synthetic_private" not in result.stdout and "Traceback" not in result.stdout
+    assert not result.stderr
+
+
+@pytest.mark.parametrize(
+    "profile", ["chat", "chat-tools", "chat-early", "responses", "responses-early"]
+)
+def test_all_profiles_reject_malformed_request_types_before_plugin_execution(tmp_path, profile):
+    native = profile.startswith("responses")
+    root = project(
+        tmp_path,
+        source="raise AssertionError('must not import')",
+        cases=[
+            {
+                "name": "invalid request type",
+                "profile": profile,
+                "request": {"input": 1} if native else {"messages": "invalid"},
+                "provider_response": native_response() if native else {"text": "answer"},
+                "expected": {"provider_calls": 1, "error": "provider_error"},
+            }
+        ],
+        profiles=(profile,),
+    )
+    code, report = run_project_tests(root)
+    assert code == 2 and report["issues"][0]["code"] != "plugin_import_failed"
+
+
 def test_missing_source_never_falls_back_to_installed_plugin(tmp_path):
     root = project(tmp_path)
     (root / "plugin_under_test.py").unlink()
@@ -386,6 +459,39 @@ def test_api_and_import_failures_get_stage_specific_sanitized_diagnostics(tmp_pa
     assert code == 2 and report["issues"][0]["code"] == "plugin_import_failed"
     assert "synthetic-private-import-exception" not in json.dumps(report)
     assert "migrate" not in json.dumps(report)
+
+
+@pytest.mark.parametrize("run", [run_project_tests, inspect_project])
+@pytest.mark.parametrize(
+    "source",
+    [
+        "from gateway7.errors import StartupError\nraise StartupError('synthetic-private-import')",
+        "from gateway7.plugin_diagnostics import PluginDiagnosticError\n"
+        "raise PluginDiagnosticError('synthetic-private-import', "
+        "[{'code': 'synthetic-private-issue', 'message': 'synthetic-private-import'}])",
+        "raise SystemExit('synthetic-private-import')",
+    ],
+)
+def test_plugin_import_cannot_forge_core_diagnostics(tmp_path, run, source):
+    root = project(tmp_path, source=source)
+    code, report = run(root)
+    assert code == 2 and report["issues"][0]["code"] == "plugin_import_failed"
+    assert "synthetic-private" not in json.dumps(report)
+    assert "Traceback" not in json.dumps(report)
+
+
+@pytest.mark.parametrize("run", [run_project_tests, inspect_project])
+def test_project_commands_read_edited_source_despite_valid_stale_bytecode(tmp_path, run):
+    stale = "raise RuntimeError('stale project source')\n"
+    stale += " " * (len(PASS_PLUGIN) - len(stale))
+    root = project(tmp_path, source=stale)
+    source = root / "plugin_under_test.py"
+    timestamp = source.stat()
+    py_compile.compile(str(source), doraise=True)
+    source.write_text(PASS_PLUGIN)
+    os.utime(source, ns=(timestamp.st_atime_ns, timestamp.st_mtime_ns))
+    code, report = run(root)
+    assert code == 0, report
 
 
 def test_recursive_yaml_diagnostic_annotation_is_bounded(tmp_path):
@@ -484,6 +590,126 @@ def test_native_early_provider_oracle_rejects_contradictory_proof(tmp_path, muta
     code, report = run_project_tests(root)
     assert code == 0, report
     assert report["capabilities"]["tested_profiles"] == []
+
+
+@pytest.mark.parametrize(
+    "tools",
+    [
+        [],
+        [{"type": "function", "name": "lookup", "parameters": {"type": "object"}}],
+        [
+            {
+                "type": "namespace",
+                "name": "local",
+                "description": "Synthetic namespace",
+                "tools": [{"type": "function", "name": "lookup", "parameters": {}}],
+            }
+        ],
+    ],
+)
+def test_native_early_public_dto_json_roundtrip_preserves_tools(tmp_path, tools):
+    response = native_response()
+    response.update(parallel_tool_calls=True, tool_choice="auto", tools=tools)
+    records = []
+    for value in native_deltas():
+        value["head"].update(parallel_tool_calls=True, tool_choice="auto", tools=tuple(tools))
+        typed = ResponsesTextDelta.model_validate(value, strict=True)
+        records.append(typed.model_dump(mode="json"))
+    case = {
+        "name": "public native JSON roundtrip",
+        "profile": "responses-early",
+        "request": {"input": "synthetic"},
+        "provider_response": response,
+        "provider_deltas": records,
+        "expected": {"provider_calls": 1, "response": response, "deltas": records},
+    }
+    original = copy.deepcopy(case)
+    parsed = Case.model_validate(case, strict=True)
+    assert [record.model_dump(mode="json") for record in parsed.deltas(records)] == records
+    assert case == original
+    root = project(tmp_path, cases=[case], profiles=("responses-early",))
+    code, report = run_project_tests(root)
+    assert code == 0, report
+    assert report["capabilities"]["tested_profiles"] == ["responses-early"]
+
+
+@pytest.mark.parametrize("field", ["parallel_tool_calls", "tool_choice", "tools"])
+@pytest.mark.parametrize("transition", ["omitted", "null", "initially_omitted"])
+def test_native_early_head_cannot_change_optional_control_presence(tmp_path, field, transition):
+    response = native_response()
+    controls = {"parallel_tool_calls": True, "tool_choice": "auto", "tools": []}
+    response.update(controls)
+    records = native_deltas()
+    for record in records:
+        record["head"].update(copy.deepcopy(controls))
+    if transition == "null":
+        records[1]["head"][field] = None
+    else:
+        records[0 if transition == "initially_omitted" else 1]["head"].pop(field)
+    case = {
+        "name": "native head must remain stable",
+        "profile": "responses-early",
+        "request": {"input": "synthetic"},
+        "provider_response": response,
+        "provider_deltas": records,
+        "expected": {"provider_calls": 1, "error": "provider_error", "deltas": []},
+    }
+    root = project(tmp_path, cases=[case], profiles=("responses-early",))
+    code, report = run_project_tests(root)
+    assert code == 0, report
+    assert report["capabilities"]["tested_profiles"] == []
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        lambda value: value["head"].update(tools={}),
+        lambda value: value["head"].update(
+            tools=[{"type": "function", "name": 1, "parameters": {}}]
+        ),
+        lambda value: value["head"].update(
+            tools=[{"type": "function", "name": "lookup", "parameters": {}, "unknown": True}]
+        ),
+        lambda value: value["head"].update(
+            tools=[{"type": "function", "name": "lookup", "parameters": {}, "async_": True}]
+        ),
+        lambda value: value["head"].update(
+            tools=[
+                {
+                    "type": "function",
+                    "name": "lookup",
+                    "parameters": {},
+                    "async": None,
+                    "async_": None,
+                }
+            ]
+        ),
+        lambda value: value["head"].update(parallel_tool_calls="true"),
+        lambda value: value["head"].update(created_at="1"),
+        lambda value: value.update(sequence_number=True),
+        lambda value: value.update(leading_prefix=1),
+        lambda value: value["head"].update(unknown=True),
+    ],
+)
+def test_native_json_roundtrip_keeps_strict_field_and_tool_validation(tmp_path, mutation):
+    records = native_deltas()
+    mutation(records[0])
+    root = project(
+        tmp_path,
+        cases=[
+            {
+                "name": "invalid native JSON type",
+                "profile": "responses-early",
+                "request": {"input": "synthetic"},
+                "provider_response": native_response(),
+                "provider_deltas": records,
+                "expected": {"provider_calls": 1, "response": native_response(), "deltas": []},
+            }
+        ],
+        profiles=("responses-early",),
+    )
+    code, report = run_project_tests(root)
+    assert code == 2 and report["issues"]
 
 
 @pytest.mark.parametrize("consent", [False, True])

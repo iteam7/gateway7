@@ -3,8 +3,13 @@
 import ast
 import json
 import os
+from pathlib import Path
+import re
+import shlex
+import shutil
 import subprocess
 import sys
+import sysconfig
 import tomllib
 
 from packaging.requirements import Requirement
@@ -177,3 +182,112 @@ def test_generated_source_passes_its_actual_formatter_linter_and_strict_types(tm
             timeout=30,
         )
         assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.fixture(scope="module")
+def reviewed_gateway_wheel(tmp_path_factory):
+    """Build the reviewed SDK once; each install check gets a private environment."""
+    root = Path(__file__).resolve().parents[1]
+    artifacts = tmp_path_factory.mktemp("reviewed-gateway-wheel")
+    cache = tmp_path_factory.mktemp("wheel-build-cache")
+    environment = {key: value for key, value in os.environ.items() if key != "PYTHONPATH"}
+    environment.update(
+        UV_CACHE_DIR=str(cache), UV_PYTHON=sys.executable, UV_PYTHON_DOWNLOADS="never"
+    )
+    assert shutil.which("uv") is not None, "The package build/install checks require uv"
+    result = subprocess.run(
+        ["uv", "build", "--wheel", "--out-dir", str(artifacts)],
+        cwd=root,
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    wheels = list(artifacts.glob("gateway7-*.whl"))
+    assert len(wheels) == 1
+    return wheels[0], cache
+
+
+@pytest.mark.parametrize("name", ["policy_mask", "policy__mask", "policy___mask"])
+def test_documented_wheel_install_matches_real_artifact_and_preserves_module_name(
+    tmp_path, reviewed_gateway_wheel, name
+):
+    gateway_wheel, cache = reviewed_gateway_wheel
+    project = create_plugin_project(name, tmp_path)
+    readme = (project / "README.md").read_text()
+    section = readme.split("## Build and install", 1)[1]
+    commands = re.search(r"```sh\n(.*?)\n```", section, re.S).group(1).splitlines()
+    build_command, install_command, validate_command = map(shlex.split, commands)
+    assert build_command == ["uv", "build", "--wheel"]
+    assert install_command[:4] == ["uv", "pip", "install", "--no-deps"]
+
+    target = tmp_path / "reviewed-environment"
+    environment = {key: value for key, value in os.environ.items() if key != "PYTHONPATH"}
+    environment.update(UV_CACHE_DIR=str(cache), UV_PYTHON_DOWNLOADS="never")
+
+    def run(command, *, cwd=project):
+        result = subprocess.run(
+            command,
+            cwd=cwd,
+            env=environment,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        assert result.returncode == 0, result.stdout + result.stderr
+        return result
+
+    run([sys.executable, "-m", "venv", "--without-pip", str(target)])
+    executable = target / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    # Install the actual Gateway wheel before sharing any dependency search path.
+    run(["uv", "pip", "install", "--python", str(executable), "--no-deps", str(gateway_wheel)])
+    purelib = Path(
+        run(
+            [str(executable), "-I", "-c", "import sysconfig; print(sysconfig.get_path('purelib'))"]
+        ).stdout.strip()
+    )
+    # Reuse the reviewed dependency versions while keeping the SDK and plugin
+    # themselves installed from wheels in this environment's own site-packages.
+    (purelib / "reviewed-runtime-dependencies.pth").write_text(sysconfig.get_path("purelib") + "\n")
+    environment.update(VIRTUAL_ENV=str(target), UV_PYTHON=str(executable))
+    environment["PATH"] = str(executable.parent) + os.pathsep + environment.get("PATH", "")
+
+    run(build_command)
+    artifact = project / install_command[4]
+    assert artifact.is_file(), "The README must name the wheel that was actually built"
+    assert list((project / "dist").glob("*.whl")) == [artifact]
+    run(install_command)
+    outside = tmp_path / "outside-project"
+    outside.mkdir()
+    provenance = json.loads(
+        run(
+            [
+                str(executable),
+                "-I",
+                "-c",
+                "import importlib, json, gateway7; from importlib.metadata import version; "
+                f"plugin=importlib.import_module({'gateway7_plugin_' + name + '.plugin'!r}); "
+                "print(json.dumps({'plugin':plugin.__file__,'gateway':gateway7.__file__,"
+                "'version':version('gateway7')}))",
+            ],
+            cwd=outside,
+        ).stdout
+    )
+    assert Path(provenance["plugin"]).is_relative_to(purelib)
+    assert Path(provenance["gateway"]).is_relative_to(purelib)
+    assert provenance["version"] == __version__
+    assert not Path(provenance["plugin"]).is_relative_to(project)
+    assert (project / ("gateway7_plugin_" + name) / "plugin.py").is_file()
+    # Validate the installed package from a directory that cannot import source.
+    run(
+        [
+            str(executable),
+            "-I",
+            "-m",
+            "gateway7",
+            *validate_command[1:3],
+            str(project / validate_command[3]),
+        ],
+        cwd=outside,
+    )

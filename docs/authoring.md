@@ -104,6 +104,8 @@ Press Ctrl-C in the server terminal to stop both listeners and reap the child.
 
 `dev` runs the actual gateway HTTP parser, middleware pipeline and provider adapter against an owned local fixture.
 It supports synthetic text, typed tools, native Responses and their selected streaming paths; the fixture is not a real model or a certification of all upstream profiles.
+Its synthetic function calls honor named/required selection and preserve typed IDs, usage and controls without executing a function.
+Custom or hosted tool execution is not simulated.
 Use the fixture matrix for explicit profile evidence.
 Each run reads current project source, without auto-reloading edits; restart it after changing code.
 The command replaces provider credentials, client access and any management storage configuration in memory, disables inherited telemetry/transports, and leaves project files unchanged.
