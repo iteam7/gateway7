@@ -132,6 +132,40 @@
   Both historical AI-usage entries and their TODO assessments remain preserved; the team's assessment of this merge is also pending.
 - Team assessment: TODO
 
+## 2026-11-18 — Task #302 configuration inventory
+
+- Tool: Codex with Formater, TechLead and documentation agents.
+- Work: Read the current course requirements and Gateway7's tracked configuration, then documented 14 Active configuration items across the five required groups, their owners and directed connections; added the requested glossary terms, four configuration risks and navigation/instruction links.
+- Inputs: Public repository files, public course rules and public issue/CI metadata only; no usability material, raw recording, private note, participant identity, deployment address or credential was supplied to these agents.
+  The configuration plan was created and reviewed from those public sanitized inputs; the separate goal-based evaluation is not part of this task.
+- Verification: Hash-locked documentation tools and npm-locked assets installed successfully; strict MkDocs build passed and Markdownlint passed the five changed source Markdown files and the AI disclosure with zero errors.
+  The first generated-site check encountered the Windows default text encoding; the UTF-8 rerun passed for 87 maintained pages and 13266 links/assets, including anchors and report exclusion, without changing the repository checker.
+  Network link validation remains subject to the PR's full Lychee check because Lychee is not installed locally.
+- Boundary: This is a repository-file inventory, not proof of live branch protection, private deployment or dashboard settings, instructor access, usability results, sprint planning agreement or Customer acceptance.
+  Planning task #299 remains open; this documentary preparation does not assert its dependency complete.
+- Team assessment: TODO
+
+## 2026-11-18 — Task #303 goal-based configuration evaluation
+
+- Tool: Codex with Formater, TechLead and documentation agents.
+- Work: Evaluated artifact families against four local purposes using the frozen published configuration-inventory commit 3d4fac7fc2df677a59a8261e3d60682b51813669, its directed CFG connections, actual public source files and identified inherited-main CI results.
+  The evaluation states its reading method, concrete maintenance mechanisms, alternatives and tradeoffs, seven areas not judged and one first AI proposal; it implements or schedules none of the recommendations.
+- Inputs: Public sanitized configuration-plan/source/course material and published issue/CI metadata only; no usability material, raw recording, private notes, participant identity, private deployment values or credential was supplied.
+  The configuration plan was supplied to the agents for this evaluation; AI advice is distinguished from the team's own judgement and Customer acceptance.
+- Verification: Markdownlint passed the evaluation with zero errors; 66 immutable source-file links and 61 source anchors resolved against the frozen local baseline, changed-file privacy patterns found no matches and whitespace validation passed.
+  These source/anchor checks are narrower than live HTTP reachability; external links remain subject to PR CI.
+- Boundary: The baseline is published in PR #306, not asserted merged or released; administrator settings, private overlays, running images, live dashboards, update-job health and full build reproducibility remain explicitly unjudged.
+- Team assessment: TODO
+
+## 2026-11-18 — Resolve PR #306 conflicts with current main
+
+- Tool: Codex with Formater and TechLead review.
+- Work: Merged current main into the existing configuration-inventory branch without rewriting history, preserving the configuration inventory and the already-merged evaluation from PR #307.
+  Resolved the AI-usage append conflict by retaining the complete plugin-authoring, review-correction, prior merge, configuration-inventory and evaluation entries with their original team-assessment placeholders.
+- Verification: The resolution is checked for preserved source entries, conflict markers, Markdown validity and combined documentation navigation; final local and CI results are recorded in the pull request.
+- Boundary: No pull request merge, release, deployment, team decision or Customer acceptance is claimed.
+- Team assessment: TODO
+
 ## 2026-11-18 — Task #308 correctness corrections
 
 - Tool: Codex, with Formater, TechLead and developer agents following the repository roles.
@@ -149,4 +183,12 @@
   The final frontend-only guard and browser-test delta was verified by its browser cases and rebuilt assets; backend code was unchanged after the full regression run.
 - Review and boundary: TechLead approved the final frozen diff.
   No public API, package version, dependency lock, workflow, release or deployment changed; no live provider call, human usability result or Customer acceptance is claimed.
+- Team assessment: TODO
+
+## 2026-11-18 — Refresh PR #306 conflict resolution
+
+- Tool: Codex with Formater and TechLead review.
+- Work: Merged the latest main into the configuration-inventory branch without rewriting history; retained the complete Task #308 disclosure and every existing inventory, evaluation and prior conflict-resolution entry.
+- Verification: Checked preservation of both source histories, assessment placeholders and absence of conflict markers; documentation validation and PR CI provide the merge checks.
+- Boundary: No additional runtime change, deployment, release, human decision or Customer acceptance is claimed.
 - Team assessment: TODO

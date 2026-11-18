@@ -57,6 +57,7 @@ nav:
       - Threshold of success: threshold-of-success.md
       - Threshold review proposal: threshold-review.md
       - Project plan: project-plan.md
+      - Configuration plan: configuration-plan.md
       - Risks: risks.md
       - Quality requirements:
           - Priority matrix: quality-requirements/README.md
