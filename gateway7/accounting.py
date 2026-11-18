@@ -9,6 +9,7 @@ import asyncio
 import csv
 import io
 import json
+import logging
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -31,6 +32,16 @@ def _merge_counts(total: dict[str, Any], counts: dict[str, Any]) -> None:
 
 class BudgetDenied(ValueError):
     """A safe, content-free denial before a provider call starts."""
+
+
+def _discard_unforwarded_reservation(store: Any, attempt_id: str) -> None:
+    # This is called only while the before-provider hook still owns admission.
+    # It must not fabricate a provider attempt or refund an unknown outcome.
+    with store._lock, store._control_transaction():
+        store._control_query(
+            "DELETE FROM {prefix}usage_events WHERE id=? AND status='pending'",
+            (attempt_id,),
+        )
 
 
 def _positive(value: Any, *, allow_none: bool = False) -> int | None:
@@ -572,7 +583,9 @@ class AccountingService:
             if unsafe_payload:
                 input_bound = None
             started_clock = time.monotonic()
-            try:
+
+            async def reserve() -> None:
+                nonlocal reservation
                 reservation = await self.db.call(
                     self.store.reserve_usage,
                     client_id,
@@ -582,6 +595,37 @@ class AccountingService:
                     key_id=key_id,
                     started_at=started_at,
                 )
+
+            owned_reserve = asyncio.create_task(reserve())
+            try:
+                await asyncio.shield(owned_reserve)
+            except asyncio.CancelledError as cancellation:
+                from gateway7.loader import complete_cleanup
+
+                async def discard() -> None:
+                    nonlocal reservation
+                    try:
+                        await owned_reserve
+                    except Exception:
+                        # A failed admission has no published reservation ID.
+                        return
+                    if reservation is not None:
+                        try:
+                            await self.db.call(
+                                _discard_unforwarded_reservation, self.store, reservation["id"]
+                            )
+                        except Exception:
+                            # Retain the conservative charge if storage fails.
+                            logging.getLogger("gateway7").warning(
+                                "request_id=- outcome=reservation_cleanup_error component=accounting"
+                            )
+                            return
+                        reservation = None
+
+                try:
+                    await complete_cleanup(discard())
+                finally:
+                    raise cancellation
             except BudgetDenied:
                 raise GatewayError("budget_exceeded") from None
 

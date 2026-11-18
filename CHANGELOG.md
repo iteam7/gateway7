@@ -24,6 +24,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Prometheus token totals preserve independently known input and output counts when the other direction is unavailable.
 - Prepare the next development build as `0.5.0.dev0`; middleware API 2 and provider transport API 1 remain unchanged.
 
+### Fixed
+
+- Keep early Chat responses bound to the selected model while live provider defaults change.
+- Release unused durable budget reservations when cancellation occurs before an upstream call.
+- Preserve the replacement credential and authenticated session when an operator rotates their own key.
+
 ### Breaking changes
 
 - Plugin authoring now requires `[tool.gateway7.plugin]` manifest schema 1 and fixture schema 2; the earlier `plugin test --config ... --fixtures ...` options and schema-1 fixtures are unsupported.

@@ -28,6 +28,7 @@ import { createAdminWorkspace } from "./admin_console.js";
   let mutating = false;
   let filtering = false;
   let exporting = false;
+  let operatorRotation = null;
   const pending = new Set();
 
   function element(tag, text, className) {
@@ -126,6 +127,7 @@ import { createAdminWorkspace } from "./admin_console.js";
   }
   function disconnect() {
     session += 1;
+    operatorRotation = null;
     latestLoad += 1;
     for (const controller of pending) controller.abort();
     pending.clear();
@@ -147,7 +149,7 @@ import { createAdminWorkspace } from "./admin_console.js";
   }
   async function request(
     path,
-    { method = "GET", body, blob = false, revision } = {},
+    { method = "GET", body, blob = false, revision, rotation = null } = {},
   ) {
     const currentSession = session;
     const controller = new AbortController();
@@ -173,6 +175,13 @@ import { createAdminWorkspace } from "./admin_console.js";
       if (currentSession !== session) throw new Error("stale-session");
       if (!response.ok) {
         if (response.status === 401) {
+          if (
+            operatorRotation?.session === currentSession &&
+            rotation !== operatorRotation
+          ) {
+            operatorRotation.unauthorized = true;
+            throw new Error("stale-session");
+          }
           disconnect();
           byId("message").textContent =
             "The operator token was not accepted. Connect again.";
@@ -830,6 +839,45 @@ import { createAdminWorkspace } from "./admin_console.js";
     byId("issued-token-panel").scrollIntoView({ block: "center" });
     byId("reveal-token").focus();
   }
+  function showRotatedOperatorToken(id, value) {
+    showIssuedToken(`operator ${id}`, value);
+    if (snapshot?.actor?.id !== id || token === "") return;
+    // Requests admitted with the previous credential must not disconnect the
+    // replacement session when their responses arrive after this handoff.
+    session += 1;
+    latestLoad += 1;
+    for (const controller of pending) controller.abort();
+    pending.clear();
+    token = value;
+    mutating = filtering = exporting = false;
+    for (const id of ["apply-usage", "clear-usage", "export-usage"])
+      byId(id).disabled = false;
+    setMutationBusy(false);
+  }
+  async function rotateOperatorToken(id, body) {
+    const own = snapshot?.actor?.id === id && token !== "";
+    if (own && operatorRotation?.session === session)
+      throw new Error("rotation-pending");
+    const transition = own ? { session, unauthorized: false } : null;
+    if (own) operatorRotation = transition;
+    try {
+      const result = await request(
+        `./operators/${encodeURIComponent(id)}/token`,
+        { method: "POST", body, rotation: transition },
+      );
+      showRotatedOperatorToken(id, result.token);
+      return result;
+    } catch (failure) {
+      if (transition?.session === session && transition.unauthorized) {
+        disconnect();
+        byId("message").textContent =
+          "The operator token was not accepted. Connect again.";
+      }
+      throw failure;
+    } finally {
+      if (operatorRotation === transition) operatorRotation = null;
+    }
+  }
   function toggleClient(client) {
     void mutate(`./clients/${encodeURIComponent(client.id)}`, {
       method: "PUT",
@@ -1073,6 +1121,7 @@ import { createAdminWorkspace } from "./admin_console.js";
     connected: () => snapshot !== null && token !== "",
     canWrite: () => managed() && snapshot?.actor?.role !== "viewer",
     showToken: showIssuedToken,
+    rotateOperatorToken,
     setRevision: () => {},
     usagePage: (offset) => {
       usageOffset = offset;

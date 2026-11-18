@@ -285,17 +285,13 @@ export function identityPanels(context) {
                   )
                     return;
                   void task(operatorForm, operators.message, async () => {
-                    const result = await context.request(
-                      `./operators/${encodeURIComponent(operator.id)}/token`,
+                    const result = await context.rotateOperatorToken(
+                      operator.id,
                       {
-                        method: "POST",
-                        body: {
-                          label: operator.label,
-                          ...expiryValue(operatorExpiry.input),
-                        },
+                        label: operator.label,
+                        ...expiryValue(operatorExpiry.input),
                       },
                     );
-                    context.showToken(`operator ${operator.id}`, result.token);
                     context.setRevision(result.revision);
                     await context.reload();
                   });

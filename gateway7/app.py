@@ -1858,9 +1858,7 @@ def create_app(
                     request.state.request_id,
                     on_text=on_text,
                     deadline=request.state.deadline,
-                    provider_model=selected
-                    if selected != app.state.config.provider.model
-                    else None,
+                    provider_model=selected,
                 )
 
             return _EarlySSE(
