@@ -165,3 +165,30 @@
 - Verification: The resolution is checked for preserved source entries, conflict markers, Markdown validity and combined documentation navigation; final local and CI results are recorded in the pull request.
 - Boundary: No pull request merge, release, deployment, team decision or Customer acceptance is claimed.
 - Team assessment: TODO
+
+## 2026-11-18 — Task #308 correctness corrections
+
+- Tool: Codex, with Formater, TechLead and developer agents following the repository roles.
+- Work: Fixed the three accepted audit defects: early Chat keeps its selected model across live provider changes, cancelled admission releases only its unused durable reservation, and named operator self-rotation preserves the one-time replacement and current session.
+  The frontend handoff also handles an old read returning 401 after the rotation commits but before its response arrives; failed rotation, external revocation and deliberate session changes retain their normal effect.
+- Backend verification: The full regression run against SQLite and a dedicated task-created PostgreSQL Compose fixture passed 4537 tests with two skips and one existing PTY warning in 187.72 seconds.
+  PostgreSQL used only loopback access, labelled task containers, independent test databases and tmpfs storage; no external database was touched.
+  A normally installed wheel outside the checkout passed 25 additional model/cancellation regressions on both backends, including conservative accounting after an actual provider attempt.
+- Browser verification: The original self-rotation and pre-response unauthorized-read failures were reproduced against the old behavior.
+  The final four actual Chromium cases passed, covering delayed unauthorized reads before and after the handoff, duplicate submission, failed/revoked rotation, deliberate disconnect/new login, token visibility/copying and subsequent protected requests.
+  TechLead independently repeated the browser and backend reproductions; credentials remain in memory and are cleared on logout.
+  Browser execution was local; the committed browser regression is optional without Playwright/Chromium, and mandatory browser CI remains separate follow-up work.
+- Package and documentation checks: Compilation, Ruff formatting/lint and mypy passed for 59 production files; the deterministic HTTP demo, wheel build, final JavaScript syntax checks and packaged-source equality passed.
+  Strict documentation validation passed for 91 pages and 13987 links/assets; the three fixes were added only under the Unreleased changelog section.
+  The final frontend-only guard and browser-test delta was verified by its browser cases and rebuilt assets; backend code was unchanged after the full regression run.
+- Review and boundary: TechLead approved the final frozen diff.
+  No public API, package version, dependency lock, workflow, release or deployment changed; no live provider call, human usability result or Customer acceptance is claimed.
+- Team assessment: TODO
+
+## 2026-11-18 — Refresh PR #306 conflict resolution
+
+- Tool: Codex with Formater and TechLead review.
+- Work: Merged the latest main into the configuration-inventory branch without rewriting history; retained the complete Task #308 disclosure and every existing inventory, evaluation and prior conflict-resolution entry.
+- Verification: Checked preservation of both source histories, assessment placeholders and absence of conflict markers; documentation validation and PR CI provide the merge checks.
+- Boundary: No additional runtime change, deployment, release, human decision or Customer acceptance is claimed.
+- Team assessment: TODO

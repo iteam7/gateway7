@@ -2,6 +2,7 @@
 
 import asyncio
 import importlib
+import json
 import os
 import threading
 
@@ -413,6 +414,137 @@ async def test_provider_swap_drains_captured_request_before_closing_old_adapter(
                 await client.post("/chat", json=body, headers={"Authorization": "Bearer " + token})
             ).status_code == 200
             assert old.calls == new.calls == 1
+    assert old.close_calls == new.close_calls == 1
+
+
+async def test_early_chat_pins_model_across_provider_default_change(monkeypatch, tmp_path):
+    monkeypatch.setenv("OPS_ADMIN", ADMIN)
+    monkeypatch.setenv("OPENAI_API_KEY", "synthetic-integrated-provider-token")
+    app_module = importlib.import_module("gateway7.app")
+    entered, release = asyncio.Event(), asyncio.Event()
+
+    class TrackingProvider(Provider):
+        def __init__(self, default):
+            super().__init__()
+            self.default = default
+            self.models = []
+
+        async def complete(self, request, **options):
+            self.models.append(options.get("model") or self.default)
+            answer = await super().complete(request, **options)
+            return ChatResponse(text=self.models[-1], usage=answer.usage)
+
+    class DelayedEarlySSE(app_module._EarlySSE):
+        def __init__(self, request, run, encoder):
+            async def delayed(on_text):
+                # Admission already owns the captured provider, but its stream
+                # job has not started when the administrator publishes settings.
+                entered.set()
+                await release.wait()
+                return await run(on_text)
+
+            super().__init__(request, delayed, encoder)
+
+    old, new = TrackingProvider("model-a"), TrackingProvider("model-b")
+    monkeypatch.setattr(app_module, "build_provider", lambda *_: old)
+    monkeypatch.setattr(app_module, "_EarlySSE", DelayedEarlySSE)
+    monkeypatch.setattr(
+        importlib.import_module("gateway7.provider_admin"),
+        "build_provider",
+        lambda *_args, **_kwargs: new,
+    )
+    config = GatewayConfig.model_validate(
+        {
+            "provider": {"kind": "openai", "model": "model-a"},
+            "auth": {
+                "enabled": True,
+                "operator_token_env": "OPS_ADMIN",
+                "management_db": str(tmp_path / "admin.sqlite3"),
+            },
+        }
+    )
+    app = create_app(config=config)
+    async with app.router.lifespan_context(app):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app), base_url="http://gateway.test"
+        ) as client:
+            auth = {"Authorization": "Bearer " + ADMIN}
+
+            async def change(path, data, method="POST"):
+                revision = (await client.get("/operator/state", headers=auth)).json()["revision"]
+                return await client.request(
+                    method,
+                    path,
+                    json=data,
+                    headers={**auth, "If-Match": str(revision), "X-Gateway7-Operator": "true"},
+                )
+
+            created = await change(
+                "/operator/clients",
+                {"id": "alice", "models": ["model-b"], "default_model": "model-b"},
+            )
+            assert created.status_code == 201, created.text
+            body = {
+                "model": "model-b",
+                "messages": [{"role": "user", "content": "synthetic"}],
+                "max_tokens": 16,
+                "stream": True,
+                "stream_options": {"include_usage": True},
+            }
+            ongoing = asyncio.create_task(
+                client.post(
+                    "/v1/chat/completions",
+                    json=body,
+                    headers={
+                        "Authorization": "Bearer " + created.json()["token"],
+                        "X-Gateway7-Stream-Mode": "early",
+                    },
+                )
+            )
+            try:
+                await asyncio.wait_for(entered.wait(), 2)
+                assert old.models == []
+                changed = await change(
+                    "/operator/provider",
+                    {"kind": "openai", "model": "model-b", "allowed_models": ["model-b"]},
+                    "PUT",
+                )
+                assert changed.status_code == 200, changed.text
+                assert not old.closed
+            finally:
+                release.set()
+                result = await asyncio.wait_for(ongoing, 2)
+            assert result.status_code == 200, result.text
+            assert old.models == ["model-b"] and new.models == []
+            packets = [
+                json.loads(line[6:])
+                for line in result.text.splitlines()
+                if line.startswith("data: ") and line != "data: [DONE]"
+            ]
+            assert all(packet["model"] == "model-b" for packet in packets)
+            assert (
+                "".join(
+                    choice["delta"].get("content", "")
+                    for packet in packets
+                    for choice in packet["choices"]
+                )
+                == "model-b"
+            )
+            assert packets[-1]["usage"] == {
+                "prompt_tokens": 7,
+                "completion_tokens": 3,
+                "total_tokens": 10,
+            }
+            events = await app.state.db.call(app.state.admin_store.list_usage_events)
+            provider_events = [event for event in events["items"] if event["kind"] == "provider"]
+            assert len(provider_events) == 1
+            event = provider_events[0]
+            assert event["model"] == "model-b" and event["status"] == "complete"
+            assert (event["known_input_tokens"], event["known_output_tokens"]) == (7, 3)
+            http_events = [event for event in events["items"] if event["kind"] == "http"]
+            assert len(http_events) == 1
+            assert http_events[0]["model"] == "model-b"
+            assert http_events[0]["status"] == "success"
     assert old.close_calls == new.close_calls == 1
 
 
