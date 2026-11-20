@@ -135,13 +135,14 @@ Provisional goal: a reviewer can verify configured model permissions and assess 
 - **Current scheduled scope:** 21 SP: [US-04](https://github.com/iteam7/gateway7/issues/33) (5), [US-14](https://github.com/iteam7/gateway7/issues/174) (8) and [US-15](https://github.com/iteam7/gateway7/issues/175) (8).
   This tally is not evidence of the original planning commitment or planned velocity.
 - **Completed-story checkpoint, 8 November:** 5 SP, US-04 (5), following its unchanged-criterion reconciliation in [PR #209](https://github.com/iteam7/gateway7/pull/209) and the earlier Customer acceptance in [DEC-020](decisions.md#dec-020).
-  US-14 and US-15 remain open at 8 SP each; this checkpoint is not final Actual Velocity or closure of the sprint.
-- **Carryover proposal:** move the unfinished US-14/US-15 work to SPRINT-07 if it remains incomplete at closeout, preserving the source estimates and the actually assigned owners.
-  This is a proposal; no issue milestone or sprint state is changed by this document.
+- **Closeout status, 20 November:** The sprint milestone remains open and still contains both 8 SP stories.
+  US-14 is open. US-15 was closed on 13 November by team-lead instruction, and the [closure record](https://github.com/iteam7/gateway7/blob/main/reports/week-07/ai-usage.md#2026-11-13--issue-housekeeping-for-previous-sprints) identifies no recorded Customer acceptance.
+  The 5 SP completed-story checkpoint stands. The team still needs to record the disposition of open work and final Actual Velocity at closeout.
 - **Future candidates:** [US-07](https://github.com/iteam7/gateway7/issues/36), [US-08](https://github.com/iteam7/gateway7/issues/37) and [US-13](https://github.com/iteam7/gateway7/issues/141) total 16 SP; the team has not confirmed the scope for the next two sprints.
 
 The [Week 6 readiness record](https://github.com/iteam7/gateway7/blob/main/reports/week-06/release-readiness.md) links the prepared package candidate, upgrade note and remaining operator handoff.
-Formal Actual Velocity is recorded when the sprint closes, after the release and the disposition of unfinished work; this source checkpoint supplies neither a release nor a retrospective planning commitment.
+The [Week 6 retrospective](https://github.com/iteam7/gateway7/blob/main/reports/week-06/sprint-retrospective.md) already records the held retrospective, its four actions and the outcomes of the Week 5 carried actions.
+The [REL-06 release](#rel-06) and formal sprint closeout remain pending.
 
 #### REL-06
 
