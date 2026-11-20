@@ -192,3 +192,14 @@
 - Verification: Checked preservation of both source histories, assessment placeholders and absence of conflict markers; documentation validation and PR CI provide the merge checks.
 - Boundary: No additional runtime change, deployment, release, human decision or Customer acceptance is claimed.
 - Team assessment: TODO
+
+## 2026-11-20 — Draft the Week 8 report and Week 9 handoff
+
+- Tool: Codex, with a read-only GitHub issue and CI check and repository source review.
+- Work: Drafted the public report, checked merged configuration evidence against its frozen baseline, and assembled the Week 9 handoff and assignment coverage rows.
+- Inputs: Agents received the public, sanitized configuration plan and evaluation and the public UT-01 design, session template and results stub.
+  No actual session note, recording, raw material, private note, participant identity, deployment credential, or private address was provided.
+- Outcome: The public evidence supported 14 active CFG entries, four local evaluation goals and the linked main CI runs.
+  It did not establish the actual counted-session total, instructor access, the Sprint Review, REL-08, the final snapshot or Moodle submission.
+  Those items remain pending.
+- Team assessment: TODO
