@@ -192,3 +192,13 @@
 - Verification: Checked preservation of both source histories, assessment placeholders and absence of conflict markers; documentation validation and PR CI provide the merge checks.
 - Boundary: No additional runtime change, deployment, release, human decision or Customer acceptance is claimed.
 - Team assessment: TODO
+
+## 2026-11-20 — Task #299 sprint planning reconciliation
+
+- Tool: Codex with Formater and a read-only audit agent.
+- Work: Reconciled the public project plan with native GitHub milestone, role, priority and estimate fields.
+  Documented the Week 8 work dependencies and session-attribution rule and kept the Week 9 candidates unscheduled.
+- Inputs: Public course requirements, repository files and tracker metadata; no usability material, private notes or recordings were supplied.
+- Result: Native fields established current task selection and candidate estimates.
+  The original planning agreement and US-09 estimate could not be verified.
+- Team assessment: TODO
