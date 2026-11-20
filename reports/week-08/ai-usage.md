@@ -192,3 +192,11 @@
 - Verification: Checked preservation of both source histories, assessment placeholders and absence of conflict markers; documentation validation and PR CI provide the merge checks.
 - Boundary: No additional runtime change, deployment, release, human decision or Customer acceptance is claimed.
 - Team assessment: TODO
+
+## 2026-11-20 — Task #269 UT-01 access checks
+
+- Tool: Codex.
+- Work: Read the public UT-01 record and merged consent work and documented concrete instructor read and playback checks in the access procedure.
+- Inputs: Public course and repository records only. No participant material, recording, private note, credential or folder URL was supplied.
+- Result: The procedure distinguishes configured permissions, inherited file access and actual instructor access. The custodian still needs to perform and record those checks.
+- Team assessment: TODO

@@ -194,6 +194,12 @@ No verified team-owned recordings folder is available: the connected Drive repor
 No recording folder or sharing grant was created by this change, and no instructor read check is claimed.
 Keep data collection blocked until the recordings and instructor-access gates pass.
 
+Before marking the recording store ready, confirm its team ownership and restricted membership, then use a temporary screen/audio clip with no participant data to verify that an instructor can open and play it and that unauthenticated access is denied.
+Check that a newly uploaded file inherits the same restrictions and delete the test clip after verification.
+For the private text store, record a successful instructor read of a non-participant file separately from configured GitHub permissions.
+Record each check, date, verifier and outcome in the private access record, then verify the tools the facilitator will list on the private consent copy.
+The consent and arrangement gates remain open until the custodian records the successful applicable checks.
+
 If an instructor cannot use GitHub, deliver a dated text archive through Moodle only and declare the deviation in the weekly report; the repository remains the authoritative working home and the archive is a delivery copy.
 If recordings-folder access fails, repair sharing or choose another team-owned folder and verify access before sessions; never substitute public sharing or Git storage.
 If fewer than three representative complete sessions can be arranged, recruit replacements with the same eligibility, retain the open run window and declare/reschedule the gap; do not count disqualified sessions or lower the profile to fill the target.
