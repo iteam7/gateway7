@@ -192,3 +192,11 @@
 - Verification: Checked preservation of both source histories, assessment placeholders and absence of conflict markers; documentation validation and PR CI provide the merge checks.
 - Boundary: No additional runtime change, deployment, release, human decision or Customer acceptance is claimed.
 - Team assessment: TODO
+
+## 2026-11-20 — Task #272 Week 7 submission evidence addendum
+
+- Tool: Codex.
+- Work: Compared the archived Week 7 report with the pinned assignment, public repository, tracker, release and CI evidence and indexed the evidence and outstanding submission gates in a Week 8 addendum.
+- Inputs: Public course and repository records only, including the published UT-01 design and public review summary. No actual session note, recording, raw or private material, credential or submission package was supplied.
+- Result: The public evidence identified the published release, archived report and successful main checks. It did not establish instructor access, the submitted commit or a Moodle receipt.
+- Team assessment: TODO
