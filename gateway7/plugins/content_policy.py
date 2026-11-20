@@ -12,7 +12,17 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 
 from gateway7.models import ChatRequest, ChatResponse, tool_text
-from gateway7.plugin_api import Deny, NextHandler, PluginContext, PluginDescriptor
+from gateway7.plugin_api import (
+    Deny,
+    EarlyStreamUnsupported,
+    NextHandler,
+    PluginContext,
+    PluginDescriptor,
+    ResponsesContext,
+    ResponsesUnsupported,
+)
+from gateway7.responses_models import ResponsesRequest, ResponsesResponse
+from gateway7.responses_policy import apply_policy
 
 logger = logging.getLogger("gateway7")
 Term = Annotated[str, StringConstraints(min_length=1, max_length=256)]
@@ -53,7 +63,7 @@ class ContentPolicyPlugin:
             return self.pattern.subn(lambda _: self.settings.replacement, text)
         return text, sum(1 for _ in self.pattern.finditer(text))
 
-    def _record(self, context: PluginContext, phase: str, matches: int) -> None:
+    def _record(self, context: PluginContext | ResponsesContext, phase: str, matches: int) -> None:
         if matches:
             logger.info(
                 "request_id=%s outcome=policy_match component=%s phase=%s action=%s matches=%d",
@@ -64,9 +74,7 @@ class ContentPolicyPlugin:
                 matches,
             )
 
-    async def handle(
-        self, request: ChatRequest, context: PluginContext, call_next: NextHandler
-    ) -> ChatResponse | Deny:
+    def _prepare_request(self, request: ChatRequest, context: PluginContext) -> ChatRequest | Deny:
         if self.settings.phase in ("request", "both"):
             messages = []
             structured_hits = sum(len(self.pattern.findall(text)) for text in tool_text(request))
@@ -84,6 +92,22 @@ class ContentPolicyPlugin:
                 return Deny()
             if self.settings.action == "redact":
                 request = request.model_copy(update={"messages": messages})
+        return request
+
+    async def prepare_early_stream(
+        self, request: ChatRequest, context: PluginContext
+    ) -> ChatRequest | Deny:
+        if self.settings.phase != "request":
+            raise EarlyStreamUnsupported
+        return self._prepare_request(request, context)
+
+    async def handle(
+        self, request: ChatRequest, context: PluginContext, call_next: NextHandler
+    ) -> ChatResponse | Deny:
+        prepared = self._prepare_request(request, context)
+        if isinstance(prepared, Deny):
+            return prepared
+        request = prepared
         response = await call_next(request)
         if self.settings.phase in ("response", "both"):
             text, hits = self._apply(response.text)
@@ -97,6 +121,31 @@ class ContentPolicyPlugin:
             if self.settings.action == "redact":
                 response = response.model_copy(update={"text": text})
         return response
+
+    async def prepare_responses(
+        self, request: ResponsesRequest, context: ResponsesContext
+    ) -> ResponsesRequest | Deny:
+        if self.settings.phase not in ("request", "both"):
+            return request
+        result, matches = apply_policy(request, self._apply, action=self.settings.action)
+        self._record(context, "request", matches)
+        return result
+
+    async def check_responses(
+        self, response: ResponsesResponse, context: ResponsesContext
+    ) -> ResponsesResponse | Deny:
+        if self.settings.phase not in ("response", "both"):
+            return response
+        result, matches = apply_policy(response, self._apply, action=self.settings.action)
+        self._record(context, "response", matches)
+        return result
+
+    async def prepare_early_responses(
+        self, request: ResponsesRequest, context: ResponsesContext
+    ) -> ResponsesRequest | Deny:
+        if self.settings.phase != "request":
+            raise ResponsesUnsupported
+        return await self.prepare_responses(request, context)
 
 
 def create(settings: Settings) -> ContentPolicyPlugin:

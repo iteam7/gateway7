@@ -177,6 +177,50 @@ def test_enabled_configuration_builds_exporters_without_contacting_the_backend()
     assert not telemetry.enabled
 
 
+def test_telemetry_resource_allowlist_excludes_ambient_private_attributes(monkeypatch):
+    private = "synthetic-private-resource-value"
+    monkeypatch.setenv(
+        "OTEL_RESOURCE_ATTRIBUTES",
+        f"person.name={private},host.name={private},service.instance.id={private}",
+    )
+    monkeypatch.setenv("OTEL_SERVICE_NAME", private)
+    logs = InMemoryLogRecordExporter()
+    reader = InMemoryMetricReader()
+    log_exporter = importlib.import_module("opentelemetry.exporter.otlp.proto.http._log_exporter")
+    metric_exporter = importlib.import_module(
+        "opentelemetry.exporter.otlp.proto.http.metric_exporter"
+    )
+    metric_readers = importlib.import_module("opentelemetry.sdk.metrics.export")
+    monkeypatch.setattr(log_exporter, "OTLPLogExporter", lambda **kwargs: logs)
+    monkeypatch.setattr(metric_exporter, "OTLPMetricExporter", lambda **kwargs: object())
+    monkeypatch.setattr(
+        metric_readers, "PeriodicExportingMetricReader", lambda *args, **kwargs: reader
+    )
+    telemetry = Telemetry.from_environment({
+        "TELEMETRY_ENABLED": "true",
+        "GATEWAY7_ENVIRONMENT": "staging",
+        "OTEL_EXPORTER_OTLP_ENDPOINT": "http://127.0.0.1:9/api/staging",
+    })
+    try:
+        telemetry.record(
+            request_id="a" * 32, route="chat", status=200, error_code=None, duration_ms=3
+        )
+        telemetry._logger_provider.force_flush()
+        records = logs.get_finished_logs()
+        metrics = reader.get_metrics_data()
+        assert len(records) == 1
+        assert len(metrics.resource_metrics) == 1
+        expected_resource = {
+            "service.name": "gateway7", "deployment.environment.name": "staging"
+        }
+        assert dict(records[0].resource.attributes) == expected_resource
+        assert dict(metrics.resource_metrics[0].resource.attributes) == expected_resource
+        assert private not in repr(records)
+        assert private not in repr(metrics)
+    finally:
+        telemetry.shutdown()
+
+
 def test_outcome_labels_are_a_fixed_set():
     assert [outcome_for(status) for status in (200, 304, 401, 499, 502)] == [
         "ok",

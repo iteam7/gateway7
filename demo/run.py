@@ -34,6 +34,7 @@ _TRACE_LINE = re.compile(
     r"http_200|http_403|http_500|http_504) "
     r"component=(?P<component>[A-Za-z][A-Za-z0-9_.-]{0,63}) "
     r"(?:phase=(?P<phase>request|response|provider) )?"
+    r"(?:route=(?P<route>chat) )?"
     r"duration_ms=(?P<duration_ms>[0-9]{1,9}\.[0-9]{3})"
 )
 
@@ -44,6 +45,7 @@ class _TraceEvent:
     outcome: str
     component: str
     phase: str | None
+    route: str | None
     duration_ms: str
 
 
@@ -67,11 +69,14 @@ def _trace_events(
         assert event.component in instances | {"http", "provider"}, "Unknown trace component"
         if event.component == "http":
             assert event.phase is None and event.outcome.startswith("http_"), "Invalid HTTP trace"
+            assert event.route == "chat", "Invalid HTTP route"
         elif event.component == "provider":
+            assert event.route is None, "Unexpected route on provider trace"
             assert event.phase == "provider" and event.outcome in {"start", "complete"}, (
                 "Invalid provider trace"
             )
         else:
+            assert event.route is None, "Unexpected route on middleware trace"
             assert event.phase in {"request", "response"} and not event.outcome.startswith(
                 "http_"
             ), "Invalid middleware trace"

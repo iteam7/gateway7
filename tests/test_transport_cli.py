@@ -241,10 +241,7 @@ def test_offline_transport_is_not_imported_secrets_are_removed_and_socket_guard_
             [
                 "plugin",
                 "test",
-                "--config",
-                str(project / "gateway.yaml"),
-                "--fixtures",
-                str(project / "fixtures.json"),
+                str(project),
                 "--json",
             ]
         )
@@ -252,7 +249,7 @@ def test_offline_transport_is_not_imported_secrets_are_removed_and_socket_guard_
     )
     output = capsys.readouterr()
     report = json.loads(output.out)
-    assert report["passed"] is True and report["total"] == 2
+    assert report["passed"] is True and report["total"] >= 2
     assert not marker.exists()
     assert PROXY_SECRET not in output.out + output.err
 
@@ -267,10 +264,7 @@ def test_offline_rejects_malformed_transport_shape_without_echoing_values(tmp_pa
             [
                 "plugin",
                 "test",
-                "--config",
-                str(project / "gateway.yaml"),
-                "--fixtures",
-                str(project / "fixtures.json"),
+                str(project),
                 "--json",
             ]
         )

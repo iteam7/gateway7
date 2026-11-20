@@ -99,7 +99,7 @@ async def test_one_live_chat_after_nonbillable_auth_checks(monkeypatch):
         ({}, "short", "invalid_token"),
         ({}, "x" * 16 + "\n", "invalid_token"),
         ({"token_env": "invalid name"}, TOKEN, "invalid_token_env"),
-        ({"model": "secret/model"}, TOKEN, "invalid_model"),
+        ({"model": "secret model"}, TOKEN, "invalid_model"),
         ({"url": "http://username:synthetic-secret@localhost"}, TOKEN, "invalid_url"),
         ({"url": "http://localhost:bad"}, TOKEN, "invalid_url"),
         ({"url": "http://localhost/path"}, TOKEN, "invalid_url"),
@@ -123,7 +123,7 @@ async def test_bad_local_options_never_contact_gateway(monkeypatch, options, env
     assert "synthetic-secret" not in json.dumps(report)
 
 
-@pytest.mark.parametrize("failure", ["health", "readiness", "auth_disabled", "models", "model"])
+@pytest.mark.parametrize("failure", ["health", "readiness", "auth_disabled", "models"])
 async def test_failed_prechecks_never_attempt_chat(monkeypatch, failure):
     requests = []
 
@@ -138,14 +138,40 @@ async def test_failed_prechecks_never_attempt_chat(monkeypatch, failure):
         if failure == "auth_disabled" and path == "/v1/models":
             return httpx.Response(200, text=CANARY)
         if failure == "models" and path == "/v1/models" and "authorization" in request.headers:
-            return httpx.Response(200, json={"object": "list", "data": [{"id": CANARY + "/bad"}]})
+            return httpx.Response(200, json={"object": "list", "data": [{"id": CANARY + " bad"}]})
         return response(request)
 
     transport(monkeypatch, handler)
-    code, report = await smoke.run_smoke(
-        "http://localhost", model="other-model" if failure == "model" else None
-    )
+    code, report = await smoke.run_smoke("http://localhost")
     assert code == 1 and report["chat_attempts"] == 0
+    assert CANARY not in json.dumps(report)
+
+
+@pytest.mark.parametrize("model", ["uncatalogued-model", "vendor/model:revision"])
+@pytest.mark.parametrize("status", [200, 403])
+@pytest.mark.parametrize("catalog", [[], [{"id": "vendor/catalogued-model:revision"}]])
+async def test_catalog_membership_is_not_authorization_and_chat_is_attempted_once(
+    monkeypatch, model, status, catalog
+):
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        if request.url.path == "/v1/models" and "authorization" in request.headers:
+            return httpx.Response(200, json={"object": "list", "data": catalog})
+        if request.method == "POST" and status == 403:
+            return httpx.Response(403, text=CANARY)
+        return response(request)
+
+    transport(monkeypatch, handler)
+    code, report = await smoke.run_smoke("http://localhost", model=model)
+    assert code == (0 if status == 200 else 1)
+    assert report["passed"] == (status == 200)
+    assert report["chat_attempts"] == 1
+    chats = [request for request in requests if request.method == "POST"]
+    assert len(chats) == 1 and len(requests) == 5
+    assert json.loads(chats[0].content)["model"] == model
+    assert report["checks"][-1]["http_status"] == status
     assert CANARY not in json.dumps(report)
 
 

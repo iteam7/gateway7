@@ -212,3 +212,52 @@ def test_error_metadata_rejects_arbitrary_values_and_other_error_codes(value):
         "middleware"
         not in GatewayError("provider_error", middleware="guard").body("opaque")["error"]
     )
+
+
+def test_merged_early_chat_request_denial_keeps_instance_metadata(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "synthetic-merge-provider-key")
+    monkeypatch.setenv("MERGE_POLICY_TOKEN", "synthetic-merge-policy-client-token")
+
+    class UnusedProvider(Provider):
+        async def complete_early(self, *args, **kwargs):
+            pytest.fail("Denied request must not reach the provider")
+
+    provider = UnusedProvider()
+    monkeypatch.setattr(
+        importlib.import_module("gateway7.app"), "build_provider", lambda *_: provider
+    )
+    config = GatewayConfig.model_validate(
+        {
+            "provider": {"kind": "openai", "model": "model-a"},
+            "auth": {
+                "enabled": True,
+                "clients": {
+                    "test": {
+                        "token_env": "MERGE_POLICY_TOKEN",
+                        "models": ["model-a"],
+                    }
+                },
+            },
+            "plugins": {
+                "company-policy": {
+                    "module": "gateway7.plugins.content_policy",
+                    "settings": {"terms": [SECRET], "phase": "request"},
+                }
+            },
+            "middleware": ["company-policy"],
+        }
+    )
+    body = {"model": "model-a", "stream": True, "messages": [{"role": "user", "content": SECRET}]}
+    with TestClient(create_app(config=config)) as client:
+        response = client.post(
+            "/v1/chat/completions",
+            headers={
+                "Authorization": "Bearer synthetic-merge-policy-client-token",
+                "X-Gateway7-Stream-Mode": "early",
+            },
+            json=body,
+        )
+    assert response.status_code == 403
+    assert response.json()["error"]["middleware"] == "company-policy"
+    assert response.json()["error"]["code"] == "policy_denied"
+    assert not provider.requests and SECRET not in response.text

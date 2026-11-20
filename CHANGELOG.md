@@ -7,12 +7,72 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- Named expiring application keys and administrator/viewer operator credentials, searchable user metadata and defaults, revision-checked edits and attributable audit history.
+- Precise UTC usage history with hourly/daily series, captured model prices, estimated costs, durable daily/monthly token and cost budget reservations, protected request diagnostics and configurable retention.
+- Live single-provider settings and model aliases with write-only encrypted credentials, connection checks and safe draining of replaced adapters.
+- Installed same-backend backup/restore commands for private, versioned management snapshots, with validation and empty-target recovery.
+- Readiness/database and exporter delivery metrics, Responses-aware Grafana panels and operational Prometheus alert rules.
+- Project-aware plugin scaffolding with request-guard and two-way-redactor starters, a public typed text-policy helper, local agent contracts, editable unit tests and generated Ruff/strict mypy configuration.
+- Schema-2 synthetic fixtures for Chat, typed tools, native Responses and eligible early streams, with per-profile evidence, source-aware inspection and safe actionable diagnostics.
+- One-command loopback plugin development with owned synthetic HTTP services, scrubbed credentials, automatic ports and cross-platform cleanup; installed-wheel authoring checks cover Linux and Windows on Python 3.11–3.13.
+- Opt-in durable user administration in the operator console: create, edit, suspend and delete accounts, issue or revoke one-time client tokens, and apply model access, limits and additional middleware without restarting.
+- PostgreSQL-backed administration through a health-checked Compose service and durable volume, with explicit local SQLite storage retained as an alternative.
+
+### Changed
+
+- Managed writes now require the current `If-Match` revision, and new usage reports use precise UTC `[start, end)` intervals; historical daily totals retain their original precision.
+- Prometheus token totals preserve independently known input and output counts when the other direction is unavailable.
+- Prepare the next development build as `0.5.0.dev0`; middleware API 2 and provider transport API 1 remain unchanged.
+
+### Fixed
+
+- Keep early Chat responses bound to the selected model while live provider defaults change.
+- Release unused durable budget reservations when cancellation occurs before an upstream call.
+- Preserve the replacement credential and authenticated session when an operator rotates their own key.
+
+### Breaking changes
+
+- Plugin authoring now requires `[tool.gateway7.plugin]` manifest schema 1 and fixture schema 2; the earlier `plugin test --config ... --fixtures ...` options and schema-1 fixtures are unsupported.
+  Regenerate a starter and port reviewed policy/cases to the declared profiles before testing or development serving.
+
+## [0.4.0] - 2026-11-14
+
+### Added
+
+- Explicit private JSON credential loading for local `gateway7 serve` startup, with existing environment values taking precedence and no automatic file discovery.
+- Optional provider/client model restrictions and an authenticated, bounded cached OpenAI model catalog; catalog membership neither gates authorization nor certifies endpoint compatibility.
+- A read-only operator web console displays safe client configuration, limits, usage and startup middleware capabilities with isolated authentication and packaged local assets.
+- An opt-in operator-only client usage snapshot reports known and unknown directional source usage and terminal provider outcomes without retaining request or response content.
+- Optional additional per-client middleware chains retain all global policies, isolate client rules and validate references before plugin construction.
+- Optional per-client request-rate quotas with monotonic refill, safe Retry-After responses and no charge for pre-admission rejects or task-creation rollback.
+- Optional per-client concurrency limits with isolated 429 admission and leases held through response delivery and cancellation cleanup.
+- Stable configured client identities independent of token rotation and restart-based account suspension with enabled: false.
+- Opt-in early Chat Completions text via `X-Gateway7-Stream-Mode: early` for compatible request-only middleware, with backpressure and delayed validated tool calls; full-response checked delivery remains the default.
+- A bounded `gateway7_http_request_outcomes_total` counter separates terminal stream failures and cancellations from the HTTP status sent, including requests ending without a response.
+- A closed native `/v1/responses` HTTP subset with native policy hooks, ordered structured tool turns, default checked JSON/SSE and independent opaque-content/hosted-tool consent; this does not establish full Responses or live Codex compatibility.
+- A typed native early-text opt-in contract preserves native identity/order for a bounded leading assistant prefix; complex profiles retain final checked output without an all-profile first-token latency promise, and end-to-end/container verification remains pending.
 - Optional privacy-safe chat start/completion events for OpenPanel, with server-owned traffic source, staging/production isolation and the four-metric analytics plan.
 - A staging analysability check for per-request log visibility and a five-minute P95 failure series, plus telemetry backend and dashboard setup instructions.
 - Optional OpenTelemetry export of one structured log record and one request-duration histogram observation per API request to an OpenObserve organization per environment, switched by `TELEMETRY_ENABLED`, with the SLI-01 and per-request log queries in the observability plan.
 
 ### Fixed
 
+- Complete local startup cancellation when middleware suppresses cancellation, retaining the original cancellation and restoring the credential overlay before cleanup.
+- Reject ambiguous native and Chat HTTP JSON, including duplicate members, nonfinite numbers and invalid Unicode, before middleware or provider calls.
+- Bound final native and nonstreaming Chat JSON delivery by the request deadline, including blocked ASGI sends.
+- Preserve safe route-owned Allow headers on HTTP 405 errors without reflecting arbitrary exception headers.
+- Complete owned Chat provider stream cleanup after cancellation, sharing the cancellation-safe close behavior with Responses.
+- Preserve timeout and external-cancellation precedence when a Chat provider suppresses cancellation, while retaining known source usage.
+- Validate required middleware topology and all factory signatures before constructing any plugin instance.
+- Bound YAML configuration files and validate aliases, duplicate keys, node counts and nesting before constructing configuration values.
+- Reject ambiguous, nonfinite, invalid-Unicode or excessively nested Chat SSE event JSON before delivering any of its text.
+- Revalidate nested Chat middleware object state so copied extra fields, invalid descendants and cycles cannot bypass boundary validation.
+- Reject partial Responses usage whose reported directional or detail counts exceed a reported total while preserving unknown counts.
+- Generate middleware package dependencies for the running Gateway7 minor release instead of the incompatible pre-0.2 range.
+- Exclude ambient OpenTelemetry resource attributes and automatic detectors from exported log and metric resources.
+- Retain observed provider-reported Chat usage when response cleanup fails, with strict JSON validation and unknown usage for malformed or oversized bodies.
+- Reject ambiguous buffered provider JSON with duplicate members, invalid UTF-8, nonfinite numbers or excessive nesting before Chat response delivery.
+- Normalize valid OpenAI `stop` tool turns to `tool_calls`, preserve call-free `length` responses and usage, accept nullable optional SSE tool fields, and use a native OpenCode V2 compatibility profile for the bounded Chat Completions subset.
 - Name the denying middleware in policy errors on both chat APIs and report bounded unsupported content-policy actions before startup.
 - Align the package, runtime and public OpenAPI version with the next release candidate instead of reporting `0.1.0` for newer release tags.
 
@@ -102,7 +162,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - The one-command demonstration's plugin-installation check now passes on Windows, where it compared backslash paths with POSIX paths.
 - The documented test command no longer errors on Windows, where one case's generated test ID exceeded the environment-variable size limit.
 
-[Unreleased]: https://github.com/iteam7/gateway7/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/iteam7/gateway7/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/iteam7/gateway7/releases/tag/v0.4.0
 [0.3.0]: https://github.com/iteam7/gateway7/releases/tag/v0.3.0
 [0.2.0]: https://github.com/iteam7/gateway7/releases/tag/v0.2.0
 [0.1.1]: https://github.com/iteam7/gateway7/releases/tag/v0.1.1

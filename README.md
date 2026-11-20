@@ -59,8 +59,18 @@ Follow [Python setup](docs/setup.md#install-from-a-checkout) for a complete firs
 
 ## Create a company middleware
 
-Generate a small Python package, test it with offline fixtures, then install it and restart the gateway.
-The [authoring guide](docs/authoring.md) walks through each command.
+With the reviewed Gateway7 build active, work in a separate folder:
+
+```sh
+gateway7 plugin init company_guard --template guard
+gateway7 plugin test company_guard
+gateway7 plugin dev company_guard
+```
+
+Expect 12 passing synthetic cases, then a loopback URL and a ready-to-run client command.
+Ctrl-C stops the gateway and its synthetic upstream.
+The generated package includes strict settings, typed multi-profile fixtures, unit checks and local agent instructions.
+Use the [first-plugin guide](docs/authoring.md), [cookbook](docs/plugin-cookbook.md) and [agent workflow](docs/plugin-agent-guide.md), then build a normal wheel for deployment.
 
 ## Project guides
 

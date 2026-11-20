@@ -1,5 +1,6 @@
 """QR-02: the suite covers the critical modules and catches forwarding after a failure."""
 
+import ast
 import os
 from pathlib import Path
 import re
@@ -72,9 +73,24 @@ def test_forwarding_after_request_failure_fails_the_suite_and_the_demo(checkout)
 
     pipeline = target / "gateway7" / "pipeline.py"
     source = pipeline.read_text(encoding="utf-8")
+    # The early runner also denies requests; mutate only the buffered entry point.
+    buffered_runs = [
+        method
+        for node in ast.parse(source).body
+        if isinstance(node, ast.ClassDef) and node.name == "Pipeline"
+        for method in node.body
+        if isinstance(method, ast.AsyncFunctionDef) and method.name == "run"
+    ]
+    assert len(buffered_runs) == 1, "pipeline.py changed; locate Pipeline.run for QR-02"
+    buffered_run = buffered_runs[0]
+    assert buffered_run.end_lineno is not None
+    lines = source.splitlines(keepends=True)
+    start, end = buffered_run.lineno - 1, buffered_run.end_lineno
+    buffered_source = "".join(lines[start:end])
     for original, broken in MUTATIONS:
-        assert source.count(original) == 1, "pipeline.py changed; update the QR-02 mutation"
-        source = source.replace(original, broken)
+        assert buffered_source.count(original) == 1, "Pipeline.run changed; update the QR-02 mutation"
+        buffered_source = buffered_source.replace(original, broken, 1)
+    source = "".join(lines[:start]) + buffered_source + "".join(lines[end:])
     pipeline.write_text(source, encoding="utf-8")
 
     targeted = run("-m", "pytest", "-q", "-p", "no:cacheprovider", FAILURE_TESTS)

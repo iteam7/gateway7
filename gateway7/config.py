@@ -1,23 +1,56 @@
 """Strict, safe YAML configuration; credentials are resolved from the environment."""
 
 import os
+import re
+import unicodedata
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
 import yaml
 from pydantic import (
     BaseModel,
+    BeforeValidator,
     ConfigDict,
     Field,
+    SerializerFunctionWrapHandler,
     StringConstraints,
     ValidationError,
+    field_validator,
+    model_serializer,
     model_validator,
 )
 
 from gateway7.errors import StartupError
+from gateway7.plugin_diagnostics import PluginDiagnosticError, diagnostic, validation_issues
+
+MAX_CONFIG_BYTES = 1_048_576
+MAX_CONFIG_NODES = 10_000
+MAX_CONFIG_DEPTH = 64
 
 InstanceName = Annotated[str, StringConstraints(pattern=r"^[A-Za-z][A-Za-z0-9_.-]{0,63}$")]
-ModelId = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")]
+
+
+def validate_model_id(value: str) -> str:
+    """Keep model IDs literal while bounding their UTF-8 wire representation."""
+    if (
+        not isinstance(value, str)
+        or not value
+        or any(c.isspace() or unicodedata.category(c) in ("Cc", "Cf", "Cs") for c in value)
+        or len(value.encode("utf-8")) > 1024
+    ):
+        raise ValueError("Invalid model ID")
+    return value
+
+
+def validate_provider_model(kind: str, value: str) -> str:
+    """OpenAI IDs are opaque; other adapters retain their path-safe contract."""
+    value = validate_model_id(value)
+    if kind != "openai" and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", value) is None:
+        raise ValueError("Invalid provider model ID")
+    return value
+
+
+ModelId = Annotated[str, BeforeValidator(validate_model_id)]
 ModuleName = Annotated[
     str,
     StringConstraints(
@@ -42,9 +75,8 @@ class ProviderConfig(StrictConfig):
     key_env: str = Field(
         default="FAKE_LLM_API_KEY", pattern=r"^[A-Za-z_][A-Za-z0-9_]*$", max_length=128
     )
-    # Real adapters require an explicit model. Restrict IDs to a path-safe
-    # alphabet because Gemini puts this server-controlled value in its URL.
-    model: str = Field(default="fake", pattern=r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
+    model: ModelId = "fake"
+    allowed_models: list[ModelId] | None = Field(default=None, max_length=64)
     timeout_seconds: float = Field(default=30.0, gt=0, le=300, allow_inf_nan=False)
     transport: TransportConfig | None = None
 
@@ -66,6 +98,30 @@ class ProviderConfig(StrictConfig):
             value.setdefault("key_env", environment)
         return value
 
+    @field_validator("allowed_models", mode="before")
+    @classmethod
+    def explicit_model_policy(cls, value: Any) -> Any:
+        if value is None:
+            raise ValueError("Omit allowed_models for unrestricted access")
+        return value
+
+    @model_validator(mode="after")
+    def valid_models(self) -> "ProviderConfig":
+        validate_provider_model(self.kind, self.model)
+        if self.allowed_models is not None:
+            if len(self.allowed_models) != len(set(self.allowed_models)):
+                raise ValueError("Provider allowed_models must be unique")
+            for model in self.allowed_models:
+                validate_provider_model(self.kind, model)
+        return self
+
+    @model_serializer(mode="wrap")
+    def serialize_model_policy(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        data = handler(self)
+        if self.allowed_models is None:
+            data.pop("allowed_models", None)
+        return data
+
 
 class LimitsConfig(StrictConfig):
     request_timeout_seconds: float = Field(default=10.0, gt=0, le=300, allow_inf_nan=False)
@@ -81,27 +137,70 @@ class PluginConfig(StrictConfig):
     settings: dict[str, Any] = Field(default_factory=dict)
 
 
+class ClientLimitsConfig(StrictConfig):
+    max_concurrent_requests: int | None = Field(default=None, ge=1, le=10000)
+    requests_per_minute: int | None = Field(default=None, ge=1, le=1_000_000)
+
+
 class ClientConfig(StrictConfig):
     token_env: str = Field(pattern=r"^[A-Za-z_][A-Za-z0-9_]*$", max_length=128)
-    models: list[ModelId] = Field(min_length=1, max_length=64)
+    enabled: bool = True
+    limits: ClientLimitsConfig = Field(default_factory=ClientLimitsConfig)
+    models: list[ModelId] | None = Field(default=None, max_length=64)
+    additional_middleware: list[InstanceName] = Field(default_factory=list, max_length=64)
+
+    @field_validator("models", mode="before")
+    @classmethod
+    def explicit_model_policy(cls, value: Any) -> Any:
+        if value is None:
+            raise ValueError("Omit models for unrestricted access")
+        return value
 
     @model_validator(mode="after")
     def unique_models(self) -> "ClientConfig":
-        if len(self.models) != len(set(self.models)):
+        if self.models is not None and len(self.models) != len(set(self.models)):
             raise ValueError("Client models must be unique")
         return self
+
+    @model_serializer(mode="wrap")
+    def serialize_model_policy(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        data = handler(self)
+        if self.models is None:
+            data.pop("models", None)
+        return data
 
 
 class AuthConfig(StrictConfig):
     enabled: bool = False
     clients: dict[InstanceName, ClientConfig] = Field(default_factory=dict, max_length=128)
+    operator_token_env: str | None = Field(
+        default=None, pattern=r"^[A-Za-z_][A-Za-z0-9_]*$", max_length=128
+    )
+    management_db: str | None = Field(default=None, min_length=1, max_length=4096)
+    management_database_url_env: str | None = Field(
+        default=None, pattern=r"^[A-Za-z_][A-Za-z0-9_]*$", max_length=128
+    )
+
+    @property
+    def management_enabled(self) -> bool:
+        return self.management_db is not None or self.management_database_url_env is not None
 
     @model_validator(mode="after")
     def consistent_clients(self) -> "AuthConfig":
-        if self.enabled != bool(self.clients):
+        if self.management_db is not None and self.management_database_url_env is not None:
+            raise ValueError("Select only one management database backend")
+        if self.management_db is not None:
+            if not self.management_db.strip() or "\x00" in self.management_db:
+                raise ValueError("Invalid management database path")
+        if self.management_enabled:
+            if not self.enabled or self.operator_token_env is None:
+                raise ValueError("User management requires client and operator authentication")
+        elif self.enabled != bool(self.clients):
             raise ValueError(
                 "Enabled authentication requires clients; disabled authentication requires none"
             )
+        if self.operator_token_env is not None and not self.enabled:
+            raise ValueError("Operator usage access requires client authentication")
         return self
 
 
@@ -116,40 +215,89 @@ class GatewayConfig(StrictConfig):
     def real_providers_require_authentication(self) -> "GatewayConfig":
         if self.provider.kind != "fake" and not self.auth.enabled:
             raise ValueError("Real providers require gateway client authentication")
+        for client in self.auth.clients.values():
+            if client.models is not None:
+                for model in client.models:
+                    validate_provider_model(self.provider.kind, model)
         return self
 
 
-def _reject_duplicate_keys(node: yaml.Node | None, ancestors: frozenset[int] = frozenset()) -> None:
-    """safe_load otherwise silently overwrites repeated plugin/config map keys."""
+def _reject_duplicate_keys(node: yaml.Node | None) -> None:
+    """Validate the bounded YAML graph before constructing configuration values."""
     if node is None:
         return
-    if id(node) in ancestors:
-        raise StartupError("Recursive YAML configuration is not supported")
-    ancestors = ancestors | {id(node)}
-    if isinstance(node, yaml.MappingNode):
-        keys: set[str] = set()
-        for key, value in node.value:
-            if not isinstance(key, yaml.ScalarNode) or key.tag != "tag:yaml.org,2002:str":
-                raise StartupError("Configuration keys must be strings")
-            if key.value in keys:
-                raise StartupError("Duplicate configuration key")
-            keys.add(key.value)
-            _reject_duplicate_keys(value, ancestors)
-    elif isinstance(node, yaml.SequenceNode):
-        for item in node.value:
-            _reject_duplicate_keys(item, ancestors)
+    heights: dict[int, int] = {}
+    nodes = 0
+
+    def visit(current: yaml.Node, ancestors: frozenset[int], depth: int) -> int:
+        nonlocal nodes
+        identity = id(current)
+        if identity in ancestors:
+            raise StartupError("Recursive YAML configuration is not supported")
+        if depth > MAX_CONFIG_DEPTH:
+            raise StartupError("Gateway configuration exceeds the YAML depth limit")
+        if identity in heights:
+            height = heights[identity]
+            if depth + height - 1 > MAX_CONFIG_DEPTH:
+                raise StartupError("Gateway configuration exceeds the YAML depth limit")
+            return height
+        nodes += 1
+        if nodes > MAX_CONFIG_NODES:
+            raise StartupError("Gateway configuration exceeds the YAML node limit")
+        ancestors = ancestors | {identity}
+        height = 1
+        if isinstance(current, yaml.MappingNode):
+            keys: set[str] = set()
+            for key, value in current.value:
+                if not isinstance(key, yaml.ScalarNode) or key.tag != "tag:yaml.org,2002:str":
+                    raise StartupError("Configuration keys must be strings")
+                if key.value in keys:
+                    raise diagnostic(
+                        "Duplicate configuration key",
+                        "config_duplicate_key",
+                        "config",
+                        "Remove the repeated YAML key",
+                        line=key.start_mark.line + 1,
+                    )
+                keys.add(key.value)
+                height = max(
+                    height,
+                    1 + visit(key, ancestors, depth + 1),
+                    1 + visit(value, ancestors, depth + 1),
+                )
+        elif isinstance(current, yaml.SequenceNode):
+            for item in current.value:
+                height = max(height, 1 + visit(item, ancestors, depth + 1))
+        heights[identity] = height
+        return height
+
+    visit(node, frozenset(), 1)
 
 
 def load_config(path: str | Path) -> GatewayConfig:
     try:
-        text = Path(path).read_text(encoding="utf-8")
+        with Path(path).open("rb") as source:
+            raw = source.read(MAX_CONFIG_BYTES + 1)
+        if len(raw) > MAX_CONFIG_BYTES:
+            raise StartupError("Gateway configuration exceeds the file size limit")
+        text = raw.decode("utf-8")
     except (OSError, UnicodeError):
-        raise StartupError("Cannot read gateway configuration") from None
+        raise diagnostic(
+            "Cannot read gateway configuration",
+            "config_unavailable",
+            "config",
+            "Use an existing bounded UTF-8 configuration file",
+        ) from None
     try:
-        # SafeLoader does not instantiate Python objects. The second pass rejects
-        # duplicate map keys, aliases that recurse, and non-string keys.
-        data = yaml.safe_load(text)
-        _reject_duplicate_keys(yaml.compose(text, Loader=yaml.SafeLoader))
+        # Compose once, check graph structure and work limits, then construct only
+        # safe YAML values. Memoized subtree heights keep alias checks linear.
+        loader = yaml.SafeLoader(text)
+        try:
+            node = loader.get_single_node()
+            _reject_duplicate_keys(node)
+            data = None if node is None else loader.construct_document(node)
+        finally:
+            loader.dispose()
         if isinstance(data, dict) and "chains" in data:
             raise StartupError(
                 "Legacy chains configuration: replace chains.request/response "
@@ -158,8 +306,27 @@ def load_config(path: str | Path) -> GatewayConfig:
         return GatewayConfig.model_validate(data, strict=True)
     except StartupError:
         raise
-    except (yaml.YAMLError, ValidationError, TypeError, ValueError, RecursionError):
-        raise StartupError("Invalid gateway configuration") from None
+    except ValidationError as error:
+        raise PluginDiagnosticError(
+            "Invalid gateway configuration",
+            validation_issues(error, model=GatewayConfig, prefix="config"),
+        ) from None
+    except yaml.YAMLError as error:
+        mark = getattr(error, "problem_mark", None)
+        raise diagnostic(
+            "Invalid gateway configuration",
+            "config_yaml_invalid",
+            "config",
+            "Check YAML syntax at the reported line; input values are intentionally omitted",
+            line=None if mark is None else mark.line + 1,
+        ) from None
+    except (TypeError, ValueError, RecursionError):
+        raise diagnostic(
+            "Invalid gateway configuration",
+            "config_invalid",
+            "config",
+            "Check the documented closed configuration schema",
+        ) from None
 
 
 def provider_key(config: ProviderConfig) -> str:

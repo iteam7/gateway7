@@ -3,7 +3,7 @@
 Run from the repository root: python docs/architecture/container.py
 An absolute script path also works from any other directory.
 Use --check to verify that the committed SVG matches this source.
-The topology follows compose.yaml, compose.live.yaml and monitoring/*.yml.
+The topology follows compose.yaml, compose.live.yaml, compose.admin.yaml and monitoring/*.yml.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ from html import escape
 from pathlib import Path
 
 WIDTH = 1600
-HEIGHT = 1090
+HEIGHT = 1370
 INK = "#14253d"
 MUTED = "#52657c"
 BLUE = "#215baf"
@@ -70,7 +70,9 @@ def build_svg() -> str:
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{WIDTH}" height="{HEIGHT}" '
         f'viewBox="0 0 {WIDTH} {HEIGHT}" role="img" aria-labelledby="title description">',
         '<title id="title">Gateway7 C4 container view</title>',
-        '<desc id="description">The Gateway7 system contains gateway, prometheus and grafana. '
+        '<desc id="description">The Gateway7 system contains gateway, prometheus and grafana, '
+        'and a PostgreSQL store when the managed administration override is selected. '
+        'The gateway uses the PostgreSQL protocol for managed client policies, credential digests and numeric usage. '
         'The gateway calls one configured external LLM provider over HTTPS in live mode. '
         'Prometheus scrapes gateway metrics over HTTP. Grafana queries Prometheus over HTTP using PromQL. '
         'In demo mode a synthetic upstream child process runs inside the gateway Docker container '
@@ -83,7 +85,7 @@ def build_svg() -> str:
         rect(48, 48, 48, 5, fill=BLUE, radius=2),
         text(48, 99, "Gateway7 — container view", size=36, weight=700),
         text(48, 136, "C4 • Running applications and their operational dependencies", size=19, fill=MUTED),
-        rect(48, 184, 1120, 768, fill="#fafcff", stroke="#93a6bd", radius=18, dash="9 7"),
+        rect(48, 184, 1120, 1000, fill="#fafcff", stroke="#93a6bd", radius=18, dash="9 7"),
         text(78, 224, "Gateway7", size=25, weight=700),
         text(78, 252, "System boundary · Compose deployment", size=16, fill=MUTED),
     ]
@@ -114,6 +116,18 @@ def build_svg() -> str:
         [
             text(724, 850, "Queries metrics for provisioned dashboards."),
             text(724, 880, "State volume: grafana-data", size=15, fill=MUTED),
+        ]
+    )
+    elements.extend(container(700, 970, 420, 184, "postgres", "Container · PostgreSQL · managed admin"))
+    elements.extend(
+        [
+            text(724, 1088, "Stores client policies, token digests and usage.", size=15),
+            text(724, 1118, "State volume: postgres-data", size=15, fill=MUTED),
+            f'<path d="M 96 430 H 64 V 1062 H 700" fill="none" stroke="{EDGE}" '
+            'stroke-width="2.5" marker-end="url(#arrow)"/>',
+            text(136, 1010, "PostgreSQL protocol · managed administration", size=17, weight=700),
+            text(136, 1036, "Policies, credential digests and numeric aggregates", size=15, fill=MUTED),
+            text(136, 1118, "Enabled by compose.admin.yaml; SQLite remains an explicit local option.", size=14, fill=MUTED),
         ]
     )
 
@@ -161,18 +175,19 @@ def build_svg() -> str:
 
     elements.extend(
         [
-            rect(48, 990, 22, 17, fill=BLUE_PALE, stroke=BLUE, radius=4),
-            text(82, 1004, "Application container", size=14, fill=MUTED),
-            rect(348, 990, 22, 17, fill="#f1f3f6", stroke="#677487", radius=4),
-            text(382, 1004, "External system", size=14, fill=MUTED),
-            rect(614, 990, 22, 17, fill="#fafcff", stroke="#93a6bd", radius=4, dash="4 3"),
-            text(648, 1004, "System boundary", size=14, fill=MUTED),
-            rect(898, 990, 22, 17, fill="#fff5d8", stroke="#e6bf62", radius=3),
-            text(932, 1004, "Demo-only note", size=14, fill=MUTED),
-            f'<path d="M 1200 998 H 1240" stroke="{EDGE}" stroke-width="2" marker-end="url(#arrow)"/>',
-            text(1254, 1004, "Initiator → dependency", size=14, fill=MUTED),
-            text(48, 1042, "Arrows name the protocol and exchanged data; response data returns along the same connection.", size=14, fill=MUTED),
-            text(48, 1070, "Dashed external boxes: self-hosted telemetry systems; Gateway7 does not build them or require them to answer a request.", size=14, fill=MUTED),
+            rect(48, 1220, 22, 17, fill=BLUE_PALE, stroke=BLUE, radius=4),
+            text(82, 1234, "Application or data store", size=14, fill=MUTED),
+            rect(348, 1220, 22, 17, fill="#f1f3f6", stroke="#677487", radius=4),
+            text(382, 1234, "External system", size=14, fill=MUTED),
+            rect(614, 1220, 22, 17, fill="#fafcff", stroke="#93a6bd", radius=4, dash="4 3"),
+            text(648, 1234, "System boundary", size=14, fill=MUTED),
+            rect(898, 1220, 22, 17, fill="#fff5d8", stroke="#e6bf62", radius=3),
+            text(932, 1234, "Demo-only note", size=14, fill=MUTED),
+            f'<path d="M 1200 1228 H 1240" stroke="{EDGE}" stroke-width="2" marker-end="url(#arrow)"/>',
+            text(1254, 1234, "Initiator → dependency", size=14, fill=MUTED),
+            text(48, 1272, "Arrows name the protocol and exchanged data; response data returns along the same connection.", size=14, fill=MUTED),
+            text(48, 1300, "Dashed external boxes: self-hosted telemetry systems; Gateway7 does not build them or require them to answer a request.", size=14, fill=MUTED),
+            text(48, 1328, "The postgres container is an internal product store; it is required when PostgreSQL management is configured.", size=14, fill=MUTED),
             "</g></svg>",
         ]
     )

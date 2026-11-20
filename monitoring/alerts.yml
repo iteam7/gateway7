@@ -1,0 +1,31 @@
+groups:
+  - name: gateway7-service
+    rules:
+      - alert: Gateway7Unavailable
+        expr: up{job="gateway7"} == 0
+        for: 1m
+        labels: {severity: critical}
+        annotations:
+          summary: Gateway7 cannot be scraped
+          description: Check container status and the gateway readiness endpoint.
+      - alert: Gateway7NotReady
+        expr: gateway7_ready == 0 or gateway7_management_database_available == 0
+        for: 30s
+        labels: {severity: critical}
+        annotations:
+          summary: Gateway7 cannot accept protected requests
+          description: Check PostgreSQL and restart the gateway after restoring database availability.
+      - alert: Gateway7TerminalFailures
+        expr: sum(rate(gateway7_http_request_outcomes_total{route=~"chat|openai_chat|openai_responses",outcome=~"timeout|provider_error|plugin_error|internal_error|unavailable"}[5m])) > 0
+        for: 2m
+        labels: {severity: warning}
+        annotations:
+          summary: Gateway7 requests have terminal server failures
+          description: Includes SSE failures after HTTP headers; inspect the safe request diagnostic report.
+      - alert: Gateway7ExporterDeliveryFailures
+        expr: sum by (exporter) (increase(gateway7_exporter_events_total{outcome=~"failure|dropped"}[5m])) > 0
+        for: 1m
+        labels: {severity: warning}
+        annotations:
+          summary: Gateway7 signal delivery is failing
+          description: Check the configured telemetry or product analytics destination and its credentials.

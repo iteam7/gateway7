@@ -11,8 +11,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from gateway7.models import ChatRequest, ChatResponse, tool_text
-from gateway7.plugin_api import Deny, NextHandler, PluginContext, PluginDescriptor
+from gateway7.plugin_api import PluginDescriptor
+from gateway7.text_policy import TextPolicyMiddleware
 
 
 # Every repetition is bounded. Unicode word boundaries prevent partial matches
@@ -46,38 +46,13 @@ class Settings(BaseModel):
     replacement: str = Field(default="[EMAIL]", min_length=1, max_length=128)
 
 
-@dataclass(frozen=True)
-class EmailMaskPlugin:
-    settings: Settings
+@dataclass(frozen=True, init=False)
+class EmailMaskPlugin(TextPolicyMiddleware):
+    def __init__(self, settings: Settings) -> None:
+        def transform(text: str) -> tuple[str, int]:
+            return mask_email(text, settings.replacement), int(mask_email(text, "") != text)
 
-    async def handle(
-        self, request: ChatRequest, context: PluginContext, call_next: NextHandler
-    ) -> ChatResponse | Deny:
-        if self.settings.phase in ("request", "both"):
-            if any(mask_email(text, "") != text for text in tool_text(request)):
-                return Deny()
-            request = request.model_copy(
-                update={
-                    "messages": [
-                        message.model_copy(
-                            update={
-                                "content": None
-                                if message.content is None
-                                else mask_email(message.content, self.settings.replacement)
-                            }
-                        )
-                        for message in request.messages
-                    ]
-                }
-            )
-        response = await call_next(request)
-        if self.settings.phase in ("response", "both"):
-            if any(mask_email(text, "") != text for text in tool_text(response)):
-                return Deny()
-            response = response.model_copy(
-                update={"text": mask_email(response.text, self.settings.replacement)}
-            )
-        return response
+        super().__init__(transform, phase=settings.phase, action="redact")
 
 
 def create(settings: Settings) -> EmailMaskPlugin:

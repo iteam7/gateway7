@@ -16,12 +16,13 @@ from collections.abc import Mapping
 from typing import Any
 
 from gateway7.errors import StartupError
+from gateway7.metrics import Metrics
 
 logger = logging.getLogger("gateway7")
 
 #: Routes whose requests are recorded. Health checks and scrapes are excluded so
 #: that probes do not dilute the request signal or fill the log stream.
-RECORDED_ROUTES = frozenset({"chat", "openai_chat", "models", "other"})
+RECORDED_ROUTES = frozenset({"chat", "openai_chat", "openai_responses", "models", "other"})
 
 #: The histogram's explicit bucket boundaries, in milliseconds. They match the
 #: Prometheus HTTP histogram's boundaries so both views interpolate alike.
@@ -34,6 +35,29 @@ EXPORT_TIMEOUT_SECONDS = 5.0
 
 REQUEST_LOG_BODY = "gateway request"
 DURATION_METRIC = "gateway7_request_duration_ms"
+
+
+class _ObservedExporter:
+    """Measure delivery without copying endpoints, headers or SDK diagnostics."""
+
+    def __init__(self, exporter: Any, metrics: Metrics, name: str) -> None:
+        self._exporter, self._metrics, self._name = exporter, metrics, name
+        metrics.exporter_enabled.labels(name).set(1)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._exporter, name)
+
+    def export(self, *args: Any, **kwargs: Any) -> Any:
+        try:
+            result = self._exporter.export(*args, **kwargs)
+        except Exception:
+            self._metrics.exporter_events.labels(self._name, "failure").inc()
+            raise
+        success = getattr(result, "name", None) == "SUCCESS"
+        self._metrics.exporter_events.labels(self._name, "success" if success else "failure").inc()
+        if success:
+            self._metrics.exporter_last_success.labels(self._name).set_to_current_time()
+        return result
 
 
 def outcome_for(status: int) -> str:
@@ -90,7 +114,9 @@ class Telemetry:
         return cls()
 
     @classmethod
-    def from_environment(cls, environ: Mapping[str, str] | None = None) -> Telemetry:
+    def from_environment(
+        cls, environ: Mapping[str, str] | None = None, *, metrics: Metrics | None = None
+    ) -> Telemetry:
         """Build the exporters from process variables, or a disabled instance."""
         env = os.environ if environ is None else environ
         if not _enabled(env):
@@ -116,15 +142,25 @@ class Telemetry:
         )
         from opentelemetry.sdk.resources import Resource
 
-        resource = Resource.create(
+        # Resource.create runs ambient detectors, including OTEL_RESOURCE_ATTRIBUTES,
+        # which can attach arbitrary private text to every exported signal.
+        resource = Resource(
             {"service.name": "gateway7", "deployment.environment.name": environment}
         )
         # The exporters read the endpoint and the credential header from the standard
         # OTEL_EXPORTER_OTLP_* variables, so neither value passes through this module.
         logger_provider = LoggerProvider(resource=resource)
+        log_exporter: Any = OTLPLogExporter(timeout=EXPORT_TIMEOUT_SECONDS)
+        metric_exporter: Any = OTLPMetricExporter(
+            timeout=EXPORT_TIMEOUT_SECONDS,
+            preferred_temporality={Histogram: AggregationTemporality.DELTA},
+        )
+        if metrics is not None:
+            log_exporter = _ObservedExporter(log_exporter, metrics, "telemetry_logs")
+            metric_exporter = _ObservedExporter(metric_exporter, metrics, "telemetry_metrics")
         logger_provider.add_log_record_processor(
             BatchLogRecordProcessor(
-                OTLPLogExporter(timeout=EXPORT_TIMEOUT_SECONDS),
+                log_exporter,
                 schedule_delay_millis=_interval(
                     env, "OTEL_BLRP_SCHEDULE_DELAY", LOG_SCHEDULE_DELAY_MS
                 ),
@@ -134,10 +170,7 @@ class Telemetry:
             # Delta temporality makes each exported point the interval's own
             # observations, so the SLI query's five-minute sum includes the first
             # request of a new series and survives a gateway restart.
-            OTLPMetricExporter(
-                timeout=EXPORT_TIMEOUT_SECONDS,
-                preferred_temporality={Histogram: AggregationTemporality.DELTA},
-            ),
+            metric_exporter,
             export_interval_millis=_interval(
                 env, "OTEL_METRIC_EXPORT_INTERVAL", METRIC_EXPORT_INTERVAL_MS
             ),

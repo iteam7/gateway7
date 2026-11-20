@@ -42,9 +42,9 @@ Keep your text-chat client and point it at the gateway's HTTP API.
 
 03 · Control access
 
-[Set client tokens and model access](authentication.md)
+[Manage users and model access](authentication.md#manage-users-in-the-operator-console)
 
-Give each client its own gateway credential and a list of allowed models.
+Create clients, issue tokens, edit model access and inspect usage in the operator console.
 
 </div>
 
@@ -85,14 +85,19 @@ Use a [provider transport](provider-transports.md) when the gateway must connect
 ## How it works
 
 The gateway checks the client token and model before running middleware.
-One ordered chain wraps the configured provider: request processing follows the list, and response processing runs in reverse.
-A denied request never reaches the provider; a denied answer is not delivered to the client.
+With default buffered delivery, one ordered chain wraps the configured provider: request processing follows the list, and response processing runs in reverse.
+A denied request never reaches the provider; a buffered answer denied by response policy is not delivered to the client.
+Compatible [early text](api.md#opt-in-to-early-chat-completions-text) runs request-only hooks, not whole-response policies; a later failure cannot retract text already sent.
 Follow the [numbered request view](architecture/README.md#sequence-view), then open the [component and code map](architecture/README.md#component-view) to find the implementation.
 
 ## What to expect
 
 This local pilot runs one configured provider per instance, with ordinary text chat for every provider.
-The OpenAI provider also supports [guarded function-tool turns and checked SSE](api.md#supported-compatibility-subset); complete-response checks finish before client delivery.
+The OpenAI provider also supports [guarded function-tool turns and checked SSE](api.md#supported-compatibility-subset); protected buffered delivery is the default, with complete-response checks before client delivery.
+[Early text](api.md#opt-in-to-early-chat-completions-text) requires explicit opt-in and a compatible request-only chain; a response-policy incompatibility returns HTTP 400 unless an earlier request hook denies with HTTP 403, with zero provider calls in either case.
+The separate [native Responses HTTP subset](api.md#native-responses-http) preserves structured items through native policies and checked JSON/SSE; opaque content and provider-hosted tools require independent explicit consent with documented inspection/execution limits.
+The [native early-text opt-in contract](api.md#opt-in-to-native-early-text) preserves a bounded leading assistant prefix; complex supported profiles can hold text until final validation without losing their native order or IDs.
+Production typed-provider wiring and end-to-end/container/live early verification remain separate; this overview claims neither all-profile first-token improvement nor full Responses or live Codex readiness.
 Python middleware is trusted code in the gateway process; installing or changing it requires a restart.
 The demo proves the local workflow with synthetic answers, while real-provider access depends on your account and model permissions.
 
@@ -101,9 +106,17 @@ The [demonstration guide](demo.md) keeps the longer walkthrough and acceptance e
 
 ## Project documentation
 
-- **Product:** [features](features.md), [vision](product-vision.md), [threshold of success](threshold-of-success.md), [threshold review proposal](threshold-review.md), [plan](project-plan.md), [risks](risks.md), [glossary](glossary.md).
-- **Requirements:** [functional requirements](functional-requirements/README.md), [FR-012 usage reporting specification](functional-requirements/fr/FR-012.md), [guarded function-tool turns](functional-requirements/fr/FR-013.md), [quality requirements and priority matrix](quality-requirements/README.md).
-- **Architecture decisions:** [ADR-001](architecture/adr/ADR-001.md), [ADR-002](architecture/adr/ADR-002.md), [ADR-003](architecture/adr/ADR-003.md), [ADR-004](architecture/adr/ADR-004.md), [ADR-005](architecture/adr/ADR-005.md), [ADR-006](architecture/adr/ADR-006.md), [ADR-007](architecture/adr/ADR-007.md), [ADR template](architecture/adr/TEMPLATE.md), [container source](architecture/container.py), [context source](architecture/context.mmd).
+- **Product:** [features](features.md), [vision](product-vision.md), [threshold of success](threshold-of-success.md), [threshold review proposal](threshold-review.md), [plan](project-plan.md), [configuration plan](configuration-plan.md), [risks](risks.md), [glossary](glossary.md).
+- **Usability:** [UT-01 design](usability-tests/ut-01/README.md), specified by [QR-06](quality-requirements/qr/QR-06.md).
+- **Requirements:** [functional requirements](functional-requirements/README.md), [FR-012 usage reporting specification](functional-requirements/fr/FR-012.md), [guarded function-tool turns](functional-requirements/fr/FR-013.md), [client request capacity](functional-requirements/fr/FR-016.md), [client request rates](functional-requirements/fr/FR-017.md), [additional client middleware](functional-requirements/fr/FR-018.md), [quality requirements and priority matrix](quality-requirements/README.md).
+- **Operator accounting:** [protected client usage snapshot](authentication.md#operator-usage-snapshot), specified by [FR-019](functional-requirements/fr/FR-019.md).
+- **Budgets and precise history:** [usage, pricing and reservations](accounting.md), specified by [FR-024](functional-requirements/fr/FR-024.md) and [FR-026](functional-requirements/fr/FR-026.md).
+- **Operator workspace:** [managed users, access and usage](authentication.md#manage-users-in-the-operator-console), specified by [FR-021](functional-requirements/fr/FR-021.md) and [FR-020](functional-requirements/fr/FR-020.md).
+- **Administrative controls:** [named operators](functional-requirements/fr/FR-023.md), [usage budgets](functional-requirements/fr/FR-024.md), [live provider management](functional-requirements/fr/FR-025.md), [client diagnostics and history](functional-requirements/fr/FR-026.md), [audit history](functional-requirements/fr/FR-027.md), and [backup and restoration](functional-requirements/fr/FR-028.md).
+- **Identities and recovery:** [named client keys, operator roles, revisions and offline backups](operator-identities.md).
+- **Console operations:** [provider controls, model registry, budgets and protected diagnostics](admin-controls.md).
+- **Plugin development:** [first plugin](authoring.md), [policy recipes](plugin-cookbook.md), [coding-agent workflow](plugin-agent-guide.md), [project inspection](functional-requirements/fr/FR-029.md), [local synthetic gateway](functional-requirements/fr/FR-030.md).
+- **Architecture decisions:** [ADR-001](architecture/adr/ADR-001.md), [ADR-002](architecture/adr/ADR-002.md), [ADR-003](architecture/adr/ADR-003.md), [ADR-004](architecture/adr/ADR-004.md), [ADR-005](architecture/adr/ADR-005.md), [ADR-006](architecture/adr/ADR-006.md), [ADR-007](architecture/adr/ADR-007.md), [ADR-008](architecture/adr/ADR-008.md), [ADR-009](architecture/adr/ADR-009.md), [ADR-010](architecture/adr/ADR-010.md), [ADR-011](architecture/adr/ADR-011.md), [ADR-012](architecture/adr/ADR-012.md), [ADR template](architecture/adr/TEMPLATE.md), [container source](architecture/container.py), [context source](architecture/context.mmd).
 - **Project records:** [decisions](decisions.md), [assumptions](assumptions.md), [Definition of Done](definition-of-done.md), [deployment](deployment.md).
 - **Research:** [alternatives](research/alternatives.md), [comparison](research/comparison.md), [gap analysis](research/gap-analysis.md), [value proposition](research/value-proposition.md).
 

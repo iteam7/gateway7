@@ -1,5 +1,7 @@
 """The installed CLI validates offline and runs its demo outside the source cwd."""
 
+import asyncio
+from contextlib import asynccontextmanager
 import json
 import logging
 import os
@@ -10,11 +12,19 @@ import subprocess
 import sys
 import tempfile
 import time
+from types import ModuleType
 
 import httpx
 import pytest
+from pydantic import BaseModel, ConfigDict
 
+from gateway7 import cli
+from gateway7.analytics import Analytics
+from gateway7.app import create_app
 from gateway7.cli import main
+from gateway7.config import GatewayConfig
+from gateway7.plugin_api import API_VERSION, PluginDescriptor
+from gateway7.telemetry import Telemetry
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -211,8 +221,9 @@ def test_sigterm_during_demo_startup_reaps_synthetic_child(tmp_path):
             assert "Traceback" not in logs.read()
 
 
+@pytest.mark.parametrize("model", ["allowed-model", "vendor/model:revision", "é" * 512])
 async def test_chat_sends_environment_bearer_and_optional_model_without_leaking_token(
-    monkeypatch, capsys
+    monkeypatch, capsys, model
 ):
     from gateway7 import cli
 
@@ -225,7 +236,7 @@ async def test_chat_sends_environment_bearer_and_optional_model_without_leaking_
         seen.append(request)
         assert request.headers["authorization"] == "Bearer " + key
         assert key not in request.content.decode() and key not in str(request.url)
-        assert json.loads(request.content)["model"] == "allowed-model"
+        assert json.loads(request.content)["model"] == model
         return httpx.Response(
             200,
             json={
@@ -247,7 +258,7 @@ async def test_chat_sends_environment_bearer_and_optional_model_without_leaking_
             "Synthetic input",
             32,
             token_env="SYNTHETIC_CLI_CLIENT",
-            model="allowed-model",
+            model=model,
         )
         == 0
     )
@@ -261,6 +272,20 @@ def test_chat_rejects_bad_token_value_without_echoing_it(monkeypatch, capsys):
     assert main(["chat", "--message", "synthetic"]) == 1
     output = capsys.readouterr()
     assert "synthetic secret with spaces" not in output.out + output.err
+
+
+@pytest.mark.parametrize(
+    "model", ["", "model name", "model\x00", "model\u200b", "\ud800", "é" * 513]
+)
+def test_chat_rejects_invalid_model_before_http_with_static_error(monkeypatch, capsys, model):
+    def forbidden(*args, **kwargs):
+        pytest.fail("Invalid model reached HTTP client creation")
+
+    monkeypatch.setattr("gateway7.cli.httpx.AsyncClient", forbidden)
+    assert main(["chat", "--message", "Synthetic input", "--model", model]) == 1
+    output = capsys.readouterr()
+    assert output.out == ""
+    assert output.err == "Gateway startup failed: --model must be a valid model identifier\n"
 
 
 def test_interrupted_chat_input_exits_130_without_output(monkeypatch, capsys):
@@ -361,3 +386,132 @@ def test_sigint_during_chat_closes_connection_and_exits_130(tmp_path):
             if process.poll() is None:
                 process.kill()
                 process.communicate(timeout=5)
+
+
+async def test_cancelled_secret_file_startup_that_returns_still_finishes_cleanup(
+    monkeypatch, tmp_path
+):
+    values = {
+        "GATEWAY7_SYNTHETIC_CANCEL_STARTUP_KEY": "synthetic-cancel-startup-provider-key",
+        "GATEWAY7_SYNTHETIC_CANCEL_STARTUP_TOKEN": "synthetic-cancel-startup-client-token",
+    }
+    for name in values:
+        monkeypatch.delenv(name, raising=False)
+    path = tmp_path / "synthetic-private.json"
+    path.write_text(json.dumps(values), encoding="utf-8")
+    path.chmod(0o600)
+    started = asyncio.Event()
+    returned = asyncio.Event()
+    shutdown_started = asyncio.Event()
+    release_shutdown = asyncio.Event()
+    provider_closed = asyncio.Event()
+    lifespan_tasks = []
+    cancellations = []
+    events = []
+
+    class Settings(BaseModel):
+        model_config = ConfigDict(strict=True, extra="forbid", frozen=True)
+
+    class StartupPlugin:
+        async def startup(self):
+            assert {name: os.environ.get(name) for name in values} == values
+            started.set()
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                returned.set()
+
+        async def shutdown(self):
+            assert all(name not in os.environ for name in values)
+            shutdown_started.set()
+            while not release_shutdown.is_set():
+                try:
+                    await release_shutdown.wait()
+                except asyncio.CancelledError:
+                    pass
+            events.append("shutdown")
+
+        async def handle(self, request, context, call_next):
+            return await call_next(request)
+
+    class Provider:
+        async def aclose(self):
+            assert all(name not in os.environ for name in values)
+            events.append("provider_close")
+            provider_closed.set()
+
+    class Server:
+        def __init__(self, configuration):
+            assert configuration.lifespan == "off"
+
+        async def serve(self):
+            pytest.fail("Cancelled startup reached the HTTP server")
+
+    module = ModuleType("test_gateway7_cli_cancelled_startup")
+    module.PLUGIN = PluginDescriptor("synthetic-startup", API_VERSION, Settings, lambda _: StartupPlugin())
+    monkeypatch.setitem(sys.modules, module.__name__, module)
+    config = GatewayConfig.model_validate({
+        "provider": {"key_env": "GATEWAY7_SYNTHETIC_CANCEL_STARTUP_KEY"},
+        "auth": {"enabled": True, "clients": {
+            "synthetic": {"token_env": "GATEWAY7_SYNTHETIC_CANCEL_STARTUP_TOKEN"},
+        }},
+        "plugins": {"startup": {"module": module.__name__}},
+        "middleware": ["startup"],
+    })
+    app = create_app(config=config, telemetry=Telemetry.disabled(), analytics=Analytics.disabled())
+    original_lifespan = app.router.lifespan_context
+
+    @asynccontextmanager
+    async def tracked_lifespan(application):
+        lifespan_tasks.append(asyncio.current_task())
+        try:
+            async with original_lifespan(application):
+                yield
+        finally:
+            lifespan_tasks.append(asyncio.current_task())
+
+    app.router.lifespan_context = tracked_lifespan
+    monkeypatch.setattr(cli, "create_app", lambda *args, **kwargs: app)
+    monkeypatch.setattr(cli, "_ManagedServer", Server)
+    monkeypatch.setattr("gateway7.app.build_provider", lambda *args, **kwargs: Provider())
+
+    async def run():
+        try:
+            await cli._serve(None, "127.0.0.1", 8000, config=config, secrets_file=str(path))
+        except asyncio.CancelledError as error:
+            cancellations.append(error)
+            raise
+
+    previous_tasks = asyncio.all_tasks()
+    task = asyncio.create_task(run())
+    original_cancellation = object()
+    try:
+        await asyncio.wait_for(started.wait(), timeout=1)
+        task.cancel(original_cancellation)
+        await asyncio.wait_for(returned.wait(), timeout=1)
+        await asyncio.wait_for(shutdown_started.wait(), timeout=1)
+        assert all(name not in os.environ for name in values)
+        assert not task.done() and not provider_closed.is_set()
+        task.cancel("second cancellation during cleanup")
+        release_shutdown.set()
+        finished, _ = await asyncio.wait({task}, timeout=1)
+        assert task in finished, "Cancelled startup did not finish its owned cleanup"
+        with pytest.raises(asyncio.CancelledError) as caught:
+            await task
+        assert caught.value is cancellations[0]
+        assert caught.value.args == (original_cancellation,)
+        assert events == ["shutdown", "provider_close"] and provider_closed.is_set()
+        assert len(lifespan_tasks) == 2 and lifespan_tasks[0] is lifespan_tasks[1]
+        assert all(name not in os.environ for name in values)
+        assert asyncio.all_tasks() == previous_tasks
+    finally:
+        # Also reap the old implementation when its pending finish signal makes
+        # the regression fail, so a failing test cannot leave a lifecycle job.
+        release_shutdown.set()
+        if not task.done():
+            if lifespan_tasks and not lifespan_tasks[0].done():
+                lifespan_tasks[0].cancel()
+            task.cancel()
+        await asyncio.gather(task, *lifespan_tasks, return_exceptions=True)
+        assert provider_closed.is_set() and all(name not in os.environ for name in values)
+        assert asyncio.all_tasks() == previous_tasks

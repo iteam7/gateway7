@@ -19,3 +19,18 @@ Each requirement states one behavior of Gateway7, the containers it runs in and 
 | [FR-013](fr/FR-013.md) | Exchange guarded function-tool turns | `gateway` | Active |
 | [FR-014](fr/FR-014.md) | Expose Each API Request's Quality Signal To The Observability Backend | `gateway` | Active |
 | [FR-015](fr/FR-015.md) | Record Privacy-Safe Chat Task Events For Product Analytics | `gateway` | Active |
+| [FR-016](fr/FR-016.md) | Limit Each Client's Active Requests | `gateway` | Active |
+| [FR-017](fr/FR-017.md) | Limit Each Client's Request Rate | `gateway` | Active |
+| [FR-018](fr/FR-018.md) | Apply Additional Per-Client Middleware | `gateway` | Active |
+| [FR-019](fr/FR-019.md) | Read Client Usage Through A Protected Operator Snapshot | `gateway` | Active |
+| [FR-020](fr/FR-020.md) | Inspect Clients And Middleware In The Operator Console | `gateway` | Active |
+| [FR-021](fr/FR-021.md) | Manage Client Accounts In The Operator Console | `gateway` | Active |
+| [FR-022](fr/FR-022.md) | Migrate Managed Accounts From SQLite To PostgreSQL | `gateway` | Dropped |
+| [FR-023](fr/FR-023.md) | Authorize Named Operators By Role | `gateway` | Active |
+| [FR-024](fr/FR-024.md) | Enforce User And Model Usage Budgets | `gateway` | Active |
+| [FR-025](fr/FR-025.md) | Manage The Live Provider And Effective Models | `gateway` | Active |
+| [FR-026](fr/FR-026.md) | Inspect Protected Client Activity And Retain Bounded History | `gateway` | Active |
+| [FR-027](fr/FR-027.md) | Audit Versioned Administrative Changes | `gateway` | Active |
+| [FR-028](fr/FR-028.md) | Back Up And Restore Managed State Offline | `gateway` | Active |
+| [FR-029](fr/FR-029.md) | Inspect A Plugin Project Before Installation | `gateway` | Active |
+| [FR-030](fr/FR-030.md) | Try A Plugin Through A Local Synthetic Gateway | `gateway` | Active |

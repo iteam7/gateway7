@@ -1,20 +1,54 @@
-"""Bounded OpenAI Chat SSE assembly before whole-response middleware checks."""
+"""Bounded OpenAI Chat SSE assembly with event-validated text deltas."""
 
 import codecs
 import json
+import math
 from typing import Any, cast
 
 from gateway7.errors import ProviderError, ProviderErrorReason
 
 MAX_EVENT_BYTES = 65_536
+MAX_JSON_DEPTH = 64
 
 
 def _reject_constant(_: str) -> None:
     raise ValueError("Invalid JSON number")
 
 
+def _finite_float(value: str) -> float:
+    result = float(value)
+    if not math.isfinite(result):
+        raise ValueError("Invalid JSON number")
+    return result
+
+
+def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("Duplicate JSON object key")
+        result[key] = value
+    return result
+
+
+def _bounded_json(value: Any) -> None:
+    pending = [(value, 0)]
+    while pending:
+        item, depth = pending.pop()
+        if depth > MAX_JSON_DEPTH:
+            raise ValueError("JSON nesting exceeds the supported bound")
+        if isinstance(item, dict):
+            for key, child in item.items():
+                key.encode("utf-8")
+                pending.append((child, depth + 1))
+        elif isinstance(item, list):
+            pending.extend((child, depth + 1) for child in item)
+        elif isinstance(item, str):
+            item.encode("utf-8")
+
+
 class OpenAIStream:
-    """Consume transport fragments without exposing unvalidated partial output.
+    """Consume transport fragments and expose text only from validated SSE events.
 
     Semantic failures remain terminal, but bounded parsing continues so a later
     independent usage event can still account for the failed provider attempt.
@@ -36,11 +70,24 @@ class OpenAIStream:
         self._done = False
         self._identity: dict[str, Any] = {}
         self._text: list[str] = []
+        self._text_drained = 0
         self._tool: dict[str, Any] | None = None
         self._finish: str | None = None
 
     def _error(self) -> ProviderError:
+        self._invalid = True
         return ProviderError(ProviderErrorReason.INVALID_RESPONSE, usage=self.usage)
+
+    def drain_text(self) -> tuple[str, ...]:
+        """Return each nonempty content delta once, after its entire event validates.
+
+        A detected parser failure discards all undrained text, including earlier
+        valid events in the same feed. Already drained text cannot be retracted;
+        callers must still call finish() and validate the assembled response.
+        """
+        pending = () if self._invalid else tuple(self._text[self._text_drained :])
+        self._text_drained = len(self._text)
+        return pending
 
     def feed(self, chunk: bytes) -> None:
         remaining = self.max_bytes - self._bytes
@@ -116,9 +163,18 @@ class OpenAIStream:
             return
         if raw == "[DONE]":
             self._done = True
+            if self._finish is None:
+                self._invalid = True
+                self._text_drained = len(self._text)
             return
         try:
-            data = json.loads(raw, parse_constant=_reject_constant)
+            data = json.loads(
+                raw,
+                object_pairs_hook=_unique_object,
+                parse_constant=_reject_constant,
+                parse_float=_finite_float,
+            )
+            _bounded_json(data)
         except (ValueError, UnicodeError, RecursionError):
             self._invalid = True
             return
@@ -175,10 +231,8 @@ class OpenAIStream:
         if "role" in delta and delta["role"] != "assistant":
             raise ValueError
         text = delta.get("content")
-        if text is not None:
-            if not isinstance(text, str):
-                raise ValueError
-            self._text.append(text)
+        if text is not None and not isinstance(text, str):
+            raise ValueError
         tools = delta.get("tool_calls")
         if tools is not None:
             if not isinstance(tools, list) or len(tools) > 1:
@@ -190,6 +244,8 @@ class OpenAIStream:
             if reason not in ("stop", "length", "tool_calls"):
                 raise ValueError
             self._finish = reason
+        if text:
+            self._text.append(text)
 
     def _tool_delta(self, value: Any) -> None:
         if not isinstance(value, dict) or type(value.get("index")) is not int:
@@ -203,9 +259,9 @@ class OpenAIStream:
                 "function": {"name": None, "arguments": ""},
             }
         for name in ("id", "type"):
-            if name not in value:
+            supplied = value.get(name)
+            if supplied is None:
                 continue
-            supplied = value[name]
             if not isinstance(supplied, str) or not supplied:
                 raise ValueError
             if name == "type" and supplied != "function":
@@ -214,6 +270,8 @@ class OpenAIStream:
                 raise ValueError
             self._tool[name] = supplied
         function = value.get("function")
+        if function is None:
+            return
         if not isinstance(function, dict) or set(function) - {"name", "arguments"}:
             raise ValueError
         function_name = function.get("name")
@@ -223,8 +281,8 @@ class OpenAIStream:
             if self._tool["function"]["name"] not in (None, function_name):
                 raise ValueError
             self._tool["function"]["name"] = function_name
-        if "arguments" in function:
-            arguments = function["arguments"]
+        arguments = function.get("arguments")
+        if arguments is not None:
             if not isinstance(arguments, str):
                 raise ValueError
             self._tool["function"]["arguments"] += arguments

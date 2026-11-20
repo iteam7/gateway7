@@ -14,14 +14,15 @@ For a working first request, use the [quickstart](../quickstart.md).
 
 ## Container View
 
-The product runs as the containers below, and [ADR-001](adr/ADR-001.md) records their split and stack.
+The product runs as the containers below: [ADR-001](adr/ADR-001.md) records the original split and stack, and [ADR-009](adr/ADR-009.md) adds the managed PostgreSQL store.
 
-![Gateway7 container view: three product containers, the provider and two optional external telemetry systems](container.svg)
+![Gateway7 container view: gateway, monitoring, the managed PostgreSQL store, provider and optional external telemetry](container.svg)
 
 [Open the full-size container image](container.svg) · [Image source](container.py)
 
 The [Compose definition](https://github.com/iteam7/gateway7/blob/8cdf230c77e029074d0b3b9ad82e3edc6d25b59b/compose.yaml) starts `gateway`, `prometheus` and `grafana` together.
-Only `gateway` is on the chat path; the monitoring applications collect and display observations separately.
+The managed administration override also starts `postgres`, checks its health before the gateway, and retains its data in `postgres-data`.
+The gateway checks its managed store before protected requests; the monitoring applications collect and display observations separately.
 A container here is a running application or data store, not a Python module.
 The gateway can also run alone through its CLI.
 
@@ -42,18 +43,24 @@ The [deployment runbook](../deployment.md#telemetry-pipelines) describes setup; 
 
 | Container | Responsibilities |
 | --- | --- |
-| `gateway` | Authenticates callers and checks model permissions; runs company middleware and invokes the configured provider; owns startup settings, credentials, temporary request state and in-memory observations |
+| `gateway` | Authenticates callers and checks model permissions; runs company middleware and invokes the configured provider; owns startup settings, credentials, temporary request state and observations, plus managed client policies and usage when enabled |
 | `prometheus` | Collects numeric gateway observations; retains time-series samples in its own data volume; serves queries over those samples |
 | `grafana` | Queries operational time series; renders provisioned dashboards; owns application runtime state in its own data volume |
+| `postgres` | Stores managed policies, credential digests and encrypted provider settings; retains private audit, request accounting and budget reservations in its durable volume; applies transactional administrative and accounting updates |
 
 The gateway core keeps no durable chat history or original-text restoration map.
 Request context, active-pipeline counts and metric counters live in memory; process restart resets them.
+Managed Compose uses PostgreSQL for client policies, token digests and numeric usage aggregates, as proposed in [ADR-009](adr/ADR-009.md).
+An explicitly configured SQLite file remains supported for local installations under [ADR-008](adr/ADR-008.md).
+Neither store contains conversation history, and selecting a failed PostgreSQL backend never falls back to SQLite or seed configuration.
+Managed policies and usage survive restart; the [administration guide](../authentication.md) distinguishes this from the original process-lifetime snapshot.
 Plugins share that process and are responsible for any state they choose to keep.
 Prometheus retains numeric samples in `prometheus-data`, bounded by seven days and 512 MB; Grafana keeps its state in `grafana-data` and reads the provisioned dashboard and datasource files.
 These volumes survive `docker compose down`; `--volumes` removes them.
 This is monitoring history, not a billing ledger.
 
 The existing requirements assign gateway behavior to `gateway` in [FR-001](../functional-requirements/fr/FR-001.md) and [FR-009](../functional-requirements/fr/FR-009.md), and monitoring behavior to `prometheus` and `grafana` in [FR-010](../functional-requirements/fr/FR-010.md).
+The gateway's managed administration and usage behavior in [FR-021](../functional-requirements/fr/FR-021.md) and [FR-019](../functional-requirements/fr/FR-019.md) uses the `postgres` store.
 
 ## Component View
 
@@ -90,12 +97,29 @@ The rest of the repository supports those components:
 
 To add a company policy, use the [generate → test → install workflow](../authoring.md).
 The [middleware API](../plugins.md#descriptor-and-hooks) defines the contract; a new policy does not need a core edit.
+The profile-aware authoring increment in [ADR-012](adr/ADR-012.md) adds `gateway7/text_policy.py` for optional text-policy orchestration and `gateway7/plugin_project.py` for the common project metadata used by test, inspection and development commands.
+The fixture worker exercises actual pipeline profiles, while the private development worker owns a synthetic local HTTP environment; neither changes production package discovery.
+Generated author and coding-agent instructions travel with the installed wheel rather than requiring this source checkout.
 Provider networking has a separate [startup transport interface](../provider-transports.md): `transport_api.py` defines its descriptor, `transport_loader.py` validates modules, and `transports/` holds the shipped proxy module.
 It belongs to the provider adapter component, outside the per-request middleware chain.
 
+Managed administration extends the existing HTTP boundary and access component, backed by the managed database container or an explicit local file.
+`gateway7/admin_runtime.py` validates operator DTOs and publishes client policies; `gateway7/admin_store.py` defines the storage contract and SQLite implementation, and `gateway7/postgres_store.py` implements PostgreSQL transactions.
+`gateway7/management_store.py` resolves the selected backend.
+`gateway7/usage.py` selects the legacy process ledger or persistent ledger, and the packaged operator console renders both modes.
+The request pipeline and provider adapter remain shared with ordinary client traffic; a request captures its own observer so accounting follows its selected client and model.
+
+The extended control plane in [ADR-010](adr/ADR-010.md) keeps database execution in `gateway7/db_execution.py`, versioned documents and private history in `gateway7/control_store.py`, and named credential policies in `gateway7/identity_admin.py` and `gateway7/identity_auth.py`.
+`gateway7/accounting.py` reserves budget allowance before provider invocation and settles numeric source usage afterward.
+`gateway7/provider_admin.py` prepares live provider replacements and encrypts their persisted credentials under [ADR-011](adr/ADR-011.md).
+Administrative services prepare and publish runtime state on the event loop; only their database calls run on the bounded worker.
+A committed mutation is owned through publication even when its HTTP caller leaves.
+
 ### Startup and shutdown
 
-`serve` loads strict YAML, resolves the provider key and client tokens from environment variables, checks plugin descriptors/settings, creates instances and the HTTP adapter, then awaits startup hooks.
+`serve` loads strict YAML, resolves the provider key and bootstrap credentials, checks plugin descriptors/settings, creates instances and the HTTP adapter, then awaits startup hooks.
+Configured-client mode resolves tokens from the environment on each startup; managed mode initializes or opens its store and loads the authoritative client policies and token digests.
+The managed adapter retains one ownership connection; losing a PostgreSQL session makes readiness and new protected requests fail until the gateway is restarted with a valid store connection.
 If configured, a provider transport factory runs once before the adapter client is created.
 Startup closes a valid transport if client construction fails; after construction, the client owns it and closes it with the provider during lifespan cleanup.
 The built-in proxy keeps this shared client but uses request-owned connections so a cancelled TLS handshake cannot leave a tunnel occupying a shared pool slot; proxied requests do not reuse keep-alive connections.
@@ -107,12 +131,16 @@ It does not run startup hooks, and importing a plugin can have side effects.
 For a provider transport, it checks only the descriptor and settings: it does not call the transport factory or resolve the proxy environment variable.
 `plugin test` instead starts a limited worker with synthetic fixtures and Python-level networking guards; it is not an operating-system sandbox.
 That fixture path does not load provider transports.
+`plugin inspect` uses the same guarded authoring boundary and distinguishes descriptor declarations and hook presence from test results.
+`plugin dev` owns a separate child with scrubbed credentials, loopback listeners and the explicitly selected project source; its synthetic HTTP exercise does not establish live-provider compatibility.
 
 On shutdown, readiness becomes false, hooks are attempted in reverse instance order, and the provider client is closed even if a hook raises or cancels itself.
 Cleanup defers an external cancellation until those cooperative cleanup attempts finish, then preserves the cancellation.
 A blocking or cancellation-resistant plugin cannot be forcibly stopped by Python timeouts.
 The demo command also stops and waits for its synthetic upstream child.
-Install, configuration and credential changes take effect after restart.
+Installed middleware code and bootstrap credential or encryption-key configuration take effect after restart.
+Managed client policies, credentials and limits are validated, persisted and published live; existing request leases continue to drain without losing their capacity accounting.
+Managed provider configuration follows the same revision and audit boundary, and old provider clients close only after their captured work drains.
 
 ## Sequence View
 
@@ -126,7 +154,7 @@ Prometheus scraping and Grafana queries happen separately, not as extra steps re
 
 ### Runtime boundaries
 
-Both chat APIs share one execution path.
+Native `/chat`, Chat Completions and Responses share the authentication, model-selection and admission boundaries below.
 The HTTP boundary checks the **gateway client token** before reading the protected request body, then bounds and validates that body.
 The route checks model access and passes the selected model separately from the message payload, so middleware cannot change it through the supported interface.
 The provider key belongs to the server adapter; it is never the client's bearer token.
@@ -136,7 +164,7 @@ The default is **64 active pipelines per process**: a full process rejects new w
 This is not a per-client quota or a bound on open connections/body reads.
 Health, readiness, metrics and model-list requests do not take pipeline slots.
 
-With the configured list `[A, B]`, request work runs A then B; the provider answer returns through B then A.
+In the default buffered path, with the configured list `[A, B]`, request work runs A then B; the provider answer returns through B then A.
 A successful middleware awaits `call_next` exactly once, in the same task and while its invocation is active.
 The runner rejects repeated or escaped calls, invalid payload changes and swallowed downstream failures.
 There is at most one gateway-owned adapter invocation per pipeline, with no automatic retries or failover; this is not exactly-once remote delivery or billing.
@@ -151,10 +179,10 @@ Response rejection never erases a known observation; missing or invalid counts s
 
 [ADR-005](adr/ADR-005.md) proposes the OpenAI streaming extension for [task #153](https://github.com/iteam7/gateway7/issues/153).
 It adds no deployed application or persistent agent-session store.
-The adapter component assembles actual provider SSE in `gateway7/openai_stream.py`, while the middleware component still receives one complete `ChatResponse`.
+In that default buffered path, the adapter component assembles actual provider SSE in `gateway7/openai_stream.py`, while the middleware component still receives one complete `ChatResponse`.
 The authorized model and provider-streaming selection are passed separately from middleware-editable content.
 
-For a supported streaming request, the provider receives `stream: true`.
+For a supported default buffered streaming request, the provider receives `stream: true`.
 The adapter validates the accumulated answer and terminal events before returning it through the reverse middleware chain.
 The HTTP boundary emits client SSE only after that chain succeeds, so client delivery remains buffered and a policy can still reject the whole answer before any text or function call is released.
 The existing numbered sequence remains the full-response ordering; SSE changes the wire framing, not the placement of response checks.
@@ -166,7 +194,44 @@ The gateway validates the history but neither executes the tool nor resumes a se
 The [API guide](../api.md#supported-compatibility-subset) owns the supported provider, controls, limits and SSE format.
 A synthetic run of a named harness version is separate from a live provider-account check.
 
+The current implementation also has the separate [early Chat contract](../plugins.md#early-stream-preparation) explicitly requested by the user on 5 November 2026; this note records neither a team architecture verdict nor Customer acceptance.
+It leaves the default sequence and the recorded ADRs unchanged.
+`X-Gateway7-Stream-Mode: early` selects request-only preparation through `Pipeline.run_early`, followed by direct, awaited text delivery from `HTTPProvider.complete_early`.
+Missing hooks or response-dependent policies reject this mode before upstream work, rather than being skipped.
+The HTTP stream owns one admitted job through generation, sending and cancellation cleanup; a later failure may leave a visible text prefix but emits no successful terminal marker or unvalidated tool call.
+This Chat exception does not establish general incremental response-policy support; the separate native HTTP path is described next.
+
+### Native Responses HTTP path
+
+The explicitly user-requested native increment adds `POST /v1/responses` inside the existing `gateway` container, without adding a persistent session store or changing the recorded ADR acceptance history.
+It is implemented but under independent review; synthetic HTTP acceptance is not a live Codex or full OpenAI compatibility verdict.
+The [API contract](../api.md#native-responses-http) owns the supported closed DTO shapes, controls, consent and limits; [FR-013](../functional-requirements/fr/FR-013.md) records the user-approved structured-turn requirements.
+
+Unlike the earlier code-map snapshot, this path uses `gateway7/responses_models.py` for native items and `gateway7/responses_provider.py` for one native request to the configured OpenAI origin.
+`Pipeline.run_responses` runs native preparation hooks in request order, validates one provider response and runs native checking hooks in reverse order; it does not convert the payload to `ChatRequest` or invoke Chat handlers as a fallback.
+`gateway7/responses_stream.py` assembles bounded provider events, and `gateway7/responses_api.py` constructs [checked client JSON/SSE](../api.md#json-results-and-checked-native-sse) only after validation and policy succeed.
+Item order, item/call identity, namespaces, executable strings, usage and terminal metadata remain protected independently of [permitted free-text edits](../plugins.md#native-responses-hooks) in `gateway7/responses_policy.py`.
+
+The HTTP owner snapshots the selected model, transport selection and independent opaque/hosted consent outside plugin-editable payloads; gateway consent headers do not travel upstream.
+Opaque consent permits exact encrypted/media fields to pass without plaintext inspection, while adjacent plaintext remains subject to policy.
+Hosted consent acknowledges that provider-side search may execute before returned records enter response checks; withholding those records cannot undo execution.
+Default native SSE therefore retains whole-response protection for deliverable content without claiming a pre-execution guard for hosted tools.
+
+The native early HTTP branch now selects `Pipeline.run_responses_early` with a typed `on_text_delta` sink and the native encoder, while reusing the generic app `_EarlySSE` lifecycle.
+The public `gateway7/responses_events.py` records and parser `drain_text_deltas()` retain native response/item identity, output/content indices, phase and source sequence instead of reducing that boundary to bare text.
+Only an uninterrupted assistant message/output-text part at output/content indices `0/0` is eligible for prefix delivery; another item/part, held non-text metadata or leading-part closure ends that eligibility permanently.
+The encoder reconciles any published prefix with the full checked terminal response, retaining remaining items and content at their original positions rather than scheduling, reindexing or flattening them to force early output.
+Executable tools, refusal, reasoning and opaque events remain held until strict final validation; a late failure emits sanitized native failure or aborts without false completion.
+Missing capabilities/hooks or a reached response-dependent configuration reject before upstream work, while an earlier request-hook denial retains precedence; both independent consents remain outside plugin control.
+The [API contract](../api.md#opt-in-to-native-early-text) owns the explicit opt-in and conservative eligibility details, including the lack of an all-profile first-token latency promise.
+These app/parser/encoder/pipeline seams have landed, but production typed-provider wiring and end-to-end/container/live early verification remain separate; no Codex invocation or acceptance claim follows from component review.
+This does not change Chat's approved buffered/early behavior or the native buffered default and its full-response-policy guarantees.
+The same owned provider client, TLS policy, no-retry boundary, admission limit and request deadlines apply.
+
 ### Where a request stops
+
+The HTTP error statuses below apply before response headers, as in the default buffered path.
+After early SSE headers, an error event or connection closure replaces an HTTP status change; already delivered text cannot be withdrawn.
 
 | Boundary | Result | What reaches the provider |
 | --- | --- | --- |
@@ -218,6 +283,11 @@ The product vision keeps the separate [system context](../product-vision.md#cont
 | [ADR-005](adr/ADR-005.md) | Proposed | [FR-001](../functional-requirements/fr/FR-001.md), [FR-003](../functional-requirements/fr/FR-003.md), [FR-005](../functional-requirements/fr/FR-005.md), [FR-013](../functional-requirements/fr/FR-013.md), [QR-01](../quality-requirements/qr/QR-01.md), [QR-02](../quality-requirements/qr/QR-02.md), [QR-03](../quality-requirements/qr/QR-03.md), [QR-04](../quality-requirements/qr/QR-04.md) | Collect actual provider streams, run full-response policies, then emit agent SSE |
 | [ADR-006](adr/ADR-006.md) | Proposed | [FR-015](../functional-requirements/fr/FR-015.md), [QR-02](../quality-requirements/qr/QR-02.md), [QR-03](../quality-requirements/qr/QR-03.md) | Export a bounded, privacy-safe core-task event stream to OpenPanel |
 | [ADR-007](adr/ADR-007.md) | Proposed | [FR-014](../functional-requirements/fr/FR-014.md), [QR-05](../quality-requirements/qr/QR-05.md) | Read per-request logs and a duration histogram from isolated OpenObserve organizations |
+| [ADR-008](adr/ADR-008.md) | Proposed | [FR-021](../functional-requirements/fr/FR-021.md), [FR-006](../functional-requirements/fr/FR-006.md), [FR-019](../functional-requirements/fr/FR-019.md), [QR-03](../quality-requirements/qr/QR-03.md) | Persist managed client policies and daily model usage in the gateway's embedded store |
+| [ADR-009](adr/ADR-009.md) | Proposed | [FR-021](../functional-requirements/fr/FR-021.md), [FR-022](../functional-requirements/fr/FR-022.md), [FR-019](../functional-requirements/fr/FR-019.md), [QR-03](../quality-requirements/qr/QR-03.md) | Use PostgreSQL for managed Compose with explicit SQLite compatibility |
+| [ADR-010](adr/ADR-010.md) | Proposed | [FR-021](../functional-requirements/fr/FR-021.md), [FR-023](../functional-requirements/fr/FR-023.md), [FR-024](../functional-requirements/fr/FR-024.md), [FR-026](../functional-requirements/fr/FR-026.md), [FR-027](../functional-requirements/fr/FR-027.md), [FR-028](../functional-requirements/fr/FR-028.md), [QR-03](../quality-requirements/qr/QR-03.md) | Version control state, reserve accounting and execute database work away from the event loop |
+| [ADR-011](adr/ADR-011.md) | Proposed | [FR-025](../functional-requirements/fr/FR-025.md), [FR-006](../functional-requirements/fr/FR-006.md), [QR-03](../quality-requirements/qr/QR-03.md) | Publish live provider snapshots with encrypted stored credentials |
+| [ADR-012](adr/ADR-012.md) | Proposed | [FR-003](../functional-requirements/fr/FR-003.md), [FR-007](../functional-requirements/fr/FR-007.md), [FR-008](../functional-requirements/fr/FR-008.md), [FR-029](../functional-requirements/fr/FR-029.md), [FR-030](../functional-requirements/fr/FR-030.md), [QR-01](../quality-requirements/qr/QR-01.md), [QR-02](../quality-requirements/qr/QR-02.md), [QR-03](../quality-requirements/qr/QR-03.md), [QR-06](../quality-requirements/qr/QR-06.md) | Use one project contract, profile-aware synthetic checks and an optional text-policy adapter |
 
 These Accepted records describe choices already in force through [PR #90](https://github.com/iteam7/gateway7/pull/90), approved in [DeniBorsh's implementation review](https://github.com/iteam7/gateway7/pull/90#pullrequestreview-5643522171) and merged on 25 October 2026.
 They are dated when written, not when an undocumented earlier discussion might have happened.

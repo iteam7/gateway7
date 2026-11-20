@@ -7,31 +7,142 @@ can send a second copy of a request or leak the server key to another origin.
 
 from __future__ import annotations
 
+import asyncio
 import ipaddress
 import json
-import re
+import math
+import time
+import unicodedata
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
 from urllib.parse import urlsplit
 
 import httpx
 
-from gateway7.errors import ProviderError, ProviderErrorReason
+from gateway7.config import validate_model_id, validate_provider_model
+from gateway7.errors import ProviderError, ProviderErrorReason, retain_observed_usage
+from gateway7.http_lifecycle import _OwnedCloseStream
+from gateway7.loader import complete_cleanup
 from gateway7.models import ChatResponse, ToolCall
 from gateway7.openai_stream import OpenAIStream
+from gateway7.provider_stream import OwnedCloseStream
+from gateway7.responses_models import ResponsesConsent
 
 if TYPE_CHECKING:
     from gateway7.config import ProviderConfig
     from gateway7.models import ChatRequest
+    from gateway7.responses_events import ResponsesTextSink
+    from gateway7.responses_models import ResponsesRequest, ResponsesResponse
 
 
 MAX_RESPONSE_BYTES = 1_048_576
+MAX_CATALOG_MODELS = 4096
+MAX_CATALOG_DEPTH = 64
+CATALOG_TTL_SECONDS = 300.0
+CATALOG_FAILURE_SECONDS = 1.0
+CATALOG_FETCH_SECONDS = 2.0
 MAX_USAGE_TOKENS = 2**63 - 1
+MAX_JSON_DEPTH = MAX_CATALOG_DEPTH
 FinishReason = Literal["stop", "length", "tool_calls"]
 _REAL_HOSTS = {
     "claude": "api.anthropic.com",
     "openai": "api.openai.com",
     "gemini": "generativelanguage.googleapis.com",
 }
+
+
+@dataclass(frozen=True, slots=True)
+class CatalogModel:
+    id: str
+    created: int
+    owned_by: str
+    object: Literal["model"] = "model"
+
+
+def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for name, value in pairs:
+        if name in result:
+            raise ValueError("Duplicate JSON object key")
+        result[name] = value
+    return result
+
+
+def _reject_constant(_: str) -> None:
+    raise ValueError("Invalid JSON number")
+
+
+def _finite_float(value: str) -> float:
+    result = float(value)
+    if not math.isfinite(result):
+        raise ValueError("Invalid JSON number")
+    return result
+
+
+def _json_body(body: bytes | bytearray) -> dict[str, Any]:
+    """Decode one unambiguous, bounded UTF-8 provider object before projection."""
+    try:
+        value = json.loads(
+            body.decode("utf-8"),
+            object_pairs_hook=_unique_object,
+            parse_constant=_reject_constant,
+            parse_float=_finite_float,
+        )
+        if not isinstance(value, dict):
+            raise ValueError
+        pending = [(value, 0)]
+        while pending:
+            item, depth = pending.pop()
+            if depth > MAX_JSON_DEPTH:
+                raise ValueError
+            if isinstance(item, dict):
+                for name, child in item.items():
+                    name.encode("utf-8")
+                    pending.append((child, depth + 1))
+            elif isinstance(item, list):
+                pending.extend((child, depth + 1) for child in item)
+            elif isinstance(item, str):
+                # JSON escapes can otherwise produce unpaired UTF-16 surrogates.
+                item.encode("utf-8")
+        return value
+    except (ValueError, UnicodeError, RecursionError, OverflowError):
+        raise ProviderError(ProviderErrorReason.INVALID_RESPONSE) from None
+
+
+def _catalog_models(body: bytearray) -> tuple[CatalogModel, ...]:
+    """Validate the entire bounded JSON document before discarding extra metadata."""
+    data = _json_body(body)
+    try:
+        if data.get("object") != "list":
+            raise ValueError
+        records = data.get("data")
+        if not isinstance(records, list) or len(records) > MAX_CATALOG_MODELS:
+            raise ValueError
+        models = []
+        seen: set[str] = set()
+        for record in records:
+            if not isinstance(record, dict) or record.get("object") != "model":
+                raise ValueError
+            raw_model = record.get("id")
+            if not isinstance(raw_model, str):
+                raise ValueError
+            model = validate_model_id(raw_model)
+            created, owner = record.get("created"), record.get("owned_by")
+            if (
+                model in seen
+                or type(created) is not int
+                or not 0 <= created <= 2**63 - 1
+                or not isinstance(owner, str)
+                or not 1 <= len(owner.encode("utf-8")) <= 1024
+                or any(unicodedata.category(character).startswith("C") for character in owner)
+            ):
+                raise ValueError
+            seen.add(model)
+            models.append(CatalogModel(model, created, owner))
+        return tuple(models)
+    except (ValueError, TypeError, UnicodeError, RecursionError, OverflowError):
+        raise ProviderError(ProviderErrorReason.INVALID_RESPONSE) from None
 
 
 def _validated_origin(kind: str, value: str) -> str:
@@ -174,10 +285,14 @@ def _openai_response(data: dict[str, Any]) -> tuple[str, FinishReason, list[Tool
     except (TypeError, ValueError):
         raise ProviderError(ProviderErrorReason.INVALID_RESPONSE) from None
     text = message.get("content")
-    if text is None and calls:
+    if text is None and (calls or (reason == "length" and "content" in message)):
         text = ""
-    if not isinstance(text, str) or (not text and not calls):
+    if not isinstance(text, str) or (not text and not calls and reason != "length"):
         raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
+    if calls and reason == "stop":
+        # Forced function choices can finish with stop despite a complete call.
+        # Keep the domain's tool-call finish invariant after strict call parsing.
+        return text, "tool_calls", calls
     if bool(calls) != (reason == "tool_calls"):
         raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
     return text, reason, calls
@@ -258,19 +373,179 @@ class HTTPProvider:
             trust_env=False,
             **options,
         )
+        self._catalog: tuple[CatalogModel, ...] | None = None
+        self._catalog_until = 0.0
+        self._catalog_failure: ProviderErrorReason | None = None
+        self._catalog_failure_until = 0.0
+        self._catalog_flight: (
+            asyncio.Future[tuple[CatalogModel, ...] | ProviderErrorReason] | None
+        ) = None
+        self._catalog_leader: asyncio.Task[Any] | None = None
+        self._catalog_closed = False
 
     async def aclose(self) -> None:
-        await self._client.aclose()
+        self._catalog_closed = True
+
+        async def close() -> None:
+            leader = self._catalog_leader
+            if leader is not None and leader is not asyncio.current_task() and not leader.done():
+                leader.cancel()
+                await asyncio.gather(leader, return_exceptions=True)
+            await self._client.aclose()
+
+        await complete_cleanup(close())
+
+    async def get_models(self, *, deadline: float | None = None) -> tuple[CatalogModel, ...]:
+        """Read an account-scoped catalog; the first caller owns the single fetch.
+
+        Waiters shield only the shared result, never a detached network task. A
+        cancelled leader finishes owned HTTP cleanup before waking its waiters.
+        """
+        caller = asyncio.current_task()
+        if caller is not None and caller.cancelling():
+            raise asyncio.CancelledError
+        now = time.monotonic()
+        if deadline is not None and now >= deadline:
+            raise TimeoutError
+        if self._catalog_closed:
+            raise ProviderError(ProviderErrorReason.UNAVAILABLE) from None
+        if self._kind != "openai":
+            raise ProviderError(ProviderErrorReason.REJECTED) from None
+        if self._catalog is not None and now < self._catalog_until:
+            return self._catalog
+        if self._catalog_failure is not None and now < self._catalog_failure_until:
+            raise ProviderError(self._catalog_failure) from None
+        if self._catalog_flight is not None:
+            async with asyncio.timeout_at(deadline):
+                result = await asyncio.shield(self._catalog_flight)
+            if deadline is not None and time.monotonic() >= deadline:
+                raise TimeoutError
+            if isinstance(result, ProviderErrorReason):
+                raise ProviderError(result) from None
+            return result
+
+        flight: asyncio.Future[tuple[CatalogModel, ...] | ProviderErrorReason] = (
+            asyncio.get_running_loop().create_future()
+        )
+        self._catalog_flight = flight
+        self._catalog_leader = asyncio.current_task()
+        outcome: tuple[CatalogModel, ...] | ProviderErrorReason = ProviderErrorReason.UNAVAILABLE
+        until = (
+            min(now + CATALOG_FETCH_SECONDS, deadline)
+            if deadline is not None
+            else (now + CATALOG_FETCH_SECONDS)
+        )
+        try:
+            async with asyncio.timeout_at(until):
+                models = await self._fetch_models()
+            if time.monotonic() >= until:
+                raise TimeoutError
+            if self._catalog_closed:
+                raise asyncio.CancelledError
+            self._catalog = models
+            self._catalog_until = time.monotonic() + CATALOG_TTL_SECONDS
+            self._catalog_failure = None
+            outcome = models
+            return models
+        except asyncio.CancelledError:
+            raise
+        except Exception as error:
+            if caller is not None and caller.cancelling():
+                raise asyncio.CancelledError from None
+            # A caller's shorter deadline must not poison the account cache.
+            if deadline is not None and time.monotonic() >= deadline:
+                raise TimeoutError from None
+            if isinstance(error, ProviderError):
+                reason = error.reason
+            elif isinstance(error, (TimeoutError, httpx.TimeoutException)):
+                reason = ProviderErrorReason.TIMEOUT
+            elif isinstance(error, httpx.DecodingError):
+                reason = ProviderErrorReason.INVALID_RESPONSE
+            elif isinstance(error, httpx.TransportError):
+                reason = ProviderErrorReason.TRANSPORT
+            else:
+                reason = ProviderErrorReason.UNKNOWN
+            outcome = self._catalog_failure = reason
+            self._catalog_failure_until = time.monotonic() + CATALOG_FAILURE_SECONDS
+            raise ProviderError(reason) from None
+        finally:
+            self._catalog_flight = None
+            self._catalog_leader = None
+            flight.set_result(outcome)
+
+    async def _fetch_models(self) -> tuple[CatalogModel, ...]:
+        primary: BaseException | None = None
+        try:
+            async with self._client.stream(
+                "GET", self._origin + "/v1/models", headers=self._headers
+            ) as response:
+                try:
+                    if not isinstance(response.stream, httpx.AsyncByteStream):
+                        raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
+                    response.stream = _OwnedCloseStream(response.stream)
+                    if response.status_code != 200:
+                        raise ProviderError(ProviderErrorReason.UNAVAILABLE)
+                    media_type = (
+                        response.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+                    )
+                    if media_type != "application/json":
+                        raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
+                    body = bytearray()
+                    async for chunk in response.aiter_bytes():
+                        if len(chunk) > MAX_RESPONSE_BYTES - len(body):
+                            raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
+                        body.extend(chunk)
+                    models = _catalog_models(body)
+                except BaseException as error:
+                    primary = error
+                    raise
+            return models
+        except BaseException:
+            if primary is not None:
+                raise primary from None
+            raise
+
+    async def complete_responses(
+        self,
+        request: ResponsesRequest,
+        *,
+        model: str | None = None,
+        stream: bool = False,
+        consent: ResponsesConsent = ResponsesConsent(),
+    ) -> ResponsesResponse:
+        from gateway7.responses_provider import complete_responses
+
+        return await complete_responses(self, request, model=model, stream=stream, consent=consent)
+
+    async def complete_responses_early(
+        self,
+        request: ResponsesRequest,
+        *,
+        model: str | None = None,
+        consent: ResponsesConsent = ResponsesConsent(),
+        on_text: Callable[[str], Awaitable[None]] | None = None,
+        on_text_delta: ResponsesTextSink | None = None,
+    ) -> ResponsesResponse:
+        from gateway7.responses_provider import complete_responses_early
+
+        return await complete_responses_early(
+            self,
+            request,
+            model=model,
+            consent=consent,
+            on_text=on_text,
+            on_text_delta=on_text_delta,
+        )
 
     def _request(
         self, request: ChatRequest, model: str | None = None, *, stream: bool = False
     ) -> tuple[str, dict[str, Any]]:
-        selected_model = self._model if model is None else model
-        if (
-            not isinstance(selected_model, str)
-            or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", selected_model) is None
-        ):
-            raise ProviderError()
+        try:
+            selected_model = validate_provider_model(
+                self._kind, self._model if model is None else model
+            )
+        except (TypeError, ValueError):
+            raise ProviderError(ProviderErrorReason.REJECTED) from None
         generation = {
             name: getattr(request, name)
             for name in (
@@ -371,43 +646,88 @@ class HTTPProvider:
     async def complete(
         self, request: ChatRequest, *, model: str | None = None, stream: bool = False
     ) -> ChatResponse:
+        return await self._complete(request, model=model, stream=stream)
+
+    async def complete_early(
+        self,
+        request: ChatRequest,
+        *,
+        model: str | None = None,
+        on_text: Callable[[str], Awaitable[None]],
+    ) -> ChatResponse:
+        """Await each checked OpenAI text delta; return tools only after validation.
+
+        This always streams upstream. Callback exceptions and cancellation pass
+        through unchanged; provider failures retain sanitized reasons and usage.
+        """
+        if self._kind != "openai":
+            raise ProviderError(ProviderErrorReason.REJECTED)
+        answer = await self._complete(request, model=model, stream=True, on_text=on_text)
+        previous_ids = {call.id for message in request.messages for call in message.tool_calls}
+        if any(call.id in previous_ids for call in answer.tool_calls):
+            raise ProviderError(ProviderErrorReason.INVALID_RESPONSE, usage=answer.usage)
+        return answer
+
+    async def _complete(
+        self,
+        request: ChatRequest,
+        *,
+        model: str | None = None,
+        stream: bool = False,
+        on_text: Callable[[str], Awaitable[None]] | None = None,
+    ) -> ChatResponse:
         usage = None
         streamed = OpenAIStream(MAX_RESPONSE_BYTES) if stream else None
+        callback_active = False
+        primary_error: BaseException | None = None
+        body = bytearray()
         try:
             path, payload = self._request(request, model, stream=stream)
             # A single request: retries and redirects are intentionally absent.
             async with self._client.stream(
                 "POST", self._origin + path, json=payload, headers=self._headers
             ) as response:
-                if response.status_code != 200:
-                    if response.status_code in (401, 403):
-                        reason = ProviderErrorReason.AUTHENTICATION
-                    elif response.status_code == 429:
-                        reason = ProviderErrorReason.RATE_LIMIT
-                    elif 500 <= response.status_code < 600:
-                        reason = ProviderErrorReason.UNAVAILABLE
-                    else:
-                        reason = ProviderErrorReason.REJECTED
-                    raise ProviderError(reason)
-                if streamed is not None:
-                    content_type = response.headers.get("content-type", "").split(";", 1)[0].strip()
-                    if content_type.lower() != "text/event-stream":
+                try:
+                    if not isinstance(response.stream, httpx.AsyncByteStream):
                         raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
-                    async for chunk in response.aiter_bytes():
-                        streamed.feed(chunk)
-                    data = streamed.finish()
-                else:
-                    body = bytearray()
-                    async for chunk in response.aiter_bytes():
-                        if len(chunk) > MAX_RESPONSE_BYTES - len(body):
+                    response.stream = OwnedCloseStream(response.stream)
+                    if response.status_code != 200:
+                        if response.status_code in (401, 403):
+                            reason = ProviderErrorReason.AUTHENTICATION
+                        elif response.status_code == 429:
+                            reason = ProviderErrorReason.RATE_LIMIT
+                        elif 500 <= response.status_code < 600:
+                            reason = ProviderErrorReason.UNAVAILABLE
+                        else:
+                            reason = ProviderErrorReason.REJECTED
+                        raise ProviderError(reason)
+                    if streamed is not None:
+                        content_type = (
+                            response.headers.get("content-type", "").split(";", 1)[0].strip()
+                        )
+                        if content_type.lower() != "text/event-stream":
                             raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
-                        body.extend(chunk)
-                    try:
-                        data = json.loads(body)
-                    except (ValueError, UnicodeError, RecursionError):
-                        raise ProviderError(ProviderErrorReason.INVALID_RESPONSE) from None
-                    if not isinstance(data, dict):
-                        raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
+                        async for chunk in response.aiter_bytes():
+                            streamed.feed(chunk)
+                            if on_text is not None:
+                                for text_delta in streamed.drain_text():
+                                    if text_delta:
+                                        callback_active = True
+                                        await on_text(text_delta)
+                                        callback_active = False
+                        data = streamed.finish()
+                    else:
+                        async for chunk in response.aiter_bytes():
+                            if len(chunk) > MAX_RESPONSE_BYTES - len(body):
+                                # An over-limit document cannot supply trusted accounting.
+                                body.clear()
+                                raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
+                            body.extend(chunk)
+                        data = _json_body(body)
+                except BaseException as body_error:
+                    # HTTPX closes on context exit; cleanup must not replace this failure.
+                    primary_error = body_error
+                    raise
             usage = _response_usage(self._kind, data)
             calls: list[ToolCall] = []
             if self._kind == "fake":
@@ -426,44 +746,60 @@ class HTTPProvider:
                 ):
                     raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
                 if isinstance(request.tool_choice, str):
-                    if request.tool_choice == "required" and not calls:
+                    if (
+                        request.tool_choice == "required"
+                        and not calls
+                        and finish_reason != "length"
+                    ):
                         raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
                 elif request.tool_choice is not None:
-                    if not calls or calls[0].function.name != request.tool_choice.function.name:
+                    if (calls and calls[0].function.name != request.tool_choice.function.name) or (
+                        not calls and finish_reason != "length"
+                    ):
                         raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
             else:
                 text, finish_reason = _gemini_response(data)
             if (
                 not isinstance(text, str)
-                or (not text and not calls)
+                or (
+                    not text
+                    and not calls
+                    and not (self._kind == "openai" and finish_reason == "length")
+                )
                 or finish_reason not in ("stop", "length", "tool_calls")
             ):
                 raise ProviderError(ProviderErrorReason.INVALID_RESPONSE)
             return ChatResponse(
                 text=text, usage=usage, finish_reason=finish_reason, tool_calls=calls
             )
-        except ProviderError as error:
+        except BaseException as caught_error:
+            error = primary_error if primary_error is not None else caught_error
+            if callback_active or not isinstance(error, Exception):
+                retain_observed_usage(error, streamed.usage if streamed is not None else usage)
+                raise error from None
+            if streamed is None and usage is None and body:
+                try:
+                    # HTTPX can close at EOF before aiter_bytes returns. Preserve
+                    # source-reported counts from an observed valid JSON object
+                    # even when cleanup fails; this is not a successful answer
+                    # or proof that the transport completed without truncation.
+                    usage = _response_usage(self._kind, _json_body(body))
+                except ProviderError:
+                    pass
+            if isinstance(error, ProviderError):
+                reason = error.reason
+            elif isinstance(error, httpx.TimeoutException):
+                reason = ProviderErrorReason.TIMEOUT
+            elif isinstance(error, httpx.DecodingError):
+                reason = ProviderErrorReason.INVALID_RESPONSE
+            elif isinstance(error, httpx.TransportError):
+                reason = ProviderErrorReason.TRANSPORT
+            else:
+                # Never include bodies, URLs, headers or raw exceptions in diagnostics.
+                reason = ProviderErrorReason.UNKNOWN
             raise ProviderError(
-                error.reason, usage=streamed.usage if streamed is not None else usage
+                reason, usage=streamed.usage if streamed is not None else usage
             ) from None
-        except httpx.TimeoutException:
-            raise ProviderError(
-                ProviderErrorReason.TIMEOUT, usage=streamed.usage if streamed is not None else usage
-            ) from None
-        except httpx.DecodingError:
-            raise ProviderError(
-                ProviderErrorReason.INVALID_RESPONSE,
-                usage=streamed.usage if streamed is not None else usage,
-            ) from None
-        except httpx.TransportError:
-            raise ProviderError(
-                ProviderErrorReason.TRANSPORT,
-                usage=streamed.usage if streamed is not None else usage,
-            ) from None
-        except Exception:
-            # Unexpected failures retain a bounded fallback. Never include
-            # bodies, URLs, headers or raw exceptions in diagnostics.
-            raise ProviderError(usage=streamed.usage if streamed is not None else usage) from None
 
 
 def build_provider(

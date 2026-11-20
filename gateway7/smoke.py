@@ -16,8 +16,9 @@ from urllib.parse import urlsplit
 
 import httpx
 
+from gateway7.config import validate_model_id
+
 _BODY_LIMIT = 1_048_576
-_MODEL = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}")
 _REQUEST_ID = re.compile(r"[0-9a-f]{32}")
 _MESSAGE = "Reply briefly: Gateway7 is working."
 
@@ -56,23 +57,26 @@ def _options(url: str, token_env: str, model: str | None) -> str:
         or any(not 33 <= ord(character) <= 126 for character in token)
     ):
         raise _CheckFailed("invalid_token")
-    if model is not None and _MODEL.fullmatch(model) is None:
-        raise _CheckFailed("invalid_model")
+    if model is not None:
+        try:
+            validate_model_id(model)
+        except ValueError:
+            raise _CheckFailed("invalid_model") from None
     return token
 
 
-def _models(data: dict[str, Any], model: str | None) -> None:
+def _models(data: dict[str, Any]) -> None:
     entries = data.get("data")
-    if data.get("object") != "list" or not isinstance(entries, list) or not entries:
+    if data.get("object") != "list" or not isinstance(entries, list):
         raise _CheckFailed("invalid_response")
-    identifiers = []
     for item in entries:
         identifier = item.get("id") if isinstance(item, dict) else None
-        if not isinstance(identifier, str) or _MODEL.fullmatch(identifier) is None:
+        if not isinstance(identifier, str):
             raise _CheckFailed("invalid_response")
-        identifiers.append(identifier)
-    if model is not None and model not in identifiers:
-        raise _CheckFailed("model_not_allowed")
+        try:
+            validate_model_id(identifier)
+        except ValueError:
+            raise _CheckFailed("invalid_response")
 
 
 def _answer(data: dict[str, Any], request_id: str | None) -> dict[str, int] | None:
@@ -173,7 +177,7 @@ async def run_smoke(
                 checks.append(current)
                 current = {"check": "models", "passed": False}
                 data = await request(client, "GET", "/v1/models", token=token)
-                _models(data, model)
+                _models(data)
                 current["passed"] = True
                 checks.append(current)
                 current = {"check": "chat", "passed": False}
