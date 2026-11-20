@@ -112,7 +112,28 @@ For the two API tasks, the events carry `source=usability-test`, which only stag
 
 The instrumentation does not cover comprehension, the reason for a hint, or the offline task's internal steps. The observer's notes and post-test answers provide that evidence, and the results state the coverage gap.
 
-The test writes no production data and makes no real payment. The staging seed is reset before each session. Before the first counted session, a teammate verifies that the two API events reach the staging event list, the `participant_code` filter selects that run, and the production project receives no event. The verification is not counted; its evidence goes in the private repository and the Week 7 report. Consent and private-store provisioning remain in [task #269](https://github.com/iteam7/gateway7/issues/269).
+The test writes no production data and makes no real payment.
+Reset the synthetic staging seed before each session.
+Consent and private-store verification remain in [task #269](https://github.com/iteam7/gateway7/issues/269).
+
+### Pre-session verification
+
+Before the first counted session, a teammate runs this check against the actual isolated staging deployment using the synthetic provider.
+Use the [coded usability setup](../../deployment.md#coded-usability-runs) with a synthetic verification code recorded separately from the participant roster.
+The Week 7 pilot and the uncoded [protocol dry run](sessions/README.md#dry-run) do not establish that the deployed coded path is ready.
+
+1. Record the verification date and the full commit SHA of the gateway running in staging.
+   Confirm the configured staging OpenPanel project and the private text store for the filtered export before sending the synthetic request.
+2. Send a synthetic online-task request and capture its returned `X-Request-ID`.
+   Find the matching `chat_started` and `chat_completed` in the staging raw-event view.
+   Both must have that `request_id`, the synthetic `participant_code`, `environment=staging` and `source=usability-test`.
+   Filter by source, code and verification window to export only that run to the private text store.
+3. Check the saved staging [product metric queries](../../analytics.md#the-metric-tree).
+   Confirm that the same request appears in the test-only event filter and is excluded by the product filters, including from both the numerator and denominator of Task completion rate.
+   Verify that the production project contains no event for that request ID without sending a production request.
+4. Record the pass, failure or inaccessible check with the full commit, date and supporting evidence in the private text store.
+   Publish only a sanitized verification status in the report for the sprint that ran the check.
+   Keep the verification out of counted sessions and repeat any failed or unavailable check before beginning counted sessions.
 
 ## Analysis Plan
 

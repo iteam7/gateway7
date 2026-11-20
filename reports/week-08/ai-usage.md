@@ -192,3 +192,11 @@
 - Verification: Checked preservation of both source histories, assessment placeholders and absence of conflict markers; documentation validation and PR CI provide the merge checks.
 - Boundary: No additional runtime change, deployment, release, human decision or Customer acceptance is claimed.
 - Team assessment: TODO
+
+## 2026-11-20 — Task #300 staging verification procedure
+
+- Tool: Codex with Formater.
+- Work: Compared the UT-01 instrumentation section with the public deployment and analytics guides and task #300, then documented the staging check and what evidence to record before counting sessions.
+- Inputs: Public course rules, issues and repository documents. No session notes, recordings, private telemetry, addresses or credentials were supplied.
+- Outcome: The procedure separates the deployed coded verification from the earlier pilot and protocol dry run. The actual staging verification and participant sessions still need team evidence.
+- Team assessment: TODO
