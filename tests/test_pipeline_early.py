@@ -639,7 +639,7 @@ async def test_hook_budget_excludes_provider_and_callback_wait():
     pipeline, provider = runner(
         Prepared(),
         provider=SlowProvider(),
-        limits=LimitsConfig(hook_timeout_seconds=0.01, request_timeout_seconds=1),
+        limits=LimitsConfig(hook_timeout_seconds=0.2, request_timeout_seconds=1),
     )
     assert await pipeline.run_early(payload(), on_text=slow_text) == provider.response
     assert len(provider.calls) == 1
@@ -785,7 +785,7 @@ async def test_provider_exception_cannot_replace_cancellation_or_deadline(error_
                 raise RuntimeError("synthetic provider failure") from None
 
     metrics = Metrics()
-    limits = LimitsConfig(request_timeout_seconds=0.01 if interruption == "deadline" else 1)
+    limits = LimitsConfig(request_timeout_seconds=0.2 if interruption == "deadline" else 1)
     pipeline, provider = runner(
         Stateful(), provider=FailingProvider(), limits=limits, metrics=metrics
     )

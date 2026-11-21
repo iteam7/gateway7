@@ -168,7 +168,11 @@ def test_precise_accounting_and_budget_guard_all_http_shapes(managed, path, stre
     response = client.post(path, headers=headers, json=body)
     assert response.status_code == 200, response.text
     assert provider.calls == 1
-    report = read(client, "/operator/usage?client_id=alice&bucket=hour")
+    report = read(
+        client,
+        "/operator/usage?client_id=alice&bucket=hour"
+        "&start=2000-01-01T00:00:00Z&end=2100-01-01T00:00:00Z",
+    )
     assert report["summary"]["provider_attempts"] == 1
     assert report["summary"]["known_input_tokens"] == 7
     assert report["summary"]["known_output_tokens"] == 3
@@ -197,7 +201,11 @@ def test_precise_accounting_and_budget_guard_all_http_shapes(managed, path, stre
     assert response.status_code == 429, response.text
     assert response.json()["error"]["code"] == "budget_exceeded"
     assert provider.calls == 1
-    diagnostics = read(client, "/operator/diagnostics?client_id=alice")
+    diagnostics = read(
+        client,
+        "/operator/diagnostics?client_id=alice"
+        "&start=2000-01-01T00:00:00Z&end=2100-01-01T00:00:00Z",
+    )
     assert diagnostics["http_outcomes"]["budget_exceeded"] == 1
     assert read(client, "/operator/usage?client_id=alice")["summary"]["provider_attempts"] == 1
 
