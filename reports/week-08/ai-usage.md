@@ -193,10 +193,19 @@
 - Boundary: No additional runtime change, deployment, release, human decision or Customer acceptance is claimed.
 - Team assessment: TODO
 
+## 2026-11-20 — Reconcile the Sprint 05 milestone record
+
+- Tool: Codex with Formater.
+- Work: Updated the maintained project plan to match the Sprint 05 milestone and integrated current main into draft PR #214.
+- Evidence: The milestone records closure on 31 October 2026 at 13:50:52 UTC with 11 closed issues.
+- Outcome: The historical Week 7 report and AI record remain unchanged. The original Sprint 05 planning commitment remains unverified.
+- Team assessment: TODO
+
 ## 2026-11-20 — Task #300 staging verification procedure
 
 - Tool: Codex with Formater.
 - Work: Compared the UT-01 instrumentation section with the public deployment and analytics guides and task #300, then documented the staging check and what evidence to record before counting sessions.
 - Inputs: Public course rules, issues and repository documents. No session notes, recordings, private telemetry, addresses or credentials were supplied.
 - Outcome: The procedure separates the deployed coded verification from the earlier pilot and protocol dry run. The actual staging verification and participant sessions still need team evidence.
+- PR refresh: Codex merged the current main and preserved both AI disclosure entries. Markdown and whitespace were checked.
 - Team assessment: TODO
