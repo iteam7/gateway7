@@ -201,6 +201,23 @@
 - Outcome: The historical Week 7 report and AI record remain unchanged. The original Sprint 05 planning commitment remains unverified.
 - Team assessment: TODO
 
+## 2026-11-20 — Task #299 sprint planning reconciliation
+
+- Tool: Codex with Formater and a read-only audit agent.
+- Work: Reconciled the public project plan with native GitHub milestone, role, priority and estimate fields.
+  Documented the Week 8 work dependencies and session-attribution rule and kept the Week 9 candidates unscheduled.
+- Inputs: Public course requirements, repository files and tracker metadata; no usability material, private notes or recordings were supplied.
+- Result: Native fields established current task selection and candidate estimates.
+  The original planning agreement and US-09 estimate could not be verified.
+- Team assessment: TODO
+
+## 2026-11-21 — Date the SPRINT-08 tracker checkpoint
+
+- Tool: Codex.
+- Work: Dated the six-task SPRINT-08 tracker checkpoint before separating the documentation from the remaining planning work in GitHub.
+- Verification: Compared the changed statements with the 20 November issue and milestone review and checked the local Markdown and rendered documentation.
+- Team assessment: TODO
+
 ## 2026-11-20 — Reconcile the Sprint 06 closeout checkpoint
 
 - Tool: Codex.
