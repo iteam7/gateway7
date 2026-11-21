@@ -110,7 +110,8 @@ Unselected refined stories retain their estimates without a milestone, role valu
 The [31 October confirmation](https://github.com/iteam7/gateway7/blob/7fa1eced4183c17f2cac9df41bb970a0075ef65f/reports/week-05/meeting-follow-up.md#customer-verdicts) establishes acceptance of both currently estimated selected stories.
 The `8 SP` result is the known SPRINT-05 scope, not a recreated original commitment or a point total for accepted stories still placed in older sprint milestones without estimates.
 The remaining open SPRINT-05 issues, tasks #138 and #139, were explicitly moved to SPRINT-06; SPRINT-05 now has zero open issues.
-Automated approval review prevented the subsequent milestone-close action, so the milestone remains open pending specific confirmation; no second close attempt or completed closure is claimed.
+Tracker correction, 8 November 2026: [SPRINT-05](https://github.com/iteam7/gateway7/milestone/3) is closed, with its closure recorded on 31 October at 13:50:52 UTC and all 11 issues closed.
+This live check supersedes the earlier statement that milestone closure remained blocked; it does not supply the missing original planning commitment.
 The [SPRINT-04 actions](https://github.com/iteam7/gateway7/blob/main/reports/week-04/sprint-retrospective.md#actions) still require the tracker and review records to show their outcome, including the Customer review and remaining Windows work.
 The completed [testing-plan task #137](https://github.com/iteam7/gateway7/issues/137) is preserved in the testing rows below; no new result is claimed by the planning update.
 
