@@ -407,7 +407,7 @@ async def test_waiter_own_deadline_expires_without_cancelling_or_poisoning_leade
         leader = asyncio.create_task(provider.get_models())
         await asyncio.wait_for(stream.reading.wait(), 1)
         with pytest.raises(TimeoutError):
-            await provider.get_models(deadline=time.monotonic() + 0.02)
+            await provider.get_models(deadline=time.monotonic() + 0.2)
         assert not leader.done() and not stream.closing.is_set()
         stream.release.set()
         result = await leader
@@ -423,7 +423,7 @@ async def test_leader_own_deadline_does_not_create_account_failure_cache():
         return streamed_catalog(streams[len(seen) - 1])
 
     async with catalog_provider(handle) as provider:
-        leader = asyncio.create_task(provider.get_models(deadline=time.monotonic() + 0.03))
+        leader = asyncio.create_task(provider.get_models(deadline=time.monotonic() + 1.0))
         await asyncio.wait_for(streams[0].reading.wait(), 1)
         waiter = asyncio.create_task(provider.get_models())
         with pytest.raises(TimeoutError):

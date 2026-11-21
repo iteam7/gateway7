@@ -890,12 +890,12 @@ def test_middleware_budget_excludes_downstream_provider_wait(monkeypatch):
 def test_pre_and_postprocessing_share_one_own_work_budget(monkeypatch):
     class Slow:
         async def handle(self, request, context, call_next):
-            await asyncio.sleep(0.04)
+            await asyncio.sleep(0.2)
             response = await call_next(request)
-            await asyncio.sleep(0.04)
+            await asyncio.sleep(0.2)
             return response
 
-    runner, provider = pipeline_for(monkeypatch, Slow(), limits={"hook_timeout_seconds": 0.06})
+    runner, provider = pipeline_for(monkeypatch, Slow(), limits={"hook_timeout_seconds": 0.3})
     with pytest.raises(GatewayError) as error:
         asyncio.run(runner.run(payload(), "cumulative-budget"))
     assert error.value.code == "timeout" and len(provider.calls) == 1
@@ -913,7 +913,7 @@ def test_response_timeout_discards_late_result(monkeypatch, suppress_cancellatio
                     raise
             return response
 
-    runner, provider = pipeline_for(monkeypatch, Slow(), limits={"hook_timeout_seconds": 0.01})
+    runner, provider = pipeline_for(monkeypatch, Slow(), limits={"hook_timeout_seconds": 0.2})
     with pytest.raises(GatewayError) as error:
         asyncio.run(runner.run(payload(), "response-timeout"))
     assert error.value.code == "timeout" and len(provider.calls) == 1
@@ -1819,7 +1819,7 @@ async def test_buffered_provider_cannot_replace_request_interruption(
     runner, _ = pipeline_for(
         monkeypatch,
         Stateful(),
-        limits={"request_timeout_seconds": 0.01 if interruption == "deadline" else 1},
+        limits={"request_timeout_seconds": 0.2 if interruption == "deadline" else 1},
     )
     provider = InterruptedProvider()
     runner.provider = provider
