@@ -242,3 +242,12 @@
 - Result: The procedure distinguishes configured permissions, inherited file access and actual instructor access. The custodian still needs to perform and record those checks.
 - PR refresh: Codex merged the current main and preserved both AI disclosure entries. Markdown and whitespace were checked.
 - Team assessment: TODO
+
+## 2026-11-20 — Document the analytics dashboard focus metric
+
+- Tool: Codex.
+- Work: Compared the [US-14](https://github.com/iteam7/gateway7/issues/174) criteria, metric tree and historical dashboard evidence. Updated the maintained analytics and deployment pages with both dashboard reports and a staging smoke-filter verification procedure.
+- Outcome: Kept the existing completion-rate chart and added the weekly successful-task count to the recipe for each environment. The documented comparison isolates a successful synthetic smoke event because a failed event would already be excluded by the outcome filter.
+- Inputs: Public source and course requirements only. Deployed charts, current traffic and Customer acceptance remain unverified.
+- PR refresh: Codex combined the Sprint 05 and dashboard disclosure entries after updating the branch from main.
+- Team assessment: TODO
