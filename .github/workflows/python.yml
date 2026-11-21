@@ -32,7 +32,7 @@ jobs:
       - name: Lint the gateway
         run: uv run --locked ruff check gateway7
       - name: Type-check the gateway
-        # Keep the standard-library platform view consistent; the gateway uses POSIX-only APIs.
+        # The gateway is deployed on Linux; use the same standard-library view on both runners.
         run: uv run --locked mypy --platform linux gateway7
       - name: Run tests
         run: uv run --locked pytest

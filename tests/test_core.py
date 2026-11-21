@@ -477,8 +477,10 @@ def test_synchronous_callable_factory_accepting_settings_remains_supported(monke
 
 def test_legacy_version_and_configuration_explain_migration(monkeypatch, tmp_path):
     name = module(monkeypatch, descriptor=PluginDescriptor("legacy", 1, Settings, lambda _: PassThrough()))
-    with pytest.raises(StartupError, match="migrate to API v2"):
+    with pytest.raises(StartupError, match="Invalid PLUGIN descriptor") as caught:
         load_plugins(configuration({"p": {"module": name}}, ["p"]))
+    assert caught.value.issues[0]["code"] == "plugin_api_unsupported"
+    assert "API 2" in caught.value.issues[0]["hint"]
     path = tmp_path / "legacy.yaml"
     path.write_text("chains:\n  request: []\n  response: []\n", encoding="utf-8")
     with pytest.raises(StartupError, match="replace chains.request/response with middleware"):
@@ -911,7 +913,7 @@ def test_response_timeout_discards_late_result(monkeypatch, suppress_cancellatio
                     raise
             return response
 
-    runner, provider = pipeline_for(monkeypatch, Slow(), limits={"hook_timeout_seconds": 0.01})
+    runner, provider = pipeline_for(monkeypatch, Slow(), limits={"hook_timeout_seconds": 0.2})
     with pytest.raises(GatewayError) as error:
         asyncio.run(runner.run(payload(), "response-timeout"))
     assert error.value.code == "timeout" and len(provider.calls) == 1
@@ -1018,7 +1020,7 @@ def test_module_descriptor_access_cannot_inject_startup_error(monkeypatch):
 
 
 
-def test_legacy_continue_import_gets_safe_migration_guidance(monkeypatch, tmp_path):
+def test_missing_plugin_dependency_gets_safe_import_guidance(monkeypatch, tmp_path):
     name = "test_legacy_continue_import"
     (tmp_path / (name + ".py")).write_text(
         "from gateway7.plugin_api import Continue\n", encoding="utf-8"
@@ -1027,7 +1029,8 @@ def test_legacy_continue_import_gets_safe_migration_guidance(monkeypatch, tmp_pa
     with pytest.raises(StartupError) as error:
         load_plugins(configuration({"p": {"module": name}}, ["p"]))
     assert "Cannot load module" in str(error.value)
-    assert "migrate API v1 hooks/Continue to API v2 handle" in str(error.value)
+    assert "imports and dependencies" in str(error.value)
+    assert error.value.issues[0]["code"] == "plugin_import_failed"
     assert str(tmp_path) not in str(error.value)
 
 
@@ -1816,7 +1819,7 @@ async def test_buffered_provider_cannot_replace_request_interruption(
     runner, _ = pipeline_for(
         monkeypatch,
         Stateful(),
-        limits={"request_timeout_seconds": 0.01 if interruption == "deadline" else 1},
+        limits={"request_timeout_seconds": 0.2 if interruption == "deadline" else 1},
     )
     provider = InterruptedProvider()
     runner.provider = provider

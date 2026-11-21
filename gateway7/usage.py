@@ -4,23 +4,26 @@ import hashlib
 import hmac
 import os
 import re
-from collections.abc import Callable, Iterable
-from datetime import datetime, timezone
-from threading import Lock
+from collections.abc import Awaitable, Callable, Iterable
+from datetime import date, datetime, timezone
+from threading import Lock, RLock
 from typing import Any
 
+from gateway7.admin_store import ManagementStore, _add_counts, _empty_counts, _valid_client_ids
 from gateway7.auth import _valid_token
-from gateway7.config import GatewayConfig
+from gateway7.config import GatewayConfig, validate_model_id
 from gateway7.errors import GatewayError, StartupError, normalized_usage
 
-ProviderObserver = Callable[[str, dict[str, int] | None], None]
+ProviderObserver = Callable[[str, dict[str, int] | None], Awaitable[None] | None]
 _OUTCOMES = ("complete", "provider_error", "cancelled")
 
 
 class OperatorAccess:
     """Only a distinct operator bearer credential can read client accounting."""
 
-    def __init__(self, config: GatewayConfig) -> None:
+    def __init__(
+        self, config: GatewayConfig, *, token_digests: dict[str, bytes] | None = None
+    ) -> None:
         self.enabled = config.auth.operator_token_env is not None
         self._digest: bytes | None = None
         if not self.enabled:
@@ -31,14 +34,17 @@ class OperatorAccess:
             raise StartupError("Operator token environment variable is missing or invalid")
         digest = hashlib.sha256(token.encode("ascii")).digest()
         credentials = [os.environ.get(config.provider.key_env, "")]
-        credentials.extend(
-            os.environ.get(client.token_env, "")
-            for client in config.auth.clients.values()
-            if client.enabled
-        )
+        if token_digests is None:
+            credentials.extend(
+                os.environ.get(client.token_env, "")
+                for client in config.auth.clients.values()
+                if client.enabled
+            )
+        reserved_digests = [hashlib.sha256(value.encode()).digest() for value in credentials]
+        if token_digests is not None:
+            reserved_digests.extend(token_digests.values())
         conflict = False
-        for credential in credentials:
-            other = hashlib.sha256(credential.encode()).digest()
+        for other in reserved_digests:
             conflict = hmac.compare_digest(digest, other) or conflict
         if conflict:
             raise StartupError("Operator token must differ from provider and client credentials")
@@ -125,4 +131,70 @@ class UsageLedger:
             "started_at": self._started_at,
             "reset_on_restart": True,
             "clients": clients,
+        }
+
+
+class PersistentUsageLedger:
+    """Daily client/model aggregates retained across management-enabled restarts."""
+
+    def __init__(self, store: ManagementStore, client_ids: Iterable[str]) -> None:
+        self.store = store
+        self._lock = RLock()
+        self._clients = store.usage_identities()
+        self.ensure_clients(client_ids)
+
+    def ensure_clients(self, client_ids: Iterable[str]) -> None:
+        ids = _valid_client_ids(client_ids)
+        with self._lock:
+            self._clients.update(ids)
+
+    def observer(self, client_id: str, model: str | None = None):
+        with self._lock:
+            if client_id not in self._clients:
+                raise ValueError("Unknown managed usage identity")
+        selected_model = "unknown" if model is None else validate_model_id(model)
+
+        def observe(outcome: str, usage: dict[str, int] | None) -> None:
+            self.store.record_usage(client_id, selected_model, outcome, usage)
+
+        return observe
+
+    def snapshot(
+        self,
+        *,
+        client_id: str | None = None,
+        model: str | None = None,
+        start: str | None = None,
+        end: str | None = None,
+    ) -> dict[str, Any]:
+        if (
+            client_id is not None
+            and re.fullmatch(r"[A-Za-z][A-Za-z0-9_.-]{0,63}", client_id) is None
+        ):
+            raise ValueError("Invalid usage client filter")
+        if model is not None:
+            validate_model_id(model)
+        for value in (start, end):
+            if value is not None:
+                if re.fullmatch(r"\d{4}-\d{2}-\d{2}", value) is None:
+                    raise ValueError("Usage dates must be UTC YYYY-MM-DD days")
+                date.fromisoformat(value)
+        if start is not None and end is not None and start > end:
+            raise ValueError("Usage start day must not follow end day")
+        rows = self.store.usage_rows(client_id=client_id, model=model, start=start, end=end)
+        with self._lock:
+            clients = {
+                identity: _empty_counts()
+                for identity in sorted(self._clients)
+                if client_id is None or identity == client_id
+            }
+        for row in rows:
+            _add_counts(clients.setdefault(row["client_id"], _empty_counts()), row)
+        return {
+            "scope": "persistent",
+            "started_at": self.store.started_at,
+            "reset_on_restart": False,
+            "clients": clients,
+            "rows": rows,
+            "filters": {"client_id": client_id, "model": model, "start": start, "end": end},
         }

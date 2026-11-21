@@ -125,6 +125,68 @@ The optional path from gateway logs and duration observations to an environment'
 
 **Defined by:** [the observability plan](observability.md#the-pipeline).
 
+## Usability Testing
+
+### Usability Test
+
+A scripted session in which a participant outside the team runs the product's main task and two adjacent tasks, while an observer records the completion, the assistance, the time, the ratings, and the friction.
+
+**Defined by:** [UT-01](usability-tests/ut-01/README.md).
+
+### Participant
+
+An adult aged 18 or older who matches the test's participant profile and is not a teammate, the Customer, an instructor, or course staff.
+
+**Defined by:** [the participant profile](usability-tests/ut-01/README.md#participant-profile).
+
+### Usability Session
+
+One run of the test's tasks with one participant, from the welcome to the debrief, recorded under the participant's `P-nn` code.
+
+**Defined by:** [the session template](usability-tests/ut-01/sessions/README.md).
+
+### Consent
+
+The durable, signed agreement a participant gives before a counted session, covering the adult declaration, the recording, the sanitized public results, the withdrawal, and the deletion after grading.
+
+**Defined by:** [the consent template](usability-tests/ut-01/consent.md).
+
+### Recording
+
+The screen-and-audio capture of a counted session, mandatory for counting it, kept in the team's cloud folder and never published.
+
+**Defined by:** [the consent template](usability-tests/ut-01/consent.md).
+
+### Measure
+
+A quantity the test records for one participant and one task, such as the SEQ rating or the time on task.
+
+**Defined by:** [UT-01's measures](usability-tests/ut-01/README.md#measures).
+
+### Metric
+
+A product-analytics number computed from the gateway's events, such as successful gateway tasks per week; it is not a measure a usability session records.
+
+**Defined by:** [the analytics plan](analytics.md#the-value-and-the-metrics).
+
+### Statistic
+
+The summary computed from a measure's recorded values, such as a count, a proportion, a median, or a mean; the analysis plan reports it, and a quality requirement's criterion uses one.
+
+**Defined by:** [UT-01's analysis plan](usability-tests/ut-01/README.md#analysis-plan).
+
+### SUS
+
+The System Usability Scale: ten standard items answered from strongly disagree (1) to strongly agree (5), scored `SUS = 2.5 × (20 + sum(odd) - sum(even))` from the raw responses.
+
+**Defined by:** [the surveys](usability-tests/ut-01/surveys.md#sus-after-all-the-tasks).
+
+### SEQ
+
+The Single Ease Question asked after each task: `Overall, how difficult or easy was the task to complete?`, answered from 1 (very difficult) to 7 (very easy).
+
+**Defined by:** [the surveys](usability-tests/ut-01/surveys.md#seq-after-each-task).
+
 ## Demonstration
 
 ### Synthetic Provider
@@ -132,3 +194,87 @@ The optional path from gateway logs and duration observations to an environment'
 The deterministic local stand-in for a real provider that the demo and tests use, which checks plugin behavior but proves nothing about a real provider.
 
 **Defined by:** [DEC-011](decisions.md#dec-011).
+
+## Repository Configuration
+
+### Configuration
+
+The selected settings, versions and instructions that determine how Gateway7 is built, checked, deployed and maintained.
+
+**Defined by:** [the configuration plan](configuration-plan.md).
+
+### Configuration Management
+
+The process of identifying, reviewing, changing and tracing Gateway7's configuration so a tested baseline can be reproduced and its differences explained.
+
+**Defined by:** [the configuration plan's upkeep procedure](configuration-plan.md#how-to-maintain-the-inventory).
+
+### Configuration Review
+
+An inspection of the actual configuration items, their connections and fitness for their purposes, including mandatory-state checks and a goal-based evaluation; inaccessible settings are explicit limitations.
+
+**Defined by:** [the configuration plan](configuration-plan.md#how-to-maintain-the-inventory).
+
+### Configuration Plan
+
+The maintained inventory that identifies Gateway7's configuration items, maintenance owners, locations, directed connections and expected good states.
+
+**Defined by:** [the configuration plan](configuration-plan.md).
+
+### Configuration Item
+
+One identifiable, maintained unit of configuration assigned a stable CFG-nn section; a file family may be one unit, while an ordinary weekly report is an output instance.
+
+**Defined by:** [the configuration plan](configuration-plan.md#how-to-maintain-the-inventory).
+
+### Configuration Evaluation
+
+An assessment of how convenient Gateway7's artifact set is for an explicit local goal, within mandatory course constraints; it is separate from checking whether each configuration item conforms to its declared good state.
+
+**Defined by:** [the configuration plan](configuration-plan.md#how-to-maintain-the-inventory).
+
+### Baseline
+
+The frozen, identified source commit/tag state, resolved dependencies, tools and relevant environment against which Gateway7's configuration is evaluated; a release baseline additionally identifies its actual tag and deployment evidence.
+
+**Defined by:** [the configuration plan](configuration-plan.md#how-to-maintain-the-inventory).
+
+### Upkeep
+
+The same-pull-request update of affected inventory entries, connections and related terms or risks when Gateway7's configuration changes.
+
+**Defined by:** [the configuration plan's upkeep procedure](configuration-plan.md#how-to-maintain-the-inventory).
+
+### Reproducible Build
+
+A build whose source, resolved dependencies, tools and relevant environment are sufficiently fixed to reproduce the evaluated output; matching a version string or retaining uv.lock alone does not establish this.
+
+**Defined by:** [CFG-08](configuration-plan.md#cfg-08) and [CFG-09](configuration-plan.md#cfg-09).
+
+### Dependency Pinning
+
+Constraining a dependency to an identified version, resolved lock entry or immutable digest rather than accepting an unspecified newer resolution.
+A version tag can still move; Gateway7 distinguishes version-pinned container tags from digest-pinned images.
+
+**Defined by:** [CFG-08](configuration-plan.md#cfg-08) and [CFG-09](configuration-plan.md#cfg-09).
+
+### Secret
+
+A private value granting access or protecting confidential state, such as a provider key, client/operator token, database password, ingestion credential or encryption key.
+The public template records variable names and empty placeholders only.
+
+**Defined by:** [CFG-07](configuration-plan.md#cfg-07).
+
+## Agent Context
+
+### Context Window
+
+The finite amount of instructions, source and conversation an AI model can consider in one generation; earlier evidence may no longer be available after context reduction or a handoff.
+
+**Defined by:** [CFG-11's instruction boundary](configuration-plan.md#cfg-11).
+
+### Agent Instruction
+
+A rule supplied to an AI agent that governs its permitted work, artifact conventions or verification steps; Gateway7's repository-wide instructions live in AGENTS.md and its role definitions.
+
+**Defined by:** [CFG-11](configuration-plan.md#cfg-11).

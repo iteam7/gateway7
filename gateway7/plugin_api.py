@@ -8,11 +8,14 @@ The core never infers compatibility from third-party plugin settings.
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeVar
 
 from pydantic import BaseModel
 
 from gateway7.models import ChatRequest, ChatResponse
+
+if TYPE_CHECKING:
+    from gateway7.responses_models import ResponsesRequest, ResponsesResponse
 
 API_VERSION = 2
 SettingsT = TypeVar("SettingsT", bound=BaseModel)
@@ -76,3 +79,41 @@ class ResponsesContext:
     deadline: float
     state: dict[str, Any]
     instance_name: str = ""
+
+
+class ChatMiddleware(Protocol):
+    """Static authoring contract; the loader still validates runtime instances."""
+
+    async def handle(
+        self, request: ChatRequest, context: PluginContext, call_next: NextHandler
+    ) -> ChatResponse | Deny: ...
+
+
+class EarlyChatMiddleware(Protocol):
+    async def prepare_early_stream(
+        self, request: ChatRequest, context: PluginContext
+    ) -> ChatRequest | Deny: ...
+
+
+class ResponsesMiddleware(Protocol):
+    async def prepare_responses(
+        self, request: "ResponsesRequest", context: ResponsesContext
+    ) -> "ResponsesRequest | Deny": ...
+
+    async def check_responses(
+        self, response: "ResponsesResponse", context: ResponsesContext
+    ) -> "ResponsesResponse | Deny": ...
+
+
+class EarlyResponsesMiddleware(Protocol):
+    async def prepare_early_responses(
+        self, request: "ResponsesRequest", context: ResponsesContext
+    ) -> "ResponsesRequest | Deny": ...
+
+
+class PluginLifecycle(Protocol):
+    """Optional lifecycle pair for policies that own cooperative resources."""
+
+    async def startup(self) -> None: ...
+
+    async def shutdown(self) -> None: ...

@@ -315,3 +315,96 @@
 - Review: Independent actual-diff TechLead review approved the narrow handshake correction and regression; earlier Task #222 evidence above remains historical and unchanged.
 - Boundary: No real credential files, existing launcher/server, live providers, model permissions/catalog behavior, dependencies, deployment or merge were changed.
 - Team assessment: TODO
+
+## 2026-11-13 — Issue housekeeping for previous sprints
+
+- Tool: DeepSeek Harness (DSH).
+- Work: At the team lead's explicit instruction, the session closed the previous-sprint issues #175, #176, #178, #182, #185 and #189 as completed through the team lead's GitHub account (`ExFuseMe`); the issue events record the closures at `2026-11-13T14:38Z`, and the reopen-and-close of #175 and #185 during the review is part of that history.
+  The team lead confirmed that the work was delivered outside the repository and decided that the closures stand after the Formater review raised the missing record evidence.
+  The repository itself does not show the planned velocity for #176, the production scopes for #178 and #182, the QRT result for #185, the `REL-06` tag for #189, or the Customer acceptance for story #175; the closure of those items is the team lead's record decision, not new evidence.
+  The Formater review withheld its approval on that tracker state; the divergence is recorded here, and the reopen-and-close history is in the comments on [#175](https://github.com/iteam7/gateway7/issues/175) and [#185](https://github.com/iteam7/gateway7/issues/185).
+- Boundary: No code, documentation, release, tag or deployment changed; the closures and the reopen-and-close are tracker actions only.
+- Team assessment: TODO
+
+## 2026-11-13 — Task #267: UT-01 design and QR-06
+
+- Tool: DeepSeek Harness (DSH), with a Formater POST review and a TechLead gap review.
+- Work: Designed UT-01 under Assignment 7: the test record, the surveys, the consent template, the session template with its observation sheet and dry run, the results stub, QR-06 with its manual QRT-01, the quality matrix and testing-plan rows, ten glossary terms, four risks, and the site navigation.
+- Accepted: the course's standard SEQ and SUS instruments and the `Critical` / `Major` / `Minor` severity classes.
+- Changed: the severity scale, the placement of session dates, the stop rule, the Metric and Statistic definitions, and the results tables; each change came from a Formater finding against the course requirements.
+- Rejected: nothing; no generated requirement, finding or measurement was kept without a rule behind it.
+- No usability material: no participant data, session note or recording exists yet, so no agent was given one; only the design text was shared with the subagents.
+- Verification: markdownlint reported zero issues, `lychee --offline` zero errors, and `mkdocs build --strict` with `docs-build/check_site.py` passed.
+- Boundary: The design claims no participant data, usability result, verdict, Customer decision or release; nothing was committed, pushed or published by this entry.
+- Team assessment: TODO
+
+## 2026-11-13 — UT-01 design confirmation and issue #267 follow-up
+
+- Tool: Codex.
+- Work: Rebased the existing UT-01 design from closed PR #273 onto the current `main` base, checked it against the pinned Assignment 7 and usability-testing requirements, and added an explicit task-to-instrumentation map.
+- Team confirmation: The team retained the documented scenarios, participant profile, QR-06 Learnability measure and SEQ bar, SPRINT-08 run plan, and the facilitator, observer and data-custodian assignments on 13 November 2026.
+- Boundary: This entry records that team confirmation only. It does not claim Customer review, pilot, participant data, findings, QR verdict, or Week 7 results; Customer review/pilot remains tracked by #270.
+- Team assessment: TODO
+
+## 2026-11-14 — Task #269 consent and private-data handoff
+
+- Tool: Codex, TechLead.
+- Work: Reconcile the confirmed #267 design with text-only consent storage, optional quotes, withdrawal/tool-copy deletion, arrangement-order codes, one authoritative artifact home and an authenticated private-repository link exclusion.
+- Source: PR #275 records DeniBorsh's 13 November confirmation of the profile, roles and SPRINT-08 arrangement; no replacement team decisions were inferred.
+- Verified setup: Formater created the required private text repository, initialized its address-free text homes, and verified private visibility, operator access and team collaborator permission metadata; this does not establish human read tests or instructor access.
+- Drive check: No accessible shared drive or matching project/team folder was found. Creation of an owner-only personal-root holding folder was rejected by automatic approval review; no folder or workaround was created.
+- Boundary: No participant data, signed consent, session or instructor read check is claimed; team-owned recording storage and instructor access remain separate gates.
+
+## 2026-11-14 — Task #270 Customer design-review preparation
+
+- Tool: Codex, TechLead.
+- Work: Prepare a 30-minute live review script against the team-confirmed UT-01 design in PR #275, with three separate permissions before recording, actual production/staging demonstrations, prior-source questions, execution-plan agreement and decision/action read-back.
+- Verification: Check the five required script sections, 30-minute agenda, question-to-agenda assignment and linked artifacts; the script distinguishes prepared design from demonstrated readiness.
+- Boundary: No meeting slot, review roles, pilot, permission answer, Customer decision or agreed action is invented; #270 remains incomplete until the actual pilot/review and rework are evidenced.
+
+## 2026-11-14 — Task #268 coded staging usability events
+
+- Tool: Codex developer and TechLead.
+- Work: Implement the participant-code link selected by the confirmed UT-01 design: an optional server-owned canonical code is accepted only for staging usability-test events, with matching event registry, ADR, setup/export/cleanup instructions and live Compose passthrough.
+  Caller headers/bodies cannot label events; codes remain outside operational logs, metrics labels and per-task profile identifiers.
+- Verification: Tested base c2f42a704f293350799ff09ce4de23d252e391c9 plus the uncommitted six-file scoped change; no new tested commit is implied.
+  The 81 focused analytics tests passed in 4.80 seconds; Ruff formatting/lint and Linux-target mypy passed for all 41 production files.
+  Native Windows mypy reported four unrelated POSIX-API errors; the explicit Linux target passed.
+  Actual docker compose config JSON rendering passed with the code unset and set to synthetic P-01, using an empty temporary env file and isolated Docker config; no engine or private values were used.
+  git diff --check passed.
+- Review: TechLead approved the actual six-file code, tests, Compose wiring and documentation diff.
+- Boundary: No deployed backend filters, private access check, human session, outcome, pilot or Customer approval is claimed; end-to-end code/session linkage and store readiness still require real verification.
+- Team assessment: TODO
+
+## 2026-11-14 — Task #268 Compose integration correction
+
+- Tool: Codex developer and TechLead.
+- Trigger: PR #280's first full CI run reported 4027 passes and five failures because strict live-Compose environment expectations omitted the new optional participant-code key, whose unset rendered value is null.
+- Work: Preserve exact environment assertions while adding the optional unset expectation and parameterizing the actual Compose-rendering test over unset and synthetic P-01 configuration.
+- Verification: TechLead approved the test-only correction; 81 analytics tests passed, while all 13 local Compose tests were skipped because that isolated Windows fixture could not locate the Compose plugin.
+  The earlier independent real Compose unset/set render remains separate evidence; these local skips are not reported as passes.
+  Ruff formatting/lint and whitespace checks passed; Linux CI must verify the corrected integration tests.
+- Boundary: No runtime configuration, production guard, privacy allowlist or unrelated test expectation was weakened.
+
+## 2026-11-14 — Task #266 sprint planning handoff
+
+- Tool: Codex, TechLead.
+- Work: Port only the prepared SPRINT-07–09 handoff onto the current confirmed-design branch; correct Week 7's due date, record the dated task-only 0 SP selection, and separate implementation, pre-session verification, counted sessions and results/release work.
+- Sources: Existing #266 refinement and the 13 November tracker audit supply the seven-task selection; PR #275 supplies the team-confirmed UT-01 profile, session roles and SPRINT-08 arrangement window.
+- Preservation: Existing product milestones, finished sprint/release history, quality-testing rows including QR-06, and monitoring text remain unchanged.
+- Boundary: The proposed sprint goal and future task allocations remain unconfirmed; no planning ceremony, capacity commitment, participant arrangement, Customer agreement, test pass, release or velocity closeout is invented. A fresh milestone API query timed out, so the earlier selection audit remains explicitly dated.
+- Team assessment: TODO
+
+## 2026-11-14 — Task #270 prior-source reconciliation
+
+- Tool: Codex.
+- Work: Reviewed the user-supplied Customer meeting transcripts dated 23 October, 6 November, 7 November and 13 November to add source-backed follow-ups to the prepared design-review script.
+- Boundary: The repository contains sanitized paraphrases only. The supplied files contain no participant/session material. No recording link, raw transcript, real name, timecode, permission answer, Customer verdict, assigned owner, due date or usability result was added or inferred.
+- Team assessment: TODO
+
+## 2026-11-14 — Task #270 pilot and Customer review evidence
+
+- Tool: Codex.
+- Work: Reviewed the user-supplied 13 November Customer-demo transcript and three screenshots; added sanitized screenshots and a meeting summary; recorded the reported successful outcome of the non-counted teammate pilot and UT-01 design review.
+- Boundary: The video, raw transcript, personal names and any credential or private address were not added. The transcript does not contain the UT-01 discussion or individual permission answers; the report records only the overall pilot/review outcome reported to the team. No participant result or QR-06 verdict is claimed.
+- Team assessment: TODO

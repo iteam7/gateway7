@@ -7,6 +7,39 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- Named expiring application keys and administrator/viewer operator credentials, searchable user metadata and defaults, revision-checked edits and attributable audit history.
+- Precise UTC usage history with hourly/daily series, captured model prices, estimated costs, durable daily/monthly token and cost budget reservations, protected request diagnostics and configurable retention.
+- Live single-provider settings and model aliases with write-only encrypted credentials, connection checks and safe draining of replaced adapters.
+- Installed same-backend backup/restore commands for private, versioned management snapshots, with validation and empty-target recovery.
+- Readiness/database and exporter delivery metrics, Responses-aware Grafana panels and operational Prometheus alert rules.
+- Project-aware plugin scaffolding with request-guard and two-way-redactor starters, a public typed text-policy helper, local agent contracts, editable unit tests and generated Ruff/strict mypy configuration.
+- Schema-2 synthetic fixtures for Chat, typed tools, native Responses and eligible early streams, with per-profile evidence, source-aware inspection and safe actionable diagnostics.
+- One-command loopback plugin development with owned synthetic HTTP services, scrubbed credentials, automatic ports and cross-platform cleanup; installed-wheel authoring checks cover Linux and Windows on Python 3.11–3.13.
+- Opt-in durable user administration in the operator console: create, edit, suspend and delete accounts, issue or revoke one-time client tokens, and apply model access, limits and additional middleware without restarting.
+- PostgreSQL-backed administration through a health-checked Compose service and durable volume, with explicit local SQLite storage retained as an alternative.
+
+### Changed
+
+- Run the Python checks and installed-wheel smoke tests on both Ubuntu and Windows.
+- Managed writes now require the current `If-Match` revision, and new usage reports use precise UTC `[start, end)` intervals; historical daily totals retain their original precision.
+- Prometheus token totals preserve independently known input and output counts when the other direction is unavailable.
+- Prepare the next development build as `0.5.0.dev0`; middleware API 2 and provider transport API 1 remain unchanged.
+
+### Fixed
+
+- Keep early Chat responses bound to the selected model while live provider defaults change.
+- Release unused durable budget reservations when cancellation occurs before an upstream call.
+- Preserve the replacement credential and authenticated session when an operator rotates their own key.
+
+### Breaking changes
+
+- Plugin authoring now requires `[tool.gateway7.plugin]` manifest schema 1 and fixture schema 2; the earlier `plugin test --config ... --fixtures ...` options and schema-1 fixtures are unsupported.
+  Regenerate a starter and port reviewed policy/cases to the declared profiles before testing or development serving.
+
+## [0.4.0] - 2026-11-14
+
+### Added
+
 - Explicit private JSON credential loading for local `gateway7 serve` startup, with existing environment values taking precedence and no automatic file discovery.
 - Optional provider/client model restrictions and an authenticated, bounded cached OpenAI model catalog; catalog membership neither gates authorization nor certifies endpoint compatibility.
 - A read-only operator web console displays safe client configuration, limits, usage and startup middleware capabilities with isolated authentication and packaged local assets.
@@ -130,7 +163,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - The one-command demonstration's plugin-installation check now passes on Windows, where it compared backslash paths with POSIX paths.
 - The documented test command no longer errors on Windows, where one case's generated test ID exceeded the environment-variable size limit.
 
-[Unreleased]: https://github.com/iteam7/gateway7/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/iteam7/gateway7/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/iteam7/gateway7/releases/tag/v0.4.0
 [0.3.0]: https://github.com/iteam7/gateway7/releases/tag/v0.3.0
 [0.2.0]: https://github.com/iteam7/gateway7/releases/tag/v0.2.0
 [0.1.1]: https://github.com/iteam7/gateway7/releases/tag/v0.1.1

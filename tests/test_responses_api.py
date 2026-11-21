@@ -171,10 +171,15 @@ def policy(term, *, phase="response", action="block"):
     }
 
 
-def assert_error(response, status, code):
+def assert_error(response, status, code, *, middleware=None):
     assert response.status_code == status, response.text
     assert response.headers["content-type"].startswith("application/json")
-    assert set(response.json()["error"]) == {"message", "type", "param", "code"}
+    fields = {"message", "type", "param", "code"}
+    if middleware is not None:
+        assert code == "policy_denied"
+        fields.add("middleware")
+        assert response.json()["error"]["middleware"] == middleware
+    assert set(response.json()["error"]) == fields
     assert response.json()["error"]["code"] == code
     assert "data:" not in response.text and "response.output_item.done" not in response.text
     assert "SYNTHETIC_PRIVATE" not in response.text
@@ -487,7 +492,7 @@ def test_request_policy_denies_before_attempt_and_mask_reaches_native_provider(r
         blocked = client.post(
             PATH, headers=HEADERS, json={**BODY, "input": "SYNTHETIC_PRIVATE_BLOCK"}
         )
-        assert_error(blocked, 403, "policy_denied")
+        assert_error(blocked, 403, "policy_denied", middleware="guard")
         assert provider.calls == []
         allowed = client.post(PATH, headers=HEADERS, json={**BODY, "input": "user@example.com"})
     assert allowed.status_code == 200, allowed.text
@@ -508,7 +513,7 @@ async def test_default_whole_response_block_sends_only_json_denial(responses_app
                 chunks=[(json.dumps({**BODY, "stream": True}).encode(), False)],
                 headers=[*HEADERS.items(), ("content-type", "application/json")],
             )
-    assert_error(response, 403, "policy_denied")
+    assert_error(response, 403, "policy_denied", middleware="guard")
     assert [event["status"] for event in sent if event["type"] == "http.response.start"] == [403]
     assert term not in response.text + caplog.text and len(provider.calls) == 1
 
@@ -551,7 +556,7 @@ def test_forbidden_structured_arguments_never_release_an_executable_done(respons
         response = client.post(
             PATH, headers=HEADERS, json={**BODY, "stream": True, "tools": [FUNCTION]}
         )
-    assert_error(response, 403, "policy_denied")
+    assert_error(response, 403, "policy_denied", middleware="guard")
     assert "fc_item_a" not in response.text and len(provider.calls) == 1
 
 
@@ -660,7 +665,7 @@ def test_opaque_history_and_include_need_explicit_consent_but_plaintext_is_check
                 "input": [old, {"role": "user", "content": "SYNTHETIC_PRIVATE_PLAINTEXT"}],
             },
         )
-        assert_error(blocked, 403, "policy_denied")
+        assert_error(blocked, 403, "policy_denied", middleware="guard")
     assert len(provider.calls) == 1
 
 

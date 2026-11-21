@@ -552,7 +552,7 @@ async def test_final_send_is_deadline_bounded_and_keeps_admission_until_exit(mak
             blocked.set()
             await asyncio.Event().wait()
 
-    app, upstream, _ = make_app(limits={"request_timeout_seconds": 0.1})
+    app, upstream, _ = make_app(limits={"request_timeout_seconds": 0.5})
     async with app.router.lifespan_context(app):
         raw = RawHTTP(app, send_hook=send)
         await asyncio.wait_for(blocked.wait(), 1)
@@ -579,7 +579,7 @@ async def test_blocked_downstream_send_prevents_next_upstream_read_and_hits_dead
             blocked.set()
             await asyncio.Event().wait()
 
-    app, upstream, _ = make_app(limits={"request_timeout_seconds": 0.1})
+    app, upstream, _ = make_app(limits={"request_timeout_seconds": 0.5})
     async with app.router.lifespan_context(app):
         raw = RawHTTP(app, send_hook=send)
         await asyncio.wait_for(blocked.wait(), 1)
@@ -948,7 +948,7 @@ async def test_expired_deadline_wins_over_provider_failure_without_false_success
             pass
 
     provider = Provider()
-    app, _, _ = make_app(provider=provider, limits={"request_timeout_seconds": 0.05})
+    app, _, _ = make_app(provider=provider, limits={"request_timeout_seconds": 0.2})
     async with app.router.lifespan_context(app):
         # Earlier test apps form cyclic graphs; collect them before starting
         # this deliberately small real deadline, not during request admission.

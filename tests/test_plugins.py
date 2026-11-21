@@ -17,7 +17,9 @@ from gateway7.plugins import phone_mask
 
 
 def context() -> PluginContext:
-    return PluginContext(request_id="synthetic-plugin-test", deadline=time.monotonic() + 10, state={})
+    return PluginContext(
+        request_id="synthetic-plugin-test", deadline=time.monotonic() + 10, state={}
+    )
 
 
 def apply_request(plugin, request: ChatRequest, plugin_context=None) -> ChatRequest:
@@ -46,6 +48,7 @@ def test_phone_mask_covers_entire_history_without_changing_roles_or_other_text(c
     )
     before = original.model_dump()
     plugin = phone_mask.PLUGIN.create(phone_mask.Settings())
+    instance_before = dict(vars(plugin))
     plugin_context = context()
 
     masked = apply_request(plugin, original, plugin_context)
@@ -61,7 +64,7 @@ def test_phone_mask_covers_entire_history_without_changing_roles_or_other_text(c
     }
     assert original.model_dump() == before
     assert plugin_context.state == {}
-    assert vars(plugin) == {"settings": phone_mask.Settings()}
+    assert vars(plugin) == instance_before
     assert caplog.text == ""
 
 
@@ -121,10 +124,16 @@ def test_sample_instances_show_request_order_and_preserve_non_user_messages():
     reverse = apply_request(first, apply_request(second, request))
 
     assert [message.content for message in forward.messages] == [
-        "System", "Earlier[A][B]", "Answer", "Latest[A][B]"
+        "System",
+        "Earlier[A][B]",
+        "Answer",
+        "Latest[A][B]",
     ]
     assert [message.content for message in reverse.messages] == [
-        "System", "Earlier[B][A]", "Answer", "Latest[B][A]"
+        "System",
+        "Earlier[B][A]",
+        "Answer",
+        "Latest[B][A]",
     ]
     assert [message.role for message in forward.messages] == [
         message.role for message in request.messages

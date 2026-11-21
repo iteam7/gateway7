@@ -41,10 +41,10 @@ The [rate guide](authentication.md#limit-a-clients-request-rate) explains contin
 
 ## Read a protected client usage snapshot
 
-An operator uses a separate credential to read each configured client's provider-attempt counts and known input/output token totals for this process's lifetime.
+An operator uses a separate credential to read each [client](glossary.md#client)'s provider usage, with durable daily model reports when managed accounts are enabled.
 Unknown usage remains explicit for each direction, including failed and cancelled attempts; response-side denials retain observed provider usage.
-The [operator snapshot guide](authentication.md#operator-usage-snapshot) explains credential separation, restart reset and the snapshot fields.
-This increment does not deliver the arbitrary-period, per-model history specified by FR-012 or a billing ledger.
+The [operator snapshot guide](authentication.md#operator-usage-snapshot) explains credential separation, persistence scope and the snapshot fields.
+Daily managed aggregates remain distinct from the arbitrary timestamp intervals specified by [FR-012](functional-requirements/fr/FR-012.md) and from a billing ledger.
 
 - **Stories:** [`US-13`](https://github.com/iteam7/gateway7/issues/141), partial increment
 - **Behavior:** [`FR-019`](functional-requirements/fr/FR-019.md)
@@ -105,11 +105,11 @@ An operator finds which [middleware](glossary.md#middleware) failed or slowed a 
 
 ## Inspect client access and middleware
 
-An operator can review each [client](glossary.md#client)'s access, configured limits, observed provider usage and middleware order in a read-only browser workspace.
+An operator can manage each [client](glossary.md#client)'s account, tokens, access, limits and additional middleware, and inspect its usage in one browser workspace when durable management is enabled.
 
 - **Stories:** [US-07](https://github.com/iteam7/gateway7/issues/36), [US-13](https://github.com/iteam7/gateway7/issues/141), [US-03](https://github.com/iteam7/gateway7/issues/32)
-- **Behavior:** [FR-020](functional-requirements/fr/FR-020.md), [FR-019](functional-requirements/fr/FR-019.md)
-- **Decisions:** [ADR-003](architecture/adr/ADR-003.md)
+- **Behavior:** [FR-021](functional-requirements/fr/FR-021.md), [FR-023](functional-requirements/fr/FR-023.md), [FR-027](functional-requirements/fr/FR-027.md), [FR-020](functional-requirements/fr/FR-020.md), [FR-019](functional-requirements/fr/FR-019.md)
+- **Decisions:** [ADR-003](architecture/adr/ADR-003.md), [ADR-008](architecture/adr/ADR-008.md), [ADR-009](architecture/adr/ADR-009.md)
 
 ## Start a middleware package
 
@@ -120,11 +120,21 @@ A plugin author or a coding agent gets a working middleware package to edit, wit
 
 ## Check a middleware offline
 
-A plugin author checks a middleware change against synthetic examples without a provider account or network access.
+A plugin author checks actual Chat, typed-tool, native Responses and eligible early-stream behavior against synthetic schema-2 examples without a provider account or external network access.
+The report separates declared hooks from positive passing profile evidence; the [authoring guide](authoring.md) starts with a generated guard or redactor.
 
 - **Stories:** [`US-08`](https://github.com/iteam7/gateway7/issues/37)
 - **Behavior:** [`FR-007`](functional-requirements/fr/FR-007.md)
 - **Decisions:** [`ADR-002`](architecture/adr/ADR-002.md)
+
+## Inspect and try a plugin project
+
+An author inspects the exact versioned descriptor/settings contract, then runs current source through a disposable loopback HTTP gateway with a synthetic upstream.
+The command owns ports and cleanup, replaces credentials and management configuration in memory, and never changes production import paths.
+The [cookbook](plugin-cookbook.md) and [agent guide](plugin-agent-guide.md) use the generated local contract to make a failing example pass before packaging a normal wheel.
+
+- **Behavior:** [FR-029](functional-requirements/fr/FR-029.md), [FR-030](functional-requirements/fr/FR-030.md)
+- **Design:** [ADR-012](architecture/adr/ADR-012.md)
 
 ## Understand core-task completion
 
@@ -145,3 +155,27 @@ The [staging check](quality-requirements/qr/QR-05.md#qrt-01) verifies the visibi
 - **Stories:** [US-15](https://github.com/iteam7/gateway7/issues/175)
 - **Behavior:** [FR-014](functional-requirements/fr/FR-014.md)
 - **Design:** [ADR-007](architecture/adr/ADR-007.md)
+
+## Control usage and investigate client activity
+
+An operator can inspect each [client](glossary.md#client)'s model use and request outcomes, estimate known costs and control daily or monthly usage allowance.
+
+- **Stories:** [US-13](https://github.com/iteam7/gateway7/issues/141), [US-07](https://github.com/iteam7/gateway7/issues/36), [US-12](https://github.com/iteam7/gateway7/issues/140)
+- **Behavior:** [FR-024](functional-requirements/fr/FR-024.md), [FR-026](functional-requirements/fr/FR-026.md)
+- **Decisions:** [ADR-010](architecture/adr/ADR-010.md)
+
+## Change the provider without interrupting admitted work
+
+An operator can manage the gateway's [provider](glossary.md#provider), credential, model defaults and aliases while admitted requests finish through their existing adapter.
+
+- **Stories:** [US-01](https://github.com/iteam7/gateway7/issues/30), [US-07](https://github.com/iteam7/gateway7/issues/36)
+- **Behavior:** [FR-025](functional-requirements/fr/FR-025.md)
+- **Decisions:** [ADR-011](architecture/adr/ADR-011.md)
+
+## Recover managed administration from a private backup
+
+An operator can recover [client](glossary.md#client) access and accounting state into an empty database of the same backend.
+
+- **Stories:** [US-07](https://github.com/iteam7/gateway7/issues/36), [US-13](https://github.com/iteam7/gateway7/issues/141)
+- **Behavior:** [FR-028](functional-requirements/fr/FR-028.md)
+- **Decisions:** [ADR-010](architecture/adr/ADR-010.md)

@@ -1997,7 +1997,8 @@ def test_atomic_ownership_publication_preserves_a_complete_record_at_interruptio
 
     def publish(source, target):
         assert Path(source).parent == Path(target).parent == tmp_path
-        assert Path(source).stat().st_mode & 0o777 == 0o600
+        if hasattr(os, "fchmod"):
+            assert Path(source).stat().st_mode & 0o777 == 0o600
         assert json.loads(Path(source).read_bytes())["resources"] == [
             list(item) for item in intended
         ]

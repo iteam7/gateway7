@@ -804,3 +804,244 @@ td:first-child {
     scroll-behavior: smooth;
   }
 }
+
+select,
+textarea {
+  font: inherit;
+  min-width: 0;
+  width: 100%;
+  border: 1px solid #d6e0e6;
+  border-radius: 6px;
+  padding: 10px 12px;
+  background: #fbfcfd;
+  color: #223e4d;
+}
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid #61b8af;
+  outline-offset: 4px;
+}
+textarea {
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.panel-actions,
+.form-actions,
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.row-actions {
+  max-width: 265px;
+}
+.button.compact {
+  padding: 6px 8px;
+  font-size: 10px;
+}
+.danger {
+  color: #a34436;
+  background: #fff4f1;
+  border: 1px solid #f0d5ce;
+}
+.danger:hover {
+  background: #fbe9e3;
+}
+.danger-text {
+  color: #a34436;
+}
+.editor-form,
+.token-content {
+  padding: 0 25px 25px;
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  margin-bottom: 20px;
+}
+.editor-form label,
+.usage-filters label,
+.token-content label {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.editor-form label small,
+.field-help {
+  font-size: 10px;
+  font-weight: 400;
+  color: #718794;
+}
+.editor-form label > input {
+  width: 100%;
+  flex: none;
+}
+.editor-form > .input-row {
+  margin: 10px 0;
+  align-items: center;
+}
+.form-actions {
+  margin-top: 18px;
+}
+.middleware-order {
+  padding-left: 20px;
+}
+.middleware-order li {
+  padding: 6px 0;
+}
+.middleware-order .text-button {
+  margin-left: 12px;
+  font-size: 10px;
+}
+.usage-filters {
+  padding: 0 25px 22px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+.usage-filters .form-actions {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+.inset-message {
+  margin: 0 25px 18px;
+}
+.token-panel {
+  border-color: #85bcac;
+  background: #f5fcf9;
+}
+.token-content > p {
+  font-size: 11px;
+  color: #537568;
+  margin: 12px 0 18px;
+}
+#issued-token {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.editor-form .message {
+  margin-top: 14px;
+}
+#client-editor,
+#issued-token-panel {
+  scroll-margin-top: 20px;
+}
+input:disabled {
+  background: #edf1f4;
+}
+@media (max-width: 1150px) {
+  .usage-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 800px) {
+  .form-grid,
+  .usage-filters {
+    grid-template-columns: 1fr;
+  }
+  .editor-form,
+  .token-content,
+  .usage-filters {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+  .token-content .input-row {
+    flex-wrap: wrap;
+  }
+  #issued-token {
+    flex-basis: 100%;
+  }
+  .middleware-order .text-button {
+    margin-left: 7px;
+    font-size: 9px;
+  }
+}
+
+.admin-content {
+  padding: 0 25px 25px;
+}
+.admin-content h3 {
+  margin: 26px 0 12px;
+  font-size: 14px;
+}
+.admin-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 20px 0 28px;
+}
+.admin-form > .form-grid,
+.admin-form > .form-actions,
+.admin-form > .panel-note {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+.admin-form > .button {
+  align-self: end;
+  justify-self: start;
+}
+.admin-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.admin-field small {
+  color: #718794;
+  font-size: 10px;
+  font-weight: 400;
+}
+.admin-field input {
+  width: 100%;
+  flex: none;
+}
+.admin-content .table-scroll {
+  margin: 15px -25px;
+}
+.admin-content .panel-note {
+  overflow-wrap: anywhere;
+}
+.compact-form {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.usage-trends svg {
+  display: block;
+  width: calc(100% - 50px);
+  max-height: 180px;
+  margin: 15px 25px;
+}
+.warning-text {
+  color: #ab671c;
+}
+#operator-identity {
+  display: block;
+  color: #668274;
+  font-size: 10px;
+}
+@media (max-width: 800px) {
+  .sidebar {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .sidebar nav {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .admin-content {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+  .admin-content .table-scroll {
+    margin-left: -18px;
+    margin-right: -18px;
+  }
+  .admin-form,
+  .compact-form {
+    grid-template-columns: 1fr;
+  }
+}

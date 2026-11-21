@@ -232,6 +232,11 @@ def main() -> None:
     check_gateway()
     if args.gateway_only:
         return
+    # This uses a separate project, random loopback port and disposable database;
+    # the monitoring fixture above remains available to the existing checks.
+    from smoke_admin_postgres import check_postgres_admin
+
+    check_postgres_admin()
     wait_for("Prometheus scrape and chat series", assert_scraping)
     wait_for("Grafana dashboard, datasource, and proxied query", assert_dashboard)
     print("Compose smoke passed", flush=True)

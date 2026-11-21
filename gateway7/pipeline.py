@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import inspect
 import time
 from collections.abc import Awaitable, Callable
 from typing import Any, Literal, TypeVar
@@ -156,6 +157,7 @@ class Pipeline:
         metrics: Metrics | None = None,
         provider_name: str = "fake",
         provider_observer: ProviderObserver | None = None,
+        provider_before: Callable[[Any], Awaitable[None]] | None = None,
     ) -> None:
         self.plugins = plugins
         self.provider = provider
@@ -163,8 +165,9 @@ class Pipeline:
         self.metrics = metrics
         self.provider_name = provider_name
         self.provider_observer = provider_observer
+        self.provider_before = provider_before
 
-    def _observe_provider(
+    async def _observe_provider(
         self,
         outcome: str,
         duration: float,
@@ -177,7 +180,9 @@ class Pipeline:
                 self.provider_name, outcome, duration, usage, error_reason=error_reason
             )
         if self.provider_observer is not None:
-            self.provider_observer(outcome, normalized_usage(usage))
+            observation = self.provider_observer(outcome, normalized_usage(usage))
+            if inspect.isawaitable(observation):
+                await observation
 
     def _tool_capability(self, request: ChatRequest) -> None:
         if request.requires_tools and any(
@@ -215,6 +220,8 @@ class Pipeline:
             if index == len(self.plugins.middleware_chain):
                 if provider_called:
                     raise GatewayError("plugin_error")
+                if self.provider_before is not None:
+                    await self.provider_before(incoming)
                 provider_called = True
                 started = time.monotonic()
                 attempt_usage = None
@@ -249,7 +256,7 @@ class Pipeline:
                         retain_observed_usage(rejected, attempt_usage)
                         raise rejected from None
                 except asyncio.CancelledError as error:
-                    self._observe_provider(
+                    await self._observe_provider(
                         "cancelled",
                         time.monotonic() - started,
                         _error_usage(error) or attempt_usage,
@@ -266,7 +273,7 @@ class Pipeline:
                         if total_timer.expired():
                             raise GatewayError("timeout")
                     except (asyncio.CancelledError, GatewayError):
-                        self._observe_provider(
+                        await self._observe_provider(
                             "cancelled",
                             time.monotonic() - started,
                             _error_usage(error) or attempt_usage,
@@ -282,7 +289,7 @@ class Pipeline:
                     reason = ProviderErrorReason.normalize(
                         error.reason if isinstance(error, ProviderError) else None
                     )
-                    self._observe_provider(
+                    await self._observe_provider(
                         "provider_error",
                         time.monotonic() - started,
                         _error_usage(error),
@@ -301,7 +308,7 @@ class Pipeline:
                 provider_usage = None if result.usage is None else dict(result.usage)
                 provider_finish_reason = result.finish_reason
                 provider_calls = tuple((call.id, call.function.name) for call in result.tool_calls)
-                self._observe_provider("complete", time.monotonic() - started, provider_usage)
+                await self._observe_provider("complete", time.monotonic() - started, provider_usage)
                 _checkpoint(deadline)
                 _log(request_id, "complete", "provider", "provider", time.monotonic() - started)
                 return result
@@ -609,7 +616,7 @@ class Pipeline:
                             raise GatewayError("plugin_error") from None
                         checkpoint(timer, own_deadline)
                         if type(result) is Deny:
-                            raise GatewayError("policy_denied")
+                            raise GatewayError("policy_denied", middleware=plugin.name)
                         try:
                             result = validate(result)
                         except Exception:
@@ -641,6 +648,8 @@ class Pipeline:
                 checkpoint()
                 outgoing = validate_request(request, consent=consent)
                 checkpoint()
+                if self.provider_before is not None:
+                    await self.provider_before(outgoing)
                 started = time.monotonic()
                 active = True
                 _log(request_id, "start", "provider", "provider", 0)
@@ -663,13 +672,13 @@ class Pipeline:
                     await on_text_delta(record)
                     checkpoint()
 
-                def record_provider(
+                async def record_provider(
                     outcome: str,
                     usage: dict[str, int] | None = None,
                     reason: ProviderErrorReason | None = None,
                 ) -> None:
                     elapsed = time.monotonic() - started
-                    self._observe_provider(outcome, elapsed, usage, error_reason=reason)
+                    await self._observe_provider(outcome, elapsed, usage, error_reason=reason)
                     _log(request_id, outcome, "provider", "provider", elapsed, reason=reason)
 
                 try:
@@ -701,21 +710,21 @@ class Pipeline:
                         raise rejected from None
                     checkpoint()
                 except asyncio.CancelledError as error:
-                    record_provider("cancelled", _error_usage(error))
+                    await record_provider("cancelled", _error_usage(error))
                     raise
                 except Exception as error:
                     try:
                         checkpoint()
                     except (asyncio.CancelledError, GatewayError):
-                        record_provider("cancelled", _error_usage(error))
+                        await record_provider("cancelled", _error_usage(error))
                         raise
                     if isinstance(error, GatewayError) and error.code == "timeout":
-                        record_provider("cancelled", _error_usage(error))
+                        await record_provider("cancelled", _error_usage(error))
                         raise
                     reason = ProviderErrorReason.normalize(
                         error.reason if isinstance(error, ProviderError) else None
                     )
-                    record_provider(
+                    await record_provider(
                         "provider_error",
                         _error_usage(error),
                         reason,
@@ -723,7 +732,7 @@ class Pipeline:
                     raise GatewayError("provider_error") from None
                 finally:
                     active = False
-                record_provider("complete", validated_usage)
+                await record_provider("complete", validated_usage)
                 response_snapshot = protected_snapshot(response)
 
                 def checked_response(value: Any) -> ResponsesResponse:
@@ -840,6 +849,8 @@ class Pipeline:
                             )
 
                 _checkpoint(deadline)
+                if self.provider_before is not None:
+                    await self.provider_before(request)
                 started = time.monotonic()
                 _log(request_id, "start", "provider", "provider", 0)
                 stream_active = True
@@ -851,13 +862,13 @@ class Pipeline:
                     await on_text(text)
                     _checkpoint(deadline)
 
-                def record_provider(
+                async def record_provider(
                     outcome: str,
                     usage: dict[str, int] | None = None,
                     reason: ProviderErrorReason | None = None,
                 ) -> None:
                     duration = time.monotonic() - started
-                    self._observe_provider(outcome, duration, usage, error_reason=reason)
+                    await self._observe_provider(outcome, duration, usage, error_reason=reason)
                     _log(request_id, outcome, "provider", "provider", duration, reason=reason)
 
                 try:
@@ -883,7 +894,7 @@ class Pipeline:
                         )
                         raise rejected from None
                 except asyncio.CancelledError as error:
-                    record_provider("cancelled", _error_usage(error))
+                    await record_provider("cancelled", _error_usage(error))
                     raise
                 except Exception as error:
                     # A provider or callback may replace cancellation with an
@@ -893,15 +904,15 @@ class Pipeline:
                         if total_timer.expired():
                             raise GatewayError("timeout")
                     except (asyncio.CancelledError, GatewayError):
-                        record_provider("cancelled", _error_usage(error))
+                        await record_provider("cancelled", _error_usage(error))
                         raise
                     if isinstance(error, GatewayError) and error.code == "timeout":
-                        record_provider("cancelled", _error_usage(error))
+                        await record_provider("cancelled", _error_usage(error))
                         raise
                     reason = ProviderErrorReason.normalize(
                         error.reason if isinstance(error, ProviderError) else None
                     )
-                    record_provider(
+                    await record_provider(
                         "provider_error",
                         _error_usage(error),
                         reason,
@@ -910,7 +921,7 @@ class Pipeline:
                 finally:
                     stream_active = False
                 usage = None if validated.usage is None else dict(validated.usage)
-                record_provider("complete", usage)
+                await record_provider("complete", usage)
                 _checkpoint(deadline)
                 response = ChatResponse(
                     text=validated.text,

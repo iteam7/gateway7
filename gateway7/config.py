@@ -21,6 +21,7 @@ from pydantic import (
 )
 
 from gateway7.errors import StartupError
+from gateway7.plugin_diagnostics import PluginDiagnosticError, diagnostic, validation_issues
 
 MAX_CONFIG_BYTES = 1_048_576
 MAX_CONFIG_NODES = 10_000
@@ -175,10 +176,26 @@ class AuthConfig(StrictConfig):
     operator_token_env: str | None = Field(
         default=None, pattern=r"^[A-Za-z_][A-Za-z0-9_]*$", max_length=128
     )
+    management_db: str | None = Field(default=None, min_length=1, max_length=4096)
+    management_database_url_env: str | None = Field(
+        default=None, pattern=r"^[A-Za-z_][A-Za-z0-9_]*$", max_length=128
+    )
+
+    @property
+    def management_enabled(self) -> bool:
+        return self.management_db is not None or self.management_database_url_env is not None
 
     @model_validator(mode="after")
     def consistent_clients(self) -> "AuthConfig":
-        if self.enabled != bool(self.clients):
+        if self.management_db is not None and self.management_database_url_env is not None:
+            raise ValueError("Select only one management database backend")
+        if self.management_db is not None:
+            if not self.management_db.strip() or "\x00" in self.management_db:
+                raise ValueError("Invalid management database path")
+        if self.management_enabled:
+            if not self.enabled or self.operator_token_env is None:
+                raise ValueError("User management requires client and operator authentication")
+        elif self.enabled != bool(self.clients):
             raise ValueError(
                 "Enabled authentication requires clients; disabled authentication requires none"
             )
@@ -235,7 +252,13 @@ def _reject_duplicate_keys(node: yaml.Node | None) -> None:
                 if not isinstance(key, yaml.ScalarNode) or key.tag != "tag:yaml.org,2002:str":
                     raise StartupError("Configuration keys must be strings")
                 if key.value in keys:
-                    raise StartupError("Duplicate configuration key")
+                    raise diagnostic(
+                        "Duplicate configuration key",
+                        "config_duplicate_key",
+                        "config",
+                        "Remove the repeated YAML key",
+                        line=key.start_mark.line + 1,
+                    )
                 keys.add(key.value)
                 height = max(
                     height,
@@ -259,7 +282,12 @@ def load_config(path: str | Path) -> GatewayConfig:
             raise StartupError("Gateway configuration exceeds the file size limit")
         text = raw.decode("utf-8")
     except (OSError, UnicodeError):
-        raise StartupError("Cannot read gateway configuration") from None
+        raise diagnostic(
+            "Cannot read gateway configuration",
+            "config_unavailable",
+            "config",
+            "Use an existing bounded UTF-8 configuration file",
+        ) from None
     try:
         # Compose once, check graph structure and work limits, then construct only
         # safe YAML values. Memoized subtree heights keep alias checks linear.
@@ -278,8 +306,27 @@ def load_config(path: str | Path) -> GatewayConfig:
         return GatewayConfig.model_validate(data, strict=True)
     except StartupError:
         raise
-    except (yaml.YAMLError, ValidationError, TypeError, ValueError, RecursionError):
-        raise StartupError("Invalid gateway configuration") from None
+    except ValidationError as error:
+        raise PluginDiagnosticError(
+            "Invalid gateway configuration",
+            validation_issues(error, model=GatewayConfig, prefix="config"),
+        ) from None
+    except yaml.YAMLError as error:
+        mark = getattr(error, "problem_mark", None)
+        raise diagnostic(
+            "Invalid gateway configuration",
+            "config_yaml_invalid",
+            "config",
+            "Check YAML syntax at the reported line; input values are intentionally omitted",
+            line=None if mark is None else mark.line + 1,
+        ) from None
+    except (TypeError, ValueError, RecursionError):
+        raise diagnostic(
+            "Invalid gateway configuration",
+            "config_invalid",
+            "config",
+            "Check the documented closed configuration schema",
+        ) from None
 
 
 def provider_key(config: ProviderConfig) -> str:

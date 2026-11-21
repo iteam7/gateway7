@@ -15,6 +15,7 @@ services:
       # Optional product events; credentials select this environment's project.
       - ANALYTICS_ENABLED
       - ANALYTICS_SOURCE
+      - ANALYTICS_PARTICIPANT_CODE
       - OPENPANEL_API_URL
       - OPENPANEL_CLIENT_ID
       - OPENPANEL_CLIENT_SECRET

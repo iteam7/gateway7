@@ -10,6 +10,7 @@ import asyncio
 import logging
 import math
 import os
+import re
 from collections.abc import Mapping
 from datetime import datetime, timedelta, timezone
 from typing import Literal
@@ -18,6 +19,7 @@ import httpx
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
 from gateway7.errors import StartupError
+from gateway7.metrics import Metrics
 from gateway7.telemetry import outcome_for
 
 logger = logging.getLogger("gateway7")
@@ -30,6 +32,15 @@ CHAT_ROUTES = frozenset({"chat", "openai_chat", "openai_responses"})
 QUEUE_CAPACITY = 256
 EXPORT_TIMEOUT_SECONDS = 1.0
 SHUTDOWN_TIMEOUT_SECONDS = 2.0
+PARTICIPANT_CODE_PATTERN = r"^P-(?:0[1-9]|[1-9][0-9]{1,5})$"
+
+
+def _valid_participant_scope(code: str | None, environment: str, source: str) -> bool:
+    return code is None or (
+        environment == "staging"
+        and source == "usability-test"
+        and re.fullmatch(PARTICIPANT_CODE_PATTERN, code) is not None
+    )
 
 
 class TaskEvent(BaseModel):
@@ -42,6 +53,7 @@ class TaskEvent(BaseModel):
     route: Route
     environment: Environment
     source: Source
+    participant_code: str | None = Field(default=None, pattern=PARTICIPANT_CODE_PATTERN)
     occurred_at: AwareDatetime
     status: int | None = Field(default=None, ge=100, le=599)
     outcome: Outcome | None = None
@@ -49,6 +61,8 @@ class TaskEvent(BaseModel):
 
     @model_validator(mode="after")
     def completion_fields_match_event(self) -> TaskEvent:
+        if not _valid_participant_scope(self.participant_code, self.environment, self.source):
+            raise ValueError("Participant codes require staging usability-test events")
         if self.occurred_at.utcoffset() != timedelta(0):
             raise ValueError("Event time must use UTC")
         fields = (self.status, self.outcome, self.duration_ms)
@@ -91,13 +105,22 @@ class Analytics:
         client: httpx.AsyncClient | None = None,
         environment: Environment = "staging",
         source: Source = "web",
+        participant_code: str | None = None,
+        metrics: Metrics | None = None,
     ) -> None:
+        if not _valid_participant_scope(participant_code, environment, source):
+            raise StartupError("Invalid analytics participant configuration")
         self.environment = environment
         self.source = source
+        self.participant_code = participant_code
         self._client = client
         self._queue: asyncio.Queue[TaskEvent] = asyncio.Queue(maxsize=QUEUE_CAPACITY)
         self._worker: asyncio.Task[None] | None = None
         self._accepting = False
+        self._exporting = False
+        self._metrics = metrics
+        if metrics is not None:
+            metrics.exporter_enabled.labels("analytics").set(client is not None)
 
     @property
     def enabled(self) -> bool:
@@ -113,6 +136,7 @@ class Analytics:
         environ: Mapping[str, str] | None = None,
         *,
         transport: httpx.AsyncBaseTransport | None = None,
+        metrics: Metrics | None = None,
     ) -> Analytics:
         """Validate server-owned settings; create no worker and make no request yet."""
         env = os.environ if environ is None else environ
@@ -126,6 +150,9 @@ class Analytics:
             raise StartupError("ANALYTICS_SOURCE must be web, usability-test or smoke")
         if environment == "production" and source != "web":
             raise StartupError("Production analytics requires ANALYTICS_SOURCE=web")
+        participant_code = env.get("ANALYTICS_PARTICIPANT_CODE")
+        if not _valid_participant_scope(participant_code, environment, source):
+            raise StartupError("Invalid analytics participant configuration")
         base_url = env.get("OPENPANEL_API_URL", "").rstrip("/")
         try:
             url = httpx.URL(base_url)
@@ -159,7 +186,13 @@ class Analytics:
             transport=transport,
         )
         # Membership above narrows the possible strings at runtime.
-        return cls(client=client, environment=environment, source=source)  # type: ignore[arg-type]
+        return cls(
+            client=client,
+            environment=environment,  # type: ignore[arg-type]
+            source=source,  # type: ignore[arg-type]
+            participant_code=participant_code,
+            metrics=metrics,
+        )
 
     async def start(self) -> None:
         if self.enabled and self._worker is None:
@@ -198,6 +231,7 @@ class Analytics:
                 route=route,  # type: ignore[arg-type]
                 environment=self.environment,
                 source=self.source,
+                participant_code=self.participant_code,
                 occurred_at=datetime.now(timezone.utc),
                 status=status,
                 outcome=outcome,  # type: ignore[arg-type]
@@ -206,13 +240,20 @@ class Analytics:
                 else None,
             )
             self._queue.put_nowait(event)
+            if self._metrics is not None:
+                self._metrics.analytics_queue_depth.set(self._queue.qsize())
         except (ValueError, asyncio.QueueFull):
+            if self._metrics is not None:
+                self._metrics.exporter_events.labels("analytics", "dropped").inc()
             logger.warning("request_id=- outcome=event_dropped component=analytics")
 
     async def _export(self) -> None:
         assert self._client is not None
         while True:
             event = await self._queue.get()
+            self._exporting = True
+            if self._metrics is not None:
+                self._metrics.analytics_queue_depth.set(self._queue.qsize())
             try:
                 # Relative path preserves a self-hosted base such as https://host/api/.
                 # Stream the response without reading an unbounded backend body.
@@ -220,12 +261,22 @@ class Analytics:
                     "POST", "track", json=event.openpanel_payload()
                 ) as response:
                     if response.status_code not in (200, 202):
+                        if self._metrics is not None:
+                            self._metrics.exporter_events.labels("analytics", "failure").inc()
                         logger.warning("request_id=- outcome=export_failed component=analytics")
+                    elif self._metrics is not None:
+                        self._metrics.exporter_events.labels("analytics", "success").inc()
+                        self._metrics.exporter_last_success.labels(
+                            "analytics"
+                        ).set_to_current_time()
             except Exception:
+                if self._metrics is not None:
+                    self._metrics.exporter_events.labels("analytics", "failure").inc()
                 # Never expose credentials, endpoint, backend text or exception details.
                 logger.warning("request_id=- outcome=export_failed component=analytics")
             finally:
                 self._queue.task_done()
+                self._exporting = False
 
     async def shutdown(self) -> None:
         """Drain for at most two seconds, then discard pending events and close."""
@@ -235,6 +286,9 @@ class Analytics:
                 try:
                     await asyncio.wait_for(self._queue.join(), timeout=SHUTDOWN_TIMEOUT_SECONDS)
                 except TimeoutError:
+                    if self._metrics is not None:
+                        dropped = self._queue.qsize() + int(self._exporting)
+                        self._metrics.exporter_events.labels("analytics", "dropped").inc(dropped)
                     logger.warning("request_id=- outcome=flush_timeout component=analytics")
                 finally:
                     self._worker.cancel()

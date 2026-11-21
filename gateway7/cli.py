@@ -9,6 +9,7 @@ import logging
 import os
 import re
 import secrets
+import shlex
 import socket
 import signal
 import stat
@@ -29,8 +30,8 @@ from gateway7.config import GatewayConfig, load_config, validate_model_id
 from gateway7.errors import StartupError
 from gateway7.loader import load_plugins
 from gateway7.models import ChatRequest, ChatResponse, Message
+from gateway7.management_store import validate_postgres_url
 from gateway7.providers import validate_provider_config
-from gateway7.offline import print_report, run_offline
 from gateway7.scaffold import create_plugin_project
 from gateway7.smoke import run_smoke
 from gateway7.transport_loader import validate_transport_config
@@ -80,7 +81,11 @@ def _read_secrets_file(path: str, config: GatewayConfig) -> dict[str, str]:
         if not isinstance(data, dict):
             raise ValueError
         token_names = {client.token_env for client in config.auth.clients.values()}
+        if config.auth.operator_token_env is not None:
+            token_names.add(config.auth.operator_token_env)
         allowed = {config.provider.key_env, *token_names}
+        if config.auth.management_database_url_env is not None:
+            allowed.add(config.auth.management_database_url_env)
         proxy_name = None
         transport = config.provider.transport
         if transport is not None and transport.module == "gateway7.transports.http_proxy":
@@ -103,6 +108,8 @@ def _read_secrets_file(path: str, config: GatewayConfig) -> dict[str, str]:
                 raise ValueError
             if name == proxy_name:
                 _proxy_url(value)
+            if name == config.auth.management_database_url_env:
+                validate_postgres_url(value)
         return data
     except (ValueError, UnicodeError, RecursionError, StartupError):
         raise StartupError("Invalid secrets file") from None
@@ -437,6 +444,16 @@ def _parser() -> argparse.ArgumentParser:
         "validate", help="Validate config and trusted plugin factories offline"
     )
     validate.add_argument("--config", required=True)
+    backup = subcommands.add_parser("backup", help="Write a private offline management backup")
+    backup.add_argument("--config", required=True)
+    backup.add_argument(
+        "--output", required=True, help="New private backup file; never overwritten"
+    )
+    restore = subcommands.add_parser(
+        "restore", help="Restore a private backup into an empty database of the same backend"
+    )
+    restore.add_argument("--config", required=True)
+    restore.add_argument("--input", required=True, dest="backup_input")
     chat = subcommands.add_parser(
         "chat", help="Send text to a running gateway; omit --message to read stdin"
     )
@@ -476,16 +493,43 @@ def _parser() -> argparse.ArgumentParser:
     )
     initialize.add_argument("name")
     initialize.add_argument(
+        "--template",
+        choices=("guard", "redact"),
+        default="redact",
+        help="Request guard or buffered two-way redactor",
+    )
+    initialize.add_argument(
         "--directory", default=".", help="Existing parent directory for the new project"
     )
-    test = plugin_commands.add_parser(
-        "test", help="Run synthetic fixtures in a network-disabled worker"
+    for name, help_text in (
+        ("test", "Run project fixtures in an isolated network-disabled worker"),
+        ("inspect", "Inspect project declarations and hooks without certifying behavior"),
+    ):
+        command = plugin_commands.add_parser(name, help=help_text)
+        command.add_argument(
+            "project",
+            nargs="?",
+            default=".",
+            help="Plugin project directory (default: current directory)",
+        )
+        command.add_argument("--json", action="store_true", dest="as_json")
+        command.add_argument(
+            "--timeout",
+            type=float,
+            default=30,
+            help="Whole-check wall-clock limit in seconds (1–300)",
+        )
+    development = plugin_commands.add_parser(
+        "dev", help="Run this plugin over synthetic local HTTP without provider credentials"
     )
-    test.add_argument("--config", required=True)
-    test.add_argument("--fixtures", required=True)
-    test.add_argument("--json", action="store_true", dest="as_json")
-    test.add_argument(
-        "--timeout", type=float, default=30, help="Whole-suite wall-clock limit in seconds (1–300)"
+    development.add_argument(
+        "project",
+        nargs="?",
+        default=".",
+        help="Plugin project directory (default: current directory)",
+    )
+    development.add_argument(
+        "--port", type=int, default=0, help="Loopback gateway port; 0 selects a free port"
     )
     return parser
 
@@ -503,8 +547,14 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--max-tokens must be between 1 and 4096")
     if args.command == "smoke" and not 1 <= args.timeout <= 300:
         parser.error("--timeout must be between 1 and 300 seconds")
-    if args.command == "plugin" and args.plugin_command == "test" and not 1 <= args.timeout <= 300:
+    if (
+        args.command == "plugin"
+        and args.plugin_command in ("test", "inspect")
+        and not 1 <= args.timeout <= 300
+    ):
         parser.error("--timeout must be between 1 and 300 seconds")
+    if args.command == "plugin" and args.plugin_command == "dev" and not 0 <= args.port <= 65535:
+        parser.error("--port must be between 0 and 65535")
     handler = logging.StreamHandler(sys.stderr)
     handler.setFormatter(logging.Formatter("%(message)s"))
     gateway_logger = logging.getLogger("gateway7")
@@ -512,6 +562,16 @@ def main(argv: list[str] | None = None) -> int:
     gateway_logger.setLevel(logging.INFO)
     gateway_logger.propagate = False
     try:
+        if args.command in ("backup", "restore"):
+            from gateway7.backup import backup_management, restore_management
+
+            result = (
+                backup_management(args.config, args.output)
+                if args.command == "backup"
+                else restore_management(args.config, args.backup_input)
+            )
+            print(f"Management {args.command} completed: " + json.dumps(result, sort_keys=True))
+            return 0
         if args.command == "smoke":
             code, report = asyncio.run(
                 run_smoke(
@@ -526,13 +586,21 @@ def main(argv: list[str] | None = None) -> int:
             return code
         if args.command == "plugin":
             if args.plugin_command == "init":
-                project = create_plugin_project(args.name, args.directory)
-                print(f"Created plugin project: {project}")
-                print(
-                    "Run inside the project: gateway7 plugin test --config gateway.yaml --fixtures fixtures.json"
-                )
+                project = create_plugin_project(args.name, args.directory, args.template)
+                print(f"Created {args.template} plugin project: {project}")
+                print(f"Next: cd {shlex.quote(str(project))}")
+                print("gateway7 plugin test .")
+                print("gateway7 plugin inspect . --json")
+                print("gateway7 plugin dev . --port 0")
                 return 0
-            code, report = run_offline(args.config, args.fixtures, args.timeout)
+            if args.plugin_command == "dev":
+                from gateway7.plugin_dev import run_plugin_dev
+
+                return run_plugin_dev(args.project, port=args.port)
+            from gateway7.offline import inspect_project, print_report, run_project_tests
+
+            operation = inspect_project if args.plugin_command == "inspect" else run_project_tests
+            code, report = operation(args.project, timeout=args.timeout)
             print_report(report, as_json=args.as_json)
             return code
         if args.command == "validate":
@@ -570,6 +638,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Gateway startup failed: {error}", file=sys.stderr)
         return 1
     except KeyboardInterrupt:
+        if args.command in ("backup", "restore"):
+            return 130
         if args.command in ("chat", "smoke"):
             return 130
         if args.command == "plugin" and args.plugin_command == "test":
