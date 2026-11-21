@@ -200,3 +200,10 @@
 - Evidence: The milestone records closure on 31 October 2026 at 13:50:52 UTC with 11 closed issues.
 - Outcome: The historical Week 7 report and AI record remain unchanged. The original Sprint 05 planning commitment remains unverified.
 - Team assessment: TODO
+
+## 2026-11-20 — Reconcile the Sprint 06 closeout checkpoint
+
+- Tool: Codex.
+- Work: Checked the public milestone, story status, Week 6 retrospective and Week 7 tracker-disposition record. Corrected the maintained sprint plan for [#190](https://github.com/iteam7/gateway7/issues/190).
+- Outcome: Preserved the 8 November completed-story checkpoint at 5 SP and linked the existing retrospective. Recorded US-15's later closure and the pending disposition of open work. The available evidence supplies neither new Customer acceptance nor final Actual Velocity.
+- Team assessment: TODO
