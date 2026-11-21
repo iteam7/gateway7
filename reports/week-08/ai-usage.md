@@ -224,3 +224,12 @@
 - Work: Checked the public milestone, story status, Week 6 retrospective and Week 7 tracker-disposition record. Corrected the maintained sprint plan for [#190](https://github.com/iteam7/gateway7/issues/190).
 - Outcome: Preserved the 8 November completed-story checkpoint at 5 SP and linked the existing retrospective. Recorded US-15's later closure and the pending disposition of open work. The available evidence supplies neither new Customer acceptance nor final Actual Velocity.
 - Team assessment: TODO
+
+## 2026-11-20 — Task #300 staging verification procedure
+
+- Tool: Codex with Formater.
+- Work: Compared the UT-01 instrumentation section with the public deployment and analytics guides and task #300, then documented the staging check and what evidence to record before counting sessions.
+- Inputs: Public course rules, issues and repository documents. No session notes, recordings, private telemetry, addresses or credentials were supplied.
+- Outcome: The procedure separates the deployed coded verification from the earlier pilot and protocol dry run. The actual staging verification and participant sessions still need team evidence.
+- PR refresh: Codex merged the current main and preserved both AI disclosure entries. Markdown and whitespace were checked.
+- Team assessment: TODO
