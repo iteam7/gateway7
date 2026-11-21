@@ -201,6 +201,57 @@
 - Outcome: The historical Week 7 report and AI record remain unchanged. The original Sprint 05 planning commitment remains unverified.
 - Team assessment: TODO
 
+## 2026-11-20 — Task #299 sprint planning reconciliation
+
+- Tool: Codex with Formater and a read-only audit agent.
+- Work: Reconciled the public project plan with native GitHub milestone, role, priority and estimate fields.
+  Documented the Week 8 work dependencies and session-attribution rule and kept the Week 9 candidates unscheduled.
+- Inputs: Public course requirements, repository files and tracker metadata; no usability material, private notes or recordings were supplied.
+- Result: Native fields established current task selection and candidate estimates.
+  The original planning agreement and US-09 estimate could not be verified.
+- Team assessment: TODO
+
+## 2026-11-21 — Date the SPRINT-08 tracker checkpoint
+
+- Tool: Codex.
+- Work: Dated the six-task SPRINT-08 tracker checkpoint before separating the documentation from the remaining planning work in GitHub.
+- Verification: Compared the changed statements with the 20 November issue and milestone review and checked the local Markdown and rendered documentation.
+- Team assessment: TODO
+
+## 2026-11-20 — Reconcile the Sprint 06 closeout checkpoint
+
+- Tool: Codex.
+- Work: Checked the public milestone, story status, Week 6 retrospective and Week 7 tracker-disposition record. Corrected the maintained sprint plan for [#190](https://github.com/iteam7/gateway7/issues/190).
+- Outcome: Preserved the 8 November completed-story checkpoint at 5 SP and linked the existing retrospective. Recorded US-15's later closure and the pending disposition of open work. The available evidence supplies neither new Customer acceptance nor final Actual Velocity.
+- Team assessment: TODO
+
+## 2026-11-20 — Task #300 staging verification procedure
+
+- Tool: Codex with Formater.
+- Work: Compared the UT-01 instrumentation section with the public deployment and analytics guides and task #300, then documented the staging check and what evidence to record before counting sessions.
+- Inputs: Public course rules, issues and repository documents. No session notes, recordings, private telemetry, addresses or credentials were supplied.
+- Outcome: The procedure separates the deployed coded verification from the earlier pilot and protocol dry run. The actual staging verification and participant sessions still need team evidence.
+- PR refresh: Codex merged the current main and preserved both AI disclosure entries. Markdown and whitespace were checked.
+- Team assessment: TODO
+
+## 2026-11-20 — Task #269 UT-01 access checks
+
+- Tool: Codex.
+- Work: Read the public UT-01 record and merged consent work and documented concrete instructor read and playback checks in the access procedure.
+- Inputs: Public course and repository records only. No participant material, recording, private note, credential or folder URL was supplied.
+- Result: The procedure distinguishes configured permissions, inherited file access and actual instructor access. The custodian still needs to perform and record those checks.
+- PR refresh: Codex merged the current main and preserved both AI disclosure entries. Markdown and whitespace were checked.
+- Team assessment: TODO
+
+## 2026-11-20 — Document the analytics dashboard focus metric
+
+- Tool: Codex.
+- Work: Compared the [US-14](https://github.com/iteam7/gateway7/issues/174) criteria, metric tree and historical dashboard evidence. Updated the maintained analytics and deployment pages with both dashboard reports and a staging smoke-filter verification procedure.
+- Outcome: Kept the existing completion-rate chart and added the weekly successful-task count to the recipe for each environment. The documented comparison isolates a successful synthetic smoke event because a failed event would already be excluded by the outcome filter.
+- Inputs: Public source and course requirements only. Deployed charts, current traffic and Customer acceptance remain unverified.
+- PR refresh: Codex combined the Sprint 05 and dashboard disclosure entries after updating the branch from main.
+- Team assessment: TODO
+
 ## 2026-11-20 — Draft the Week 8 report and Week 9 handoff
 
 - Tool: Codex, with a read-only GitHub issue and CI check and repository source review.

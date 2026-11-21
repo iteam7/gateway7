@@ -264,16 +264,25 @@ Apply changes with `docker compose -p gateway7-staging up --build --detach --wai
 
 | Backend and scope | Dashboard | Chart configuration |
 | --- | --- | --- |
-| OpenPanel `staging` | `Gateway7 tasks (staging)` | `Task completion rate`: count `chat_completed` with `outcome=ok` as A, count `chat_started` as B, formula `A/B`, aggregate over the last seven days; exclude `source=smoke` and `source=usability-test` on **both** event series |
-| OpenPanel `production` | `Gateway7 tasks (production)` | The same saved report and filters, using only the production project |
+| OpenPanel `staging` | `Gateway7 tasks (staging)` | Use the two reports below, scoped to the staging project |
+| OpenPanel `production` | `Gateway7 tasks (production)` | Use the two reports below, scoped to the production project |
 | OpenObserve `staging` | `Gateway7 SLI (staging)` | Import the SLI-01 template into this organization |
 | OpenObserve `production` | `Gateway7 SLI (production)` | Import the identical template into this organization, without injecting test traffic |
 
-In each OpenPanel project's dashboard editor, create a metric report with the two event-count series and the formula above, UTC and `Last 7 days`.
-The OpenPanel API names the property filters `properties.outcome` and `properties.source`; bare names do not filter those custom event properties.
-Display the ratio of the whole period's totals as a fraction, not an average of daily ratios or a percentage.
-Keep a zero denominator as no data, and do not relabel an empty chart as a measured zero.
-The exact metric definitions and source filters remain in the [analytics plan](analytics.md#the-value-and-the-metrics).
+In each OpenPanel project's dashboard editor, create both metric reports with UTC and `Last 7 days`.
+
+- For [Successful gateway tasks per week](analytics.md#successful-gateway-tasks-per-week), count `chat_completed` events with `outcome=ok` over the full window and exclude `source=smoke` and `source=usability-test`.
+- For [Task completion rate](analytics.md#task-completion-rate), count `chat_completed` with `outcome=ok` as A and `chat_started` as B, and exclude `source=smoke` and `source=usability-test` on both series.
+  Show `A/B` as a fraction of the period totals and show no data when B is zero.
+
+The OpenPanel API uses `properties.outcome` and `properties.source` for the custom event fields.
+Preserve an empty chart as no data when the backend returns no series.
+
+Check the staging focus report with a successful synthetic smoke request in the isolated staging setup.
+In the staging project, confirm the resulting `chat_completed` event is tagged `source=smoke`, then compare the focus query with and without the smoke filter over the same window, narrowing both checks to the synthetic request ID.
+The staging count with the smoke filter must exclude that event.
+Check the production report in its own project using normal production events already present.
+Record the project scope, date window and sanitized comparison without sending smoke traffic to production.
 Keep the staging project's raw-events view visible next to its chart when demonstrating the smoke exclusion.
 
 In each OpenObserve organization, use **Dashboards → Import** with the address-free [SLI-01 template](https://github.com/iteam7/gateway7/blob/177-analytics-core-events/monitoring/openobserve/gateway7-sli-dashboard.json), then name the dashboard as above.
