@@ -181,14 +181,14 @@ Goal pending team confirmation: establish what representative users can complete
 
 - **Due:** 2026-11-21
 - **Sprint Backlog:** [SPRINT-08 milestone](https://github.com/iteam7/gateway7/milestone/6)
-- **Planned Velocity:** The six scheduled tasks contribute 0 SP.
-  The milestone also contains [US-09](https://github.com/iteam7/gateway7/issues/38), already closed before Week 8, with no native Story Points value.
+- **Planned Velocity:** The six tasks recorded at the 20 November 2026 tracker checkpoint contribute 0 SP.
+  The checkpoint also contains [US-09](https://github.com/iteam7/gateway7/issues/38), already closed before Week 8, with no native Story Points value.
   The original story-point total is unverified.
   No new story points are forecast for the selected task work.
 
-The live milestone and native issue fields record the current task selection, priorities and roles.
-The six tasks have matching Responsible and Accountable assignees.
-This tracker snapshot does not establish when the team agreed to the goal or scope.
+The 20 November 2026 tracker checkpoint records the task selection, priorities and roles before the documentation and execution work was split.
+All six tasks in that checkpoint had matching Responsible and Accountable assignees.
+Use the live milestone for later changes, including follow-up tasks that carry no Story Points.
 The completed configuration inventory [#302](https://github.com/iteam7/gateway7/issues/302) is linked as evidence from [PR #306](https://github.com/iteam7/gateway7/pull/306) and remains outside the milestone.
 
 **Usability evidence.** Reuse the [UT-01 design](usability-tests/ut-01/README.md#schedule) and reconcile instructor access, consent, recording storage and recruitment in [#269](https://github.com/iteam7/gateway7/issues/269).

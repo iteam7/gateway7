@@ -202,3 +202,10 @@
 - Result: Native fields established current task selection and candidate estimates.
   The original planning agreement and US-09 estimate could not be verified.
 - Team assessment: TODO
+
+## 2026-11-21 — Date the SPRINT-08 tracker checkpoint
+
+- Tool: Codex.
+- Work: Dated the six-task SPRINT-08 tracker checkpoint before separating the documentation from the remaining planning work in GitHub.
+- Verification: Compared the changed statements with the 20 November issue and milestone review and checked the local Markdown and rendered documentation.
+- Team assessment: TODO
