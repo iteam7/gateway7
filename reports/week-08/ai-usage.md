@@ -251,3 +251,14 @@
 - Inputs: Public source and course requirements only. Deployed charts, current traffic and Customer acceptance remain unverified.
 - PR refresh: Codex combined the Sprint 05 and dashboard disclosure entries after updating the branch from main.
 - Team assessment: TODO
+
+## 2026-11-20 — Draft the Week 8 report and Week 9 handoff
+
+- Tool: Codex, with a read-only GitHub issue and CI check and repository source review.
+- Work: Drafted the public report, checked merged configuration evidence against its frozen baseline, and assembled the Week 9 handoff and assignment coverage rows.
+- Inputs: Agents received the public, sanitized configuration plan and evaluation and the public UT-01 design, session template and results stub.
+  No actual session note, recording, raw material, private note, participant identity, deployment credential, or private address was provided.
+- Outcome: The public evidence supported 14 active CFG entries, four local evaluation goals and the linked main CI runs.
+  It did not establish the actual counted-session total, instructor access, the Sprint Review, REL-08, the final snapshot or Moodle submission.
+  Those items remain pending.
+- Team assessment: TODO
