@@ -200,3 +200,11 @@
 - Evidence: The milestone records closure on 31 October 2026 at 13:50:52 UTC with 11 closed issues.
 - Outcome: The historical Week 7 report and AI record remain unchanged. The original Sprint 05 planning commitment remains unverified.
 - Team assessment: TODO
+
+## 2026-11-20 — Task #272 Week 7 submission evidence addendum
+
+- Tool: Codex.
+- Work: Compared the archived Week 7 report with the pinned assignment, public repository, tracker, release and CI evidence and indexed the evidence and outstanding submission gates in a Week 8 addendum.
+- Inputs: Public course and repository records only, including the published UT-01 design and public review summary. No actual session note, recording, raw or private material, credential or submission package was supplied.
+- Result: The public evidence identified the published release, archived report and successful main checks. It did not establish instructor access, the submitted commit or a Moodle receipt.
+- Team assessment: TODO
