@@ -200,3 +200,12 @@
 - Evidence: The milestone records closure on 31 October 2026 at 13:50:52 UTC with 11 closed issues.
 - Outcome: The historical Week 7 report and AI record remain unchanged. The original Sprint 05 planning commitment remains unverified.
 - Team assessment: TODO
+
+## 2026-11-20 — Task #269 UT-01 access checks
+
+- Tool: Codex.
+- Work: Read the public UT-01 record and merged consent work and documented concrete instructor read and playback checks in the access procedure.
+- Inputs: Public course and repository records only. No participant material, recording, private note, credential or folder URL was supplied.
+- Result: The procedure distinguishes configured permissions, inherited file access and actual instructor access. The custodian still needs to perform and record those checks.
+- PR refresh: Codex merged the current main and preserved both AI disclosure entries. Markdown and whitespace were checked.
+- Team assessment: TODO
