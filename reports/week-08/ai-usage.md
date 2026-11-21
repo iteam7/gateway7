@@ -193,10 +193,19 @@
 - Boundary: No additional runtime change, deployment, release, human decision or Customer acceptance is claimed.
 - Team assessment: TODO
 
+## 2026-11-20 — Reconcile the Sprint 05 milestone record
+
+- Tool: Codex with Formater.
+- Work: Updated the maintained project plan to match the Sprint 05 milestone and integrated current main into draft PR #214.
+- Evidence: The milestone records closure on 31 October 2026 at 13:50:52 UTC with 11 closed issues.
+- Outcome: The historical Week 7 report and AI record remain unchanged. The original Sprint 05 planning commitment remains unverified.
+- Team assessment: TODO
+
 ## 2026-11-20 — Document the analytics dashboard focus metric
 
 - Tool: Codex.
 - Work: Compared the [US-14](https://github.com/iteam7/gateway7/issues/174) criteria, metric tree and historical dashboard evidence. Updated the maintained analytics and deployment pages with both dashboard reports and a staging smoke-filter verification procedure.
 - Outcome: Kept the existing completion-rate chart and added the weekly successful-task count to the recipe for each environment. The documented comparison isolates a successful synthetic smoke event because a failed event would already be excluded by the outcome filter.
 - Inputs: Public source and course requirements only. Deployed charts, current traffic and Customer acceptance remain unverified.
+- PR refresh: Codex combined the Sprint 05 and dashboard disclosure entries after updating the branch from main.
 - Team assessment: TODO
