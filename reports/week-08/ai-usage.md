@@ -278,3 +278,12 @@
 - Inputs: The sanitized per-session values supplied by the data custodian, and the UT-01 record, session template, surveys and consent. No recording, raw note, private export or identity mapping was supplied.
 - Result: Three sanitized notes, the record's counted-session table and status, and the index entry. The results, findings and `QR-06` verdict remain in task #301.
 - Team assessment: TODO
+
+## 2026-11-22 — Task #301 UT-01 results and QR-06
+
+- Tool: Codex.
+- Work: Calculated the predeclared UT-01 task and SUS summaries from the three merged sanitized session notes; wrote linked results, findings, triage, limitations and research-question conclusions; updated the QR-06 testing-plan row and Week 8 report.
+- Inputs: The public UT-01 design, the three sanitized notes merged by PR #324, a sanitized summary of the private telemetry reconciliation supplied in chat, the public course Assignment 8 and usability-testing requirements, and the public issue #301 criteria.
+- Boundary: No raw telemetry rows, exact request IDs, event timestamps, raw notes, recordings or identity mapping were added to the repository. The PR reports only aggregate matches and coverage. The responsible issue owner chose to defer both minor recommendations for future review; they are not described as declined or committed.
+- Result: The three online session event pairs matched with zero reported missing events, duplicates or production matches; Task 3 has no telemetry by design. The main-task median SEQ is 6/7, meeting QR-06's 5/7 threshold. Both recommendations are deferred without an issue or sprint schedule.
+- Team assessment: TODO
