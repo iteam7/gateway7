@@ -288,10 +288,19 @@
 - Result: The three online session event pairs matched with zero reported missing events, duplicates or production matches; Task 3 has no telemetry by design. The main-task median SEQ is 6/7, meeting QR-06's 5/7 threshold. Both recommendations are deferred without an issue or sprint schedule.
 - Team assessment: TODO
 
+
 ## 2026-11-22 — Final Week 8 report
 
 - Tool: Codex.
 - Work: Finalized `reports/week-08/README.md` against the merged results, the merged session notes and the actual repository state, and declared the missing Review, `REL-08`, retrospective and the late submission in `## Deviations`.
 - Inputs: Public repository files, tracker state and CI runs only. No meeting feedback, permission answer, Customer decision, retrospective content or private evidence was supplied.
 - Result: The report describes what exists and names what does not. The PDF, the Moodle handoff and the access verification remain open under #322.
+
+## 2026-11-22 — Task #304 Week 8 Review preparation
+
+- Tool: Codex.
+- Work: Prepared the Week 8 Review script from the merged UT-01 results, the Week 7 action points and open questions, the threshold, and the testing plan; recorded the SPRINT-08 actual velocity; brought the package version to `0.5.0` and regenerated the lock with `uv lock`.
+- Inputs: Public repository files, the merged results and session notes, the course assignment and the Week 7 report. No meeting feedback, permission answer, Customer decision, retrospective content or recording was supplied.
+- Result: The script is preparation only. The meeting report, the `DEC` entries, the retrospective, the release tag and the sprint closure remain outstanding.
+
 - Team assessment: TODO

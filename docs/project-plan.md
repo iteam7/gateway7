@@ -188,6 +188,9 @@ Goal pending team confirmation: establish what representative users can complete
   The original story-point total is unverified.
   No new story points are forecast for the selected task work.
 
+- **Actual Velocity:** 0; the sprint carried tasks only, so there is no completed story to sum.
+  The counted UT-01 sessions, the results and the `QR-06` verdict, the configuration inventory and its evaluation, and the sprint's documentation tasks completed; the remaining planning confirmation in [#320](https://github.com/iteam7/gateway7/issues/320) and the final evidence, report and submission in [#322](https://github.com/iteam7/gateway7/issues/322) move to `SPRINT-09`.
+
 The 20 November 2026 tracker checkpoint records the task selection, priorities and roles before the documentation and execution work was split.
 All six tasks in that checkpoint had matching Responsible and Accountable assignees.
 Use the live milestone for later changes, including follow-up tasks that carry no Story Points.
