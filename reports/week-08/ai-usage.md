@@ -270,3 +270,11 @@
 - Inputs: Public course and repository records only, including the published UT-01 design and public review summary. No actual session note, recording, raw or private material, credential or submission package was supplied.
 - Result: The public evidence identified the published release, archived report and successful main checks. It did not establish instructor access, the submitted commit or a Moodle receipt.
 - Team assessment: TODO
+
+## 2026-11-22 — Task #319 UT-01 session notes
+
+- Tool: Codex.
+- Work: Recalculated the SUS scores from the ten recorded responses of each session, reclassified the two tasks that exceeded their time limit as `Failed`, paraphrased the participant statements so the notes carry no quote, and recorded the `P-02` room and laptop deviation.
+- Inputs: The sanitized per-session values supplied by the data custodian, and the UT-01 record, session template, surveys and consent. No recording, raw note, private export or identity mapping was supplied.
+- Result: Three sanitized notes, the record's counted-session table and status, and the index entry. The results, findings and `QR-06` verdict remain in task #301.
+- Team assessment: TODO

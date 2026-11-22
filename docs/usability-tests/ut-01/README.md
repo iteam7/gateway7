@@ -1,6 +1,6 @@
 # UT-01: Send A First Request, Recover From A Model Denial, And Check A Middleware Change
 
-- **Status:** Planned
+- **Status:** Completed
 - **Design sprint:** [SPRINT-07](../../project-plan.md#sprint-07)
 - **Run sprint:** [SPRINT-08](../../project-plan.md#sprint-08)
 
@@ -160,7 +160,21 @@ The team arranges the counted sessions in the Week 8 window, after the design re
 A session may run as soon as the design and the verification are ready.
 
 The results, the findings, and the `QR-06` verdict are due with Submission 8 on 21 November 2026 at 23:59.
-The Week 7 report claims no result, the `Results` cell in [the index](../README.md) stays `Pending`, and this record stays `Planned` until the first counted session.
+
+## Counted sessions
+
+Three counted sessions ran in `SPRINT-08` and their sanitized notes are in this directory, one file per participant code.
+
+| Session | Environment | Note |
+| --- | --- | --- |
+| `P-01` | Campus room, team session laptop, university network | [P-01.md](sessions/P-01.md) |
+| `P-02` | University dormitory, participant's own laptop, university network | [P-02.md](sessions/P-02.md) |
+| `P-03` | Campus room, team session laptop, university network | [P-03.md](sessions/P-03.md) |
+
+`P-02` ran outside the campus room and on the participant's own laptop, which the design did not plan; the deviation is declared in the Week 8 report.
+No session was withdrawn, stopped by the stop rule, or replaced, so the codes run from `P-01` to `P-03` with no gaps.
+
+The results, their findings, the triage, and the `QR-06` verdict are in [results.md](results.md).
 
 ## Roles
 
