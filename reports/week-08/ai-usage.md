@@ -287,3 +287,11 @@
 - Boundary: No raw telemetry rows, exact request IDs, event timestamps, raw notes, recordings or identity mapping were added to the repository. The PR reports only aggregate matches and coverage. The responsible issue owner chose to defer both minor recommendations for future review; they are not described as declined or committed.
 - Result: The three online session event pairs matched with zero reported missing events, duplicates or production matches; Task 3 has no telemetry by design. The main-task median SEQ is 6/7, meeting QR-06's 5/7 threshold. Both recommendations are deferred without an issue or sprint schedule.
 - Team assessment: TODO
+
+## 2026-11-22 — Final Week 8 report
+
+- Tool: Codex.
+- Work: Finalized `reports/week-08/README.md` against the merged results, the merged session notes and the actual repository state, and declared the missing Review, `REL-08`, retrospective and the late submission in `## Deviations`.
+- Inputs: Public repository files, tracker state and CI runs only. No meeting feedback, permission answer, Customer decision, retrospective content or private evidence was supplied.
+- Result: The report describes what exists and names what does not. The PDF, the Moodle handoff and the access verification remain open under #322.
+- Team assessment: TODO
