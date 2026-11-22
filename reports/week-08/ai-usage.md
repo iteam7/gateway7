@@ -288,7 +288,6 @@
 - Result: The three online session event pairs matched with zero reported missing events, duplicates or production matches; Task 3 has no telemetry by design. The main-task median SEQ is 6/7, meeting QR-06's 5/7 threshold. Both recommendations are deferred without an issue or sprint schedule.
 - Team assessment: TODO
 
-
 ## 2026-11-22 — Final Week 8 report
 
 - Tool: Codex.
