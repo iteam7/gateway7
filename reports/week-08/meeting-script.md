@@ -3,7 +3,7 @@
 ## Context
 
 This is the sprint's Sprint Review and the week's Customer meeting, prepared for [#304](https://github.com/iteam7/gateway7/issues/304).
-It is preparation, not evidence that the meeting happened: the feedback, the permission answers, the decisions and the action points are recorded in [the meeting report](meeting-report.md) after the meeting.
+It is preparation, not evidence that the meeting happened: the feedback, the permission answers, the decisions and the action points are recorded in the meeting report after the meeting.
 
 The subject is the sanitized `UT-01` evidence: three counted sessions, the results, the two findings and their triage, and the `QR-06` verdict.
 The configuration evaluation is not presented at this meeting.
