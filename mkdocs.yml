@@ -109,6 +109,10 @@ nav:
               - Surveys: usability-tests/ut-01/surveys.md
               - Consent: usability-tests/ut-01/consent.md
               - Session template: usability-tests/ut-01/sessions/README.md
+              - Sessions:
+                  - P-01: usability-tests/ut-01/sessions/P-01.md
+                  - P-02: usability-tests/ut-01/sessions/P-02.md
+                  - P-03: usability-tests/ut-01/sessions/P-03.md
               - Results: usability-tests/ut-01/results.md
       - Glossary: glossary.md
   - Research:
