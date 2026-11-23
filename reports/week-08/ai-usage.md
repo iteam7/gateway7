@@ -209,4 +209,105 @@
   The full 4,542-test Windows suite has not passed yet. Its latest run stopped at `test_leader_own_deadline_does_not_create_account_failure_cache` after 1,148 passed and 163 skipped; the deadline was lengthened and the full model-catalog file then passed, but the complete suite has not been rerun after that correction.
 - Follow-up: The later full Windows run exposed `os.fchmod` being unavailable in Windows during Codex smoke ownership-manifest publication. The writer now applies POSIX mode `0600` where supported, and its mode assertion is conditional on that capability. The previously failing lifecycle test and both atomic-publication cases pass (3 tests total). At the user's direction, subsequent full-suite runs were stopped around 41%; only these previously failing tests were rerun. Windows GitHub CI remains pending because this branch has not been published as a pull request.
 - Boundary: This change does not claim product usability results, Customer acceptance, or that the final pull request is merged.
+## 2026-11-20 — Task #299 sprint planning reconciliation
+
+- Tool: Codex with Formater and a read-only audit agent.
+- Work: Reconciled the public project plan with native GitHub milestone, role, priority and estimate fields.
+  Documented the Week 8 work dependencies and session-attribution rule and kept the Week 9 candidates unscheduled.
+- Inputs: Public course requirements, repository files and tracker metadata; no usability material, private notes or recordings were supplied.
+- Result: Native fields established current task selection and candidate estimates.
+  The original planning agreement and US-09 estimate could not be verified.
+- Team assessment: TODO
+
+## 2026-11-21 — Date the SPRINT-08 tracker checkpoint
+
+- Tool: Codex.
+- Work: Dated the six-task SPRINT-08 tracker checkpoint before separating the documentation from the remaining planning work in GitHub.
+- Verification: Compared the changed statements with the 20 November issue and milestone review and checked the local Markdown and rendered documentation.
+- Team assessment: TODO
+
+## 2026-11-20 — Reconcile the Sprint 06 closeout checkpoint
+
+- Tool: Codex.
+- Work: Checked the public milestone, story status, Week 6 retrospective and Week 7 tracker-disposition record. Corrected the maintained sprint plan for [#190](https://github.com/iteam7/gateway7/issues/190).
+- Outcome: Preserved the 8 November completed-story checkpoint at 5 SP and linked the existing retrospective. Recorded US-15's later closure and the pending disposition of open work. The available evidence supplies neither new Customer acceptance nor final Actual Velocity.
+- Team assessment: TODO
+
+## 2026-11-20 — Task #300 staging verification procedure
+
+- Tool: Codex with Formater.
+- Work: Compared the UT-01 instrumentation section with the public deployment and analytics guides and task #300, then documented the staging check and what evidence to record before counting sessions.
+- Inputs: Public course rules, issues and repository documents. No session notes, recordings, private telemetry, addresses or credentials were supplied.
+- Outcome: The procedure separates the deployed coded verification from the earlier pilot and protocol dry run. The actual staging verification and participant sessions still need team evidence.
+- PR refresh: Codex merged the current main and preserved both AI disclosure entries. Markdown and whitespace were checked.
+- Team assessment: TODO
+
+## 2026-11-20 — Task #269 UT-01 access checks
+
+- Tool: Codex.
+- Work: Read the public UT-01 record and merged consent work and documented concrete instructor read and playback checks in the access procedure.
+- Inputs: Public course and repository records only. No participant material, recording, private note, credential or folder URL was supplied.
+- Result: The procedure distinguishes configured permissions, inherited file access and actual instructor access. The custodian still needs to perform and record those checks.
+- PR refresh: Codex merged the current main and preserved both AI disclosure entries. Markdown and whitespace were checked.
+- Team assessment: TODO
+
+## 2026-11-20 — Document the analytics dashboard focus metric
+
+- Tool: Codex.
+- Work: Compared the [US-14](https://github.com/iteam7/gateway7/issues/174) criteria, metric tree and historical dashboard evidence. Updated the maintained analytics and deployment pages with both dashboard reports and a staging smoke-filter verification procedure.
+- Outcome: Kept the existing completion-rate chart and added the weekly successful-task count to the recipe for each environment. The documented comparison isolates a successful synthetic smoke event because a failed event would already be excluded by the outcome filter.
+- Inputs: Public source and course requirements only. Deployed charts, current traffic and Customer acceptance remain unverified.
+- PR refresh: Codex combined the Sprint 05 and dashboard disclosure entries after updating the branch from main.
+- Team assessment: TODO
+
+## 2026-11-20 — Draft the Week 8 report and Week 9 handoff
+
+- Tool: Codex, with a read-only GitHub issue and CI check and repository source review.
+- Work: Drafted the public report, checked merged configuration evidence against its frozen baseline, and assembled the Week 9 handoff and assignment coverage rows.
+- Inputs: Agents received the public, sanitized configuration plan and evaluation and the public UT-01 design, session template and results stub.
+  No actual session note, recording, raw material, private note, participant identity, deployment credential, or private address was provided.
+- Outcome: The public evidence supported 14 active CFG entries, four local evaluation goals and the linked main CI runs.
+  It did not establish the actual counted-session total, instructor access, the Sprint Review, REL-08, the final snapshot or Moodle submission.
+  Those items remain pending.
+- Team assessment: TODO
+
+## 2026-11-20 — Task #272 Week 7 submission evidence addendum
+
+- Tool: Codex.
+- Work: Compared the archived Week 7 report with the pinned assignment, public repository, tracker, release and CI evidence and indexed the evidence and outstanding submission gates in a Week 8 addendum.
+- Inputs: Public course and repository records only, including the published UT-01 design and public review summary. No actual session note, recording, raw or private material, credential or submission package was supplied.
+- Result: The public evidence identified the published release, archived report and successful main checks. It did not establish instructor access, the submitted commit or a Moodle receipt.
+- Team assessment: TODO
+
+## 2026-11-22 — Task #319 UT-01 session notes
+
+- Tool: Codex.
+- Work: Recalculated the SUS scores from the ten recorded responses of each session, reclassified the two tasks that exceeded their time limit as `Failed`, paraphrased the participant statements so the notes carry no quote, and recorded the `P-02` room and laptop deviation.
+- Inputs: The sanitized per-session values supplied by the data custodian, and the UT-01 record, session template, surveys and consent. No recording, raw note, private export or identity mapping was supplied.
+- Result: Three sanitized notes, the record's counted-session table and status, and the index entry. The results, findings and `QR-06` verdict remain in task #301.
+- Team assessment: TODO
+
+## 2026-11-22 — Task #301 UT-01 results and QR-06
+
+- Tool: Codex.
+- Work: Calculated the predeclared UT-01 task and SUS summaries from the three merged sanitized session notes; wrote linked results, findings, triage, limitations and research-question conclusions; updated the QR-06 testing-plan row and Week 8 report.
+- Inputs: The public UT-01 design, the three sanitized notes merged by PR #324, a sanitized summary of the private telemetry reconciliation supplied in chat, the public course Assignment 8 and usability-testing requirements, and the public issue #301 criteria.
+- Boundary: No raw telemetry rows, exact request IDs, event timestamps, raw notes, recordings or identity mapping were added to the repository. The PR reports only aggregate matches and coverage. The responsible issue owner chose to defer both minor recommendations for future review; they are not described as declined or committed.
+- Result: The three online session event pairs matched with zero reported missing events, duplicates or production matches; Task 3 has no telemetry by design. The main-task median SEQ is 6/7, meeting QR-06's 5/7 threshold. Both recommendations are deferred without an issue or sprint schedule.
+- Team assessment: TODO
+
+## 2026-11-22 — Final Week 8 report
+
+- Tool: Codex.
+- Work: Finalized `reports/week-08/README.md` against the merged results, the merged session notes and the actual repository state, and declared the missing Review, `REL-08`, retrospective and the late submission in `## Deviations`.
+- Inputs: Public repository files, tracker state and CI runs only. No meeting feedback, permission answer, Customer decision, retrospective content or private evidence was supplied.
+- Result: The report describes what exists and names what does not. The PDF, the Moodle handoff and the access verification remain open under #322.
+
+## 2026-11-22 — Task #304 Week 8 Review preparation
+
+- Tool: Codex.
+- Work: Prepared the Week 8 Review script from the merged UT-01 results, the Week 7 action points and open questions, the threshold, and the testing plan; recorded the SPRINT-08 actual velocity; brought the package version to `0.5.0` and regenerated the lock with `uv lock`.
+- Inputs: Public repository files, the merged results and session notes, the course assignment and the Week 7 report. No meeting feedback, permission answer, Customer decision, retrospective content or recording was supplied.
+- Result: The script is preparation only. The meeting report, the `DEC` entries, the retrospective, the release tag and the sprint closure remain outstanding.
+
 - Team assessment: TODO

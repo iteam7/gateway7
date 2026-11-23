@@ -113,10 +113,13 @@ A prolonged backend outage can undercount events, so these metrics are not an au
 ## The Dashboard
 
 The intended dashboards are `Gateway7 tasks (staging)` and `Gateway7 tasks (production)`, in their corresponding projects.
-Each uses the [Task completion rate](#task-completion-rate) formula and its exact seven-day filters that exclude `smoke` and `usability-test` traffic.
-The staging project's raw event list must show the smoke events while its metric chart excludes them; the production chart uses the same recipe and receives no pipeline-check traffic.
-Both backend and dashboard addresses and credentials belong in the private submission.
-The Week 6 report needs sanitized screenshots after a member actually provisions and checks these dashboards.
+Each dashboard shows the [focus metric, Successful gateway tasks per week](#successful-gateway-tasks-per-week), and the companion [Task completion rate](#task-completion-rate).
+Both use their documented rolling seven-day queries and exclude `smoke` and `usability-test` traffic.
+
+For verification, compare the staging focus query with and without its smoke filter against a successful smoke event in the same time window.
+A failed smoke event alone cannot demonstrate that filter because the focus query already requires a successful outcome.
+Keep all pipeline-check traffic out of production and verify the production chart against its own project's data.
+Keep backend and dashboard access details in the private submission.
 
 ## The Usability Funnel
 

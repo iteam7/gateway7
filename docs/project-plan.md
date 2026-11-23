@@ -136,13 +136,14 @@ Provisional goal: a reviewer can verify configured model permissions and assess 
 - **Current scheduled scope:** 21 SP: [US-04](https://github.com/iteam7/gateway7/issues/33) (5), [US-14](https://github.com/iteam7/gateway7/issues/174) (8) and [US-15](https://github.com/iteam7/gateway7/issues/175) (8).
   This tally is not evidence of the original planning commitment or planned velocity.
 - **Completed-story checkpoint, 8 November:** 5 SP, US-04 (5), following its unchanged-criterion reconciliation in [PR #209](https://github.com/iteam7/gateway7/pull/209) and the earlier Customer acceptance in [DEC-020](decisions.md#dec-020).
-  US-14 and US-15 remain open at 8 SP each; this checkpoint is not final Actual Velocity or closure of the sprint.
-- **Carryover proposal:** move the unfinished US-14/US-15 work to SPRINT-07 if it remains incomplete at closeout, preserving the source estimates and the actually assigned owners.
-  This is a proposal; no issue milestone or sprint state is changed by this document.
+- **Closeout status, 20 November:** The sprint milestone remains open and still contains both 8 SP stories.
+  US-14 is open. US-15 was closed on 13 November by team-lead instruction, and the [closure record](https://github.com/iteam7/gateway7/blob/main/reports/week-07/ai-usage.md#2026-11-13--issue-housekeeping-for-previous-sprints) identifies no recorded Customer acceptance.
+  The 5 SP completed-story checkpoint stands. The team still needs to record the disposition of open work and final Actual Velocity at closeout.
 - **Future candidates:** [US-07](https://github.com/iteam7/gateway7/issues/36), [US-08](https://github.com/iteam7/gateway7/issues/37) and [US-13](https://github.com/iteam7/gateway7/issues/141) total 16 SP; the team has not confirmed the scope for the next two sprints.
 
 The [Week 6 readiness record](https://github.com/iteam7/gateway7/blob/main/reports/week-06/release-readiness.md) links the prepared package candidate, upgrade note and remaining operator handoff.
-Formal Actual Velocity is recorded when the sprint closes, after the release and the disposition of unfinished work; this source checkpoint supplies neither a release nor a retrospective planning commitment.
+The [Week 6 retrospective](https://github.com/iteam7/gateway7/blob/main/reports/week-06/sprint-retrospective.md) already records the held retrospective, its four actions and the outcomes of the Week 5 carried actions.
+The [REL-06 release](#rel-06) and formal sprint closeout remain pending.
 
 #### REL-06
 
@@ -178,29 +179,61 @@ The [Quality Requirement Testing Plan](#quality-requirement-testing-plan) record
 
 ### SPRINT-08
 
-Provisional: representative adults complete UT-01, its sanitized results and findings are triaged into the product backlog, and REL-08 records the usability QR/QRT verdict.
+Goal pending team confirmation: establish what representative users can complete in UT-01, triage the evidence, and use the configuration evaluation to make REL-08 easier to verify and hand off.
 
 - **Due:** 2026-11-21
-- **Sprint Backlog:** [the issues selected into SPRINT-08](https://github.com/iteam7/gateway7/milestone/6)
+- **Sprint Backlog:** [SPRINT-08 milestone](https://github.com/iteam7/gateway7/milestone/6)
+- **Planned Velocity:** The six tasks recorded at the 20 November 2026 tracker checkpoint contribute 0 SP.
+  The checkpoint also contains [US-09](https://github.com/iteam7/gateway7/issues/38), already closed before Week 8, with no native Story Points value.
+  The original story-point total is unverified.
+  No new story points are forecast for the selected task work.
 
-The [UT-01 design](usability-tests/ut-01/README.md#schedule), confirmed by DeniBorsh on 13 November 2026, puts session arrangement in the Week 8 window.
-The team-confirmed profile, session roles, scenarios and QR-06 measure/bar are design decisions, not a claim of completed Customer review, arranged participants or successful instrumentation/private-store verification.
-A separate instrumentation verification must finish before the first counted session in that session's sprint, SPRINT-07 or SPRINT-08, and no later than the start of SPRINT-09 on 2026-11-22.
-It must verify the actual session-to-record link, private storage/export and exclusion from product metrics; a Week 7 pilot does not replace this check for sessions starting in Week 8.
-Counted-session work is selected into the sprint of the last counted session; sanitized session notes, results, findings, triage, the QR-06 QRT-01 verdict and REL-08 remain planned for SPRINT-08 even if all sessions run in Week 7.
-Until real selection, the future candidates in #266 have no milestone, role allocation or assignees and are not a claim of execution readiness.
-The previous [US-09](https://github.com/iteam7/gateway7/issues/38) direction is already marked Done in the live project and is not scheduled again; configuration-management evaluation remains a candidate, with usability execution and results accounted for before selecting other work.
+- **Actual Velocity:** 0; the sprint carried tasks only, so there is no completed story to sum.
+  The counted UT-01 sessions, the results and the `QR-06` verdict, the configuration inventory and its evaluation, and the sprint's documentation tasks completed; the remaining planning confirmation in [#320](https://github.com/iteam7/gateway7/issues/320) and the final evidence, report and submission in [#322](https://github.com/iteam7/gateway7/issues/322) move to `SPRINT-09`.
+
+The 20 November 2026 tracker checkpoint records the task selection, priorities and roles before the documentation and execution work was split.
+All six tasks in that checkpoint had matching Responsible and Accountable assignees.
+Use the live milestone for later changes, including follow-up tasks that carry no Story Points.
+The completed configuration inventory [#302](https://github.com/iteam7/gateway7/issues/302) is linked as evidence from [PR #306](https://github.com/iteam7/gateway7/pull/306) and remains outside the milestone.
+
+**Usability evidence.** Reuse the [UT-01 design](usability-tests/ut-01/README.md#schedule) and reconcile instructor access, consent, recording storage and recruitment in [#269](https://github.com/iteam7/gateway7/issues/269).
+Before the first counted session, verify the tested staging commit and date, the participant-code/request-ID link, routing to the test-only store and exclusion from product metrics.
+If still pending, this check is due by the start of SPRINT-09 on 2026-11-22.
+The Week 7 pilot does not establish Week 8 readiness.
+
+Run the fixed UT-01 sessions, keep raw records private and add same-day sanitized notes.
+Update the [UT-01 record](usability-tests/ut-01/README.md) and [usability index](usability-tests/README.md) from the actual private session dates.
+Use SPRINT-07 only if every counted session was before 15 November 2026 at 23:59, SPRINT-08 for Week 8 sessions, and both when counted sessions straddle the two sprints.
+If sessions slip beyond Week 8, record the actual run sprint and the delay.
+Results, finding triage and [QR-06 QRT-01](quality-requirements/qr/QR-06.md#qrt-01) remain Week 8 deliverables.
+Record a sample shortfall without a quantitative verdict if fewer than three sessions count.
+
+**Configuration evidence.** Use the [inventory](configuration-plan.md) as the source for the [goal-based evaluation](https://github.com/iteam7/gateway7/blob/main/reports/week-08/cm-evaluation.md).
+The evaluation's recommendation informs the handoff and carries no implementation commitment.
+
+**Review, release and submission.** Bring sanitized results and the QR-06 outcome to the Customer Review.
+Select a fix only against a triaged finding with a linked acceptance criterion and verification.
+The Review, configuration evidence and verified fixes feed REL-08.
+Record any fixes moved out of release and finish the retrospective and report before freezing the full main SHA for the separate Week 8 Moodle submission.
+Carry forward [#272](https://github.com/iteam7/gateway7/issues/272) as a separate Week 7 submission with its own evidence and checkpoint.
 
 #### REL-08
 
 ### SPRINT-09
 
-Provisional: the final release is frozen on `main`, with the usability test findings addressed and every threshold goal settled.
+Provisional goal: freeze the final repository and evidence set, deliver the seven-minute presentation, and record the team's reflection and disposition of outstanding requirements, threshold goals and usability findings.
 
 - **Due:** 2026-11-28
+- **Sprint Backlog:** [SPRINT-09 milestone](https://github.com/iteam7/gateway7/milestone/7)
 
-Refinement considers triaged usability fixes and their regression checks, configuration-management evaluation, remaining quality checks and the final release/submission.
-No findings, fix scope, story estimates or Customer acceptance are assumed before evidence exists; each selected follow-up must reuse its owning issue and have runnable criteria and dependencies.
+The milestone has no selected issues.
+Use the Week 8 results, review, configuration evaluation and release evidence to select the final repository and presentation work.
+Prepare the repository before freezing the presentation's cited baseline, and use the actual sprint evidence in the reflection.
+
+The open, unscheduled product candidates already have runnable criteria and native estimates: [US-07](https://github.com/iteam7/gateway7/issues/36) (3 SP) verifies client access, [US-08](https://github.com/iteam7/gateway7/issues/37) (5 SP) verifies offline examples with supported-platform follow-up in [#77](https://github.com/iteam7/gateway7/issues/77), and [US-13](https://github.com/iteam7/gateway7/issues/141) (8 SP) depends on US-07 for developer identity.
+Reassess remaining scope against the current implementation before selection.
+Keep any finding-driven fix conditional on actual triage, a linked story and acceptance criterion, and a regression check.
+Leave estimates and allocation for newly identified work to actual refinement and planning.
 
 #### REL-09
 
@@ -215,7 +248,7 @@ Each row is one quality requirement test and what it found at its last check; th
 | [QR-03](quality-requirements/qr/QR-03.md) | [QR-03 QRT-01](quality-requirements/qr/QR-03.md#qrt-01) | Passes | [SPRINT-05](#sprint-05) | [SPRINT-05](#sprint-05) | [Main CI check job, 31 October](https://github.com/iteam7/gateway7/actions/runs/41130602373/job/124320199306) |
 | [QR-03](quality-requirements/qr/QR-03.md) | [QR-03 QRT-02](quality-requirements/qr/QR-03.md#qrt-02) | Passes | [SPRINT-05](#sprint-05) | [SPRINT-05](#sprint-05) | [Operator-reported staging check, 31 October](https://github.com/iteam7/gateway7/blob/5d64cf6d96e6842b991df0569f740cf14ce2e382/reports/week-05/quality-checks.md#staging-check) |
 | [QR-05](quality-requirements/qr/QR-05.md) | [QR-05 QRT-01](quality-requirements/qr/QR-05.md#qrt-01) | Not verified | None | [SPRINT-06](#sprint-06) | None |
-| [QR-06](quality-requirements/qr/QR-06.md) | [QR-06 QRT-01](quality-requirements/qr/QR-06.md#qrt-01) | Not verified | None | [SPRINT-08](#sprint-08) | None |
+| [QR-06](quality-requirements/qr/QR-06.md) | [QR-06 QRT-01](quality-requirements/qr/QR-06.md#qrt-01) | Passes | [SPRINT-08](#sprint-08) | [SPRINT-08](#sprint-08) | [UT-01 results](usability-tests/ut-01/results.md#results) |
 
 The QR-02 and QR-03 CI results were checked on 31 October at `main` commit `a15b1cd14618ee7b5ac423f4aed5ed2f496f405d`.
 The job logs show both testability tests and the confidentiality test passing; the suite completed in 46.82 seconds and the separate HTTP demonstration step in 12 seconds.
