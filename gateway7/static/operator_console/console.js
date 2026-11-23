@@ -77,11 +77,11 @@ import { createNavigation } from "./navigation.js";
   }
   function clearIssuedToken() {
     document.querySelector(".workspace").inert = false;
-    document.querySelector(".sidebar").inert = false;
     byId("issued-token").value = "";
     byId("issued-token").type = "password";
     byId("issued-token-note").textContent = "";
     byId("issued-token-panel").hidden = true;
+    navigation?.syncSidebar();
     byId("reveal-token").textContent = "Reveal";
     byId("copy-token").textContent = "Copy";
     if (tokenReturnFocus?.isConnected && !tokenReturnFocus.closest("[hidden]"))

@@ -18,6 +18,7 @@ from starlette.datastructures import URL
 from gateway7.auth import credential_expiry
 from gateway7.errors import GatewayError, StartupError
 from gateway7.identity_auth import OperatorPrincipal
+from gateway7.loader import complete_cleanup
 
 COOKIE_NAME = "gateway7_operator"
 PASSWORD_HASH_PATTERN = r"^scrypt\$131072\$8\$1\$[0-9a-f]{32}\$[0-9a-f]{64}$"
@@ -224,13 +225,20 @@ class OperatorSessions:
         if scope is not None:
             self.check_transport(scope)
         digest = hashlib.sha256(token.encode("ascii")).hexdigest()
-        generation = self._generation
-        try:
-            session = await self.state.db.call(self.state.admin_store.get_operator_session, digest)
-        except StartupError:
-            raise GatewayError("unavailable") from None
-        if generation != self._generation:
-            raise GatewayError("unauthorized")
+        for _ in range(3):
+            generation = self._generation
+            try:
+                session = await self.state.db.call(
+                    self.state.admin_store.get_operator_session, digest
+                )
+            except StartupError:
+                raise GatewayError("unavailable") from None
+            if generation == self._generation:
+                break
+        else:
+            # A concurrent unrelated login/logout does not revoke this actor.
+            # Recheck authoritative storage; sustained churn remains bounded.
+            raise GatewayError("unavailable")
         if session is None:
             self._cache.pop(digest, None)
             raise GatewayError("unauthorized")
@@ -295,20 +303,31 @@ class OperatorSessions:
                 "expires_at": expires.isoformat(),
             }
             digest = hashlib.sha256(token.encode("ascii")).hexdigest()
-            await self.state.db.call(
-                self.state.admin_store.create_operator_session, digest, session
-            )
-            # Session eviction is serialized with mutations, including cached checks.
-            self._generation += 1
-            self._cache.clear()
-            self._remember(digest, session)
+
+            async def publish() -> None:
+                removed = await self.state.db.call(
+                    self.state.admin_store.create_operator_session, digest, session
+                )
+                # Publish actual eviction while still owning the mutation lock.
+                # Cancellation cannot leave deleted sessions in the auth cache.
+                if removed:
+                    self._generation += 1
+                    for removed_digest in removed:
+                        self._cache.pop(removed_digest, None)
+                self._remember(digest, session)
+
+            await complete_cleanup(publish())
             return token, session
 
     async def logout(self, headers: list[tuple[bytes, bytes]]) -> None:
         if _authorization(headers):
             return
         digest = hashlib.sha256(_cookie_token(headers).encode("ascii")).hexdigest()
-        async with self.state.management_mutation_lock:
-            await self.state.db.call(self.state.admin_store.delete_operator_session, digest)
-            self._generation += 1
-            self._cache.pop(digest, None)
+
+        async def revoke() -> None:
+            async with self.state.management_mutation_lock:
+                await self.state.db.call(self.state.admin_store.delete_operator_session, digest)
+                self._generation += 1
+                self._cache.pop(digest, None)
+
+        await complete_cleanup(revoke())

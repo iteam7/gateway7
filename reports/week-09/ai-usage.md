@@ -1,5 +1,15 @@
 # AI usage — Week 09
 
+## 2026-11-23 — Correct five PR #336 review findings
+
+- Tool: OpenAI Codex with separate implementation, architecture review and verification agents.
+- Work: Corrected session publication during cancellation, unrelated-session authentication failures, cancellation-safe management cleanup, mobile keyboard/accessibility navigation and email-preview match counts in the existing pull request.
+- Verification: Session and cleanup regressions passed 48 checks on SQLite and disposable PostgreSQL; an independent reviewer repeated 16 backend cases. Console checks passed 34 cases including eight real Chromium journeys and accessibility-tree checks. Email preview/protected-field checks passed 11 cases and the reference middleware suite passed 264 cases; independent policy/console checks passed 102 cases.
+- Full suite: 4,656 passed and nine optional/browser cases skipped on the final frozen sources with isolated PostgreSQL; the eight browser journeys passed separately in Chromium.
+- Artifacts: A fresh installed wheel outside the checkout matches all 72 shipped sources/assets and passes the ordinary account/session/policy/restart/bearer flow; an independent installed check confirms valid concurrent sessions remain usable and two-address preview counts two matches. Format, lint, types and the strict 99-page site passed. The final full-suite and exact-head CI results are recorded with PR #336.
+- Boundary: Only local synthetic accounts and disposable databases were used. No live target, real credential, additional feature, dependency, package version or workflow change was involved.
+- Team assessment: TODO
+
 ## 2026-11-23 — Administration workspace for #335
 
 - Tool: OpenAI Codex with separate implementation, architecture review and verification agents; GitHub CLI, pytest, Chromium, Docker Compose and the repository documentation tools.

@@ -180,7 +180,7 @@ class ControlStoreMixin:
                 "ON CONFLICT(name) DO UPDATE SET value=excluded.value"
             )
 
-    def create_operator_session(self, digest: str, value: dict[str, Any]) -> None:
+    def create_operator_session(self, digest: str, value: dict[str, Any]) -> list[str]:
         if re.fullmatch(r"[0-9a-f]{64}", digest) is None:
             raise ValueError("Invalid session")
         if set(value) != {"operator_id", "password_version", "created_at", "expires_at"}:
@@ -194,10 +194,18 @@ class ControlStoreMixin:
         ):
             raise ValueError("Invalid session")
         normalized = {**value, "created_at": created, "expires_at": expires}
+        removed: set[str] = set()
         with self._lock, self._control_transaction():  # type: ignore[attr-defined]
             try:
+                now = utc_timestamp()
+                removed.update(
+                    row[0]
+                    for row in self._control_query(
+                        "SELECT digest FROM {prefix}operator_sessions WHERE expires_at<=?", (now,)
+                    )
+                )
                 self._control_query(
-                    "DELETE FROM {prefix}operator_sessions WHERE expires_at<=?", (utc_timestamp(),)
+                    "DELETE FROM {prefix}operator_sessions WHERE expires_at<=?", (now,)
                 )
                 # Evict the oldest sessions before insertion; no unbounded login history.
                 for where, parameters, keep in (
@@ -213,6 +221,7 @@ class ControlStoreMixin:
                         )
                     )
                     for row in rows[keep:]:
+                        removed.add(row[0])
                         self._control_query(
                             "DELETE FROM {prefix}operator_sessions WHERE digest=?", (row[0],)
                         )
@@ -222,6 +231,7 @@ class ControlStoreMixin:
                 )
             except Exception:
                 raise StartupError("Operator session storage is unavailable") from None
+        return sorted(removed)
 
     def get_operator_session(self, digest: str) -> dict[str, Any] | None:
         with self._lock:  # type: ignore[attr-defined]

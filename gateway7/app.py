@@ -1249,14 +1249,26 @@ def create_app(
             try:
                 await active_analytics.shutdown()
             finally:
+
+                async def close_management() -> None:
+                    try:
+                        try:
+                            if app.state.operator_sessions is not None:
+                                try:
+                                    await app.state.operator_sessions.passwords.close()
+                                finally:
+                                    app.state.operator_sessions = None
+                        finally:
+                            if app.state.admin_store is not None:
+                                try:
+                                    await app.state.db.call(app.state.admin_store.close)
+                                finally:
+                                    app.state.admin_store = None
+                    finally:
+                        await app.state.db.close()
+
                 try:
-                    if app.state.operator_sessions is not None:
-                        await complete_cleanup(app.state.operator_sessions.passwords.close())
-                        app.state.operator_sessions = None
-                    if app.state.admin_store is not None:
-                        await app.state.db.call(app.state.admin_store.close)
-                        app.state.admin_store = None
-                    await app.state.db.close()
+                    await complete_cleanup(close_management())
                 finally:
                     app.state.telemetry = Telemetry.disabled()
                     # Flushing performs blocking HTTP export with its own timeout.

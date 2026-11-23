@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 import os
+import secrets
 import threading
 
 import httpx
@@ -260,6 +261,223 @@ async def test_late_session_lookup_cannot_restore_logged_out_actor(browser, monk
         app.state.operator_sessions.authenticate_cached(headers)
 
 
+async def test_cancelled_logout_publishes_revocation_before_pending_cookie_mutation(
+    browser, monkeypatch
+):
+    app, client = browser
+    await account(client)
+    csrf = (await login(client)).json()["csrf_token"]
+    raw_cookie = client.cookies.get(COOKIE_NAME)
+    cookie_headers = [(b"cookie", (COOKIE_NAME + "=" + raw_cookie).encode())]
+    original_call = app.state.db.call
+    original_delete = app.state.admin_store.delete_operator_session
+    read_ready, release_read = asyncio.Event(), asyncio.Event()
+    deleted, release_delete = threading.Event(), threading.Event()
+
+    async def delayed(operation, *args, **kwargs):
+        result = await original_call(operation, *args, **kwargs)
+        if (
+            operation.__name__ == "get_operator_session"
+            and asyncio.current_task().get_name() == "gateway7-owned-management-mutation"
+            and not read_ready.is_set()
+        ):
+            read_ready.set()
+            await release_read.wait()
+        return result
+
+    def delete(*args):
+        original_delete(*args)
+        deleted.set()
+        assert release_delete.wait(5)
+
+    monkeypatch.setattr(app.state.db, "call", delayed)
+    monkeypatch.setattr(app.state.admin_store, "delete_operator_session", delete)
+    revision = app.state.control["revision"]
+    pending = asyncio.create_task(
+        client.post(
+            "/operator/clients",
+            json={"id": "after_logout"},
+            headers={**MARKER, "X-Gateway7-CSRF": csrf, "If-Match": str(revision)},
+        )
+    )
+    try:
+        await asyncio.wait_for(read_ready.wait(), 3)
+        logout = asyncio.create_task(app.state.operator_sessions.logout(cookie_headers))
+        assert await asyncio.to_thread(deleted.wait, 3)
+        logout.cancel("synthetic logout cancellation")
+        release_delete.set()
+        with pytest.raises(asyncio.CancelledError):
+            await logout
+    finally:
+        release_delete.set()
+        release_read.set()
+        result = await asyncio.wait_for(pending, 3)
+    assert result.status_code == 401, result.text
+    digest = hashlib.sha256(raw_cookie.encode()).hexdigest()
+    assert await original_call(app.state.admin_store.get_operator_session, digest) is None
+    with pytest.raises(GatewayError):
+        app.state.operator_sessions.authenticate_cached(cookie_headers)
+    users = await client.get("/operator/clients", headers=RECOVERY)
+    assert "after_logout" not in {item["id"] for item in users.json()["items"]}
+
+
+@pytest.mark.parametrize("action", ["login", "logout"])
+@pytest.mark.parametrize("stage", ["lookup", "mutation"])
+async def test_unrelated_session_change_preserves_valid_inflight_actor(
+    browser, monkeypatch, action, stage
+):
+    app, client = browser
+    await account(client, "alice")
+    await account(client, "bob")
+    alice_csrf = (await login(client, "alice")).json()["csrf_token"]
+    alice_cookie = client.cookies.get(COOKIE_NAME)
+    bob_csrf = (await login(client, "bob")).json()["csrf_token"]
+    bob_cookie = client.cookies.get(COOKIE_NAME)
+    entered, release = asyncio.Event(), asyncio.Event()
+    original_call = app.state.db.call
+    original_hash = app.state.operator_sessions.passwords.hash
+
+    async def delayed_lookup(operation, *args, **kwargs):
+        result = await original_call(operation, *args, **kwargs)
+        if (
+            stage == "lookup"
+            and operation.__name__ == "get_operator_session"
+            and asyncio.current_task().get_name() == "unrelated-bob-lookup"
+            and not entered.is_set()
+        ):
+            entered.set()
+            await release.wait()
+        return result
+
+    async def delayed_hash(password):
+        encoded = await original_hash(password)
+        if stage == "mutation":
+            entered.set()
+            await release.wait()
+        return encoded
+
+    monkeypatch.setattr(app.state.db, "call", delayed_lookup)
+    monkeypatch.setattr(app.state.operator_sessions.passwords, "hash", delayed_hash)
+    bob_headers = {"Cookie": COOKIE_NAME + "=" + bob_cookie}
+    if stage == "lookup":
+        pending = asyncio.create_task(
+            client.get("/operator/session", headers=bob_headers), name="unrelated-bob-lookup"
+        )
+    else:
+        pending = asyncio.create_task(
+            client.post(
+                "/operator/accounts",
+                json={
+                    "id": "bobs_account",
+                    "label": "Bob's account",
+                    "role": "viewer",
+                    "password": PASSWORD,
+                },
+                headers={
+                    **bob_headers,
+                    **MARKER,
+                    "X-Gateway7-CSRF": bob_csrf,
+                    "If-Match": str(app.state.control["revision"]),
+                },
+            )
+        )
+    try:
+        await asyncio.wait_for(entered.wait(), 3)
+        if action == "login":
+            changed = await client.post(
+                "/operator/session",
+                json={"username": "alice", "password": PASSWORD},
+                headers=MARKER,
+            )
+        else:
+            changed = await client.delete(
+                "/operator/session",
+                headers={
+                    **MARKER,
+                    "Cookie": COOKIE_NAME + "=" + alice_cookie,
+                    "X-Gateway7-CSRF": alice_csrf,
+                },
+            )
+        assert changed.status_code in (200, 204), changed.text
+    finally:
+        release.set()
+        result = await asyncio.wait_for(pending, 3)
+    assert result.status_code == (200 if stage == "lookup" else 201), result.text
+    current = await client.get("/operator/session", headers=bob_headers)
+    assert current.status_code == 200, current.text
+    assert current.json()["actor"]["id"] == "bob"
+
+
+@pytest.mark.parametrize("cancelled", [False, True], ids=["completed", "cancelled"])
+async def test_login_eviction_invalidates_only_removed_sessions_even_if_caller_cancels(
+    browser, monkeypatch, cancelled
+):
+    from gateway7.operator_sessions import SessionLogin
+
+    app, client = browser
+    await account(client, "alice")
+    await account(client, "bob")
+    await login(client, "alice")
+    alice_cookie = client.cookies.get(COOKIE_NAME)
+    await login(client, "bob")
+    bob_cookie = client.cookies.get(COOKIE_NAME)
+    manager, store = app.state.operator_sessions, app.state.admin_store
+    alice_digest = hashlib.sha256(alice_cookie.encode()).hexdigest()
+    alice_session = await app.state.db.call(store.get_operator_session, alice_digest)
+    created = datetime.fromisoformat(alice_session["created_at"])
+    # Fill Alice's documented 16-session allowance without bypassing the real
+    # store's eviction path or spending 15 extra password verifications.
+    for index in range(15):
+        digest = hashlib.sha256(secrets.token_urlsafe(32).encode()).hexdigest()
+        session = {
+            **alice_session,
+            "created_at": (created + timedelta(microseconds=index + 1)).isoformat(),
+        }
+        removed = await app.state.db.call(store.create_operator_session, digest, session)
+        assert removed == []
+        manager._remember(digest, session)
+    committed, release = threading.Event(), threading.Event()
+    original = store.create_operator_session
+    evicted = []
+
+    def delayed(*args):
+        removed = original(*args)
+        evicted.extend(removed)
+        committed.set()
+        assert release.wait(5)
+        return removed
+
+    monkeypatch.setattr(store, "create_operator_session", delayed)
+    pending = asyncio.create_task(
+        manager.login(SessionLogin(username="alice", password=PASSWORD), "127.0.0.1")
+    )
+    try:
+        assert await asyncio.to_thread(committed.wait, 3)
+        if cancelled:
+            pending.cancel("synthetic login cancellation")
+    finally:
+        release.set()
+    if cancelled:
+        with pytest.raises(asyncio.CancelledError):
+            await pending
+    else:
+        await pending
+    assert evicted == [alice_digest]
+    assert await app.state.db.call(store.get_operator_session, alice_digest) is None
+    with pytest.raises(GatewayError):
+        manager.authenticate_cached([(b"cookie", (COOKIE_NAME + "=" + alice_cookie).encode())])
+    assert (
+        manager.authenticate_cached([(b"cookie", (COOKIE_NAME + "=" + bob_cookie).encode())]).id
+        == "bob"
+    )
+    count = await app.state.db.call(
+        lambda: store._control_query(
+            "SELECT COUNT(*) FROM {prefix}operator_sessions WHERE operator_id=?", ("alice",)
+        ).fetchone()[0]
+    )
+    assert count == 16
+
+
 async def test_remembered_session_survives_process_restart(managed_config):
     config = managed_config
     app = create_app(config=config)
@@ -285,6 +503,54 @@ async def test_remembered_session_survives_process_restart(managed_config):
                 "/operator/session", headers={**MARKER, "X-Gateway7-CSRF": csrf}
             )
             assert logout.status_code == 204
+
+
+async def test_cancelled_shutdown_drains_password_worker_and_closes_management_resources(
+    managed_config,
+):
+    app = create_app(config=managed_config)
+    context = app.router.lifespan_context(app)
+    await context.__aenter__()
+    worker = app.state.operator_sessions.passwords
+    entered, release = threading.Event(), threading.Event()
+
+    def blocking():
+        entered.set()
+        assert release.wait(5)
+
+    pending = asyncio.create_task(worker._call(blocking))
+    shutdown = None
+    try:
+        assert await asyncio.to_thread(entered.wait, 3)
+        shutdown = asyncio.create_task(context.__aexit__(None, None, None))
+        async with asyncio.timeout(3):
+            while not worker._closed:
+                await asyncio.sleep(0)
+        shutdown.cancel("synthetic shutdown cancellation")
+        await asyncio.sleep(0)
+        shutdown.cancel("repeated shutdown cancellation")
+        release.set()
+        with pytest.raises(asyncio.CancelledError) as failure:
+            await shutdown
+        assert failure.value.args == ("synthetic shutdown cancellation",)
+        await pending
+        assert app.state.operator_sessions is None
+        assert app.state.admin_store is None
+        assert app.state.db._closed
+        assert app.state.db.pending == 0
+        # A fresh process can immediately reacquire the same management store.
+        restarted = create_app(config=managed_config)
+        async with restarted.router.lifespan_context(restarted):
+            assert restarted.state.ready
+    finally:
+        release.set()
+        await asyncio.gather(pending, return_exceptions=True)
+        if shutdown is not None:
+            await asyncio.gather(shutdown, return_exceptions=True)
+        if app.state.admin_store is not None:
+            await app.state.db.call(app.state.admin_store.close)
+            app.state.admin_store = None
+        await app.state.db.close()
 
 
 async def test_login_rejects_cross_origin_and_throttles_generic_failures(browser):

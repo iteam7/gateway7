@@ -113,26 +113,69 @@ export function createNavigation() {
     .get("overview")
     .insertBefore(shortcuts, views.get("overview").lastElementChild);
   const toggle = document.getElementById("toggle-navigation");
+  const sidebar = document.querySelector(".sidebar");
+  const mobile = window.matchMedia("(max-width: 850px)");
+  let lastFocused = document.activeElement;
+  document.addEventListener("focusin", (event) => {
+    if (event.target !== document.body) lastFocused = event.target;
+  });
   const backdrop = node("button", undefined, "navigation-backdrop");
   backdrop.type = "button";
   backdrop.setAttribute("aria-label", "Close navigation");
   document.body.append(backdrop);
-  function closeMenu() {
+  function syncSidebar() {
+    const closed =
+      mobile.matches && !document.body.classList.contains("navigation-open");
+    const credentialOpen = !document.getElementById("issued-token-panel").hidden;
+    if (closed && !credentialOpen && sidebar.contains(document.activeElement))
+      toggle.focus({ preventScroll: true });
+    // Inert removes the offscreen drawer from both sequential keyboard focus
+    // and the accessibility tree. A credential dialog owns the background even
+    // when a responsive breakpoint changes while that dialog is open.
+    sidebar.inert = closed || credentialOpen;
+  }
+  function closeMenu({ restoreFocus = false } = {}) {
+    const wasOpen = document.body.classList.contains("navigation-open");
     document.body.classList.remove("navigation-open");
     toggle.setAttribute("aria-expanded", "false");
+    if (restoreFocus && wasOpen && mobile.matches)
+      toggle.focus({ preventScroll: true });
+    syncSidebar();
   }
-  backdrop.addEventListener("click", closeMenu);
+  backdrop.addEventListener("click", () => closeMenu({ restoreFocus: true }));
   toggle.addEventListener("click", () => {
-    const open = document.body.classList.toggle("navigation-open");
-    toggle.setAttribute("aria-expanded", String(open));
-    if (open) document.querySelector(".nav-link.selected")?.focus();
+    if (document.body.classList.contains("navigation-open")) {
+      closeMenu({ restoreFocus: true });
+      return;
+    }
+    document.body.classList.add("navigation-open");
+    toggle.setAttribute("aria-expanded", "true");
+    syncSidebar();
+    document.querySelector(".nav-link.selected")?.focus();
   });
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") closeMenu();
+    if (event.key === "Escape") closeMenu({ restoreFocus: true });
   });
   document.addEventListener("click", (event) => {
-    if (!event.target.closest(".sidebar, #toggle-navigation")) closeMenu();
+    if (!event.target.closest(".sidebar, #toggle-navigation"))
+      closeMenu({ restoreFocus: true });
   });
+  mobile.addEventListener("change", () => {
+    // Hiding the mobile toggle can move focus to body before matchMedia fires.
+    const toggleFocused =
+      document.activeElement === toggle ||
+      (document.activeElement === document.body && lastFocused === toggle);
+    closeMenu();
+    if (!mobile.matches && toggleFocused)
+      document.querySelector(".nav-link.selected")?.focus({ preventScroll: true });
+  });
+  for (const link of document.querySelectorAll(".nav-link"))
+    link.addEventListener("click", (event) => {
+      if (link.hash === location.hash) {
+        event.preventDefault();
+        render({ focus: true });
+      }
+    });
   function render({ focus = false } = {}) {
     const raw = location.hash.slice(1);
     let name = aliases[raw] ?? (routes[raw] ? raw : "overview");
@@ -155,7 +198,7 @@ export function createNavigation() {
     document.getElementById("page-description").textContent = description;
     document.getElementById("page-eyebrow").textContent = eyebrow;
     document.title = `${title} · Gateway7`;
-    closeMenu();
+    closeMenu({ restoreFocus: !focus });
     if (focus) {
       document
         .getElementById("workspace-content")
@@ -167,6 +210,7 @@ export function createNavigation() {
   render();
   return {
     render,
+    syncSidebar,
     go: (route) => {
       location.hash = route;
       render();

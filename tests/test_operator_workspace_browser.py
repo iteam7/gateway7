@@ -358,3 +358,78 @@ def test_pending_password_login_serializes_recovery_mode(workspace):
     expect(page.locator("#connection-panel")).to_be_visible()
     assert page.locator("#dashboard").is_hidden()
     assert not workspace.errors
+
+
+def test_mobile_navigation_keeps_focus_in_visible_content(workspace):
+    account(workspace)
+    page, expect = workspace.page, workspace.expect
+    page.set_viewport_size({"width": 390, "height": 844})
+    page.goto(workspace.base + "/operator/console")
+    login(workspace)
+    sidebar = page.locator(".sidebar")
+    toggle = page.locator("#toggle-navigation")
+    accessibility = page.context.new_cdp_session(page)
+
+    def navigation_in_accessibility_tree():
+        return any(
+            not item.get("ignored") and item.get("role", {}).get("value") == "navigation"
+            for item in accessibility.send("Accessibility.getFullAXTree")["nodes"]
+        )
+
+    toggle.focus()
+    page.keyboard.press("Shift+Tab")
+    assert page.evaluate(
+        "() => !document.querySelector('.sidebar').contains(document.activeElement)"
+    ), "Shift+Tab entered the offscreen navigation"
+    expect(sidebar).to_have_js_property("inert", True)
+    assert not navigation_in_accessibility_tree()
+    page.keyboard.press("Tab")
+    expect(toggle).to_be_focused()
+    toggle.click()
+    expect(sidebar).to_have_js_property("inert", False)
+    assert navigation_in_accessibility_tree()
+    expect(page.locator(".nav-link.selected")).to_be_focused()
+    page.keyboard.press("Escape")
+    expect(toggle).to_be_focused()
+    expect(sidebar).to_have_js_property("inert", True)
+    toggle.click()
+    page.get_by_role("button", name="Close navigation", exact=True).click(
+        position={"x": 350, "y": 200}
+    )
+    expect(toggle).to_be_focused()
+    expect(sidebar).to_have_js_property("inert", True)
+    toggle.click()
+    page.get_by_role("link", name="Models", exact=True).first.click()
+    expect(page.locator("#workspace-content")).to_be_focused()
+    expect(page.locator("#page-title")).to_have_text("Models")
+    expect(sidebar).to_have_js_property("inert", True)
+    # Selecting the current route must close the drawer, too (no hashchange).
+    toggle.click()
+    page.get_by_role("link", name="Models", exact=True).first.click()
+    expect(toggle).to_have_attribute("aria-expanded", "false")
+    expect(page.locator("#workspace-content")).to_be_focused()
+    page.set_viewport_size({"width": 1440, "height": 1000})
+    expect(sidebar).to_have_js_property("inert", False)
+    page.locator(".nav-link[href='#activity']").focus()
+    page.set_viewport_size({"width": 390, "height": 844})
+    expect(toggle).to_be_focused()
+    expect(sidebar).to_have_js_property("inert", True)
+    page.set_viewport_size({"width": 1440, "height": 1000})
+    expect(sidebar).to_have_js_property("inert", False)
+    expect(page.locator(".nav-link.selected")).to_be_focused()
+    # The drawer's resize handler must preserve the credential dialog's inert
+    # background, then restore the correct mobile/desktop state on dismissal.
+    page.get_by_role("link", name="Users & keys", exact=True).first.click()
+    page.locator("#create-client").click()
+    page.locator("#client-id").fill("focus_test_user")
+    page.locator("#save-client").click()
+    expect(page.locator("#issued-token-panel")).to_be_visible()
+    page.set_viewport_size({"width": 390, "height": 844})
+    expect(sidebar).to_have_js_property("inert", True)
+    page.set_viewport_size({"width": 1440, "height": 1000})
+    expect(sidebar).to_have_js_property("inert", True)
+    page.locator("#dismiss-token").click()
+    expect(sidebar).to_have_js_property("inert", False)
+    page.set_viewport_size({"width": 390, "height": 844})
+    expect(sidebar).to_have_js_property("inert", True)
+    assert not workspace.errors

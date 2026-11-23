@@ -241,6 +241,72 @@ def test_preview_uses_real_pure_factory_without_persisting_or_provider(template,
 
 
 @pytest.mark.parametrize(
+    "text,expected,count",
+    [
+        (
+            "first@example.test and second@example.test",
+            "[EMAIL] and [EMAIL]",
+            2,
+        ),
+        ("No email addresses here", "No email addresses here", 0),
+        (
+            "a" * 33 + "." + "b" * 32 + "@example.test valid@example.test",
+            "a" * 33 + "." + "b" * 32 + "@example.test [EMAIL]",
+            1,
+        ),
+        (
+            "a@" + ".".join(["b" * 63] * 4 + ["test"]),
+            "a@" + ".".join(["b" * 63] * 4 + ["test"]),
+            0,
+        ),
+    ],
+)
+def test_email_preview_counts_only_supported_address_replacements(text, expected, count):
+    result = PolicyAdmin.preview(
+        PolicyPreview(spec=spec(template="email_mask", terms=[]), text=text)
+    )
+    assert result["text"] == expected and result["matched"] == count
+    assert not result["denied"] and result["provider_calls"] == 0
+
+
+def test_email_preview_still_detects_match_when_replacement_equals_address():
+    address = "same@example.test"
+    result = PolicyAdmin.preview(
+        PolicyPreview(spec=spec(template="email_mask", terms=[], replacement=address), text=address)
+    )
+    assert result["text"] == address and result["matched"] == 1
+
+
+@pytest.mark.parametrize("native", [False, True])
+async def test_email_replacement_equal_to_input_still_denies_protected_schema_keys(native):
+    from gateway7.plugin_api import Deny, PluginContext, ResponsesContext
+    from gateway7.plugins.email_mask import Settings, create
+
+    address = "same@example.test"
+    plugin = create(Settings(phase="request", replacement=address))
+    parameters = {"type": "object", "properties": {address: {"type": "string"}}}
+    if native:
+        request = ResponsesRequest.model_validate(
+            {
+                "input": "safe",
+                "tools": [{"type": "function", "name": "lookup", "parameters": parameters}],
+            }
+        )
+        result = await plugin.prepare_responses(request, ResponsesContext("synthetic-email", 1, {}))
+    else:
+        request = ChatRequest.model_validate(
+            {
+                "messages": [{"role": "user", "content": "safe"}],
+                "tools": [
+                    {"type": "function", "function": {"name": "lookup", "parameters": parameters}}
+                ],
+            }
+        )
+        result = await plugin.prepare_early_stream(request, PluginContext("synthetic-email", 1, {}))
+    assert isinstance(result, Deny)
+
+
+@pytest.mark.parametrize(
     "value",
     [
         {"module": "os"},
