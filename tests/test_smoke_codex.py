@@ -32,6 +32,17 @@ peer = importlib.util.module_from_spec(PEER_SPEC)
 PEER_SPEC.loader.exec_module(peer)
 
 
+def _isolated_subprocess_env():
+    """Keep child tools hermetic while retaining Windows system runtime paths."""
+    env = {"PATH": os.defpath}
+    if os.name == "nt":
+        for name in ("SYSTEMROOT", "WINDIR", "SYSTEMDRIVE", "TEMP", "TMP"):
+            value = os.environ.get(name)
+            if value:
+                env[name] = value
+    return env
+
+
 def evidence(count=1):
     reads = [
         {
@@ -624,7 +635,7 @@ def test_fixed_command_gate_rejects_unsafe_events_before_native_execution(tmp_pa
         text=True,
         timeout=10,
         cwd=tmp_path,
-        env={"PATH": os.defpath},
+        env=_isolated_subprocess_env(),
         check=False,
     )
     assert (result.returncode == 0) is (change is None)
@@ -755,7 +766,7 @@ def test_gateway_staging_uses_only_explicit_frozen_sources_and_offline_overlay(t
     context = tmp_path / "context"
     image = "sha256:" + "2" * 64
     smoke.write_gateway_context(context, image, (b"{}", source), scenario())
-    names = {str(p.relative_to(context)) for p in context.rglob("*") if p.is_file()}
+    names = {p.relative_to(context).as_posix() for p in context.rglob("*") if p.is_file()}
     assert names == set(smoke.GATEWAY_SOURCES) | {
         "Dockerfile",
         ".dockerignore",
@@ -876,7 +887,7 @@ def test_consent_headers_are_opt_in_and_independent(tmp_path, opaque, hosted):
         capture_output=True,
         text=True,
         timeout=10,
-        env={"PATH": os.defpath},
+        env=_isolated_subprocess_env(),
         check=True,
     )
     expected = {}
@@ -1350,7 +1361,7 @@ def test_python_gateway_peer_fixture_is_accepted_by_fixed_command_gate(tmp_path,
         input=wire,
         capture_output=True,
         timeout=10,
-        env={"PATH": os.defpath},
+        env=_isolated_subprocess_env(),
         check=False,
     )
     assert result.returncode == 0, result.stderr.decode()
@@ -1455,7 +1466,7 @@ console.log(JSON.stringify({proxy_checked: true}));
         capture_output=True,
         text=True,
         timeout=10,
-        env={"PATH": os.defpath},
+        env=_isolated_subprocess_env(),
         cwd=tmp_path,
         check=False,
     )
@@ -1813,7 +1824,7 @@ def test_real_stale_bytecode_cannot_override_frozen_gateway_source(
         text=True,
         timeout=10,
         cwd=tmp_path,
-        env={"PATH": os.defpath},
+        env=_isolated_subprocess_env(),
         check=True,
     )
     assert len(list(stale_cache.rglob("*.pyc"))) == len(files) == 4
@@ -1875,7 +1886,7 @@ print(json.dumps(builtins.EXECUTIONS))
         text=True,
         timeout=10,
         cwd=tmp_path,
-        env={"PATH": os.defpath},
+        env=_isolated_subprocess_env(),
         check=True,
     )
     assert all(version == "OLD" for _, version in json.loads(result.stdout))
@@ -1885,7 +1896,7 @@ print(json.dumps(builtins.EXECUTIONS))
         text=True,
         timeout=10,
         cwd=tmp_path,
-        env={"PATH": os.defpath},
+        env=_isolated_subprocess_env(),
         check=True,
     )
     assert all(version == "NEW" for _, version in json.loads(result.stdout))
