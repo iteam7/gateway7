@@ -231,7 +231,11 @@ def test_live_policy_and_usage_survive_restart_without_bootstrap_env(managed, mo
         assert client.post("/chat", headers=bearer(rotated), json=body("/chat")).status_code == 200
         assert client.post("/chat", headers=bearer(SEED), json=body("/chat")).status_code == 401
         assert client.post("/chat", headers=bearer(token), json=body("/chat")).status_code == 200
-        usage = client.get("/operator/usage", headers=READ).json()
+        usage = client.get(
+            "/operator/usage",
+            headers=READ,
+            params={"start": "2000-01-01T00:00:00Z", "end": "2100-01-01T00:00:00Z"},
+        ).json()
         assert usage["clients"]["synthetic_user"]["provider_attempts"] == 2
 
 
@@ -323,9 +327,11 @@ def test_usage_filters_export_and_deleted_history(managed):
             == 422
         )
         assert (
-            client.get("/operator/usage", headers=READ).json()["clients"]["synthetic_user"][
-                "provider_attempts"
-            ]
+            client.get(
+                "/operator/usage",
+                headers=READ,
+                params={"start": "2000-01-01T00:00:00Z", "end": "2100-01-01T00:00:00Z"},
+            ).json()["clients"]["synthetic_user"]["provider_attempts"]
             == 2
         )
         for invalid in (

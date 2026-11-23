@@ -14,6 +14,8 @@ from gateway7.config import GatewayConfig
 from gateway7.control_store import ControlConflict
 from gateway7.postgres_store import PostgresAdminStore
 
+REPORT_RANGE = {"start": "2000-01-01T00:00:00Z", "end": "2100-01-01T00:00:00Z"}
+
 
 class InlineDB:
     async def call(self, method, *args, **kwargs):
@@ -139,7 +141,8 @@ def test_concurrent_reservations_across_keys_cannot_overbook_user_budget(store):
 
 async def test_settlement_is_idempotent_and_captures_price_revision(store):
     policy(store, tokens=1000, cost=1000)
-    reservation = store.reserve_usage("client_a", "fake", 100, 100)
+    started_at = (datetime.now(timezone.utc) - timedelta(seconds=1)).isoformat()
+    reservation = store.reserve_usage("client_a", "fake", 100, 100, started_at=started_at)
     service = AccountingService(store, InlineDB())
     await service.update_pricing(
         1,
@@ -163,20 +166,21 @@ async def test_settlement_is_idempotent_and_captures_price_revision(store):
         store.usage_rows(client_id=None, model=None, start=None, end=None)[0]["provider_attempts"]
         == 1
     )
-    report = await service.report()
+    report = await service.report(**REPORT_RANGE)
     assert report["summary"]["provider_attempts"] == 1
     assert report["summary"]["cost_micro_usd"] == 13
 
 
 async def test_unknown_usage_retains_allowance_and_pending_is_visible(store):
     policy(store, tokens=200)
-    reservation = store.reserve_usage("client_a", "fake", 100, 100)
+    started_at = (datetime.now(timezone.utc) - timedelta(seconds=1)).isoformat()
+    reservation = store.reserve_usage("client_a", "fake", 100, 100, started_at=started_at)
     service = AccountingService(store, InlineDB())
-    assert (await service.report())["summary"]["pending_attempts"] == 1
+    assert (await service.report(**REPORT_RANGE))["summary"]["pending_attempts"] == 1
     store.settle_usage(reservation["id"], "provider_error", None)
     with pytest.raises(BudgetDenied):
         store.reserve_usage("client_a", "fake", 1, 1)
-    row = (await service.report())["summary"]
+    row = (await service.report(**REPORT_RANGE))["summary"]
     assert row["known_input_tokens"] == 0 and row["input_usage_unknown_attempts"] == 1
     assert row["unknown_cost_attempts"] == 1
 
@@ -228,8 +232,11 @@ async def test_warning_budget_does_not_block_and_retention_preserves_current_win
 
 async def test_http_denials_are_diagnostics_without_provider_usage(store):
     service = AccountingService(store, InlineDB())
-    await service.record_http(client_id="client_a", outcome="rate_limited", duration_ms=15)
-    report = await service.report()
+    started_at = (datetime.now(timezone.utc) - timedelta(seconds=1)).isoformat()
+    await service.record_http(
+        client_id="client_a", outcome="rate_limited", duration_ms=15, started_at=started_at
+    )
+    report = await service.report(**REPORT_RANGE)
     assert report["summary"]["provider_attempts"] == 0
     diagnostics = await service.diagnostics(client_id="client_a")
     assert diagnostics["http_outcomes"]["rate_limited"] == 1
@@ -264,7 +271,7 @@ async def test_unbounded_no_budget_request_is_preserved_but_hard_budget_refuses(
     before, observer = service.bind("client_a", "fake")
     await before(Request())
     await observer("complete", {"input_tokens": 7, "output_tokens": 3})
-    assert (await service.report())["summary"]["provider_attempts"] == 1
+    assert (await service.report(**REPORT_RANGE))["summary"]["provider_attempts"] == 1
     policy(store, tokens=10000)
     before, _ = service.bind("client_a", "fake")
     from gateway7.errors import GatewayError

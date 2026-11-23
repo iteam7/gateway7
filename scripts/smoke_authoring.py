@@ -131,7 +131,9 @@ def dev_flow(cli, project, environment, *, template):
         if process.stdout:
             process.stdout.close()
         reader.join(timeout=2)
-    assert process.returncode == 0, "Ctrl-C should cleanly stop the dev supervisor"
+    assert process.returncode == 0, (
+        f"Ctrl-C should cleanly stop the dev supervisor (exit code {process.returncode})"
+    )
     for origin in origins:
         released(origin)
 
