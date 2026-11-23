@@ -10,6 +10,20 @@ An application or developer that calls Gateway7 with its own bearer token and ma
 
 **Defined by:** [client authentication and model permissions](authentication.md#configure-clients).
 
+### Operator Session
+
+A server-stored browser login for a named operator, represented by an opaque HttpOnly cookie and a separate CSRF proof for administrative writes.
+It expires independently of application client keys and can be ended by logout, password reset or operator revocation.
+
+**Defined by:** [FR-031](functional-requirements/fr/FR-031.md).
+
+### Managed Policy
+
+A bounded text-policy definition created from a supported console template and activated globally or for selected clients after their configured middleware baseline.
+Its settings are data rather than a new Python module or arbitrary executable code.
+
+**Defined by:** [FR-032](functional-requirements/fr/FR-032.md).
+
 ### Provider
 
 The one LLM service, OpenAI, Claude or Gemini, that a running gateway is configured at startup to forward allowed requests to.

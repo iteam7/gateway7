@@ -40,7 +40,21 @@ from gateway7.management_store import open_management_store
 from gateway7.db_execution import DBExecutor
 from gateway7.accounting import AccountingService
 from gateway7.control_store import ControlConflict
-from gateway7.identity_admin import IdentityAdmin, KeyRequest, OperatorRequest, OperatorUpdate
+from gateway7.identity_admin import (
+    AccountRequest,
+    IdentityAdmin,
+    KeyRequest,
+    OperatorRequest,
+    OperatorUpdate,
+)
+from gateway7.operator_sessions import COOKIE_NAME, OperatorSessions, PasswordRequest, SessionLogin
+from gateway7.policy_admin import (
+    PolicyAdmin,
+    PolicyAssignments,
+    PolicyPreview,
+    PolicySpec,
+    restore_policy_config,
+)
 from gateway7.openai_api import (
     EarlyChatEncoder,
     NativeChatRequest,
@@ -102,6 +116,7 @@ async def _owned_mutation(
     async def run() -> Any:
         context = _OPERATOR_HEADERS.set(request.scope.get("headers", []))
         try:
+            await _authenticate_operator(app, request.scope)
             actor = app.state.validate_operator(getattr(request.state, "operator", None))
             return await operation(actor, request.state.expected_revision)
         finally:
@@ -123,6 +138,14 @@ async def _owned_mutation(
     finally:
         if cancellation is not None:
             raise cancellation
+
+
+async def _authenticate_operator(app: FastAPI, scope: Scope) -> Any:
+    headers = scope.get("headers", [])
+    sessions = getattr(app.state, "operator_sessions", None)
+    if sessions is None:
+        return app.state.operator_access.authenticate(headers)
+    return await sessions.authenticate(headers, scope=scope)
 
 
 async def _domain(operation: Awaitable[Any]) -> Any:
@@ -380,8 +403,19 @@ class GatewayBoundaryMiddleware:
             if operator_path:
                 try:
                     access = self.owner.state.operator_access
-                    if not _public_operator_path(scope.get("path", "")):
-                        actor = access.authenticate(scope.get("headers", []))
+                    session_login = (
+                        scope.get("path") == "/operator/session" and scope.get("method") == "POST"
+                    )
+                    session_logout = (
+                        scope.get("path") == "/operator/session" and scope.get("method") == "DELETE"
+                    )
+                    if session_login:
+                        if self.owner.state.admin_store is None:
+                            raise GatewayError("not_found")
+                        _check_operator_write(scope)
+                        self.owner.state.operator_sessions.check_transport(scope)
+                    elif not _public_operator_path(scope.get("path", "")):
+                        actor = await _authenticate_operator(self.owner, scope)
                         scope["state"]["operator"] = actor
                     elif not access.enabled:
                         raise GatewayError("not_found")
@@ -400,11 +434,16 @@ class GatewayBoundaryMiddleware:
                     ):
                         if self.owner.state.admin_store is None:
                             raise GatewayError("not_found")
-                        actor.require_admin()
-                        _check_operator_write(scope)
-                        scope["state"]["expected_revision"] = _expected_revision(
-                            scope.get("headers", [])
-                        )
+                        if not session_login:
+                            _check_operator_write(scope)
+                            sessions = self.owner.state.operator_sessions
+                            if sessions is not None:
+                                sessions.check_csrf(scope.get("headers", []))
+                            if not session_logout:
+                                actor.require_admin()
+                                scope["state"]["expected_revision"] = _expected_revision(
+                                    scope.get("headers", [])
+                                )
                 except GatewayError as error:
                     await fail(error.code)
                     return
@@ -1211,6 +1250,9 @@ def create_app(
                 await active_analytics.shutdown()
             finally:
                 try:
+                    if app.state.operator_sessions is not None:
+                        await complete_cleanup(app.state.operator_sessions.passwords.close())
+                        app.state.operator_sessions = None
                     if app.state.admin_store is not None:
                         await app.state.db.call(app.state.admin_store.close)
                         app.state.admin_store = None
@@ -1242,6 +1284,7 @@ def create_app(
             active_config, key = restore_provider_config(
                 active_config, app.state.control, clients=clients
             )
+            active_config = restore_policy_config(active_config, app.state.control)
             validate_provider_credential(active_config, key, app.state.control, token_digests)
             app.state.provider_aliases = get_provider_aliases(app.state.control)
             usage_ledger: UsageLedger | PersistentUsageLedger = await app.state.db.call(
@@ -1300,6 +1343,7 @@ def create_app(
             )
             if active_config.auth.management_enabled:
                 await IdentityAdmin(app.state).initialize()
+                app.state.operator_sessions = OperatorSessions(app.state)
                 await app.state.accounting.purge()
                 app.state.retention_task = asyncio.create_task(
                     _periodic_retention(app), name="gateway7-retention"
@@ -1352,6 +1396,7 @@ def create_app(
     app.state.metrics = Metrics()
     app.state.admission = _PipelineAdmission(app.state.metrics)
     app.state.operator_access = None
+    app.state.operator_sessions = None
     app.state.usage_ledger = None
     app.state.admin_store = None
     app.state.token_digests = {}
@@ -1369,7 +1414,12 @@ def create_app(
     app.state.retention_task = None
 
     def validate_operator(expected=None):
-        actor = app.state.operator_access.authenticate(_OPERATOR_HEADERS.get())
+        sessions = app.state.operator_sessions
+        actor = (
+            sessions.authenticate_cached(_OPERATOR_HEADERS.get())
+            if sessions is not None
+            else app.state.operator_access.authenticate(_OPERATOR_HEADERS.get())
+        )
         actor.require_admin()
         if expected is not None and actor.id != expected.id:
             raise GatewayError("operator_forbidden")
@@ -1552,6 +1602,98 @@ def create_app(
                 return result
 
         return await _domain(_owned_mutation(app, request, change))
+
+    @app.post("/operator/session", include_in_schema=False)
+    async def operator_login(payload: SessionLogin, request: Request):
+        require_accounting()
+        sessions = app.state.operator_sessions
+        token, session = await _domain(
+            sessions.login(payload, (request.client.host if request.client else "unknown"))
+        )
+        cookie_headers = [(b"cookie", (COOKIE_NAME + "=" + token).encode("ascii"))]
+        response = JSONResponse(
+            sessions.view(cookie_headers, sessions._principal(session)), headers=CONSOLE_HEADERS
+        )
+        maximum = max(
+            0,
+            int(
+                (
+                    datetime.fromisoformat(session["expires_at"]) - datetime.now(timezone.utc)
+                ).total_seconds()
+            ),
+        )
+        response.set_cookie(
+            COOKIE_NAME,
+            token,
+            max_age=maximum if payload.remember else None,
+            path="/operator",
+            secure=app.state.config.auth.session_cookie_secure,
+            httponly=True,
+            samesite="strict",
+        )
+        return response
+
+    @app.get("/operator/session", include_in_schema=False)
+    async def operator_session(request: Request):
+        require_accounting()
+        return JSONResponse(
+            app.state.operator_sessions.view(
+                request.scope.get("headers", []), request.state.operator
+            ),
+            headers=CONSOLE_HEADERS,
+        )
+
+    @app.delete("/operator/session", include_in_schema=False, status_code=204)
+    async def operator_logout(request: Request):
+        require_accounting()
+        await _authenticate_operator(app, request.scope)
+        await _domain(app.state.operator_sessions.logout(request.scope.get("headers", [])))
+        response = Response(status_code=204, headers=CONSOLE_HEADERS)
+        response.delete_cookie(
+            COOKIE_NAME,
+            path="/operator",
+            secure=app.state.config.auth.session_cookie_secure,
+            httponly=True,
+            samesite="strict",
+        )
+        return response
+
+    @app.post("/operator/accounts", include_in_schema=False, status_code=201)
+    async def operator_create_account(payload: AccountRequest, request: Request):
+        return await identity_change(request, IdentityAdmin(app.state).create_account, payload)
+
+    @app.put("/operator/accounts/{operator_id}/password", include_in_schema=False)
+    async def operator_reset_password(operator_id: str, payload: PasswordRequest, request: Request):
+        return await identity_change(
+            request, IdentityAdmin(app.state).reset_password, operator_id, payload
+        )
+
+    @app.get("/operator/policies", include_in_schema=False)
+    async def operator_policies():
+        require_accounting()
+        return await _domain(PolicyAdmin(app.state).snapshot())
+
+    @app.post("/operator/policies", include_in_schema=False, status_code=201)
+    async def operator_create_policy(payload: PolicySpec, request: Request):
+        return await identity_change(request, PolicyAdmin(app.state).create, payload)
+
+    @app.put("/operator/policies/{policy_id}", include_in_schema=False)
+    async def operator_update_policy(policy_id: str, payload: PolicySpec, request: Request):
+        return await identity_change(request, PolicyAdmin(app.state).update, policy_id, payload)
+
+    @app.delete("/operator/policies/{policy_id}", include_in_schema=False, status_code=204)
+    async def operator_delete_policy(policy_id: str, request: Request):
+        await identity_change(request, PolicyAdmin(app.state).delete, policy_id)
+        return Response(status_code=204)
+
+    @app.put("/operator/policy-assignments", include_in_schema=False)
+    async def operator_policy_assignments(payload: PolicyAssignments, request: Request):
+        return await identity_change(request, PolicyAdmin(app.state).assignments, payload)
+
+    @app.post("/operator/policy-preview", include_in_schema=False)
+    async def operator_policy_preview(payload: PolicyPreview):
+        require_accounting()
+        return PolicyAdmin.preview(payload)
 
     @app.get("/operator/usage", include_in_schema=False)
     async def operator_usage(

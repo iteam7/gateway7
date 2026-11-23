@@ -1,5 +1,6 @@
 "use strict";
 import { createAdminWorkspace } from "./admin_console.js";
+import { createNavigation } from "./navigation.js";
 
 (() => {
   const byId = (id) => document.getElementById(id);
@@ -16,6 +17,12 @@ import { createAdminWorkspace } from "./admin_console.js";
   const formatted = (value) =>
     `${Number.isSafeInteger(number(value)) ? "" : "≈ "}${value.toLocaleString()}`;
   let token = "";
+  let authentication = null;
+  let csrfToken = "";
+  let loggingOut = false;
+  let signingIn = false;
+  let navigation = null;
+  let tokenReturnFocus = null;
   let session = 0;
   let latestLoad = 0;
   let snapshot = null;
@@ -69,12 +76,17 @@ import { createAdminWorkspace } from "./admin_console.js";
     return snapshot?.configuration?.management_enabled === true;
   }
   function clearIssuedToken() {
+    document.querySelector(".workspace").inert = false;
+    document.querySelector(".sidebar").inert = false;
     byId("issued-token").value = "";
     byId("issued-token").type = "password";
     byId("issued-token-note").textContent = "";
     byId("issued-token-panel").hidden = true;
     byId("reveal-token").textContent = "Reveal";
     byId("copy-token").textContent = "Copy";
+    if (tokenReturnFocus?.isConnected && !tokenReturnFocus.closest("[hidden]"))
+      tokenReturnFocus.focus({ preventScroll: true });
+    tokenReturnFocus = null;
   }
   function closeEditor() {
     byId("client-editor").hidden = true;
@@ -115,6 +127,8 @@ import { createAdminWorkspace } from "./admin_console.js";
       byId(id).textContent = "";
     byId("usage-filters").reset();
     byId("dashboard").hidden = true;
+    byId("dashboard").inert = false;
+    byId("dashboard").setAttribute("aria-busy", "false");
     byId("connected-actions").hidden = true;
     byId("mode-badge").textContent = "OPERATOR";
     byId("workspace-mode").textContent = "Operator workspace";
@@ -132,8 +146,20 @@ import { createAdminWorkspace } from "./admin_console.js";
     for (const controller of pending) controller.abort();
     pending.clear();
     token = "";
+    authentication = null;
+    signingIn = false;
+    csrfToken = "";
+    document.body.dataset.authenticated = "false";
+    document.body.dataset.managed = "false";
     mutating = filtering = exporting = false;
     byId("operator-token").value = "";
+    byId("login-password").value = "";
+    byId("login-password").type = "password";
+    byId("sign-in").disabled = false;
+    byId("sign-in").textContent = "Sign in →";
+    byId("connect").disabled = false;
+    byId("show-token-login").disabled = false;
+    byId("show-password").textContent = "Show";
     byId("connection-panel").hidden = false;
     for (const id of [
       "connect",
@@ -155,9 +181,12 @@ import { createAdminWorkspace } from "./admin_console.js";
     const controller = new AbortController();
     pending.add(controller);
     try {
-      const headers = { Authorization: `Bearer ${token}` };
+      const headers =
+        authentication === "token" ? { Authorization: `Bearer ${token}` } : {};
       if (method !== "GET") {
         headers["X-Gateway7-Operator"] = "true";
+        if (authentication === "session")
+          headers["X-Gateway7-CSRF"] = csrfToken;
         const expectedRevision = revision ?? snapshot?.revision;
         if (expectedRevision !== undefined)
           headers["If-Match"] = String(expectedRevision);
@@ -167,7 +196,7 @@ import { createAdminWorkspace } from "./admin_console.js";
         method,
         headers,
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-        credentials: "omit",
+        credentials: authentication === "session" ? "same-origin" : "omit",
         cache: "no-store",
         redirect: "error",
         signal: controller.signal,
@@ -184,7 +213,7 @@ import { createAdminWorkspace } from "./admin_console.js";
           }
           disconnect();
           byId("message").textContent =
-            "The operator token was not accepted. Connect again.";
+            "Your session has expired or access was revoked. Sign in again.";
           throw new Error("stale-session");
         }
         throw new Error(
@@ -397,7 +426,7 @@ import { createAdminWorkspace } from "./admin_console.js";
       ? "User changes apply immediately."
       : "Enable user management in this console.";
     byId("management-note").textContent = writable
-      ? "User access, credentials, limits and middleware are saved across restarts. Requests already in progress may finish; revoked credentials are denied on new requests. Provider and global middleware configuration still uses the server configuration."
+      ? "Access, provider settings and managed policies are saved across restarts and apply to new requests. Requests already in progress may finish. Custom middleware modules stay managed on the server."
       : "Enable PostgreSQL administration using the server's management database and operator credential settings, then restart once. SQLite remains available for local setups. This gateway currently uses configuration-file accounts.";
     byId("client-count").textContent = formatted(
       state.clients_total ?? clients.length,
@@ -586,7 +615,13 @@ import { createAdminWorkspace } from "./admin_console.js";
       if (plugin.required) statuses.append(badge("Required", "required"));
       configuration.append(
         statuses,
-        element("span", "Validated at startup", "secondary-line"),
+        element(
+          "span",
+          plugin.validation === "validated_before_activation"
+            ? "Validated before activation"
+            : "Validated at startup",
+          "secondary-line",
+        ),
       );
       const caps = plugin.capabilities;
       cell(
@@ -631,6 +666,8 @@ import { createAdminWorkspace } from "./admin_console.js";
   async function load() {
     const loadId = ++latestLoad;
     const currentSession = session;
+    byId("dashboard").inert = true;
+    byId("dashboard").setAttribute("aria-busy", "true");
     byId("message").textContent = "";
     byId("connect").disabled = byId("refresh").disabled = true;
     try {
@@ -650,7 +687,12 @@ import { createAdminWorkspace } from "./admin_console.js";
       byId("connection-panel").hidden = true;
       byId("dashboard").hidden = false;
       byId("connected-actions").hidden = false;
+      document.body.dataset.authenticated = "true";
+      document.body.dataset.managed = String(
+        state.configuration.management_enabled === true,
+      );
       await panels.render(state);
+      navigation?.render();
     } catch (failure) {
       if (
         ignorable(failure) ||
@@ -661,8 +703,11 @@ import { createAdminWorkspace } from "./admin_console.js";
       if (!snapshot) disconnect();
       byId("message").textContent = failureMessage(failure);
     } finally {
-      if (currentSession === session)
+      if (currentSession === session && loadId === latestLoad) {
         byId("connect").disabled = byId("refresh").disabled = false;
+        byId("dashboard").inert = false;
+        byId("dashboard").setAttribute("aria-busy", "false");
+      }
     }
   }
   function editable(client) {
@@ -710,6 +755,7 @@ import { createAdminWorkspace } from "./admin_console.js";
   }
   function openEditor(client = null) {
     if (!managed() || mutating) return;
+    navigation?.go("users");
     closeEditor();
     editingId = client?.id ?? null;
     editingRevision = client?.revision ?? snapshot?.revision;
@@ -829,6 +875,7 @@ import { createAdminWorkspace } from "./admin_console.js";
     );
   }
   function showIssuedToken(id, value) {
+    const focused = document.activeElement;
     clearIssuedToken();
     if (typeof value !== "string" || !/^[\x21-\x7e]{16,512}$/.test(value))
       throw new Error("invalid-token-response");
@@ -836,12 +883,20 @@ import { createAdminWorkspace } from "./admin_console.js";
     byId("issued-token-note").textContent =
       `New credential for ${id}. Save it now; it cannot be retrieved again.`;
     byId("issued-token-panel").hidden = false;
+    document.querySelector(".workspace").inert = true;
+    document.querySelector(".sidebar").inert = true;
+    tokenReturnFocus = focused;
     byId("issued-token-panel").scrollIntoView({ block: "center" });
     byId("reveal-token").focus();
   }
   function showRotatedOperatorToken(id, value) {
     showIssuedToken(`operator ${id}`, value);
-    if (snapshot?.actor?.id !== id || token === "") return;
+    if (
+      authentication !== "token" ||
+      snapshot?.actor?.id !== id ||
+      token === ""
+    )
+      return;
     // Requests admitted with the previous credential must not disconnect the
     // replacement session when their responses arrive after this handoff.
     session += 1;
@@ -855,7 +910,8 @@ import { createAdminWorkspace } from "./admin_console.js";
     setMutationBusy(false);
   }
   async function rotateOperatorToken(id, body) {
-    const own = snapshot?.actor?.id === id && token !== "";
+    const own =
+      authentication === "token" && snapshot?.actor?.id === id && token !== "";
     if (own && operatorRotation?.session === session)
       throw new Error("rotation-pending");
     const transition = own ? { session, unauthorized: false } : null;
@@ -1087,6 +1143,7 @@ import { createAdminWorkspace } from "./admin_console.js";
   });
   byId("connect-form").addEventListener("submit", (event) => {
     event.preventDefault();
+    if (signingIn || loggingOut) return;
     const candidate = byId("operator-token").value;
     byId("operator-token").value = "";
     if (!/^[\x21-\x7e]{16,512}$/.test(candidate)) {
@@ -1094,13 +1151,43 @@ import { createAdminWorkspace } from "./admin_console.js";
         "Enter a valid operator token without spaces.";
       return;
     }
+    disconnect();
     token = candidate;
+    authentication = "token";
+    csrfToken = "";
     void load();
   });
   byId("refresh").addEventListener("click", () => {
     void load();
   });
-  byId("disconnect").addEventListener("click", disconnect);
+  async function logout() {
+    const cookieSession = authentication === "session";
+    const csrf = csrfToken;
+    loggingOut = cookieSession;
+    disconnect();
+    byId("sign-in").disabled = cookieSession;
+    if (!cookieSession) return;
+    try {
+      const response = await fetch("./session", {
+        method: "DELETE",
+        credentials: "same-origin",
+        cache: "no-store",
+        redirect: "error",
+        headers: { "X-Gateway7-Operator": "true", "X-Gateway7-CSRF": csrf },
+      });
+      if (!response.ok && response.status !== 401)
+        throw new Error("logout-failed");
+    } catch {
+      byId("message").textContent =
+        "Could not confirm server sign-out. Close this browser session or try signing out again after reconnecting.";
+    } finally {
+      loggingOut = false;
+      byId("sign-in").disabled = false;
+    }
+  }
+  byId("disconnect").addEventListener("click", () => {
+    void logout();
+  });
   window.addEventListener("pagehide", disconnect);
   byId("client-directory-filters").addEventListener("submit", (event) => {
     event.preventDefault();
@@ -1118,15 +1205,146 @@ import { createAdminWorkspace } from "./admin_console.js";
   panels = createAdminWorkspace({
     request,
     reload: load,
-    connected: () => snapshot !== null && token !== "",
+    connected: () => snapshot !== null && authentication !== null,
     canWrite: () => managed() && snapshot?.actor?.role !== "viewer",
     showToken: showIssuedToken,
     rotateOperatorToken,
+    actor: () => snapshot?.actor,
+    clients: () => snapshot?.clients ?? [],
+    go: (view) => navigation?.go(view),
+    reauthenticate: () => {
+      disconnect();
+      byId("message").textContent =
+        "Password changed. Sign in with your new password.";
+    },
     setRevision: () => {},
     usagePage: (offset) => {
       usageOffset = offset;
       void filterUsage();
     },
   });
+  navigation = createNavigation();
+  byId("show-token-login").addEventListener("click", () => {
+    if (signingIn || loggingOut) return;
+    const open = byId("connect-form").hidden;
+    byId("connect-form").hidden = !open;
+    byId("show-token-login").setAttribute("aria-expanded", String(open));
+    if (open) byId("operator-token").focus();
+  });
+  byId("show-password").addEventListener("click", () => {
+    const show = byId("login-password").type === "password";
+    byId("login-password").type = show ? "text" : "password";
+    byId("show-password").textContent = show ? "Hide" : "Show";
+    byId("show-password").setAttribute(
+      "aria-label",
+      show ? "Hide password" : "Show password",
+    );
+  });
+  byId("issued-token-panel").addEventListener("keydown", (event) => {
+    const controls = [
+      ...byId("issued-token-panel").querySelectorAll("button,input"),
+    ].filter((control) => !control.disabled);
+    if (event.key === "Tab") {
+      const first = controls[0],
+        last = controls.at(-1);
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+    if (
+      event.key === "Escape" &&
+      window.confirm("Have you saved this one-time token? Dismiss its display?")
+    )
+      clearIssuedToken();
+  });
+  byId("login-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (loggingOut || signingIn) return;
+    const password = byId("login-password").value;
+    disconnect();
+    const currentSession = session;
+    signingIn = true;
+    const controller = new AbortController();
+    pending.add(controller);
+    byId("sign-in").disabled = true;
+    byId("sign-in").textContent = "Signing in…";
+    byId("connect").disabled = true;
+    byId("show-token-login").disabled = true;
+    byId("message").textContent = "";
+    try {
+      const response = await fetch("./session", {
+        method: "POST",
+        credentials: "same-origin",
+        cache: "no-store",
+        redirect: "error",
+        signal: controller.signal,
+        headers: {
+          "Content-Type": "application/json",
+          "X-Gateway7-Operator": "true",
+        },
+        body: JSON.stringify({
+          username: byId("login-username").value.trim(),
+          password,
+          remember: byId("login-remember").checked,
+        }),
+      });
+      if (currentSession !== session) return;
+      if (!response.ok) {
+        byId("message").textContent =
+          response.status === 429
+            ? "Too many sign-in attempts. Please wait before trying again."
+            : response.status === 403
+              ? "Use the HTTPS gateway address to sign in. Ask your administrator if you need local development access."
+              : response.status === 422
+                ? "Check the sign-in fields and use your HTTPS gateway address. Ask your administrator if you need local development access."
+                : response.status >= 500
+                  ? "Sign-in is temporarily unavailable. Please try again shortly."
+                  : "Could not sign in. Check your username and password.";
+        return;
+      }
+      const result = await response.json();
+      if (currentSession !== session) return;
+      authentication = "session";
+      csrfToken = result.csrf_token;
+      token = "";
+      await load();
+    } catch {
+      if (currentSession === session)
+        byId("message").textContent =
+          "The gateway could not be reached. Try signing in again.";
+    } finally {
+      pending.delete(controller);
+      if (currentSession === session) {
+        signingIn = false;
+        byId("sign-in").disabled = false;
+        byId("sign-in").textContent = "Sign in →";
+        byId("connect").disabled = false;
+        byId("show-token-login").disabled = false;
+      }
+    }
+  });
   clearData();
+  void (async () => {
+    const currentSession = session;
+    try {
+      const response = await fetch("./session", {
+        credentials: "same-origin",
+        cache: "no-store",
+        redirect: "error",
+      });
+      if (!response.ok || currentSession !== session || authentication !== null)
+        return;
+      const result = await response.json();
+      if (currentSession !== session || authentication !== null) return;
+      authentication = "session";
+      csrfToken = result.csrf_token;
+      await load();
+    } catch {
+      /* The sign-in form remains available when restoration fails. */
+    }
+  })();
 })();

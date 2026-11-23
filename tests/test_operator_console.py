@@ -149,9 +149,21 @@ def test_packaged_static_shell_uses_external_same_origin_assets_and_safe_form():
     assert scripts == [{"src": "./assets/console.js", "type": "module"}]
     assert styles == [{"rel": "stylesheet", "href": "./assets/console.css"}]
     assert not [tag for tag, _ in parser.elements if tag in ("iframe", "style", "img")]
-    token_input = next(attrs for tag, attrs in parser.elements if tag == "input")
+    token_input = next(
+        attrs
+        for tag, attrs in parser.elements
+        if tag == "input" and attrs.get("id") == "operator-token"
+    )
     assert token_input["type"] == "password" and token_input["autocomplete"] == "off"
     assert "name" not in token_input and "value" not in token_input
+    password_input = next(
+        attrs
+        for tag, attrs in parser.elements
+        if tag == "input" and attrs.get("id") == "login-password"
+    )
+    assert password_input["type"] == "password"
+    assert password_input["autocomplete"] == "current-password"
+    assert "value" not in password_input
     for name, media_type in (("console.js", "text/javascript"), ("console.css", "text/css")):
         response = console_asset(name)
         assert response.headers["content-type"].startswith(media_type)
@@ -259,7 +271,8 @@ def test_operator_state_projects_only_safe_configuration_and_truthful_startup_me
     snapshot = response.json()
     assert set(snapshot) == {"configuration", "gateway", "clients", "middleware", "usage"}
     assert snapshot["configuration"] == {
-        "validation": "validated_at_startup", "changes_require_restart": True,
+        "validation": "validated_at_startup",
+        "changes_require_restart": True,
     }
     assert snapshot["gateway"]["ready"] is True
     account = next(client for client in snapshot["clients"] if client["id"] == ACCOUNT)
@@ -279,8 +292,18 @@ def test_operator_state_projects_only_safe_configuration_and_truthful_startup_me
     assert plugins[DISABLED]["capabilities"] is None
     assert plugins[DISABLED]["validation"] == "configuration_validated_at_startup"
     for value in (
-        PRIVATE, OPERATOR, CLIENT, PROVIDER_KEY, "CONSOLE_TEST_OPERATOR", "CONSOLE_TEST_CLIENT",
-        "CONSOLE_TEST_SUSPENDED", "FAKE_LLM_API_KEY", "127.0.0.1", "settings", "token_env", "base_url",
+        PRIVATE,
+        OPERATOR,
+        CLIENT,
+        PROVIDER_KEY,
+        "CONSOLE_TEST_OPERATOR",
+        "CONSOLE_TEST_CLIENT",
+        "CONSOLE_TEST_SUSPENDED",
+        "FAKE_LLM_API_KEY",
+        "127.0.0.1",
+        "settings",
+        "token_env",
+        "base_url",
     ):
         assert value not in response.text
     assert provider.calls == []
@@ -293,7 +316,8 @@ def test_console_usage_uses_real_client_pipelines_and_preserves_unknown_usage(co
         for usage in ({"input_tokens": 7, "output_tokens": 3}, None):
             provider.usage = usage
             response = client.post(
-                "/chat", headers=headers,
+                "/chat",
+                headers=headers,
                 json={"messages": [{"role": "user", "content": "synthetic@example.com"}]},
             )
             assert response.status_code == 200

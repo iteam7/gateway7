@@ -1,5 +1,15 @@
 # AI usage — Week 09
 
+## 2026-11-23 — Administration workspace for #335
+
+- Tool: OpenAI Codex with separate implementation, architecture review and verification agents; GitHub CLI, pytest, Chromium, Docker Compose and the repository documentation tools.
+- Work: Implemented password accounts and durable browser sessions, declarative policy administration, and a routed responsive console; updated configuration inventory, architecture and guides.
+- Verification: The initial PostgreSQL-backed full suite passed 4,628 cases and skipped five browser/optional cases; two authentication-order regressions and stale local distribution metadata failed. The authentication fix preserved the original strict assertions and passed both previously failing cases plus all session cases on SQLite and PostgreSQL (29 passed); locked environment refresh made the release metadata check pass. Format, lint and package types passed.
+- Independent checks: Reviewed access, CSRF, revocation and policy boundaries; exercised a disposable PostgreSQL deployment through a certificate-verified local HTTPS proxy. Secure cookies survived reload, gateway restart and container recreation; logout invalidated the session. Direct HTTP login was rejected. Browser and final artifact results are recorded with the pull request.
+- Final artifacts: Built a fresh wheel and compared all 72 package sources/assets with the checkout and installed files. From an isolated environment outside the checkout, exercised account creation, cookie/CSRF authentication, real policy denial, restart, logout, bearer precedence and new asset serving. The demo, 21-file Markdown check and 808-link check passed; the final console run passed 33 cases including seven real Chromium journeys. TechLead independently approved the final browser journey and settled desktop/mobile captures. A repeat Docker build hit the local disk limit; the exact final image and monitoring stack are checked by CI.
+- Boundary: Only synthetic accounts, credentials, messages and disposable databases were used. Existing bearer recovery remains available; no custom policy code, dependency, workflow or release changes were introduced. The current course assignment URL returned 404, so no Week 09 assignment-completion claim is made.
+- Team assessment: TODO
+
 ## 2026-11-23 — Fix Markdown lint errors for #77
 
 - Tool: Codex.

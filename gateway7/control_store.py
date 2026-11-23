@@ -102,6 +102,11 @@ class ControlStoreMixin:
                 "CREATE TABLE IF NOT EXISTS {prefix}key_activity (id TEXT PRIMARY KEY, last_used_at TEXT NOT NULL)"
             )
             self._control_query(
+                "CREATE TABLE IF NOT EXISTS {prefix}operator_sessions "
+                "(digest TEXT PRIMARY KEY, operator_id TEXT NOT NULL, expires_at TEXT NOT NULL, "
+                "created_at TEXT NOT NULL, value TEXT NOT NULL)"
+            )
+            self._control_query(
                 "CREATE TABLE IF NOT EXISTS {prefix}usage_events "
                 "(id TEXT PRIMARY KEY, started_at TEXT NOT NULL, client_id TEXT NOT NULL, "
                 "model TEXT NOT NULL, key_id TEXT, status TEXT NOT NULL, value TEXT NOT NULL)"
@@ -174,6 +179,81 @@ class ControlStoreMixin:
                 "INSERT INTO {prefix}metadata(name,value) VALUES ('schema_version','2') "
                 "ON CONFLICT(name) DO UPDATE SET value=excluded.value"
             )
+
+    def create_operator_session(self, digest: str, value: dict[str, Any]) -> None:
+        if re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+            raise ValueError("Invalid session")
+        if set(value) != {"operator_id", "password_version", "created_at", "expires_at"}:
+            raise ValueError("Invalid session")
+        _identifier(value["operator_id"])
+        created, expires = utc_timestamp(value["created_at"]), utc_timestamp(value["expires_at"])
+        if (
+            type(value["password_version"]) is not int
+            or value["password_version"] < 1
+            or expires <= created
+        ):
+            raise ValueError("Invalid session")
+        normalized = {**value, "created_at": created, "expires_at": expires}
+        with self._lock, self._control_transaction():  # type: ignore[attr-defined]
+            try:
+                self._control_query(
+                    "DELETE FROM {prefix}operator_sessions WHERE expires_at<=?", (utc_timestamp(),)
+                )
+                # Evict the oldest sessions before insertion; no unbounded login history.
+                for where, parameters, keep in (
+                    (" WHERE operator_id=?", (value["operator_id"],), 15),
+                    ("", (), 1023),
+                ):
+                    rows = list(
+                        self._control_query(
+                            "SELECT digest FROM {prefix}operator_sessions"
+                            + where
+                            + " ORDER BY created_at DESC,digest DESC",
+                            parameters,
+                        )
+                    )
+                    for row in rows[keep:]:
+                        self._control_query(
+                            "DELETE FROM {prefix}operator_sessions WHERE digest=?", (row[0],)
+                        )
+                self._control_query(
+                    "INSERT INTO {prefix}operator_sessions(digest,operator_id,expires_at,created_at,value) VALUES (?,?,?,?,?)",
+                    (digest, value["operator_id"], expires, created, json.dumps(normalized)),
+                )
+            except Exception:
+                raise StartupError("Operator session storage is unavailable") from None
+
+    def get_operator_session(self, digest: str) -> dict[str, Any] | None:
+        with self._lock:  # type: ignore[attr-defined]
+            try:
+                row = self._control_query(
+                    "SELECT value FROM {prefix}operator_sessions WHERE digest=? AND expires_at>?",
+                    (digest, utc_timestamp()),
+                ).fetchone()
+                if row is None:
+                    return None
+                value = json.loads(row[0])
+                if (
+                    set(value) != {"operator_id", "password_version", "created_at", "expires_at"}
+                    or type(value["password_version"]) is not int
+                    or value["password_version"] < 1
+                ):
+                    raise ValueError
+                _identifier(value["operator_id"])
+                utc_timestamp(value["created_at"])
+                utc_timestamp(value["expires_at"])
+                return value
+            except Exception:
+                raise StartupError("Operator session storage is unavailable") from None
+
+    def delete_operator_session(self, digest: str) -> None:
+        with self._lock, self._control_transaction():  # type: ignore[attr-defined]
+            try:
+                self._control_query(
+                    "DELETE FROM {prefix}operator_sessions WHERE digest=?", (digest,)
+                )
+            except Exception:
+                raise StartupError("Operator session storage is unavailable") from None
 
     def read_control(self) -> dict[str, Any]:
         with self._lock:  # type: ignore[attr-defined]
@@ -588,6 +668,10 @@ def _validate_control_data(data: dict[str, Any]) -> None:
         from gateway7.identity_records import validate_identity
 
         validate_identity(data["identity"])
+    if "policies" in data:
+        from gateway7.policy_admin import validate_policy_document
+
+        validate_policy_document(data["policies"])
     if "accounting" in data:
         from gateway7.accounting import validate_prices, validate_rules
 
@@ -904,6 +988,7 @@ def _restore_backup(self: ControlStoreMixin, snapshot: dict[str, Any]) -> None:
                 ):
                     raise ValueError("Restore requires an empty management database")
                 self._write_clients(clients, digests)  # type: ignore[attr-defined]
+                self._control_query("DELETE FROM {prefix}operator_sessions")
                 for identity in tombstones:
                     self._control_query(
                         "INSERT INTO {prefix}tombstones(id) VALUES (?)", (identity,)
