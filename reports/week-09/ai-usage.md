@@ -1,5 +1,13 @@
 # AI usage — Week 09
 
+## 2026-11-23 — Fix Markdown lint errors for #77
+
+- Tool: Codex.
+- Work: Added the missing blank line before the Week 8 report heading and restored the final newline in this file.
+- Verification: Ran markdownlint on both affected AI-use reports; 0 issues.
+- Boundary: Documentation formatting only; no tests or product code changed.
+- Team assessment: TODO
+
 ## 2026-11-22 — Repair failed Windows checks for #77
 
 - Tool: Codex.
