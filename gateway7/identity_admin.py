@@ -21,6 +21,7 @@ from gateway7.errors import GatewayError, StartupError
 from gateway7.identity_auth import NamedOperatorAccess, OperatorPrincipal
 from gateway7.identity_records import validate_identity
 from gateway7.operator_console import operator_state
+from gateway7.operator_sessions import PasswordRequest
 
 
 def _now() -> datetime:
@@ -52,6 +53,10 @@ class KeyRequest(BaseModel):
 class OperatorRequest(KeyRequest):
     id: str = Field(pattern=r"^[A-Za-z][A-Za-z0-9_.-]{0,63}$")
     role: Literal["admin", "viewer"] = "viewer"
+
+
+class AccountRequest(OperatorRequest, PasswordRequest):
+    pass
 
 
 class OperatorUpdate(BaseModel):
@@ -96,6 +101,7 @@ def _safe_operator(record: dict[str, Any]) -> dict[str, Any]:
     expiry = credential_expiry(record.get("expires_at"))
     result["expired"] = expiry is not None and _now() >= expiry
     result["is_bootstrap"] = False
+    result["password_configured"] = bool(record.get("password_hash"))
     return result
 
 
@@ -206,6 +212,10 @@ class IdentityAdmin:
             or _now() >= expiry
             or actor.credential_digest is None
             or not hmac.compare_digest(bytes.fromhex(record["digest"]), actor.credential_digest)
+            or (
+                actor.session_version is not None
+                and actor.session_version != record.get("password_version", 0)
+            )
         ):
             raise GatewayError("operator_forbidden")
 
@@ -795,6 +805,7 @@ class IdentityAdmin:
         actor: OperatorPrincipal,
         expected_revision: int,
         request_id: str = "",
+        _password_hash: str | None = None,
     ) -> dict[str, Any]:
         async with self.state.management_mutation_lock:
             document = await self._document(expected_revision, actor)
@@ -812,6 +823,8 @@ class IdentityAdmin:
                 "expires_at": _new_expiry(payload.expires_at),
                 "revoked": False,
             }
+            if _password_hash is not None:
+                record.update(password_hash=_password_hash, password_version=1)
             operators[payload.id] = record
             revision = await self._commit(
                 document,
@@ -823,6 +836,58 @@ class IdentityAdmin:
                 request_id=request_id,
             )
             return {"operator": _safe_operator(record), "token": token, "revision": revision}
+
+    async def create_account(
+        self,
+        payload: AccountRequest,
+        *,
+        actor: OperatorPrincipal,
+        expected_revision: int,
+        request_id: str = "internal",
+    ) -> dict[str, Any]:
+        actor.require_admin()
+        encoded = await self.state.operator_sessions.passwords.hash(payload.password)
+        profile = OperatorRequest.model_validate(payload.model_dump(exclude={"password"}))
+        result = await self.create_operator(
+            profile,
+            actor=actor,
+            expected_revision=expected_revision,
+            request_id=request_id,
+            _password_hash=encoded,
+        )
+        result.pop("token")
+        return result
+
+    async def reset_password(
+        self,
+        operator_id: str,
+        payload: PasswordRequest,
+        *,
+        actor: OperatorPrincipal,
+        expected_revision: int,
+        request_id: str = "internal",
+    ) -> dict[str, Any]:
+        actor.require_admin()
+        encoded = await self.state.operator_sessions.passwords.hash(payload.password)
+        async with self.state.management_mutation_lock:
+            document = await self._document(expected_revision, actor)
+            data = copy.deepcopy(document["data"])
+            row = data["identity"]["operators"].get(operator_id)
+            if operator_id == "bootstrap":
+                raise GatewayError("operator_forbidden")
+            if row is None:
+                raise GatewayError("not_found")
+            row.update(password_hash=encoded, password_version=row.get("password_version", 0) + 1)
+            revision = await self._commit(
+                document,
+                data,
+                actor,
+                "operator.password_reset",
+                operator_id,
+                {"fields": ["password"], "sessions_invalidated": True},
+                request_id=request_id,
+            )
+            return {"operator": _safe_operator(row), "revision": revision}
 
     async def update_operator(
         self,
@@ -842,6 +907,8 @@ class IdentityAdmin:
             if row is None:
                 raise GatewayError("not_found")
             before = _safe_operator(row)
+            if row["role"] != payload.role:
+                row["password_version"] = row.get("password_version", 0) + 1
             row.update({"role": payload.role, "label": payload.label})
             if payload.expires_at is not None:
                 row["expires_at"] = _new_expiry(payload.expires_at)
@@ -873,6 +940,7 @@ class IdentityAdmin:
             if row is None:
                 raise GatewayError("not_found")
             row["revoked"] = True
+            row["password_version"] = row.get("password_version", 0) + 1
             revision = await self._commit(
                 document,
                 data,

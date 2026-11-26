@@ -34,3 +34,5 @@ Each requirement states one behavior of Gateway7, the containers it runs in and 
 | [FR-028](fr/FR-028.md) | Back Up And Restore Managed State Offline | `gateway` | Active |
 | [FR-029](fr/FR-029.md) | Inspect A Plugin Project Before Installation | `gateway` | Active |
 | [FR-030](fr/FR-030.md) | Try A Plugin Through A Local Synthetic Gateway | `gateway` | Active |
+| [FR-031](fr/FR-031.md) | Sign In To The Operator Console With A Password | `gateway` | Active |
+| [FR-032](fr/FR-032.md) | Create And Activate Declarative Policies In The Console | `gateway` | Active |

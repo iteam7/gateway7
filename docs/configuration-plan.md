@@ -111,11 +111,15 @@ Gateway build and deployment modes
 - **Type:** Container build, Compose overlays, sample runtime YAML and promotion procedure.
 - **Purpose:** Keep demo, live and managed-account modes explicit; without overlays and promotion rules, an operator can run the wrong provider or promote an image that never passed staging.
 - **Owner:** Deployment operator maintains environment selection; task Responsible/Accountable members maintain tracked definitions.
-- **Where:** [Dockerfile](https://github.com/iteam7/gateway7/blob/main/Dockerfile), [Compose family](https://github.com/iteam7/gateway7/tree/main) (compose.yaml, compose.live.yaml, compose.admin.yaml, compose.admin-sqlite.yaml and compose.telemetry-client.yaml), [sample configuration index](https://github.com/iteam7/gateway7/tree/main/config), [setup](setup.md) and [deployment runbook](deployment.md).
+- **Where:** [Dockerfile](https://github.com/iteam7/gateway7/blob/main/Dockerfile), [Compose family](https://github.com/iteam7/gateway7/tree/main) (compose.yaml, compose.live.yaml, compose.admin.yaml, compose.admin-sqlite.yaml and compose.telemetry-client.yaml), [sample configuration index](https://github.com/iteam7/gateway7/tree/main/config), [setup](setup.md), [operator onboarding](admin-controls.md#first-sign-in), [session policy](authentication.md#password-sessions-and-https), [operator-created HTTPS override](authentication.md#run-the-managed-console-over-local-https) and [deployment runbook](deployment.md).
 - **Connections:** `reads` the locked runtime in [CFG-08](#cfg-08) and environment/credential contract in [CFG-07](#cfg-07); the wrong overlay or unset required variable selects the wrong mode or prevents startup.
+  `reads` [CFG-12](#cfg-12)'s maintained session/policy instructions; stale cookie defaults can prevent sign-in, while omitted activation ordering can misstate which configured policies remain mandatory.
   `reads` [CFG-10](#cfg-10)'s monitoring/backend networks; wrong network names prevent signal delivery while local health may still pass.
   `reads` [CFG-03](#cfg-03)'s reviewed commit; a checkout hash without running-image verification can misidentify the deployed version.
 - **What good looks like:** Default services bind loopback, the gateway runs as UID/GID 10001, provider keys stay server-side and staging/production use separate projects, ports, state and secrets.
+  The optional HTTPS console override reuses the pinned telemetry nginx image with a private certificate directory and requires proxy restart after a gateway namespace change.
+  Shared password sessions retain Secure cookies and HTTPS; the insecure development exception is confined to a direct loopback host and peer.
+  Managed policy settings are durable validated data and do not authorize arbitrary plugin imports.
   Verify the running image revision and staging QRTs before promotion under [deployment requirements](https://github.com/inno-itpd/itpd/blob/main/requirements/repository-requirements.md#environments-and-deployment).
   Private deployment values and actual currently running revisions were not inspected; tracked definitions are not live readiness evidence.
 
@@ -127,10 +131,12 @@ Secret contract and private-value exclusions
 - **Type:** Public environment-variable template, ignore rules and confidentiality check.
 - **Purpose:** Describe credential names without values; without this contract and exclusions, operators can miss a required value or contributors can publish a real secret.
 - **Owner:** Deployment operator supplies and rotates private values; task Responsible/Accountable members check the public shape.
-- **Where:** [.env.example](https://github.com/iteam7/gateway7/blob/main/.env.example), [.gitignore](https://github.com/iteam7/gateway7/blob/main/.gitignore), [confidentiality checker](https://github.com/iteam7/gateway7/blob/main/scripts/check_confidentiality.py) and [secret runbook](deployment.md#configuration-and-secrets).
+- **Where:** [.env.example](https://github.com/iteam7/gateway7/blob/main/.env.example), [.gitignore](https://github.com/iteam7/gateway7/blob/main/.gitignore), [confidentiality checker](https://github.com/iteam7/gateway7/blob/main/scripts/check_confidentiality.py) and [secret runbook](deployment.md#configuration-and-secrets) and [operator credential/session contract](operator-identities.md#named-operators-and-recovery).
 - **Connections:** `produces` the variable-name contract for [CFG-06](#cfg-06) and [CFG-10](#cfg-10); a renamed variable without overlay/runbook updates can stop startup or export to the wrong scope.
   `enforces` privacy boundaries for [CFG-11](#cfg-11) and [CFG-12](#cfg-12); putting private inputs in prompts, logs or evidence can leak them even when .env is ignored.
 - **What good looks like:** Only names and empty placeholders are tracked, real secrets and private databases stay outside Git, ingestion credentials are environment-specific, and secret-bearing output is reviewed before publication.
+  Operator passwords, opaque session cookies and CSRF proofs are private credentials; bootstrap/automation bearers remain separate from normal password sign-in.
+  Logical backups retain password hashes and managed policy data but exclude authenticated browser sessions.
   Ignore rules are not access controls or proof that history is clean; follow [repository privacy rules](https://github.com/inno-itpd/itpd/blob/main/requirements/repository-requirements.md) and [RISK-09](risks.md#risk-09).
 
 ### CFG-10
@@ -228,6 +234,7 @@ Maintained artifact and weekly evidence process
 - **Where:** [docs index](README.md), [Definition of Done](definition-of-done.md), [reports index](https://github.com/iteam7/gateway7/tree/main/reports), [task/PR templates](https://github.com/iteam7/gateway7/tree/main/.github) and [artifact rules](https://github.com/iteam7/gateway7/blob/main/AGENTS.md#do-not-edit).
 - **Connections:** `produces` maintained pages for [CFG-05](#cfg-05); a misplaced page can be omitted from the site.
   `cites` [CFG-03](#cfg-03)'s real release baseline and [CFG-02](#cfg-02)'s check results; an unsupported citation can falsely imply completed acceptance.
+  `cites` [CFG-06](#cfg-06) through the operator onboarding and session/policy guides; instructions that conflate application clients with operator accounts can grant the wrong type of access.
   A broken evidence link or an unsupported pass verdict severs traceability even if the linked code is correct.
   `reads` the constraints in [CFG-07](#cfg-07) privacy rules and [CFG-11](#cfg-11)'s AI-use disclosure; omission can expose private inputs or omit required disclosure.
 - **What good looks like:** docs/ is the maintained source; reports/week-NN/ contains dated evidence and AI disclosure with no invented assessment.
