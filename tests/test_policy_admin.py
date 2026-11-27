@@ -447,3 +447,115 @@ async def test_redaction_never_rewrites_executable_tool_payloads(identity, nativ
             )
             await pipeline.run(request, "synthetic-protected-tool")
     assert caught.value.code == "policy_denied" and provider.calls == 0
+
+
+async def test_draft_chain_preview_save_activation_and_restart(identity):
+    from gateway7.plugin_draft import ChainDraft, ChainPreview, DraftAdmin, load_active_plugins
+
+    _, state, policies = await prepare(identity)
+    state.plugin_base_config = state.config
+    studio = DraftAdmin(state)
+    phone = spec("phone", terms=[], template="phone_mask")
+    block = spec("guard", terms=["[PHONE]"])
+    draft = ChainDraft.model_validate(
+        {"items": [{"spec": item, "enabled": True} for item in (phone, block)]}
+    )
+    text = "Call +7 900 000-00-00"
+
+    def invoke_preview(text):
+        return studio.simulate(ChainPreview(**draft.model_dump(), text=text, phase="request"))
+
+    result = invoke_preview(text)
+    assert result["error"] == "policy_denied" and result["provider_calls"] == 0
+    assert result["steps"][0]["input"] == text
+    assert result["steps"][0]["output"] == result["steps"][1]["input"] == "Call [PHONE]"
+    assert invoke_preview("no phone")["output"] == "no phone"
+    assert invoke_preview("790000000000")["output"] == "790000000000"
+    original = state.client_pipelines
+    stale = options(state)
+    saved = await studio.save_draft(draft, **stale)
+    assert saved["has_saved"] and not saved["is_active"]
+    assert original is state.client_pipelines and state.config.middleware == []
+    assert text not in json.dumps(state.control)
+    with pytest.raises(GatewayError) as caught:
+        await studio.activate(**stale)
+    assert caught.value.code == "conflict"
+    assert (await studio.activate(**options(state)))["is_active"]
+    assert state.config.middleware == ["draft_phone", "draft_guard"]
+    with pytest.raises(GatewayError) as caught:
+        await invoke(state.client_pipelines["developer"], "chat", text)
+    assert caught.value.code == "policy_denied"
+    await policies.create(spec("legacy"), **options(state))
+    await policies.assignments(assignments(["legacy"]), **options(state))
+    assert state.config.middleware == ["policy_legacy", "draft_phone", "draft_guard"]
+    restored = restore_policy_config(state.plugin_base_config, state.admin_store.read_control())
+    loaded = load_active_plugins(restored, state.plugin_base_config)
+    assert [plugin.name for plugin in loaded.middleware_chain] == state.config.middleware
+    view = await studio.draft()
+    assert [row["id"] for row in view["managed_chain"]] == ["legacy"]
+    from gateway7.plugin_draft import ConfiguredItem
+
+    draft.managed_chain = [ConfiguredItem(id="legacy", required=False, enabled=False)]
+    draft.items.reverse()
+    draft.items[0].enabled = False
+    await studio.save_draft(draft, **options(state))
+    assert state.config.middleware == ["policy_legacy", "draft_phone", "draft_guard"]
+    await studio.activate(**options(state))
+    assert state.config.middleware == ["policy_legacy", "draft_phone"]
+    assert not state.config.plugins["policy_legacy"].enabled
+    assert [p.name for p in state.pipeline.plugins.middleware_chain] == ["draft_phone"]
+    await policies.create(spec("late"), **options(state))
+    await policies.assignments(assignments(["legacy", "late"]), **options(state))
+    assert [p.name for p in state.pipeline.plugins.middleware_chain] == [
+        "policy_late",
+        "draft_phone",
+    ]
+
+
+async def test_draft_configured_plugins_keep_required_anchors_and_lifecycle(identity):
+    from gateway7.plugin_draft import ChainDraft, DraftAdmin, load_active_plugins
+
+    _, state = identity
+    data = state.config.model_dump()
+    data["plugins"] = {
+        name: {"module": "gateway7.plugins.phone_mask", "required": name == "fixed"}
+        for name in ["one", "two", "fixed", "three"]
+    }
+    data["plugins"]["one"]["enabled"] = False
+    data["middleware"] = list(data["plugins"])
+    base = state.plugin_base_config = state.config = GatewayConfig.model_validate(data)
+    state.pipeline.plugins = load_plugins(base)
+    original = state.pipeline.plugins.instances["two"]
+    studio = DraftAdmin(state)
+    rows = (await studio.draft())["configured"]
+    for invalid in (
+        [rows[3], *rows[:3]],
+        rows[1:],
+        [*rows[:2], {**rows[2], "enabled": False}, rows[3]],
+    ):
+        with pytest.raises(GatewayError):
+            await studio.save_draft(ChainDraft(items=[], configured=invalid), **options(state))
+    draft = ChainDraft(
+        items=[],
+        configured=[{**rows[1], "enabled": False}, {**rows[0], "enabled": True}, *rows[2:]],
+    )
+    await studio.save_draft(draft, **options(state))
+    await studio.activate(**options(state))
+    assert not state.config.plugins["two"].enabled
+    assert [row.name for row in state.pipeline.plugins.middleware_chain] == [
+        "one",
+        "fixed",
+        "three",
+    ]
+    assert state.pipeline.plugins.instances["two"] is original
+    restored = restore_policy_config(base, state.admin_store.read_control())
+    state.pipeline.plugins = load_active_plugins(restored, base)
+    draft.configured[0].enabled = True
+    await studio.save_draft(draft, **options(state))
+    await studio.activate(**options(state))
+    assert [row.name for row in state.pipeline.plugins.middleware_chain] == [
+        "two",
+        "one",
+        "fixed",
+        "three",
+    ]
