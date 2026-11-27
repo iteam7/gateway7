@@ -506,3 +506,30 @@ async def test_post_header_boundary_failure_is_not_counted_as_success(
             assert sample(metrics, "http_request_outcomes_total", route="openai_chat", outcome="success") is None
             assert app.state.admission.active == 0
     assert SECRET not in caplog.text
+
+async def test_plugin_declares_and_emits_bounded_events(monkeypatch):
+    from dataclasses import replace
+    from gateway7.plugins import content_policy
+
+    class Counting:
+        async def handle(self, request, context, call_next):
+            context.count("match", "applied")
+            with pytest.raises(ValueError):
+                context.count("fallback", "applied")
+            with pytest.raises(ValueError):
+                context.count("match", SECRET)
+            return await call_next(request)
+
+    monkeypatch.setattr(content_policy, "PLUGIN", replace(
+        content_policy.PLUGIN, create=lambda settings: Counting(), counters=("match",)
+    ))
+    config = policy_config()
+    metrics = Metrics()
+    pipeline = Pipeline(load_plugins(config), Provider(), config.limits, metrics=metrics)
+    await pipeline.run(ChatRequest(messages=[Message(role="user", content=SECRET)]), "private")
+    assert sample(metrics, "plugin_events_total", counter="match", outcome="applied") == 1
+    assert SECRET not in str(metrics.plugin_events.collect())
+    monkeypatch.setattr(content_policy, "PLUGIN", replace(content_policy.PLUGIN, counters=(SECRET,)))
+    from gateway7.errors import StartupError
+    with pytest.raises(StartupError):
+        load_plugins(config)

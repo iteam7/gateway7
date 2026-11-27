@@ -18,6 +18,7 @@ const routes = {
     "Build, test and assign policies without writing code.",
     "GATEWAY",
   ],
+  plugins: ["Plugins", "Build a draft chain, test synthetic input and activate a saved version.", "GATEWAY"],
   usage: [
     "Usage",
     "Explore provider activity, tokens and estimated costs.",
@@ -58,7 +59,7 @@ export function createNavigation() {
     event.preventDefault();
     document.getElementById("workspace-content").focus();
   });
-  const managedRoutes = new Set(["models", "budgets", "operators", "activity"]);
+  const managedRoutes = new Set(["models", "plugins", "budgets", "operators", "activity"]);
   for (const link of document.querySelectorAll(".nav-link"))
     if (managedRoutes.has(link.hash.slice(1)))
       link.dataset.managedOnly = "true";
@@ -84,6 +85,7 @@ export function createNavigation() {
     users: ["clients", "client-editor", "user-keys"],
     models: ["provider-management"],
     "policy-builder": ["policy-management", "policies", "plugin-capabilities"],
+    plugins: ["plugin-workspace"],
     usage: ["usage"],
     budgets: ["accounting-management"],
     operators: ["operator-management"],

@@ -406,6 +406,28 @@ import { createNavigation } from "./navigation.js";
     )
       throw new Error("invalid-state");
     snapshot = state;
+    const grafanaLink = byId("grafana-link");
+    grafanaLink.hidden = !state.gateway.grafana_url;
+    if (state.gateway.grafana_url) grafanaLink.href = state.gateway.grafana_url;
+    else grafanaLink.removeAttribute("href");
+    const profile = state.gateway.opencode_profile;
+    byId("opencode-panel").hidden = !profile;
+    byId("opencode-status").textContent = "";
+    if (profile) {
+      profile.providers.gateway7.settings.baseURL = new URL("../v1", location.href).href;
+      byId("opencode-profile").value = JSON.stringify(profile, null, 2);
+      byId("copy-opencode").onclick = async () => {
+        const field = byId("opencode-profile");
+        try {
+          await navigator.clipboard.writeText(field.value);
+          byId("opencode-status").textContent = "Copied.";
+        } catch {
+          field.focus();
+          field.select();
+          byId("opencode-status").textContent = "Configuration selected. Use your browser’s Copy command.";
+        }
+      };
+    } else byId("opencode-profile").value = "";
     const clients = state.clients;
     const plugins = state.middleware.plugins;
     const writable = managed() && state.actor?.role !== "viewer";

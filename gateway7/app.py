@@ -48,6 +48,8 @@ from gateway7.identity_admin import (
     OperatorUpdate,
 )
 from gateway7.operator_sessions import COOKIE_NAME, OperatorSessions, PasswordRequest, SessionLogin
+from gateway7.policy_generation import register_generation
+from gateway7.plugin_draft import ChainDraft, ChainPreview, DraftAdmin, load_active_plugins
 from gateway7.policy_admin import (
     PolicyAdmin,
     PolicyAssignments,
@@ -1296,6 +1298,7 @@ def create_app(
             active_config, key = restore_provider_config(
                 active_config, app.state.control, clients=clients
             )
+            app.state.plugin_base_config = active_config
             active_config = restore_policy_config(active_config, app.state.control)
             validate_provider_credential(active_config, key, app.state.control, token_digests)
             app.state.provider_aliases = get_provider_aliases(app.state.control)
@@ -1310,7 +1313,12 @@ def create_app(
         access = AccessControl(active_config, token_digests=token_digests)
         operator_access = OperatorAccess(active_config, token_digests=token_digests)
         validated_transport = validate_transport_config(active_config.provider.transport)
-        plugins = load_plugins(active_config)
+        plugins = (
+            load_active_plugins(active_config, app.state.plugin_base_config)
+            if active_config.auth.management_enabled
+            and "plugin_active" in app.state.control["data"]
+            else load_plugins(active_config)
+        )
         transport = create_transport(validated_transport)
         try:
             if transport is None:
@@ -1680,6 +1688,24 @@ def create_app(
             request, IdentityAdmin(app.state).reset_password, operator_id, payload
         )
 
+    @app.get("/operator/plugin-draft", include_in_schema=False)
+    async def operator_plugin_draft():
+        require_accounting()
+        return await _domain(DraftAdmin(app.state).draft())
+
+    @app.put("/operator/plugin-draft", include_in_schema=False)
+    async def operator_save_plugin_draft(payload: ChainDraft, request: Request):
+        return await identity_change(request, DraftAdmin(app.state).save_draft, payload)
+
+    @app.post("/operator/plugin-draft/preview", include_in_schema=False)
+    async def operator_preview_plugin_draft(payload: ChainPreview):
+        require_accounting()
+        return DraftAdmin(app.state).simulate(payload)
+
+    @app.post("/operator/plugin-draft/activate", include_in_schema=False)
+    async def operator_activate_plugin_draft(request: Request):
+        return await identity_change(request, DraftAdmin(app.state).activate)
+
     @app.get("/operator/policies", include_in_schema=False)
     async def operator_policies():
         require_accounting()
@@ -1706,6 +1732,8 @@ def create_app(
     async def operator_policy_preview(payload: PolicyPreview):
         require_accounting()
         return PolicyAdmin.preview(payload)
+
+    register_generation(app, require_accounting)
 
     @app.get("/operator/usage", include_in_schema=False)
     async def operator_usage(

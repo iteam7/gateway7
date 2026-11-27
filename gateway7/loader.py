@@ -15,7 +15,7 @@ from pydantic import BaseModel, ValidationError
 from gateway7.config import GatewayConfig
 from gateway7.errors import StartupError
 from gateway7.plugin_diagnostics import PluginDiagnosticError, diagnostic, validation_issues
-from gateway7.plugin_api import API_VERSION, PluginDescriptor
+from gateway7.plugin_api import API_VERSION, PLUGIN_COUNTERS, PluginDescriptor
 
 logger = logging.getLogger("gateway7")
 AsyncHook = Callable[..., Awaitable[Any]]
@@ -131,6 +131,13 @@ def load_plugins(config: GatewayConfig) -> LoadedPlugins:
                 or type(descriptor.api_version) is not int
                 or descriptor.api_version != API_VERSION
                 or type(descriptor.supports_tools) is not bool
+                or type(descriptor.counters) is not tuple
+                or len(descriptor.counters) > len(PLUGIN_COUNTERS)
+                or any(
+                    type(item) is not str or item not in PLUGIN_COUNTERS
+                    for item in descriptor.counters
+                )
+                or len(set(descriptor.counters)) != len(descriptor.counters)
                 or not inspect.isclass(descriptor.settings_model)
                 or not issubclass(descriptor.settings_model, BaseModel)
                 or descriptor.settings_model.model_config.get("strict") is not True

@@ -208,11 +208,24 @@ class AuthConfig(StrictConfig):
 
 
 class GatewayConfig(StrictConfig):
+    grafana_url: str | None = Field(default=None, max_length=2048)
     provider: ProviderConfig = Field(default_factory=ProviderConfig)
     limits: LimitsConfig = Field(default_factory=LimitsConfig)
     plugins: dict[InstanceName, PluginConfig] = Field(default_factory=dict)
     middleware: list[InstanceName] = Field(default_factory=list)
     auth: AuthConfig = Field(default_factory=AuthConfig)
+
+    @field_validator("grafana_url")
+    @classmethod
+    def validate_dashboard_link(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        # Keep only absolute dashboard paths. Credentials and query tokens never enter state.
+        if not re.fullmatch(
+            r"https?://[A-Za-z0-9.-]+(?::[0-9]{1,5})?(?:/[A-Za-z0-9._~/-]*)?", value
+        ):
+            raise ValueError("Expected an HTTP(S) dashboard URL without credentials or query")
+        return value
 
     @model_validator(mode="after")
     def real_providers_require_authentication(self) -> "GatewayConfig":

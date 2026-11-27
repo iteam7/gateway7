@@ -216,6 +216,10 @@ def restore_policy_config(config: GatewayConfig, control: dict[str, Any]) -> Gat
                 raise ValueError("Managed policy collides with a configured plugin")
             data["plugins"][name] = {"module": MODULE, "settings": specification}
         data["middleware"] += [PREFIX + name for name in policies["global"]]
+        if (active := control.get("data", control).get("plugin_active")) is not None:
+            from gateway7.plugin_draft import ChainDraft, apply_active
+
+            apply_active(data, config, ChainDraft.model_validate(active))
         restored = GatewayConfig.model_validate(data)
         for client in restored.auth.clients.values():
             selected = client.additional_middleware
@@ -346,6 +350,27 @@ class PolicyAdmin:
             name: spec for name, spec in base["plugins"].items() if name not in managed
         }
         base["middleware"] = [name for name in base["middleware"] if name not in managed]
+        studio_instances: set[str] = set()
+        if "plugin_active" in data:
+            from gateway7.plugin_draft import (
+                PREFIX as DRAFT_PREFIX,
+                ChainDraft,
+                load_enabled_builtin,
+            )
+
+            original = self.state.plugin_base_config
+            old_active = self.state.control["data"].get("plugin_active")
+            if old_active is not None:
+                studio_instances = {
+                    DRAFT_PREFIX + row.spec.id
+                    for row in ChainDraft.model_validate(old_active).items
+                    if row.enabled
+                }
+            for name in studio_instances:
+                base["plugins"].pop(name, None)
+            base["middleware"] = list(original.middleware)
+            for name in original.middleware:
+                base["plugins"][name]["enabled"] = original.plugins[name].enabled
         for name, client in base["auth"]["clients"].items():
             if assignments is not None:
                 client["additional_middleware"] = [
@@ -361,7 +386,7 @@ class PolicyAdmin:
         instances = {
             name: plugin
             for name, plugin in self.state.pipeline.plugins.instances.items()
-            if name not in managed
+            if name not in managed and name not in studio_instances
         }
         instances.update(
             {
@@ -369,6 +394,15 @@ class PolicyAdmin:
                 for name, spec in policies["definitions"].items()
             }
         )
+        if "plugin_active" in data:
+            active = ChainDraft.model_validate(data["plugin_active"])
+            for configured in active.configured:
+                if configured.enabled and configured.id not in instances:
+                    instances[configured.id] = load_enabled_builtin(candidate, configured.id)
+            for row in active.items:
+                if row.enabled:
+                    name = DRAFT_PREFIX + row.spec.id
+                    instances[name] = _loaded(name, _definition(row.spec))
         plugins = LoadedPlugins(
             instances,
             tuple(
@@ -394,6 +428,8 @@ class PolicyAdmin:
                     "diff": {
                         "fields": ["definitions", "global", "client_assignments"]
                         if assignments is not None
+                        else ["plugin_active"]
+                        if action == "plugin.activate"
                         else ["definitions"]
                     },
                 },

@@ -26,6 +26,7 @@ import httpx
 import uvicorn
 
 from gateway7.config import GatewayConfig
+from gateway7.opencode import opencode_config as connection_profile
 from gateway7.providers import HTTPProvider
 
 MARKER = "GATEWAY7_AGENT_OK"
@@ -143,50 +144,18 @@ def fixture_transport(
 
 
 def opencode_config(base_url: str, model: str = DEFAULT_MODEL) -> dict[str, Any]:
-    # Use the native V2 Chat runtime; limits keep the gateway contract bounded.
-    selector = f"gateway7/{model}"
-    permissions = [
-        {"action": "*", "resource": "*", "effect": "deny"},
-        {"action": "read", "resource": "*", "effect": "allow"},
-    ]
-    return {
-        "$schema": "https://opencode.ai/config.json",
-        "model": selector,
-        "policies": [
-            {"action": "provider.use", "resource": "*", "effect": "deny"},
-            {"action": "provider.use", "resource": "gateway7", "effect": "allow"},
-        ],
-        "providers": {
-            "gateway7": {
-                "package": "@opencode/ai/providers/openai-compatible",
-                "name": "Gateway7 synthetic",
-                "settings": {
-                    "baseURL": base_url,
-                    "apiKey": "{env:GATEWAY7_CLIENT_TOKEN}",
-                },
-                "body": {"parallel_tool_calls": False},
-                "models": {
-                    model: {
-                        "name": "Gateway7 fixture",
-                        "limit": {"context": 32768, "output": 1024},
-                        "capabilities": {"tools": True, "input": ["text"], "output": ["text"]},
-                    }
-                },
-            }
-        },
-        "agents": {
-            "title": {"model": selector},
-            "gateway7-smoke": {
-                "mode": "primary",
-                "model": selector,
-                "system": "Read the requested local file with read, then return its control string.",
-                "permissions": permissions,
-                "steps": 3,
-            },
-        },
-        "permissions": permissions,
-        "plugins": [],
+    profile = connection_profile(base_url, model)
+    provider = profile["providers"]["gateway7"]
+    provider["name"] = "Gateway7 synthetic"
+    provider["models"][model]["name"] = "Gateway7 fixture"
+    profile["agents"]["gateway7-smoke"] = {
+        "mode": "primary",
+        "model": profile["model"],
+        "system": "Read the requested local file with read, then return its control string.",
+        "permissions": profile["permissions"],
+        "steps": 3,
     }
+    return profile
 
 
 def isolated_environment(directory: Path, client_token: str | None = None) -> dict[str, str]:

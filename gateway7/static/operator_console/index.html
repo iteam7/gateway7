@@ -28,6 +28,7 @@
         <a class="nav-link" href="#policy-builder"
           ><span aria-hidden="true">≋</span>Policies</a
         >
+        <a class="nav-link" href="#plugins"><span aria-hidden="true">◇</span>Plugins</a>
         <a class="nav-link" href="#usage"
           ><span aria-hidden="true">→</span>Usage</a
         >
@@ -628,6 +629,14 @@
           ></p>
           <div id="extended-admin" hidden></div>
           <footer class="footer-note">
+            <a id="grafana-link" hidden target="_blank" rel="noopener noreferrer">Open Grafana</a>
+            <details id="opencode-panel" hidden>
+              <summary>Connect OpenCode V2</summary>
+              <p>Save this profile as opencode.json. Set GATEWAY7_CLIENT_TOKEN in the environment where you run OpenCode.</p>
+              <textarea readonly aria-label="OpenCode configuration" id="opencode-profile"></textarea>
+              <button type="button" id="copy-opencode">Copy configuration</button>
+              <span id="opencode-status" role="status"></span>
+            </details>
             <div class="footer-icon" aria-hidden="true">i</div>
             <p>
               <strong id="management-note-title">Operator workspace</strong

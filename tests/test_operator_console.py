@@ -353,3 +353,23 @@ def test_operator_assets_never_resolve_arbitrary_package_paths(console_app, path
         response = client.get(path, headers=OPERATOR_HEADERS)
     assert response.status_code == 404 and provider.calls == []
     assert "FastAPI" not in response.text and "Traceback" not in response.text
+
+@pytest.mark.parametrize("url", [
+    "javascript:alert(1)", "//other.example/grafana", "https://user:secret@example.org/",
+    "https://example.org/?token=private", "https://example.org/\\other",
+])
+def test_dashboard_link_rejects_unsafe_values(url):
+    from pydantic import ValidationError
+    with pytest.raises(ValidationError):
+        GatewayConfig(grafana_url=url)
+
+
+def test_connection_profile_only_uses_key_reference(monkeypatch):
+    from gateway7.opencode import opencode_config
+    monkeypatch.setenv("GATEWAY7_CLIENT_TOKEN", CLIENT)
+    profile = opencode_config("https://gateway.example/v1", "vendor/model")
+    settings = profile["providers"]["gateway7"]["settings"]
+    assert settings == {"baseURL": "https://gateway.example/v1", "apiKey": "{env:GATEWAY7_CLIENT_TOKEN}"}
+    assert CLIENT not in json.dumps(profile)
+    assert profile["model"] == "gateway7/vendor/model"
+    assert GatewayConfig(grafana_url="https://metrics.example/d/overview").grafana_url

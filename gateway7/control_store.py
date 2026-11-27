@@ -678,6 +678,11 @@ def _validate_control_data(data: dict[str, Any]) -> None:
         from gateway7.identity_records import validate_identity
 
         validate_identity(data["identity"])
+    for key in ("plugin_active", "plugin_draft"):
+        if key in data:
+            from gateway7.plugin_draft import ChainDraft
+
+            ChainDraft.model_validate(data[key])
     if "policies" in data:
         from gateway7.policy_admin import validate_policy_document
 

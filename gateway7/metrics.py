@@ -5,6 +5,12 @@ from enum import StrEnum
 from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram
 
 from gateway7.errors import ProviderErrorReason
+from gateway7.plugin_api import (
+    PLUGIN_COUNTER_OUTCOMES,
+    PluginCounter,
+    PluginCounterOutcome,
+    PluginCounterSink,
+)
 
 
 class HTTPRequestOutcome(StrEnum):
@@ -140,6 +146,12 @@ class Metrics:
             ("provider",),
             registry=self.registry,
         )
+        self.plugin_events = Counter(
+            "gateway7_plugin_events_total",
+            "Events recorded by plugins using declared counters.",
+            ("counter", "outcome"),
+            registry=self.registry,
+        )
         self.middleware_steps = Counter(
             "gateway7_middleware_steps_total",
             "Middleware own-work segments by outcome.",
@@ -191,6 +203,19 @@ class Metrics:
             self.exporter_last_success.labels(exporter).set(0)
             for outcome in ("success", "failure", "dropped"):
                 self.exporter_events.labels(exporter, outcome).inc(0)
+
+    def plugin_counter(self, declared: tuple[PluginCounter, ...]) -> PluginCounterSink:
+        def count(counter: PluginCounter, outcome: PluginCounterOutcome) -> None:
+            if (
+                type(counter) is not str
+                or counter not in declared
+                or type(outcome) is not str
+                or outcome not in PLUGIN_COUNTER_OUTCOMES
+            ):
+                raise ValueError("Undeclared plugin counter or unsupported outcome")
+            self.plugin_events.labels(counter, outcome).inc()
+
+        return count
 
     def observe_http_outcome(self, route: str, outcome: object) -> None:
         safe_route = (

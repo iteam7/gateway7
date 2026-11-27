@@ -433,3 +433,135 @@ def test_mobile_navigation_keeps_focus_in_visible_content(workspace):
     page.set_viewport_size({"width": 390, "height": 844})
     expect(sidebar).to_have_js_property("inert", True)
     assert not workspace.errors
+
+
+def test_draft_phone_chain_is_previewed_before_activation(workspace):
+    page, expect = workspace.page, workspace.expect
+    account(workspace)
+    page.goto(workspace.base + "/operator/console#plugins")
+    login(workspace)
+    panel = page.locator("#plugin-workspace")
+    expect(panel).to_be_visible()
+    expect(panel.get_by_role("button", name="Activate saved chain")).to_be_disabled()
+
+    page.locator("#draft-id").fill("telephone")
+    page.locator("#draft-label").fill("Mask fictional number")
+    panel.get_by_role("button", name="Add to draft").click()
+    page.locator("#draft-id").fill("secondary")
+    page.locator("#draft-label").fill("Secondary plugin")
+    panel.get_by_role("button", name="Add to draft").click()
+    secondary = panel.get_by_role("row").filter(has_text="Secondary plugin")
+    secondary.get_by_role("button", name="Up").click()
+    secondary.get_by_role("button", name="Disable").click()
+
+    panel.get_by_role("button", name="Load phone examples").click()
+    panel.get_by_role("button", name="Test draft chain").click()
+    expect(panel.get_by_role("heading", name="boundary result")).to_be_visible()
+    expect(
+        panel.get_by_role("cell", name="Fictional contact: [PHONE].", exact=True).first
+    ).to_be_visible()
+    expect(panel.get_by_role("cell", name="disabled", exact=True).last).to_be_visible()
+    expect(
+        panel.get_by_role("cell", name="Incomplete number: +7 000 000-00-0.", exact=True).last
+    ).to_be_visible()
+    assert not workspace.calls
+    page.locator("#save-plugin-draft").click()
+    expect(page.locator("#activate-plugin-draft")).to_be_enabled()
+    headers = {"Authorization": "Bearer " + RECOVERY}
+
+    def active_chain():
+        return workspace.api.get("/operator/state", headers=headers).json()["middleware"]["global"]
+
+    assert "draft_telephone" not in active_chain()
+    page.reload()
+    expect(page.locator("#activate-plugin-draft")).to_be_enabled()
+    page.locator("#activate-plugin-draft").click()
+    expect(panel).to_contain_text("Saved draft matches the active chain")
+    assert "draft_telephone" in active_chain()
+    assert "draft_secondary" not in active_chain()
+    assert workspace.errors == []
+
+
+def test_plugin_generator_suggestions_stay_editable(workspace, monkeypatch):
+    async def synthetic_model(schema, instruction, content):
+        if content == "Mask a fictional contact number":
+            return schema.model_validate(
+                {
+                    "id": "phone",
+                    "label": "Mask phone",
+                    "template": "phone_mask",
+                    "phase": "request",
+                    "replacement": "[PHONE]",
+                }
+            )
+        assert content == "phone_mask"
+        return schema.model_validate(
+            {"positive": "alone", "negative": "ordinary", "boundary": "adjacent"}
+        )
+
+    monkeypatch.setattr("gateway7.policy_generation._generate", synthetic_model)
+    account(workspace)
+    page, expect = workspace.page, workspace.expect
+    page.goto(workspace.base + "/operator/console#plugins")
+    login(workspace)
+    panel = page.locator("#plugin-workspace")
+    panel.locator("summary").click()
+    page.locator("#draft-description").fill("Mask a fictional contact number")
+    panel.get_by_role("button", name="Generate editable plugin").click()
+    expect(page.locator("#draft-id")).to_have_value("phone")
+    page.locator("#draft-label").fill("Edited generated plugin")
+    panel.get_by_role("button", name="Add to draft").click()
+    expect(panel.get_by_role("cell", name="Edited generated plugin (phone)")).to_be_visible()
+    panel.get_by_role("button", name="Generate test cases").click()
+    sample = panel.get_by_label("positive input")
+    expect(sample).to_have_value("+7 000 000-00-00")
+    sample.fill("Synthetic: +7 000 000-00-00")
+    panel.get_by_role("button", name="Test draft chain").click()
+    expect(panel.get_by_role("cell", name="Synthetic: [PHONE]", exact=True).first).to_be_visible()
+    expect(panel.get_by_role("button", name="Activate saved chain")).to_be_disabled()
+    assert workspace.calls == []
+    assert workspace.errors == []
+
+
+def test_plugin_draft_can_reorder_and_disable_assigned_global_policies(workspace):
+    headers = {"Authorization": "Bearer " + RECOVERY, "X-Gateway7-Operator": "true"}
+
+    def seed(path, body, method="POST"):
+        revision = workspace.api.get("/operator/state", headers=headers).json()["revision"]
+        response = workspace.api.request(
+            method, path, headers={**headers, "If-Match": str(revision)}, json=body
+        )
+        response.raise_for_status()
+
+    account(workspace)
+    for name in ["first", "second"]:
+        seed(
+            "/operator/policies",
+            {"id": name, "label": name, "template": "phone_mask", "phase": "request"},
+        )
+    seed("/operator/policy-assignments", {"global": ["first", "second"], "clients": {}}, "PUT")
+    page, expect = workspace.page, workspace.expect
+    page.goto(workspace.base + "/operator/console#plugins")
+    login(workspace)
+    panel = page.locator("#plugin-workspace")
+    second = panel.get_by_role("row").filter(has_text="second")
+    second.get_by_role("button", name="Up").click()
+    second.get_by_role("button", name="Disable").click()
+    page.locator("#save-plugin-draft").click()
+    expect(page.locator("#activate-plugin-draft")).to_be_enabled()
+    state = workspace.api.get("/operator/state", headers=headers).json()
+    assert state["middleware"]["global"] == ["policy_first", "policy_second"]
+    saved = workspace.api.get("/operator/plugin-draft", headers=headers).json()
+    assert [(item["id"], item["enabled"]) for item in saved["managed_chain"]] == [
+        ("second", False),
+        ("first", True),
+    ]
+    page.locator("#activate-plugin-draft").click()
+    expect(panel).to_contain_text("Saved draft matches the active chain")
+    middleware = workspace.api.get("/operator/state", headers=headers).json()["middleware"]
+    assert middleware["global"] == ["policy_second", "policy_first"]
+    plugins = {plugin["instance"]: plugin for plugin in middleware["plugins"]}
+    assert plugins["policy_first"]["in_chain"]
+    assert not plugins["policy_second"]["in_chain"]
+    assert not plugins["policy_second"]["enabled"]
+    assert workspace.errors == []

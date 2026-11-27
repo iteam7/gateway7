@@ -8,6 +8,7 @@ from starlette.responses import Response
 from gateway7.auth import _effective_models
 from gateway7.config import GatewayConfig
 from gateway7.errors import GatewayError
+from gateway7.opencode import opencode_config
 from gateway7.pipeline import Pipeline
 
 CONSOLE_HEADERS = {
@@ -43,6 +44,7 @@ STATIC_ASSETS = frozenset(
         "reporting_panel.js",
         "navigation.js",
         "policy_panel.js",
+        "plugin_panel.js",
     }
 )
 
@@ -152,6 +154,15 @@ def operator_state(
                 "allowed_models": config.provider.allowed_models,
             }
         )
+    if config.grafana_url:
+        gateway["grafana_url"] = config.grafana_url
+    if (
+        config.auth.management_enabled
+        and "{" not in config.provider.model
+        and "}" not in config.provider.model
+    ):
+        # The browser fills the base URL from its own origin, including a proxy prefix.
+        gateway["opencode_profile"] = opencode_config("", config.provider.model)
     return {
         "configuration": configuration,
         "gateway": gateway,

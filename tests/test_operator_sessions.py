@@ -721,3 +721,42 @@ def test_insecure_cookie_opt_in_requires_actual_loopback_peer_and_host(
                 manager.check_transport(scope)
     finally:
         manager.passwords._pool.shutdown()
+
+
+async def test_plugin_draft_http_session_requires_explicit_activation(browser):
+    app, client = browser
+    await account(client)
+    csrf = (await login(client)).json()["csrf_token"]
+    auth = {"X-Gateway7-CSRF": csrf}
+    path = "/operator/plugin-draft"
+    initial = await client.get(path)
+    assert initial.status_code == 200
+    spec = {
+        "id": "block_demo",
+        "label": "Demo guard",
+        "phase": "request",
+        "template": "literal_guard",
+        "terms": ["studio-probe"],
+    }
+    draft = {"items": [{"spec": spec, "enabled": True}], "configured": initial.json()["configured"]}
+    denied = await change(client, path, draft, method="PUT", headers={})
+    assert denied.status_code == 403
+    preview = await change(
+        client,
+        path + "/preview",
+        {**draft, "text": "studio-probe", "phase": "request"},
+        headers=auth,
+    )
+    assert preview.status_code == 200 and preview.json()["error"] == "policy_denied"
+    saved = await change(client, path, draft, method="PUT", headers=auth)
+    assert saved.status_code == 200 and saved.json()["has_saved"] and not saved.json()["is_active"]
+    assert "draft_block_demo" not in app.state.config.middleware
+    active = await change(client, path + "/activate", headers=auth)
+    assert active.status_code == 200 and active.json()["is_active"]
+    user = await change(client, "/operator/clients", {"id": "studio_user"}, headers=auth)
+    result = await client.post(
+        "/chat",
+        json={"messages": [{"role": "user", "content": "studio-probe"}]},
+        headers={"Authorization": "Bearer " + user.json()["token"]},
+    )
+    assert result.status_code == 403 and result.json()["error"]["code"] == "policy_denied"
