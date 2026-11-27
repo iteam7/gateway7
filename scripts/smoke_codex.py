@@ -774,7 +774,8 @@ def write_ownership(output: Path, owner: str, resources: list[tuple[str, str]]) 
     try:
         with temporary.open("x", encoding="utf-8") as destination:
             created = True
-            os.fchmod(destination.fileno(), 0o600)
+            if hasattr(os, "fchmod"):
+                os.fchmod(destination.fileno(), 0o600)
             destination.write(json.dumps({"owner": owner, "resources": resources}))
             destination.flush()
             os.fsync(destination.fileno())

@@ -153,12 +153,12 @@ Secret leakage can invalidate Gateway7's configuration baseline or its evidence.
 
 - **Status:** Open
 - **Impact:** High
-  - A leaked provider key, operator token or ingestion credential can expose paid access, administrative state or private telemetry.
+  - A leaked provider key, operator password, bearer token, session cookie or ingestion credential can expose paid access, administrative state or private telemetry.
 - **Likelihood:** Medium
   - Gateway7 has several private credentials across gateway and telemetry modes; ignored files alone do not prevent disclosure in output, prompts or history.
 - **Trigger:** A credential or private endpoint appears in a public diff, log, AI context or repository history.
 - **Window:** Every configuration change, deployment, AI-assisted session and publication.
-- **Mitigation:** Keep actual values outside Git and AI context, use separate environment credentials, review sanitized diffs/output and run the confidentiality check before publication.
+- **Mitigation:** Keep actual values outside Git and AI context, use separate environment credentials and HTTPS for shared [operator sessions](glossary.md#operator-session), review sanitized diffs/output and run the confidentiality check before publication.
 - **Contingency:** Stop publication and rotate or revoke affected credentials first; notify the instructors, remove exposed history through the authorized secret-removal exception and retain a private incident account without reproducing the secret.
 
 **Configuration:** [CFG-07](configuration-plan.md#cfg-07); recorded 2026-11-18 for [task #302](https://github.com/iteam7/gateway7/issues/302).

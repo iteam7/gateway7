@@ -47,6 +47,8 @@ nav:
       - Versioned control and accounting proposal: architecture/adr/ADR-010.md
       - Live provider and credential proposal: architecture/adr/ADR-011.md
       - Profile-aware plugin authoring proposal: architecture/adr/ADR-012.md
+      - Browser sessions proposal: architecture/adr/ADR-013.md
+      - Declarative policies proposal: architecture/adr/ADR-014.md
       - ADR template: architecture/adr/TEMPLATE.md
   - Reference:
       - CLI commands: cli.md
@@ -99,6 +101,8 @@ nav:
           - FR-028 Back up managed state: functional-requirements/fr/FR-028.md
           - FR-029 Inspect plugin projects: functional-requirements/fr/FR-029.md
           - FR-030 Try plugins locally: functional-requirements/fr/FR-030.md
+          - FR-031 Sign in with an operator password: functional-requirements/fr/FR-031.md
+          - FR-032 Create declarative policies: functional-requirements/fr/FR-032.md
       - Decisions: decisions.md
       - Assumptions: assumptions.md
       - Definition of Done: definition-of-done.md

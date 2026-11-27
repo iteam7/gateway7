@@ -3,12 +3,13 @@
 import re
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from gateway7.admin_runtime import ClientPolicy
 from gateway7.auth import credential_expiry
 from gateway7.config import InstanceName, ModelId
 from gateway7.errors import StartupError
+from gateway7.operator_sessions import PASSWORD_HASH_PATTERN
 
 
 class _Record(BaseModel):
@@ -70,6 +71,14 @@ class OperatorRecord(_Record):
     created_at: str
     expires_at: str
     revoked: bool
+    password_hash: str | None = Field(default=None, pattern=PASSWORD_HASH_PATTERN, repr=False)
+    password_version: int = Field(default=0, ge=0, le=2**63 - 1)
+
+    @model_validator(mode="after")
+    def password_version_required(self) -> "OperatorRecord":
+        if self.password_hash is not None and self.password_version < 1:
+            raise ValueError("Password credentials require a version")
+        return self
 
     @field_validator("created_at", "expires_at")
     @classmethod

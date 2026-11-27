@@ -448,6 +448,9 @@ Use the [architecture](architecture/README.md#customer-view), [middleware author
 | `auth.operator_token_env` | Optional separate operator credential environment name; enables the console and protected usage reads |
 | `auth.management_database_url_env` | Environment variable naming a PostgreSQL DSN; primary durable management backend, with one gateway process per database |
 | `auth.management_db` | Optional private SQLite path for explicit local management; mutually exclusive with the PostgreSQL selector |
+| `auth.session_cookie_secure` | Secure operator-session cookie by default; disabling is accepted only for explicit direct loopback HTTP development |
+| `auth.session_ttl_seconds` | Absolute ordinary operator-session lifetime, default 43,200 seconds; range 60–604,800 |
+| `auth.session_remember_ttl_seconds` | Remembered-session lifetime, default 604,800 seconds; range 60–604,800 |
 | `auth.clients.<name>.limits.max_concurrent_requests` | Optional client request capacity, including delivery and cleanup; integer 1–10,000, absent/null means no additional client limit |
 | `auth.clients.<name>.limits.requests_per_minute` | Optional per-client token-bucket request rate; integer 1–1,000,000, absent/null means unlimited |
 | `plugins` | Named middleware instances and their validated settings |
@@ -455,9 +458,10 @@ Use the [architecture](architecture/README.md#customer-view), [middleware author
 
 Unknown fields, invalid settings and missing required middleware stop startup.
 `serve` also loads credentials and runs plugin startup hooks before becoming ready.
-Changing middleware code/settings, the recovery operator credential or the control encryption key requires a server-side deployment and restart.
+Changing installed middleware code or startup YAML settings, the recovery operator credential, session-cookie settings or the control encryption key requires a server-side deployment and restart.
 In managed mode, the provider panel validates and publishes live provider settings; admitted requests drain through their existing adapter.
-Enable [managed administration](authentication.md#manage-users-in-the-operator-console) to create users and change client tokens, permissions, limits and additional middleware assignments in the console without restarting.
+Enable [managed administration](authentication.md#manage-users-in-the-operator-console) to create password operators and application users, change client permissions and limits, and build or assign supported managed policies without restarting.
+Follow the [first-sign-in walkthrough](admin-controls.md#first-sign-in) and retain HTTPS for shared browser sessions.
 Configuration-only clients retain the YAML/environment and restart workflow.
 
 Capacity is checked after authentication and payload/model validation, just before middleware starts.

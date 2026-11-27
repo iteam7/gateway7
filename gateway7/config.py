@@ -180,6 +180,9 @@ class AuthConfig(StrictConfig):
     management_database_url_env: str | None = Field(
         default=None, pattern=r"^[A-Za-z_][A-Za-z0-9_]*$", max_length=128
     )
+    session_ttl_seconds: int = Field(default=43200, ge=60, le=604800)
+    session_remember_ttl_seconds: int = Field(default=604800, ge=60, le=604800)
+    session_cookie_secure: bool = True
 
     @property
     def management_enabled(self) -> bool:
