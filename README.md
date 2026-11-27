@@ -72,6 +72,8 @@ Ctrl-C stops the gateway and its synthetic upstream.
 The generated package includes strict settings, typed multi-profile fixtures, unit checks and local agent instructions.
 Use the [first-plugin guide](docs/authoring.md), [cookbook](docs/plugin-cookbook.md) and [agent workflow](docs/plugin-agent-guide.md), then build a normal wheel for deployment.
 
+To enable your plugin in a running gateway, install its wheel in the Gateway7 environment and use the plugin and chain sections from the generated `gateway.yaml`. Copy the provider, authentication and limits settings from the [provider setup guide](docs/setup.md#real-providers). Run `gateway7 validate --config gateway.yaml`, then restart Gateway7 with that configuration. See [Install normally and serve](docs/authoring.md#install-normally-and-serve) for the full example.
+
 ## Project guides
 
 | I want to… | Start here |
@@ -82,8 +84,16 @@ Use the [first-plugin guide](docs/authoring.md), [cookbook](docs/plugin-cookbook
 | Mask personal data or block a request | [Policy examples](docs/middleware-catalog.md) |
 | Use a real provider and run the service | [Setup](docs/setup.md#real-providers) · [Monitoring](docs/observability.md) |
 
-Gateway7 supports nonstreaming text chat and trusted, in-process middleware.
-One ordered chain handles requests; answers pass through it in reverse.
-For shared use, configure TLS and protect the anonymous monitoring endpoints.
+## Limitations
+
+Each instance uses one configured upstream provider. Model access depends on the upstream account and the gateway client policy. See the [HTTP API guide](docs/api.md) for the supported request and streaming modes.
+
+Python plugins run inside the gateway process. Install only packages you trust. Requests run through the configured middleware chain in order, and responses run through it in reverse. For shared use, follow the [deployment guide](docs/deployment.md) to configure TLS and restrict access to monitoring endpoints.
+
+Report problems or request a feature on the [GitHub Issues page](https://github.com/iteam7/gateway7/issues).
 
 [Documentation](https://iteam7.github.io/gateway7/) · [Architecture](docs/architecture/README.md) · [Product vision](docs/product-vision.md) · [Contributing](CONTRIBUTING.md) · [MIT license](LICENSE)
+
+## Course information
+
+Modular LLM Gateway (Gateway7) was built by Team 7 for the ITPD course. See the [Week 10 report](reports/week-10/README.md) for course evidence.
