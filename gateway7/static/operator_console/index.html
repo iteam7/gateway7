@@ -8,33 +8,38 @@
     <link rel="stylesheet" href="./assets/console.css" />
     <script src="./assets/console.js" type="module"></script>
   </head>
-  <body>
-    <aside class="sidebar">
+  <body data-authenticated="false" data-managed="false">
+    <a class="skip-link" href="#workspace-content">Skip to content</a>
+    <aside class="sidebar" id="workspace-navigation">
       <a class="brand" href="./console" aria-label="Gateway7 operator console"
         ><span class="brand-mark">7</span>Gateway7</a
       >
       <div class="sidebar-label">WORKSPACE</div>
       <nav aria-label="Console sections">
         <a class="nav-link selected" href="#overview"
-          ><span aria-hidden="true">◫</span> Overview</a
+          ><span aria-hidden="true">◫</span>Overview</a
         >
-        <a class="nav-link" href="#clients"
-          ><span aria-hidden="true">◉</span> Clients</a
+        <a class="nav-link" href="#users"
+          ><span aria-hidden="true">◉</span>Users &amp; keys</a
+        >
+        <a class="nav-link" href="#models"
+          ><span aria-hidden="true">◇</span>Models</a
+        >
+        <a class="nav-link" href="#policy-builder"
+          ><span aria-hidden="true">≋</span>Policies</a
         >
         <a class="nav-link" href="#usage"
-          ><span aria-hidden="true">↗</span> Usage</a
+          ><span aria-hidden="true">→</span>Usage</a
         >
-        <a class="nav-link" href="#provider-management"
-          ><span aria-hidden="true">◇</span> Models</a
+        <a class="nav-link" href="#budgets"
+          ><span aria-hidden="true">◷</span>Budgets &amp; pricing</a
         >
-        <a class="nav-link" href="#operator-management"
-          ><span aria-hidden="true">◈</span> Operators</a
+        <div class="sidebar-label nav-group-label">ADMINISTRATION</div>
+        <a class="nav-link" href="#operators"
+          ><span aria-hidden="true">◈</span>Operators</a
         >
-        <a class="nav-link" href="#accounting-management"
-          ><span aria-hidden="true">$</span> Budgets</a
-        >
-        <a class="nav-link" href="#policies"
-          ><span aria-hidden="true">≋</span> Middleware</a
+        <a class="nav-link" href="#activity"
+          ><span aria-hidden="true">☷</span>Activity</a
         >
       </nav>
       <div class="sidebar-bottom">
@@ -46,25 +51,40 @@
     </aside>
     <div class="workspace">
       <header class="topbar">
-        <span
-          >Gateway administration <small id="operator-identity"></small></span
-        ><span class="quiet-badge" id="mode-badge">OPERATOR</span>
+        <div class="topbar-left">
+          <button
+            class="icon-button"
+            id="toggle-navigation"
+            type="button"
+            aria-label="Open navigation"
+            aria-expanded="false"
+            aria-controls="workspace-navigation"
+          >
+            ☰</button
+          ><span
+            >Workspace <span class="breadcrumb-separator">/</span>
+            <strong id="breadcrumb">Overview</strong></span
+          >
+        </div>
+        <div class="topbar-right">
+          <span class="quiet-badge" id="mode-badge">OPERATOR</span
+          ><small id="operator-identity"></small>
+        </div>
       </header>
-      <main id="overview">
-        <div class="page-heading">
+      <main id="workspace-content" tabindex="-1">
+        <div class="page-heading" id="workspace-heading">
           <div>
-            <div class="eyebrow">YOUR GATEWAY, AT A GLANCE</div>
-            <h1>Operator overview</h1>
-            <p class="subtitle">
-              Client access, provider usage and the policies behind every
-              request.
+            <div class="eyebrow" id="page-eyebrow">WORKSPACE</div>
+            <h1 id="page-title">Overview</h1>
+            <p class="subtitle" id="page-description">
+              A clear view of your gateway.
             </p>
           </div>
           <div class="page-actions" id="connected-actions" hidden>
             <button class="button secondary" id="refresh" type="button">
               ↻ Refresh</button
-            ><button class="text-button" id="disconnect" type="button">
-              Disconnect
+            ><button class="button secondary" id="disconnect" type="button">
+              Sign out
             </button>
           </div>
         </div>
@@ -73,35 +93,110 @@
           id="connection-panel"
           aria-labelledby="connection-title"
         >
-          <div class="connection-icon" aria-hidden="true">⌑</div>
-          <div class="connection-copy">
-            <div class="eyebrow">PRIVATE OPERATOR SESSION</div>
-            <h2 id="connection-title">Connect to your gateway</h2>
-            <p>Use the separate operator token to open this workspace.</p>
+          <div class="login-introduction">
+            <a class="brand" href="./console"
+              ><span class="brand-mark">7</span>Gateway7</a
+            >
+            <div>
+              <div class="eyebrow">YOUR AI GATEWAY</div>
+              <h2>One workspace.<br />Every access decision.</h2>
+              <p>
+                Manage users, models and policies.<br />Understand usage and
+                keep costs in view.
+              </p>
+            </div>
+            <span class="login-footnote">Gateway administration</span>
           </div>
-          <form id="connect-form" class="connection-form" autocomplete="off">
-            <label for="operator-token">Operator token</label>
-            <div class="input-row">
-              <input
-                id="operator-token"
-                type="password"
-                autocomplete="off"
+          <div class="login-content">
+            <div class="connection-copy">
+              <div class="eyebrow">WELCOME BACK</div>
+              <h2 id="connection-title">Sign in to your workspace</h2>
+              <p>Use your operator account to continue.</p>
+            </div>
+            <form id="login-form" class="connection-form">
+              <label for="login-username">Username</label
+              ><input
+                id="login-username"
+                autocomplete="username"
                 autocapitalize="none"
                 spellcheck="false"
-                minlength="16"
-                maxlength="512"
                 required
-                placeholder="Enter your operator token"
-                aria-describedby="token-note"
-              /><button class="button primary" id="connect" type="submit">
-                Connect <span aria-hidden="true">→</span>
+                maxlength="64"
+                placeholder="Your username"
+              />
+              <label for="login-password">Password</label>
+              <div class="password-field">
+                <input
+                  id="login-password"
+                  type="password"
+                  autocomplete="current-password"
+                  required
+                  maxlength="128"
+                  placeholder="Your password"
+                /><button
+                  class="text-button"
+                  id="show-password"
+                  type="button"
+                  aria-label="Show password"
+                >
+                  Show
+                </button>
+              </div>
+              <label class="checkbox-label"
+                ><input id="login-remember" type="checkbox" />Remember me on
+                this device</label
+              >
+              <button
+                class="button primary login-submit"
+                id="sign-in"
+                type="submit"
+              >
+                Sign in <span aria-hidden="true">→</span>
               </button>
-            </div>
-            <small id="token-note"
-              >Kept in memory for this page. Never saved in browser
-              storage.</small
+              <small
+                >Sessions expire automatically. Need an account or a password
+                reset? Contact your gateway administrator.</small
+              >
+            </form>
+            <button
+              class="text-button recovery-switch"
+              id="show-token-login"
+              type="button"
+              aria-expanded="false"
+              aria-controls="connect-form"
             >
-          </form>
+              Use a recovery or automation token
+            </button>
+            <form
+              id="connect-form"
+              class="connection-form recovery-form"
+              autocomplete="off"
+              hidden
+            >
+              <label for="operator-token">Operator token</label>
+              <div class="input-row">
+                <input
+                  id="operator-token"
+                  type="password"
+                  autocomplete="off"
+                  autocapitalize="none"
+                  spellcheck="false"
+                  minlength="16"
+                  maxlength="512"
+                  required
+                  placeholder="Enter your operator token"
+                  aria-describedby="token-note"
+                /><button class="button primary" id="connect" type="submit">
+                  Connect <span aria-hidden="true">→</span>
+                </button>
+              </div>
+              <small id="token-note"
+                >Recovery and automation access only. To create your first
+                password account, connect with the server recovery token, then
+                open Operators. This token stays in memory for this page.</small
+              >
+            </form>
+          </div>
         </section>
         <p id="message" class="message" role="status" aria-live="polite"></p>
         <div id="dashboard" hidden>
@@ -120,7 +215,7 @@
             </article>
             <article class="summary-card">
               <div class="card-label">
-                Provider attempts <span aria-hidden="true">↗</span>
+                Provider attempts <span aria-hidden="true">→</span>
               </div>
               <strong id="attempt-count">—</strong>
               <p id="attempt-summary">Recorded provider observations</p>
@@ -352,18 +447,20 @@
           <section
             class="panel token-panel"
             id="issued-token-panel"
+            role="dialog"
+            aria-modal="true"
             aria-labelledby="issued-token-title"
             hidden
           >
             <div class="panel-heading">
               <div>
                 <div class="eyebrow">ONE-TIME CREDENTIAL</div>
-                <h2 id="issued-token-title">Save the new user token</h2>
+                <h2 id="issued-token-title">Save your new credential</h2>
                 <p id="issued-token-note"></p>
               </div>
             </div>
             <div class="token-content">
-              <label for="issued-token">User token</label>
+              <label for="issued-token">One-time token</label>
               <div class="input-row">
                 <input
                   id="issued-token"
@@ -487,17 +584,21 @@
             </div>
             <div class="chains" id="chains"></div>
           </section>
-          <section class="panel" aria-labelledby="plugins-title">
+          <section
+            class="panel"
+            id="plugin-capabilities"
+            aria-labelledby="plugins-title"
+          >
             <div class="panel-heading">
               <div>
                 <div class="eyebrow">REGISTERED MIDDLEWARE</div>
                 <h2 id="plugins-title">Capabilities & validation</h2>
                 <p>
-                  Configuration was validated at startup. Hook presence does not
-                  guarantee compatibility with every request.
+                  Configuration is validated before activation. Hook presence
+                  does not guarantee compatibility with every request.
                 </p>
               </div>
-              <span class="small-tag">Startup snapshot</span>
+              <span class="small-tag">Validated instances</span>
             </div>
             <div class="table-scroll">
               <table>
@@ -535,10 +636,10 @@
               >
             </p>
             <a
-              href="https://github.com/iteam7/gateway7/blob/main/docs/cli.md"
+              href="https://github.com/iteam7/gateway7/blob/main/docs/admin-controls.md"
               target="_blank"
               rel="noopener noreferrer"
-              >Validation guide ↗</a
+              >Administration guide →</a
             >
           </footer>
         </div>

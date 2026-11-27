@@ -6,6 +6,8 @@ provider:
   key_env: OPENAI_API_KEY
   model: gpt-4.1-mini
   timeout_seconds: 30
+# Operator password sessions require HTTPS by default. Keep Secure cookies for
+# Compose/shared access; see docs/authentication.md for direct-loopback HTTP dev.
 auth:
   enabled: true
   operator_token_env: GATEWAY7_OPERATOR_TOKEN

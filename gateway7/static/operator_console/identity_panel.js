@@ -149,15 +149,15 @@ export function identityPanels(context) {
   const operators = panel(
     "operator-management",
     "Operators & roles",
-    "Individual administrator and viewer credentials identify who made a change. The recovery operator remains managed on the server.",
+    "Give each person their own sign-in. Administrator and viewer roles keep every change attributable. Recovery access stays managed on the server.",
   );
   const operatorTable = node("div");
   const operatorForm = node("form", undefined, "admin-form");
-  const operatorId = field("Operator ID", {
+  const operatorId = field("Username", {
     required: true,
     id: "new-operator-id",
   });
-  const operatorLabel = field("Operator label", {
+  const operatorLabel = field("Display name", {
     required: true,
     id: "new-operator-label",
   });
@@ -173,6 +173,21 @@ export function identityPanels(context) {
     id: "new-operator-expiry",
     help: "Leave empty for 90 days.",
   });
+  const operatorMethod = field("Sign-in method", {
+    options: [
+      ["password", "Password account"],
+      ["token", "Automation token"],
+    ],
+    id: "new-operator-method",
+  });
+  const operatorPassword = field("Password", {
+    type: "password",
+    id: "new-operator-password",
+    help: "Use 12–128 characters. Share it securely with the account owner.",
+  });
+  operatorPassword.input.minLength = 12;
+  operatorPassword.input.maxLength = 128;
+  operatorPassword.input.autocomplete = "new-password";
   const createOperator = node("button", "Create operator", "button primary");
   createOperator.type = "submit";
   createOperator.id = "create-operator";
@@ -181,6 +196,8 @@ export function identityPanels(context) {
     operatorId.root,
     operatorLabel.root,
     operatorRole.root,
+    operatorMethod.root,
+    operatorPassword.root,
     operatorExpiry.root,
     createOperator,
     cancelOperator,
@@ -188,13 +205,78 @@ export function identityPanels(context) {
   operators.content.append(operatorTable, operatorForm);
   let editingOperator = null;
   let editingOperatorRevision = null;
+  function updateOperatorMethod() {
+    const password =
+      !editingOperator && operatorMethod.input.value === "password";
+    operatorMethod.root.hidden = Boolean(editingOperator);
+    operatorPassword.root.hidden = !password;
+    operatorPassword.input.required = password;
+    operatorExpiry.root.hidden = password;
+    if (!password) operatorPassword.input.value = "";
+  }
+  operatorMethod.input.addEventListener("change", updateOperatorMethod);
   function resetOperator() {
     editingOperator = null;
     editingOperatorRevision = null;
     operatorForm.reset();
     operatorId.input.disabled = false;
     createOperator.textContent = "Create operator";
+    updateOperatorMethod();
   }
+  const passwordDialog = node("dialog");
+  passwordDialog.id = "reset-password-dialog";
+  const passwordTitle = node("h2");
+  passwordTitle.id = "reset-password-title";
+  passwordDialog.setAttribute("aria-labelledby", passwordTitle.id);
+  const passwordForm = node("form", undefined, "admin-form");
+  const resetPassword = field("New password", {
+    type: "password",
+    required: true,
+    id: "reset-operator-password",
+    help: "12–128 characters. Existing browser sessions for this account will end.",
+  });
+  resetPassword.input.minLength = 12;
+  resetPassword.input.maxLength = 128;
+  resetPassword.input.autocomplete = "new-password";
+  const passwordMessage = node("p", undefined, "message full-width");
+  passwordMessage.setAttribute("role", "status");
+  const passwordActions = node("div", undefined, "form-actions");
+  const savePassword = node("button", "Save password", "button primary");
+  savePassword.type = "submit";
+  passwordActions.append(
+    savePassword,
+    button("Cancel", () => passwordDialog.close()),
+  );
+  passwordForm.append(resetPassword.root, passwordMessage, passwordActions);
+  passwordDialog.append(passwordTitle, passwordForm);
+  document.body.append(passwordDialog);
+  let passwordTarget = null;
+  let passwordRevision = null;
+  passwordDialog.addEventListener("close", () => {
+    resetPassword.input.value = "";
+    passwordTarget = null;
+    passwordMessage.textContent = "";
+  });
+  passwordForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const id = passwordTarget;
+    const password = resetPassword.input.value;
+    resetPassword.input.value = "";
+    void task(passwordForm, passwordMessage, async () => {
+      await context.request(`./accounts/${encodeURIComponent(id)}/password`, {
+        method: "PUT",
+        revision: passwordRevision,
+        body: { password },
+      });
+      passwordDialog.close();
+      if (context.actor()?.id === id) context.reauthenticate();
+      else {
+        await context.reload();
+        operators.message.textContent =
+          "Password updated. Previous sessions for this account have ended.";
+      }
+    });
+  });
   operatorForm.addEventListener("submit", (event) => {
     event.preventDefault();
     void task(operatorForm, operators.message, async () => {
@@ -203,16 +285,27 @@ export function identityPanels(context) {
         role: operatorRole.input.value,
         ...expiryValue(operatorExpiry.input),
       };
+      const accountPassword = operatorPassword.input.value;
+      operatorPassword.input.value = "";
       const result = await context.request(
         editingOperator
           ? `./operators/${encodeURIComponent(editingOperator)}`
-          : "./operators",
+          : operatorMethod.input.value === "password"
+            ? "./accounts"
+            : "./operators",
         {
           method: editingOperator ? "PUT" : "POST",
           ...(editingOperator ? { revision: editingOperatorRevision } : {}),
           body: editingOperator
             ? payload
-            : { id: operatorId.input.value.trim(), ...payload },
+            : operatorMethod.input.value === "password"
+              ? {
+                  id: operatorId.input.value.trim(),
+                  label: payload.label,
+                  role: payload.role,
+                  password: accountPassword,
+                }
+              : { id: operatorId.input.value.trim(), ...payload },
         },
       );
       if (result?.token)
@@ -248,6 +341,7 @@ export function identityPanels(context) {
                 operatorExpiry.input.value =
                   operator.expires_at?.slice(0, 16) ?? "";
                 createOperator.textContent = "Save operator";
+                updateOperatorMethod();
                 operatorLabel.input.focus();
               }),
               button(
@@ -272,6 +366,22 @@ export function identityPanels(context) {
             );
           }
           if (context.canWrite() && operator.id !== "bootstrap") {
+            actions.append(
+              button(
+                operator.password_configured
+                  ? "Reset password"
+                  : "Set password",
+                () => {
+                  passwordTarget = operator.id;
+                  passwordRevision = result.revision;
+                  passwordTitle.textContent = `${operator.password_configured ? "Reset" : "Set"} password: ${operator.label ?? operator.id}`;
+                  resetPassword.input.value = "";
+                  passwordMessage.textContent = "";
+                  passwordDialog.showModal();
+                  resetPassword.input.focus();
+                },
+              ),
+            );
             actions.append(
               button(
                 operator.revoked
@@ -301,7 +411,7 @@ export function identityPanels(context) {
           }
           return [
             `${operator.label ?? operator.id} (${operator.id})`,
-            operator.role,
+            `${operator.role} · ${operator.password_configured ? "Password enabled" : "Token access"}`,
             operator.id === "bootstrap"
               ? "Server recovery credential"
               : operator.revoked
@@ -401,6 +511,7 @@ export function identityPanels(context) {
     );
   }
   async function selectClient(id) {
+    context.go("users");
     keyUser.input.value = id;
     keys.root.scrollIntoView({ block: "start" });
     await loadKeys();
@@ -409,6 +520,9 @@ export function identityPanels(context) {
     keyLookup.reset();
     keyForm.reset();
     operatorForm.reset();
+    operatorPassword.input.value = "";
+    if (passwordDialog.open) passwordDialog.close();
+    resetPassword.input.value = "";
     auditForm.reset();
     for (const root of [keyTable, operatorTable, auditTable])
       root.replaceChildren();

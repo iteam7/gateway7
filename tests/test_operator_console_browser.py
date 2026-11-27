@@ -87,7 +87,8 @@ def test_operator_rotation_keeps_replacement_visible_and_session_current(
                         )
                         page = context.new_page()
                         page.on("dialog", lambda dialog: dialog.accept())
-                        page.goto(base + "/operator/console")
+                        page.goto(base + "/operator/console#operators")
+                        page.locator("#show-token-login").click()
                         page.locator("#operator-token").fill(current)
                         page.locator("#connect").click()
                         identity = page.locator("#operator-identity")
@@ -124,6 +125,8 @@ def test_operator_rotation_keeps_replacement_visible_and_session_current(
                         )
                         page.locator("#dismiss-token").click()
 
+                        page.get_by_role("link", name="Usage", exact=True).click()
+
                         # An old, delayed usage failure must neither erase the new
                         # session nor leave the filter controls permanently busy.
                         delayed = []
@@ -138,6 +141,7 @@ def test_operator_rotation_keeps_replacement_visible_and_session_current(
                         with page.expect_request(lambda request: "/operator/usage?" in request.url):
                             page.locator("#apply-usage").click()
                         playwright.expect(page.locator("#apply-usage")).to_be_disabled()
+                        page.get_by_role("link", name="Operators", exact=True).click()
                         if handoff != "normal":
                             held = []
                             rotation_url = "**/operators/browser_current/token"
@@ -233,6 +237,13 @@ def test_operator_rotation_keeps_replacement_visible_and_session_current(
                         else:
                             replacement = rotate("browser_current")
                             delayed[0].fulfill(status=401, json={"error": "old credential"})
+                        page.locator("#reveal-token").click()
+                        assert page.locator("#issued-token").get_attribute("type") == "text"
+                        page.locator("#copy-token").click()
+                        playwright.expect(page.locator("#copy-token")).to_have_text("Copied")
+                        assert page.evaluate("() => navigator.clipboard.readText()") == replacement
+                        page.locator("#dismiss-token").click()
+                        page.get_by_role("link", name="Usage", exact=True).click()
                         page.unroute("**/operator/usage?*", delay_first_usage)
                         playwright.expect(page.locator("#apply-usage")).to_be_enabled()
                         playwright.expect(page.locator("#clear-usage")).to_be_enabled()
@@ -248,11 +259,6 @@ def test_operator_rotation_keeps_replacement_visible_and_session_current(
                             api.get("/operator/state", headers=headers(replacement)).status_code
                             == 200
                         )
-                        page.locator("#reveal-token").click()
-                        assert page.locator("#issued-token").get_attribute("type") == "text"
-                        page.locator("#copy-token").click()
-                        playwright.expect(page.locator("#copy-token")).to_have_text("Copied")
-                        assert page.evaluate("() => navigator.clipboard.readText()") == replacement
                         # A later refresh must also use the replacement credential.
                         with page.expect_response(
                             lambda response: response.url.endswith("/operator/state")
@@ -267,6 +273,7 @@ def test_operator_rotation_keeps_replacement_visible_and_session_current(
                         page.locator("#operator-token").fill(replacement)
                         page.locator("#connect").click()
                         playwright.expect(page.locator("#refresh")).to_be_enabled()
+                        page.get_by_role("link", name="Operators", exact=True).click()
                         rotate("browser_other")
                         revision = api.get("/operator/state", headers=headers(bootstrap)).json()[
                             "revision"
@@ -280,7 +287,8 @@ def test_operator_rotation_keeps_replacement_visible_and_session_current(
                             },
                         )
                         assert revoked.status_code == 204
-                        page.locator("#refresh").click()
+                        # A background refresh must still clear an open credential dialog.
+                        page.evaluate("() => document.getElementById('refresh').click()")
                         playwright.expect(page.locator("#connection-panel")).to_be_visible()
                         playwright.expect(page.locator("#issued-token-panel")).to_be_hidden()
                         assert page.locator("#issued-token").input_value() == ""
