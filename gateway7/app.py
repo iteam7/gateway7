@@ -48,6 +48,7 @@ from gateway7.identity_admin import (
     OperatorUpdate,
 )
 from gateway7.operator_sessions import COOKIE_NAME, OperatorSessions, PasswordRequest, SessionLogin
+from gateway7.policy_generation import register_generation
 from gateway7.policy_admin import (
     PolicyAdmin,
     PolicyAssignments,
@@ -1706,6 +1707,8 @@ def create_app(
     async def operator_policy_preview(payload: PolicyPreview):
         require_accounting()
         return PolicyAdmin.preview(payload)
+
+    register_generation(app, require_accounting)
 
     @app.get("/operator/usage", include_in_schema=False)
     async def operator_usage(

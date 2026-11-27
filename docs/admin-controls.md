@@ -147,6 +147,19 @@ Changing provider kind requires supplying its new credential explicitly.
 Credentials must differ from client and operator credentials.
 The console reports whether a credential is configured and never returns its value.
 
+## Generate an editable policy or test cases
+
+To enable these optional controls, run Ollama on the gateway's loopback interface at port 11434 and set `GATEWAY7_DRAFT_OLLAMA_MODEL` to an installed model that supports structured output before starting the gateway.
+For a containerized gateway, the model server must share its network namespace.
+Leave the variable unset to use the manual editor without a model.
+
+Enter a short description containing synthetic data only.
+The draft generator sends that description to the local model and validates its JSON against the four built-in policy templates.
+The separate case generator sends only the template name and uses the model's choices to assemble editable positive, negative and boundary examples.
+A literal policy uses the supplied synthetic term for its positive example.
+Review generated values and run the draft chain before explicitly activating changes.
+An unavailable model or invalid response leaves the editor and live configuration intact.
+
 ## Create a policy without code
 
 Open **Policies**, enter a stable **Policy ID** and descriptive **Policy name**, choose a **Template**, and select incoming requests, outgoing responses or both under **Apply to**.

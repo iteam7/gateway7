@@ -130,6 +130,7 @@ Secret contract and private-value exclusions
 - **Status:** Active
 - **Type:** Public environment-variable template, ignore rules and confidentiality check.
 - **Purpose:** Describe credential names without values; without this contract and exclusions, operators can miss a required value or contributors can publish a real secret.
+  The optional `GATEWAY7_DRAFT_OLLAMA_MODEL` selects a credential-free local model for [editable policy suggestions](admin-controls.md#generate-an-editable-policy-or-test-cases).
 - **Owner:** Deployment operator supplies and rotates private values; task Responsible/Accountable members check the public shape.
 - **Where:** [.env.example](https://github.com/iteam7/gateway7/blob/main/.env.example), [.gitignore](https://github.com/iteam7/gateway7/blob/main/.gitignore), [confidentiality checker](https://github.com/iteam7/gateway7/blob/main/scripts/check_confidentiality.py) and [secret runbook](deployment.md#configuration-and-secrets) and [operator credential/session contract](operator-identities.md#named-operators-and-recovery).
 - **Connections:** `produces` the variable-name contract for [CFG-06](#cfg-06) and [CFG-10](#cfg-10); a renamed variable without overlay/runbook updates can stop startup or export to the wrong scope.
