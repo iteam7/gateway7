@@ -35,6 +35,7 @@ Use the sidebar to choose one task at a time:
 | **Users & keys** | Create application clients, set their model permissions and issue client keys |
 | **Models** | Review the provider, defaults, aliases and effective model access |
 | **Policies** | Build, preview and activate shared or client-specific text policies |
+| **Plugins** | Build a draft global chain, preview each step and activate a saved version |
 | **Usage** | Filter usage and download reports |
 | **Budgets & pricing** | Set prices and UTC usage allowances |
 | **Operators** | Create sign-in accounts, assign roles, reset passwords and manage automation credentials |
@@ -146,6 +147,23 @@ Leaving the provider credential field empty retains the current credential.
 Changing provider kind requires supplying its new credential explicitly.
 Credentials must differ from client and operator credentials.
 The console reports whether a credential is configured and never returns its value.
+
+## Test and activate a plugin chain
+
+1. Open **Plugins** at `/operator/console#plugins` as an administrator.
+   Enter a **Plugin ID** and **Name**, choose **Mask phone numbers**, keep **Requests**, then select **Add to draft**.
+2. Use **Up**, **Down**, **Disable** or **Enable** on a row to edit the draft.
+   Requests run server-configured instances first, followed by globally assigned policies and then the new template plugins.
+   Within the server-configured group, required steps stay enabled in fixed positions.
+   A disabled custom module requires deployment configuration before it can run.
+3. Choose **Load phone examples**, then **Test draft chain**.
+   With only the new phone mask enabled, `Fictional contact: +7 000 000-00-00.` becomes `Fictional contact: [PHONE].`.
+   The text without a number and the incomplete `+7 000 000-00-0` pass through unchanged.
+   Each case is editable and shows the input, output and any error for each step.
+   Preview uses synthetic text and makes zero provider calls.
+   An unsupported step stops the preview and identifies the remaining steps as unrun.
+4. Choose **Save draft** to retain the chain across sessions.
+   Review it and select **Activate saved chain**, then confirm to apply it to gateway traffic.
 
 ## Generate an editable policy or test cases
 

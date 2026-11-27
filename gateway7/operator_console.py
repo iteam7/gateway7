@@ -44,6 +44,7 @@ STATIC_ASSETS = frozenset(
         "reporting_panel.js",
         "navigation.js",
         "policy_panel.js",
+        "plugin_panel.js",
     }
 )
 

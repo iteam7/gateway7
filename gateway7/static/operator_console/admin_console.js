@@ -3,12 +3,14 @@ import { providerPanel } from "./provider_panel.js";
 import { identityPanels } from "./identity_panel.js";
 import { reportingPanels } from "./reporting_panel.js";
 import { statusText } from "./admin_forms.js";
+import { pluginPanel } from "./plugin_panel.js";
 import { policyPanel } from "./policy_panel.js";
 
 export function createAdminWorkspace(context) {
   const provider = providerPanel(context);
   const identities = identityPanels(context);
   const reports = reportingPanels(context);
+  const plugins = pluginPanel(context);
   const policies = policyPanel(context);
   document
     .getElementById("extended-admin")
@@ -17,6 +19,7 @@ export function createAdminWorkspace(context) {
       ...identities.roots,
       ...reports.roots,
       policies.root,
+      plugins.root,
     );
   document.getElementById("usage-extra").append(reports.trendRoot);
   let generation = 0;
@@ -33,6 +36,7 @@ export function createAdminWorkspace(context) {
       identities.load(),
       reports.load(),
       policies.load(),
+      plugins.load(),
     ]);
     if (current !== generation || !context.connected()) return;
     for (const result of results)
@@ -50,6 +54,7 @@ export function createAdminWorkspace(context) {
     identities.clear();
     reports.clear();
     policies.clear();
+    plugins.clear();
     document.getElementById("extended-admin").hidden = true;
     document.getElementById("operator-identity").textContent = "";
     document.getElementById("extended-message").textContent = "";
