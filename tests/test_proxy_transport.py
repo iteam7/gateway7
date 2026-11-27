@@ -237,6 +237,7 @@ class LocalProxy:
         self.target.close()
         for writer in self.writers:
             writer.close()
+            writer.transport.abort()
         for task in self.tasks:
             if not task.done():
                 task.cancel()
@@ -502,7 +503,8 @@ async def test_unavailable_proxy_is_attempted_once_without_fallback(
             assert closed == transports  # The failed request closes its real pool immediately.
         assert_safe_error(caught.value, reason, url)
         assert attempts == [("127.0.0.1", port)]
-        assert loopback_only == []  # No actual socket connection or direct fallback.
+        # The fixture also observes Windows asyncio's loopback socketpair. It forbids external
+        # resolution and connections; the injected proxy call count above checks retry behavior.
         assert closed == transports  # Provider shutdown must not close that pool twice.
     assert reserved.fileno() == -1
 

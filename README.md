@@ -78,6 +78,7 @@ Use the [first-plugin guide](docs/authoring.md), [cookbook](docs/plugin-cookbook
 | --- | --- |
 | Connect an application with curl or the OpenAI SDK | [HTTP API](docs/api.md) |
 | Give clients tokens and model permissions | [Client access](docs/authentication.md) |
+| Create administrator logins and build text policies without code | [Administration workspace](docs/admin-controls.md) |
 | Mask personal data or block a request | [Policy examples](docs/middleware-catalog.md) |
 | Use a real provider and run the service | [Setup](docs/setup.md#real-providers) · [Monitoring](docs/observability.md) |
 

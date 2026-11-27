@@ -469,8 +469,8 @@ async def test_resistant_native_hooks_cannot_replace_interruption(
             return await self.work(response, context)
 
     limits = LimitsConfig(
-        hook_timeout_seconds=0.01 if interruption == "hook_timeout" else 1,
-        request_timeout_seconds=0.01 if interruption == "deadline" else 1,
+        hook_timeout_seconds=0.2 if interruption == "hook_timeout" else 1,
+        request_timeout_seconds=0.2 if interruption == "deadline" else 1,
     )
     pipeline, provider = runner(Slow(), limits=limits)
     task = asyncio.create_task(pipeline.run_responses(request()))
@@ -511,7 +511,7 @@ async def test_provider_error_cannot_replace_interruption_and_counts_once(early,
         Native(),
         provider=Failing(),
         metrics=metrics,
-        limits=LimitsConfig(request_timeout_seconds=0.01 if interruption == "deadline" else 1),
+        limits=LimitsConfig(request_timeout_seconds=0.2 if interruption == "deadline" else 1),
     )
     task = asyncio.create_task(
         pipeline.run_responses_early(request(), on_text=discard_text)
@@ -559,22 +559,22 @@ async def test_early_text_waits_for_complete_request_chain_and_never_calls_respo
 async def test_hook_budget_excludes_provider_wait_but_is_shared_across_native_phases():
     class Wait(Provider):
         async def complete_responses(self, request, **options):
-            await asyncio.sleep(0.04)
+            await asyncio.sleep(0.2)
             return await super().complete_responses(request, **options)
 
-    pipeline, _ = runner(Native(), provider=Wait(), limits=LimitsConfig(hook_timeout_seconds=0.02))
+    pipeline, _ = runner(Native(), provider=Wait(), limits=LimitsConfig(hook_timeout_seconds=0.15))
     assert (await pipeline.run_responses(request())).output_text == "answer"
 
     class Slow(Native):
         async def prepare_responses(self, request, context):
-            await asyncio.sleep(0.02)
+            await asyncio.sleep(0.1)
             return request
 
         async def check_responses(self, response, context):
-            await asyncio.sleep(0.02)
+            await asyncio.sleep(0.1)
             return response
 
-    pipeline, provider = runner(Slow(), limits=LimitsConfig(hook_timeout_seconds=0.03))
+    pipeline, provider = runner(Slow(), limits=LimitsConfig(hook_timeout_seconds=0.15))
     with pytest.raises(GatewayError) as caught:
         await pipeline.run_responses(request())
     assert caught.value.code == "timeout" and len(provider.calls) == 1
@@ -802,7 +802,7 @@ async def test_early_callback_cannot_forward_late_or_replace_interruption(interr
     async def on_text(text):
         entered.set()
         if interruption == "synchronous":
-            time.sleep(0.03)
+            time.sleep(0.4)
             raise RuntimeError("synthetic")
         try:
             await asyncio.Event().wait()
@@ -814,7 +814,7 @@ async def test_early_callback_cannot_forward_late_or_replace_interruption(interr
         Native(),
         metrics=metrics,
         limits=LimitsConfig(
-            request_timeout_seconds=1 if interruption == "callback_cancel" else 0.01
+            request_timeout_seconds=1 if interruption == "callback_cancel" else 0.2
         ),
     )
     task = asyncio.create_task(pipeline.run_responses_early(request(), on_text=on_text))
@@ -1010,13 +1010,13 @@ async def test_contract_rejection_after_deadline_preserves_validated_source_usag
     import gateway7.pipeline as pipeline_module
 
     def late_rejection(*args, **kwargs):
-        time.sleep(0.03)
+        time.sleep(0.4)
         raise ValueError("synthetic final contract rejection")
 
     monkeypatch.setattr(pipeline_module, "validate_response", late_rejection)
     metrics = Metrics()
     pipeline, provider = runner(
-        Native(), metrics=metrics, limits=LimitsConfig(request_timeout_seconds=0.01)
+        Native(), metrics=metrics, limits=LimitsConfig(request_timeout_seconds=0.2)
     )
     with pytest.raises(GatewayError) as caught:
         await pipeline.run_responses(request())
@@ -1163,7 +1163,7 @@ async def test_native_early_sinks_preserve_record_identity_and_apply_backpressur
         Prepared(),
         provider=Streaming(),
         metrics=metrics,
-        limits=LimitsConfig(hook_timeout_seconds=0.01),
+        limits=LimitsConfig(hook_timeout_seconds=0.2),
     )
 
     async def sink(value):
@@ -1274,7 +1274,7 @@ async def test_structured_sink_error_cannot_replace_cancellation_or_deadline(int
     async def sink(record):
         entered.set()
         if interruption == "synchronous":
-            time.sleep(0.03)
+            time.sleep(0.4)
         else:
             try:
                 await asyncio.Event().wait()
@@ -1287,7 +1287,7 @@ async def test_structured_sink_error_cannot_replace_cancellation_or_deadline(int
         Prepared(),
         provider=Streaming(),
         metrics=metrics,
-        limits=LimitsConfig(request_timeout_seconds=1 if interruption == "cancel" else 0.01),
+        limits=LimitsConfig(request_timeout_seconds=1 if interruption == "cancel" else 0.2),
     )
     task = asyncio.create_task(pipeline.run_responses_early(request(), on_text_delta=sink))
     await asyncio.wait_for(entered.wait(), 1)

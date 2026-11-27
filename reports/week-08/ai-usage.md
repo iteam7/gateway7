@@ -201,6 +201,15 @@
 - Outcome: The historical Week 7 report and AI record remain unchanged. The original Sprint 05 planning commitment remains unverified.
 - Team assessment: TODO
 
+## 2026-11-21 — Windows CI for tasks #77 and #84
+
+- Tool: Codex.
+- Work: Added independent Ubuntu and Windows Python-check jobs, adapted the installed-wheel smoke check for Windows, and stabilized the cumulative middleware-budget test against Windows scheduler jitter.
+- Verification: On Windows, Ruff format check and lint plus mypy passed for `gateway7`; the workflow YAML parsed; focused suites passed for core (242), accounting/admin (111 passed, 103 skipped), early-stream (46), model catalog (106), pipeline (291) and proxy transport (18). The locked wheel built and installed; CLI validation, authoring smoke and installed-wheel HTTP smoke passed.
+  The full 4,542-test Windows suite has not passed yet. Its latest run stopped at `test_leader_own_deadline_does_not_create_account_failure_cache` after 1,148 passed and 163 skipped; the deadline was lengthened and the full model-catalog file then passed, but the complete suite has not been rerun after that correction.
+- Follow-up: The later full Windows run exposed `os.fchmod` being unavailable in Windows during Codex smoke ownership-manifest publication. The writer now applies POSIX mode `0600` where supported, and its mode assertion is conditional on that capability. The previously failing lifecycle test and both atomic-publication cases pass (3 tests total). At the user's direction, subsequent full-suite runs were stopped around 41%; only these previously failing tests were rerun. Windows GitHub CI remains pending because this branch has not been published as a pull request.
+- Boundary: This change does not claim product usability results, Customer acceptance, or that the final pull request is merged.
+
 ## 2026-11-20 — Task #299 sprint planning reconciliation
 
 - Tool: Codex with Formater and a read-only audit agent.

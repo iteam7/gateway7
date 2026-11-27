@@ -105,11 +105,12 @@ An operator finds which [middleware](glossary.md#middleware) failed or slowed a 
 
 ## Inspect client access and middleware
 
-An operator can manage each [client](glossary.md#client)'s account, tokens, access, limits and additional middleware, and inspect its usage in one browser workspace when durable management is enabled.
+An operator can manage each [client](glossary.md#client)'s account, tokens, access, limits and [managed policies](glossary.md#managed-policy), and inspect its usage in one browser workspace when durable management is enabled.
+Named operators use password-backed [operator sessions](glossary.md#operator-session) for ordinary browser sign-in.
 
-- **Stories:** [US-07](https://github.com/iteam7/gateway7/issues/36), [US-13](https://github.com/iteam7/gateway7/issues/141), [US-03](https://github.com/iteam7/gateway7/issues/32)
-- **Behavior:** [FR-021](functional-requirements/fr/FR-021.md), [FR-023](functional-requirements/fr/FR-023.md), [FR-027](functional-requirements/fr/FR-027.md), [FR-020](functional-requirements/fr/FR-020.md), [FR-019](functional-requirements/fr/FR-019.md)
-- **Decisions:** [ADR-003](architecture/adr/ADR-003.md), [ADR-008](architecture/adr/ADR-008.md), [ADR-009](architecture/adr/ADR-009.md)
+- **Stories:** [US-07](https://github.com/iteam7/gateway7/issues/36), [US-13](https://github.com/iteam7/gateway7/issues/141), [US-03](https://github.com/iteam7/gateway7/issues/32), extended by [owner task #335](https://github.com/iteam7/gateway7/issues/335)
+- **Behavior:** [FR-021](functional-requirements/fr/FR-021.md), [FR-023](functional-requirements/fr/FR-023.md), [FR-027](functional-requirements/fr/FR-027.md), [FR-020](functional-requirements/fr/FR-020.md), [FR-019](functional-requirements/fr/FR-019.md), [FR-031](functional-requirements/fr/FR-031.md), [FR-032](functional-requirements/fr/FR-032.md)
+- **Decisions:** [ADR-003](architecture/adr/ADR-003.md), [ADR-008](architecture/adr/ADR-008.md), [ADR-009](architecture/adr/ADR-009.md), [ADR-013](architecture/adr/ADR-013.md), [ADR-014](architecture/adr/ADR-014.md)
 
 ## Start a middleware package
 

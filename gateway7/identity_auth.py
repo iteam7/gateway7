@@ -21,6 +21,7 @@ class OperatorPrincipal:
     expires_at: datetime | None = None
     is_bootstrap: bool = False
     credential_digest: bytes | None = field(default=None, repr=False)
+    session_version: int | None = field(default=None, repr=False)
 
     def require_admin(self) -> None:
         if self.role != "admin" or (
