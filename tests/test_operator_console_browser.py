@@ -5,6 +5,7 @@ Optional command: uv run --with playwright pytest -q tests/test_operator_console
 The browser talks to a real local gateway using only synthetic credentials.
 """
 
+import json
 import shutil
 import socket
 import threading
@@ -34,6 +35,7 @@ def test_operator_rotation_keeps_replacement_visible_and_session_current(
     config = GatewayConfig.model_validate(
         {
             "provider": {"kind": "fake", "model": "fake"},
+            "grafana_url": "https://metrics.example/d/overview",
             "auth": {
                 "enabled": True,
                 "operator_token_env": "CONSOLE_BROWSER_OPERATOR",
@@ -93,6 +95,24 @@ def test_operator_rotation_keeps_replacement_visible_and_session_current(
                         page.locator("#connect").click()
                         identity = page.locator("#operator-identity")
                         playwright.expect(identity).to_contain_text("browser_current")
+
+                        if handoff == "normal":
+                            page.get_by_role("link", name="Overview", exact=True).click()
+                            grafana = page.get_by_role("link", name="Open Grafana")
+                            playwright.expect(grafana).to_have_attribute(
+                                "href", "https://metrics.example/d/overview"
+                            )
+                            page.get_by_text("Connect OpenCode V2").click()
+                            page.get_by_role("button", name="Copy configuration").click()
+                            playwright.expect(page.locator("#opencode-status")).to_have_text("Copied.")
+                            copied = page.evaluate("navigator.clipboard.readText()")
+                            settings = json.loads(copied)["providers"]["gateway7"]["settings"]
+                            assert settings == {
+                                "baseURL": base + "/v1",
+                                "apiKey": "{env:GATEWAY7_CLIENT_TOKEN}",
+                            }
+                            assert bootstrap not in copied and current not in copied
+                            page.get_by_role("link", name="Operators", exact=True).click()
 
                         def rotate(operator_id):
                             row = page.get_by_role("row").filter(has_text=f"({operator_id})")
