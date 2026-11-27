@@ -227,7 +227,7 @@ The Customer checks `UAT-01` to `UAT-03` on the deployed build, the team reports
 - **Sprint Backlog:** [the issues scheduled into SPRINT-09](https://github.com/iteam7/gateway7/milestone/7)
 - **Planned Velocity:** 0; the sprint carries tasks only, so no selected story adds points.
 
-The [user acceptance test record](user-acceptance-tests.md) defines the three journeys before the review.
+The three user acceptance tests are defined before the review, and each one runs on the deployed build.
 The sprint's tasks cover the review, the UAT runs, the quality plan results, the threshold review, `REL-09`, the report, the retrospective and the AI usage.
 The open product candidates stay unscheduled: [US-07](https://github.com/iteam7/gateway7/issues/36) (3 SP), [US-08](https://github.com/iteam7/gateway7/issues/37) (5 SP) and [US-13](https://github.com/iteam7/gateway7/issues/141) (8 SP).
 A finding-driven fix stays conditional on actual triage, a linked story and acceptance criterion, and a regression check.
