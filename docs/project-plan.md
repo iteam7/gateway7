@@ -221,21 +221,27 @@ Carry forward [#272](https://github.com/iteam7/gateway7/issues/272) as a separat
 
 ### SPRINT-09
 
-Provisional goal: freeze the final repository and evidence set, deliver the seven-minute presentation, and record the team's reflection and disposition of outstanding requirements, threshold goals and usability findings.
+The Customer checks `UAT-01` to `UAT-03` on the deployed build, the team reports the quality plan results and settles the threshold goals the evidence supports, and `REL-09` records the sprint's close.
 
-- **Due:** 2026-11-28
-- **Sprint Backlog:** [SPRINT-09 milestone](https://github.com/iteam7/gateway7/milestone/7)
+- **Due:** 2026-11-29
+- **Sprint Backlog:** [the issues scheduled into SPRINT-09](https://github.com/iteam7/gateway7/milestone/7)
+- **Planned Velocity:** 0; the sprint carries tasks only, so no selected story adds points.
 
-The milestone has no selected issues.
-Use the Week 8 results, review, configuration evaluation and release evidence to select the final repository and presentation work.
-Prepare the repository before freezing the presentation's cited baseline, and use the actual sprint evidence in the reflection.
-
-The open, unscheduled product candidates already have runnable criteria and native estimates: [US-07](https://github.com/iteam7/gateway7/issues/36) (3 SP) verifies client access, [US-08](https://github.com/iteam7/gateway7/issues/37) (5 SP) verifies offline examples with supported-platform follow-up in [#77](https://github.com/iteam7/gateway7/issues/77), and [US-13](https://github.com/iteam7/gateway7/issues/141) (8 SP) depends on US-07 for developer identity.
-Reassess remaining scope against the current implementation before selection.
-Keep any finding-driven fix conditional on actual triage, a linked story and acceptance criterion, and a regression check.
-Leave estimates and allocation for newly identified work to actual refinement and planning.
+The three user acceptance tests are defined before the review, and each one runs on the deployed build.
+The sprint's tasks cover the review, the UAT runs, the quality plan results, the threshold review, `REL-09`, the report, the retrospective and the AI usage.
+The open product candidates stay unscheduled: [US-07](https://github.com/iteam7/gateway7/issues/36) (3 SP), [US-08](https://github.com/iteam7/gateway7/issues/37) (5 SP) and [US-13](https://github.com/iteam7/gateway7/issues/141) (8 SP).
+A finding-driven fix stays conditional on actual triage, a linked story and acceptance criterion, and a regression check.
 
 #### REL-09
+
+### SPRINT-10
+
+Provisional goal: the Customer takes over the deployed MVP on a tagged release, and the team hands over the product with its limitations, its evidence and its open issues.
+
+- **Due:** 2026-12-06
+- **Sprint Backlog:** [the issues scheduled into SPRINT-10](https://github.com/iteam7/gateway7/milestone/8)
+
+#### REL-10
 
 ## Quality Requirement Testing Plan
 
