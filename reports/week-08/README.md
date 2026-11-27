@@ -25,8 +25,7 @@ Task 3 is offline and has no telemetry by design; telemetry also cannot establis
 
 [QR-06 QRT-01](../../docs/quality-requirements/qr/QR-06.md#qrt-01) **Passes** in the [testing plan](../../docs/project-plan.md#quality-requirement-testing-plan).
 The two findings and their triage are in [the results record](../../docs/usability-tests/ut-01/results.md#findings-and-triage); no fix is committed or claimed for `REL-08`.
-The [private usability-data repository](https://github.com/iteam7/gateway7-usability-data) is the text evidence store, and the recordings belong in the team-owned cloud folder.
-Their access records stay private; the tracker keeps the access follow-up in [#318](https://github.com/iteam7/gateway7/issues/318), and nothing about that access appears in this report.
+The private evidence link has been retired. See the [sanitized UT-01 results](../../docs/usability-tests/ut-01/results.md) for the public record.
 
 ## Configuration management
 
@@ -101,8 +100,6 @@ No deployment address, dashboard address, credential or cloud-folder link appear
 ## Week 9 handoff
 
 - Start with the [UT-01 results](../../docs/usability-tests/ut-01/results.md) and the [testing plan](../../docs/project-plan.md#quality-requirement-testing-plan); the Review and release records the older drafts point at do not exist, as [Deviations](#deviations) declares.
-  Verify access to the [private text repository](https://github.com/iteam7/gateway7-usability-data) and the team-owned recordings folder for the handoff.
-  The folder details belong in the private submission.
 - Use the [configuration plan](../../docs/configuration-plan.md) and the evaluation's four goal sections for [verification](cm-evaluation.md#verify-a-change-without-missing-a-required-gate), [reader and agent instructions](cm-evaluation.md#give-readers-and-agents-a-reusable-current-workflow), [build reproducibility](cm-evaluation.md#reproduce-the-intended-build-without-coupling-unrelated-dependencies), and [release promotion](cm-evaluation.md#promote-a-verified-version-without-mixing-environment-state).
   Those sections record the tradeoffs.
   [The First Change](cm-evaluation.md#the-first-change) gives the starting proposal.
