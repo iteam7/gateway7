@@ -26,7 +26,7 @@ No counted session has run, no participant data is committed, and this report cl
 | Surveys and post-test | [surveys.md](../../docs/usability-tests/ut-01/surveys.md) |
 | Tasks and protocol | [the record](../../docs/usability-tests/ut-01/README.md#the-tasks) and [the session template](../../docs/usability-tests/ut-01/sessions/README.md) |
 | Consent template | [consent.md](../../docs/usability-tests/ut-01/consent.md) |
-| Private usability-data repository | the private `iteam7/gateway7-usability-data` repository; access stays in the Moodle submission |
+| Usability evidence | The private destination has been retired. See the [sanitized UT-01 results](../../docs/usability-tests/ut-01/results.md). |
 | Test instrumentation | [the usability funnel](../../docs/analytics.md#the-usability-funnel) |
 | Customer review and pilot | [meeting-report.md](meeting-report.md) |
 | `QR-06` and its test | [QR-06](../../docs/quality-requirements/qr/QR-06.md) |
