@@ -82,8 +82,16 @@ Use the [first-plugin guide](docs/authoring.md), [cookbook](docs/plugin-cookbook
 | Mask personal data or block a request | [Policy examples](docs/middleware-catalog.md) |
 | Use a real provider and run the service | [Setup](docs/setup.md#real-providers) · [Monitoring](docs/observability.md) |
 
-Gateway7 supports nonstreaming text chat and trusted, in-process middleware.
-One ordered chain handles requests; answers pass through it in reverse.
-For shared use, configure TLS and protect the anonymous monitoring endpoints.
+## Limitations
+
+Each instance uses one configured upstream provider. Model access depends on the upstream account and the gateway client policy. See the [HTTP API guide](docs/api.md) for the supported request and streaming modes.
+
+Python plugins run inside the gateway process. Install only packages you trust. Requests run through the configured middleware chain in order, and responses run through it in reverse. For shared use, follow the [deployment guide](docs/deployment.md) to configure TLS and restrict access to monitoring endpoints.
+
+Report problems or request a feature on the [GitHub Issues page](https://github.com/iteam7/gateway7/issues).
 
 [Documentation](https://iteam7.github.io/gateway7/) · [Architecture](docs/architecture/README.md) · [Product vision](docs/product-vision.md) · [Contributing](CONTRIBUTING.md) · [MIT license](LICENSE)
+
+## Course information
+
+Modular LLM Gateway (Gateway7) was built by Team 7 for the ITPD course. See the [Week 10 report](reports/week-10/README.md) for course evidence.
