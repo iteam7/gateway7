@@ -144,6 +144,8 @@ Secret contract and private-value exclusions
 
 Monitoring, telemetry and dashboard configuration
 
+An optional top-level `grafana_url` links the operator overview to a configured HTTP(S) dashboard path without query parameters or credentials.
+
 - **Status:** Active
 - **Type:** Prometheus/Grafana provisioning, backend Compose, TLS proxy shape and dashboard/query definitions.
 - **Purpose:** Observe outcomes and segregate synthetic traffic; without matching scrape/query/filter configuration, failures can go unseen and product metrics can count test events.
