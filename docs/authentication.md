@@ -250,7 +250,7 @@ This bounded view is not durable accounting, an arbitrary-period or per-model us
 This section describes the console when neither `auth.management_database_url_env` nor `auth.management_db` is configured.
 Enable [managed users](#manage-users-in-the-operator-console) to administer accounts in the same workspace.
 
-After configuring the separate operator credential above, open `/operator/console` on your gateway and enter that token.
+After configuring the separate operator credential above, open `/operator/console` on your gateway, choose **Use a recovery or automation token**, and enter that token.
 The shell and its packaged stylesheet/script contain no configured client, policy or usage data.
 The dashboard loads a protected `GET /operator/state` snapshot only after connecting, using an authorization header to the same gateway.
 The token stays in page memory; the console does not place it in URLs, cookies or browser storage.
@@ -294,8 +294,8 @@ Managed administration requires client authentication and a separate operator cr
 PostgreSQL is the primary managed deployment; the explicit [SQLite alternative](#optional-local-sqlite-storage) remains available for local use.
 Configure exactly one backend: `management_database_url_env` and `management_db` are mutually exclusive.
 
-Open `/operator/console` and connect with the operator token.
-The [admin controls guide](admin-controls.md) follows the available panels; use the user controls to:
+Open `/operator/console` and follow [first sign-in](admin-controls.md#first-sign-in): connect once with the recovery operator token to create a named password administrator, then sign out and use that username and password.
+The sidebar separates application **Users & keys** from administrative **Operators**; use the user controls to:
 
 1. Create a user with a stable client ID, owner label, tags, enabled state, model permissions, default model, request limits and ordered additional middleware.
 2. Copy the generated client token when it is shown and deliver it to the application through your normal secret channel.
@@ -303,14 +303,16 @@ The [admin controls guide](admin-controls.md) follows the available panels; use 
 4. Filter usage by user, model and precise UTC interval, inspect request diagnostics and budgets, and export the selected report as CSV.
 
 Tokens are shown only after creation or replacement; later state and usage reads cannot recover them.
-The database stores token digests, and the browser keeps the operator token only in page memory.
+The database stores token digests.
+Password-authenticated operators use an HttpOnly session cookie; an explicitly selected recovery/automation token is kept only in page memory.
 Replacing a token invalidates its predecessor; revoking it leaves the account without a credential until a fresh token is issued.
 Enabling an account whose token was revoked does not recreate that token.
 Keep user IDs pseudonymous because they are part of the protected usage report.
 
 Model permissions retain the same three choices: unrestricted at the client level (`null`), an explicit allowlist, or deny every model (`[]`).
 The independent provider-wide restriction still applies.
-The console can assign only enabled middleware already installed and loaded at startup; global policies always remain first and cannot be removed by a user edit.
+The console can assign enabled middleware already installed at startup and the [supported managed policies](admin-controls.md#create-a-policy-without-code).
+Configured global policies always remain first and cannot be removed by a user edit.
 Save applies new permissions, state, limits and middleware selections to subsequent requests without restarting.
 Already-admitted requests finish under their existing policy chain; suspending or deleting an account does not retract a response already in progress.
 Editing a limit retains current admission occupancy and does not grant a fresh rate bucket through unrelated account edits.
@@ -335,13 +337,149 @@ Named operators have an `admin` or `viewer` role and an expiring credential.
 Viewers can inspect users, reports, audit records and diagnostics, and download reports.
 Admins can change managed settings and issue or revoke credentials.
 The separately configured environment operator token remains the recovery administrator; the console cannot delete or demote that recovery capability.
-The browser holds the selected operator token in page memory and uses authorization headers, without cookies or browser storage.
+Named password accounts authenticate with a durable server session and an HttpOnly cookie; explicit recovery/automation bearer connections use page memory and authorization headers.
+See [password sessions](operator-identities.md#password-sign-in-and-lasting-sessions) for refresh, expiration and revocation.
 
-Every managed write requires `If-Match` with the current global revision returned by the state snapshot, plus `X-Gateway7-Operator: true`.
+Managed configuration writes require `If-Match` with the current global revision returned by the state snapshot, plus `X-Gateway7-Operator: true`.
+Cookie-authenticated writes also require their separate `X-Gateway7-CSRF` proof; logout requires the marker and CSRF proof but no configuration revision.
 A stale revision returns HTTP 409 without overwriting another operator's change; refresh, review the new state and submit again.
 The gateway rechecks the operator's current role and credential before committing a change.
 Changes record the operator identity, action, target, time, request ID and a sanitized difference in the protected audit view; raw credentials never appear there.
 The user list supports search, enabled status, owner, tag and bounded pages.
+
+### Password sessions and HTTPS
+
+Password sign-in requires managed administration; it does not add public signup or give application clients console access.
+An administrator creates accounts and resets passwords in **Operators**.
+The server's bootstrap bearer remains available for first-account creation and recovery.
+
+Session policy is server-owned YAML, with these defaults:
+
+```yaml
+auth:
+  enabled: true
+  operator_token_env: GATEWAY7_OPERATOR_TOKEN
+  management_database_url_env: GATEWAY7_DATABASE_URL
+  session_cookie_secure: true
+  session_ttl_seconds: 43200
+  session_remember_ttl_seconds: 604800
+  clients: {}
+```
+
+The ordinary lifetime defaults to 12 hours; **Remember me on this device** selects the remembered lifetime, seven days by default.
+Each setting accepts 60–604800 seconds and neither extends the operator's own expiry.
+Sessions persist in the management database across process restarts; logout, password reset, revocation and expiration reject the old credential.
+A logical backup excludes browser sessions, so restoring it requires sign-in again.
+
+Serve shared deployments through HTTPS and retain `session_cookie_secure: true`.
+For an explicit local Python development server reached directly over HTTP, set `session_cookie_secure: false` only in that local configuration and bind the server to `127.0.0.1`.
+The insecure exception requires both the actual request peer and request host to be loopback; forwarded headers do not grant it.
+A Docker-published port can have a container-network peer even when the host port is bound to loopback, so that is not the direct local-Python exception.
+Keep Secure cookies and use HTTPS for that deployment.
+Do not put passwords, cookies or CSRF proofs into URLs, public configuration or logs.
+
+The UI attaches required session proofs automatically.
+API clients can sign in through `POST /operator/session`, read the current session through `GET /operator/session`, and sign out through `DELETE /operator/session`.
+Sign-in accepts `username`, `password` and an optional `remember` boolean, requires `X-Gateway7-Operator: true` and enforces the browser-origin boundary.
+An administrator creates password accounts through `POST /operator/accounts` and replaces a password through `PUT /operator/accounts/{id}/password` with the existing revision and session protections.
+No password or session secret is returned by later state reads.
+Login attempts are limited per minute to 5 per username, 20 per request peer and 60 overall; rate-limited attempts receive HTTP 429.
+Password work uses one bounded worker with capacity for eight outstanding jobs, and overload returns HTTP 503 rather than unbounded work.
+
+#### Run the managed console over local HTTPS
+
+The following Bash recipe uses Docker Compose, OpenSSL and the existing pinned nginx image to provide HTTPS for the managed console.
+First complete [managed Compose configuration](#persist-managed-state-with-compose), including `GATEWAY_CONFIG_FILE=./config/admin-postgres.yaml` or your equivalent private managed YAML and the provider, recovery and database credentials.
+Keep `session_cookie_secure: true`.
+Create the proxy configuration and a local-development certificate in a fresh directory outside the checkout.
+For later starts, reuse those files rather than generating another certificate:
+
+```bash
+set -euo pipefail
+export GATEWAY7_CONSOLE_TLS_DIR="$HOME/.local/share/gateway7-console-tls"
+mkdir -p "$(dirname "$GATEWAY7_CONSOLE_TLS_DIR")"
+mkdir -m 700 "$GATEWAY7_CONSOLE_TLS_DIR"
+umask 077
+openssl req -x509 -newkey rsa:2048 -nodes -days 30 \
+  -keyout "$GATEWAY7_CONSOLE_TLS_DIR/server.key" \
+  -out "$GATEWAY7_CONSOLE_TLS_DIR/server.crt" \
+  -subj '/CN=localhost' \
+  -addext 'subjectAltName=DNS:localhost,IP:127.0.0.1'
+cat > "$GATEWAY7_CONSOLE_TLS_DIR/nginx.conf" <<'NGINX'
+events {}
+http {
+  access_log off;
+  server {
+    listen 8443 ssl;
+    ssl_certificate /tls/server.crt;
+    ssl_certificate_key /tls/server.key;
+    location / {
+      proxy_pass http://127.0.0.1:8000;
+      proxy_set_header Host $http_host;
+      proxy_set_header X-Forwarded-Proto https;
+      proxy_set_header X-Forwarded-For $remote_addr;
+    }
+  }
+}
+NGINX
+cat > "$GATEWAY7_CONSOLE_TLS_DIR/compose.console-tls.yaml" <<'YAML'
+services:
+  gateway:
+    ports:
+      - "127.0.0.1:8443:8443"
+  proxy:
+    image: nginx@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de
+    network_mode: service:gateway
+    volumes:
+      - ${GATEWAY7_CONSOLE_TLS_DIR}/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ${GATEWAY7_CONSOLE_TLS_DIR}:/tls:ro
+    depends_on: [gateway]
+    mem_limit: 128m
+YAML
+docker compose -f compose.yaml -f compose.admin.yaml \
+  -f "$GATEWAY7_CONSOLE_TLS_DIR/compose.console-tls.yaml" \
+  up --build --detach --wait
+curl --fail --retry 15 --retry-delay 1 --retry-connrefused \
+  --cacert "$GATEWAY7_CONSOLE_TLS_DIR/server.crt" \
+  https://127.0.0.1:8443/ready
+```
+
+Open `https://127.0.0.1:8443/operator/console` in a browser that trusts the local certificate, then follow [first sign-in](admin-controls.md#first-sign-in).
+For shared access, use the intended host's trusted certificate and private ingress configuration rather than publishing this development certificate.
+Keep the private key outside the repository.
+The proxy reaches the gateway on their shared loopback namespace, preserving the Host and setting HTTPS scheme information from that trusted hop.
+This recipe needs neither a broad forwarded-proxy trust setting nor an insecure cookie exception.
+Its verified scope is administration sessions; configure your production edge's buffering and timeouts for application streaming separately.
+
+After restarting the gateway, restart the proxy **after** the gateway because its shared network namespace may have changed:
+
+```bash
+docker compose -f compose.yaml -f compose.admin.yaml \
+  -f "$GATEWAY7_CONSOLE_TLS_DIR/compose.console-tls.yaml" restart gateway
+docker compose -f compose.yaml -f compose.admin.yaml \
+  -f "$GATEWAY7_CONSOLE_TLS_DIR/compose.console-tls.yaml" restart proxy
+curl --fail --retry 15 --retry-delay 1 --retry-connrefused \
+  --cacert "$GATEWAY7_CONSOLE_TLS_DIR/server.crt" \
+  https://127.0.0.1:8443/ready
+```
+
+When recreating the gateway container, recreate the proxy afterward so its namespace reference uses the current gateway container:
+
+```bash
+docker compose -f compose.yaml -f compose.admin.yaml \
+  -f "$GATEWAY7_CONSOLE_TLS_DIR/compose.console-tls.yaml" \
+  up --detach --force-recreate --no-deps gateway
+docker compose -f compose.yaml -f compose.admin.yaml \
+  -f "$GATEWAY7_CONSOLE_TLS_DIR/compose.console-tls.yaml" \
+  up --detach --force-recreate --no-deps proxy
+curl --fail --retry 15 --retry-delay 1 --retry-connrefused \
+  --cacert "$GATEWAY7_CONSOLE_TLS_DIR/server.crt" \
+  https://127.0.0.1:8443/ready
+```
+
+Use the same overlay files for later Compose operations.
+The database retains an unexpired browser session through that ordinary restart; restarting only the gateway can leave the proxy unreachable until it is restarted as well.
+The synthetic PostgreSQL/HTTPS check exercised certificate verification, Secure/HttpOnly/Strict cookies, remembered login, reload, sequential restart/recreation and logout; it makes no live-provider claim.
 
 ### Defaults, aliases and provider settings
 
@@ -361,7 +499,8 @@ Generate and store it with your secret manager; changing or losing it makes stor
 The initial environment provider key remains usable until a managed credential is saved.
 The connection test uses model discovery for OpenAI; other adapters can send one synthetic request with an output limit of one token, which can incur provider charges.
 Provider configuration changes and connection tests require an administrator.
-Installing middleware code or changing its settings still requires server deployment and restart.
+Installing middleware code or changing startup YAML settings still requires server deployment and restart.
+Supported managed policy settings and assignments are changed through the console.
 
 ### Usage, budgets and diagnostics
 
@@ -455,6 +594,10 @@ The console uses these same protected endpoints:
 | `POST /operator/clients/{id}/keys/{key_id}/rotate` | Replace one application key |
 | `DELETE /operator/clients/{id}/keys/{key_id}` | Revoke one application key |
 | `POST, DELETE /operator/clients/{id}/token` | Replace or revoke all keys for the user |
+| `POST /operator/session` | Sign in with a provisioned username and password |
+| `GET, DELETE /operator/session` | Read the current session or sign out |
+| `POST /operator/accounts` | Provision a named password operator |
+| `PUT /operator/accounts/{id}/password` | Reset the password and invalidate the operator's sessions |
 | `GET, POST /operator/operators` | Inspect named operators or create an expiring credential |
 | `PUT, DELETE /operator/operators/{id}` | Edit a named operator or revoke its credential |
 | `POST /operator/operators/{id}/token` | Reissue a named operator credential |
@@ -470,9 +613,19 @@ The console uses these same protected endpoints:
 | `GET /operator/usage/export` | Stream the selected provider history as CSV |
 | `GET /operator/diagnostics` | Inspect protected request outcomes and activity |
 | `PUT /operator/retention` | Set the bounded history retention period |
+| `GET, POST /operator/policies` | Read definitions/assignments or create a supported policy |
+| `PUT, DELETE /operator/policies/{id}` | Replace an unambiguous policy definition or delete an unassigned one |
+| `PUT /operator/policy-assignments` | Replace managed global/client assignment lists |
+| `POST /operator/policy-preview` | Preview one proposed definition against bounded plain text |
 
-Every endpoint requires the separate operator bearer credential.
-Mutations require an administrator, the current `If-Match` revision and `X-Gateway7-Operator: true`; cross-origin requests, cookies and query parameters cannot authorize them.
+Protected endpoints accept a current operator browser session or an explicit separate operator bearer credential.
+Password sign-in is the initial authentication exception, not a public registration operation.
+Configuration mutations require an administrator, the current `If-Match` revision and `X-Gateway7-Operator: true`; a browser session also requires `X-Gateway7-CSRF`.
+Sign-in, sign-out and policy preview do not mutate the configuration revision, while their origin, role and applicable session proof checks still apply.
+Preview and provider-test POSTs still require the current revision; only sign-in and sign-out omit that prerequisite.
+A cookie alone or a query parameter cannot authorize a write.
+Assignment writes contain the complete managed `global` list and `clients` map; an omitted client loses its managed assignments, while its startup-configured additions remain.
+Read the current state and preserve other clients' assignments before sending an API replacement.
 Client settings include `enabled`, `models`, `limits`, `additional_middleware`, `owner`, `tags` and `default_model`; creation also requires `id`.
 Invalid or stale edits leave the published profile and stored state unchanged.
 The [functional requirements index](functional-requirements/README.md) links the independent account, operator, provider, audit, budget and recovery contracts.
@@ -550,7 +703,8 @@ The public `gateway7_rate_limit_rejections_total` counter has no client identity
 With a management database configured, use the console for users, credentials, permissions, limits and policy assignments.
 Without it, change clients through server configuration/environment and restart.
 The provider panel manages the single instance's provider settings and write-only credential.
-The recovery operator credential, encryption key and middleware code/settings remain server administration.
+The recovery operator credential, encryption key, installed middleware code and startup YAML settings remain server administration.
+Supported managed policy definitions and assignments can instead be changed through the protected workspace.
 Configured cost estimates and admission budgets are not provider invoice reconciliation.
 
 The supplied live Compose override forwards the provider key and `GATEWAY7_CLIENT_TOKEN` for the single-client samples.

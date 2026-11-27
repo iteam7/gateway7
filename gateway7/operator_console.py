@@ -41,6 +41,8 @@ STATIC_ASSETS = frozenset(
         "provider_panel.js",
         "identity_panel.js",
         "reporting_panel.js",
+        "navigation.js",
+        "policy_panel.js",
     }
 )
 
@@ -108,7 +110,11 @@ def operator_state(
                 "enabled": plugin_specification.enabled,
                 "required": plugin_specification.required,
                 "in_chain": name in configured_chains,
-                "validation": "configuration_validated_at_startup",
+                "validation": (
+                    "validated_before_activation"
+                    if plugin_specification.module == "gateway7.policy_admin"
+                    else "configuration_validated_at_startup"
+                ),
                 "capabilities": (
                     {
                         "plugin_id": loaded.descriptor.id,

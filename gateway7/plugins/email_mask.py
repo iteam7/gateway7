@@ -27,16 +27,25 @@ _EMAIL = re.compile(
 )
 
 
-def mask_email(text: str, replacement: str) -> str:
+def _mask_email(text: str, replacement: str) -> tuple[str, int]:
+    matches = 0
+
     def replace(match: re.Match[str]) -> str:
+        nonlocal matches
         candidate = match.group(0)
         local, _ = candidate.split("@", 1)
         # Syntax-level bounds alone allow long dot-separated local parts.
         if len(candidate) > 254 or len(local) > 64:
             return candidate
+        matches += 1
         return replacement
 
-    return _EMAIL.sub(replace, text)
+    masked = _EMAIL.sub(replace, text)
+    return masked, matches
+
+
+def mask_email(text: str, replacement: str) -> str:
+    return _mask_email(text, replacement)[0]
 
 
 class Settings(BaseModel):
@@ -50,7 +59,7 @@ class Settings(BaseModel):
 class EmailMaskPlugin(TextPolicyMiddleware):
     def __init__(self, settings: Settings) -> None:
         def transform(text: str) -> tuple[str, int]:
-            return mask_email(text, settings.replacement), int(mask_email(text, "") != text)
+            return _mask_email(text, settings.replacement)
 
         super().__init__(transform, phase=settings.phase, action="redact")
 
