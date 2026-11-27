@@ -10,6 +10,7 @@ OpenAI Codex was used in ChatGPT Work Mode, including its browser and local Git 
 | --- | --- | --- |
 | Week 10 issue triage | Checked both pages of the native Responsible filter, then read issue acceptance criteria, dependencies and linked pull requests. Compared course requirements against the live course repository. | Used issue and documentation evidence. No operational outcome or team decision was inferred from a task title. |
 | Week 10 README preparation | Used Codex to preserve the documented startup and plugin commands, draft limitations and support text, and create the report headings in [PR #372](https://github.com/iteam7/gateway7/pull/372). Checked the current setup and deployment references and reviewed the two-file comparison on GitHub. | Review approval and documentation CI are separate from the manual comparison. The report placeholder contains headings only. |
+| Week 10 link cleanup | Used Codex to locate current public references to private usability evidence, verify the sanitized results destination, and review the four-file diff in [draft PR #374](https://github.com/iteam7/gateway7/pull/374). | The work covered public document links. Retention and deletion still require private verification. |
 | Week 10 disclosure | Used Codex to draft this record from work observed in the same session and compare its structure with the course AI Usage Report requirements. | Covers this recorded session only. Add later sessions and any other tool use before final submission. |
 
 ## What worked
