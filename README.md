@@ -72,6 +72,8 @@ Ctrl-C stops the gateway and its synthetic upstream.
 The generated package includes strict settings, typed multi-profile fixtures, unit checks and local agent instructions.
 Use the [first-plugin guide](docs/authoring.md), [cookbook](docs/plugin-cookbook.md) and [agent workflow](docs/plugin-agent-guide.md), then build a normal wheel for deployment.
 
+To enable your plugin in a running gateway, install its wheel in the Gateway7 environment and use the plugin and chain sections from the generated `gateway.yaml`. Copy the provider, authentication and limits settings from the [provider setup guide](docs/setup.md#real-providers). Run `gateway7 validate --config gateway.yaml`, then restart Gateway7 with that configuration. See [Install normally and serve](docs/authoring.md#install-normally-and-serve) for the full example.
+
 ## Project guides
 
 | I want to… | Start here |
