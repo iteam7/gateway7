@@ -8,7 +8,7 @@ The core never infers compatibility from third-party plugin settings.
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Literal, Protocol, TypeVar
 
 from pydantic import BaseModel
 
@@ -20,6 +20,16 @@ if TYPE_CHECKING:
 API_VERSION = 2
 SettingsT = TypeVar("SettingsT", bound=BaseModel)
 NextHandler = Callable[[ChatRequest], Awaitable[ChatResponse]]
+
+
+PluginCounter = Literal["match", "decision", "fallback"]
+PluginCounterOutcome = Literal["applied", "skipped", "failed"]
+PLUGIN_COUNTERS = ("match", "decision", "fallback")
+PLUGIN_COUNTER_OUTCOMES = ("applied", "skipped", "failed")
+
+
+class PluginCounterSink(Protocol):
+    def __call__(self, counter: PluginCounter, outcome: PluginCounterOutcome, /) -> None: ...
 
 
 class EarlyStreamUnsupported(Exception):
@@ -46,6 +56,7 @@ class PluginDescriptor(Generic[SettingsT]):
     create: Callable[[SettingsT], object]
     # Opt in only after inspecting structured arguments, definitions, and results.
     supports_tools: bool = False
+    counters: tuple[PluginCounter, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -62,6 +73,7 @@ class PluginContext:
     state: dict[str, Any]
     # Configured instance name, supplied by the core for safe policy diagnostics.
     instance_name: str = ""
+    count: PluginCounterSink | None = None
 
 
 @dataclass(frozen=True)
@@ -79,6 +91,7 @@ class ResponsesContext:
     deadline: float
     state: dict[str, Any]
     instance_name: str = ""
+    count: PluginCounterSink | None = None
 
 
 class ChatMiddleware(Protocol):

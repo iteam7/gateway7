@@ -319,3 +319,12 @@ There is no plugin-upload HTTP endpoint, hot loading, retry or plugin process is
 The phone middleware masks ASCII-digit numbers in the three fixture shapes throughout all roles and history: `+7 NNN NNN-NN-NN`, `8 (NNN) NNN-NN-NN`, and `+7NNNNNNNNNN`.
 The replacement is `[PHONE]`, with no restoration.
 The order/date fixture remains unchanged; this detector does not establish general PII coverage or an agreed production phone-format policy.
+
+## Plugin counters
+
+An API v2 descriptor can declare `counters=("match", "decision")`.
+When a counter sink is available, the plugin can call `context.count("match", "applied")` after detecting a match.
+Check `context.count is not None` before calling it, including in offline tests.
+The available counter names are `match`, `decision` and `fallback`.
+Each accepts only the outcomes `applied`, `skipped` and `failed`.
+The application aggregates these events across plugins as `gateway7_plugin_events_total{counter,outcome}`.

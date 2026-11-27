@@ -163,6 +163,11 @@ class Pipeline:
         self.provider = provider
         self.limits = limits
         self.metrics = metrics
+        self._plugin_counters = {
+            name: metrics.plugin_counter(plugin.descriptor.counters)
+            for name, plugin in plugins.instances.items()
+            if metrics is not None and plugin.descriptor.counters
+        }
         self.provider_name = provider_name
         self.provider_observer = provider_observer
         self.provider_before = provider_before
@@ -205,7 +210,9 @@ class Pipeline:
             else time.monotonic() + self.limits.request_timeout_seconds
         )
         contexts = {
-            name: PluginContext(request_id, deadline, {}, instance_name=name)
+            name: PluginContext(
+                request_id, deadline, {}, instance_name=name, count=self._plugin_counters.get(name)
+            )
             for name in self.plugins.instances
         }
         provider_called = False
@@ -535,7 +542,9 @@ class Pipeline:
         )
         early = on_text is not None or on_text_delta is not None
         contexts = {
-            name: ResponsesContext(request_id, deadline, {}, instance_name=name)
+            name: ResponsesContext(
+                request_id, deadline, {}, instance_name=name, count=self._plugin_counters.get(name)
+            )
             for name in self.plugins.instances
         }
         remaining = {name: self.limits.hook_timeout_seconds for name in contexts}
@@ -770,7 +779,9 @@ class Pipeline:
             else time.monotonic() + self.limits.request_timeout_seconds
         )
         contexts = {
-            name: PluginContext(request_id, deadline, {}, instance_name=name)
+            name: PluginContext(
+                request_id, deadline, {}, instance_name=name, count=self._plugin_counters.get(name)
+            )
             for name in self.plugins.instances
         }
         try:
