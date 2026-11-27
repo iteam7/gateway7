@@ -209,8 +209,7 @@ The staging address and the client token stay in the private submission and the 
 Every counted session collects the durable consent in [consent.md](consent.md) before the session starts.
 The consent records the 18-or-older declaration, the mandatory recording, the sanitized public results, the optional quotes, the private access, the tools used, the withdrawal, and the deletion after grading.
 
-The authoritative text store is the [private usability-data repository](https://github.com/iteam7/gateway7-usability-data).
-The link needs authentication and is excluded from automated link checking for that reason.
+The private evidence link has been retired. See the [sanitized UT-01 results](results.md) for the public record.
 On 14 November 2026, private visibility, the initialized text-only homes and the current operator account's repository access were verified through authenticated GitHub readback.
 Team collaborator permission metadata includes the confirmed facilitator, observer and data custodian; this is evidence of configured access, not a claim that every person has opened the data.
 Instructor readership and successful instructor read checks remain unverified.
