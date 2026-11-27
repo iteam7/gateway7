@@ -59,6 +59,7 @@ nav:
       - Threshold of success: threshold-of-success.md
       - Threshold review proposal: threshold-review.md
       - Project plan: project-plan.md
+      - User acceptance tests: user-acceptance-tests.md
       - Configuration plan: configuration-plan.md
       - Risks: risks.md
       - Quality requirements:
