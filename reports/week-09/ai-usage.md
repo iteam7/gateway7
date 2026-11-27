@@ -1,5 +1,13 @@
 # AI usage — Week 09
 
+## 2026-11-27 — Prepare the Sprint 9 record, script and plan
+
+- Tool: DeepSeek Harness coding agent with repository file tools, `npx markdownlint-cli2` and the GitHub CLI.
+- Work: Wrote `docs/user-acceptance-tests.md` with `UAT-01` to `UAT-03` against the deployed `config/claude.yaml`, wrote `reports/week-09/meeting-script.md`, planned `SPRINT-09` and added the provisional `SPRINT-10` in `docs/project-plan.md`, and corrected the milestone inventory in `CONTRIBUTING.md`.
+- Verification: markdownlint-cli2 reported 0 issues on every changed Markdown file; each expected result was traced to its source — `policy_denied` in `gateway7/errors.py`, `model_forbidden` in `docs/authentication.md` and the masking outputs in `config/claude.yaml`; no product code ran and no deployment was checked.
+- Boundary: No meeting, decision, UAT run or Customer verdict was created; the script leaves every role `to confirm` and the UAT record has no run rows. Only synthetic values appear: a fake address, a fake number and a test term.
+- Team assessment: TODO
+
 ## 2026-11-23 — Correct five PR #336 review findings
 
 - Tool: OpenAI Codex with separate implementation, architecture review and verification agents.
