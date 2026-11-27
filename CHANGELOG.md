@@ -7,6 +7,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- Password sign-in for administrator-created operator accounts, durable revocable browser sessions, a seven-day remembered-login option and a task-focused administration sidebar.
+- No-code literal guard/redaction and email/phone masking policies with bounded plain-text preview and live global or per-client assignments that retain the configured middleware baseline.
 - Named expiring application keys and administrator/viewer operator credentials, searchable user metadata and defaults, revision-checked edits and attributable audit history.
 - Precise UTC usage history with hourly/daily series, captured model prices, estimated costs, durable daily/monthly token and cost budget reservations, protected request diagnostics and configurable retention.
 - Live single-provider settings and model aliases with write-only encrypted credentials, connection checks and safe draining of replaced adapters.

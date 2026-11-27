@@ -1,9 +1,72 @@
 # Operate the administration console
 
-Open `/operator/console` on the gateway and connect with an operator credential.
+Open `/operator/console` on your gateway and sign in with your operator username and password.
 The [PostgreSQL administration setup](authentication.md#manage-users-in-the-operator-console) remains the normal deployment path; SQLite is available for a local installation.
-An administrator can change accounts, provider settings, pricing and budgets without restarting the gateway.
-A viewer can inspect the workspace and download reports, but cannot change configuration, issue credentials or run a provider connection test.
+An administrator can change accounts, provider settings, policies, pricing and budgets without restarting the gateway.
+A viewer can inspect the workspace and download reports, but cannot change configuration, issue credentials, preview a policy or run a provider connection test.
+
+## First sign-in
+
+The deployment operator enables managed administration and supplies the separate recovery credential once.
+If this is a new installation, create the first ordinary administrator through that recovery path:
+
+1. Open the console and select **Use a recovery or automation token**.
+2. Enter the server's recovery operator token and select **Connect**.
+3. Open **Operators** and fill the operator form.
+   Set **Username**, **Display name**, **Role** to **Administrator**, and **Sign-in method** to **Password account**.
+   Choose a private password containing 12–128 characters and at most 512 UTF-8 bytes.
+4. Select **Create operator**, then sign out of the recovery connection.
+5. Sign in with that username and password.
+   Select **Remember me on this device** only when the browser should retain the login after closing.
+
+There is no public signup.
+An existing administrator creates additional administrator or viewer accounts through the same **Operators** view.
+The username is the operator's stable ID; a display name is a separate label.
+Password account creation returns safe account metadata, not a bearer token to copy.
+Keep the recovery token in the deployment's secret store for recovery and automation.
+
+## Find the right workspace
+
+Use the sidebar to choose one task at a time:
+
+| View | Use it for |
+| --- | --- |
+| **Overview** | Check setup status and choose the next operational task |
+| **Users & keys** | Create application clients, set their model permissions and issue client keys |
+| **Models** | Review the provider, defaults, aliases and effective model access |
+| **Policies** | Build, preview and activate shared or client-specific text policies |
+| **Usage** | Filter usage and download reports |
+| **Budgets & pricing** | Set prices and UTC usage allowances |
+| **Operators** | Create sign-in accounts, assign roles, reset passwords and manage automation credentials |
+| **Activity** | Review administrative changes and safe request diagnostics |
+
+A user/client in **Users & keys** calls model APIs with an application key.
+An operator signs in to administer or inspect the gateway.
+Creating an operator does not grant that person a client key or model access.
+
+## Stay signed in and sign out
+
+By default, an ordinary login has a 12-hour absolute server lifetime and uses a browser-session cookie.
+**Remember me on this device** uses a persistent cookie with a seven-day default lifetime.
+The deployment can configure each lifetime between one minute and seven days, and neither option extends the operator's own expiration.
+Refreshing the page or restarting the gateway preserves a valid stored session; ordinary browser-session cookies may be discarded when the browser closes.
+Use **Sign out** to end the current session immediately.
+Resetting an operator's password, changing its role or revoking that operator invalidates all of its sessions, including one open in another browser.
+After resetting your own password, sign in again on the next request.
+
+The browser keeps the opaque session credential in an HttpOnly, SameSite=Strict cookie rather than exposing it to page scripts or local storage.
+Shared deployments require HTTPS; see the [session deployment settings](authentication.md#password-sessions-and-https).
+Recovery and automation tokens remain an explicit alternative and are held only in page memory.
+
+## If a step does not work
+
+| What you see | Next step |
+| --- | --- |
+| Sign-in fails | Check the username/password with an administrator; use a password reset rather than creating a second identity |
+| Sign-in is temporarily rate-limited | Wait before retrying; repeated guesses consume the bounded login allowance |
+| Sign-in returns to the login form | Check HTTPS and cookie settings before replacing credentials |
+| A saved edit conflicts with another change | Refresh, inspect the latest values and apply your intended edit again |
+| A preview passes but an application request is denied | Check the configured baseline and the full request's selected phase; preview covers only plain text |
 
 ## Users and named keys
 
@@ -28,10 +91,13 @@ Already admitted work retains its original policy snapshot and can finish.
 
 ## Individual operators and audit
 
-Create an individual operator with the administrator or viewer role rather than sharing the server's recovery credential.
+Create an individual password account with the administrator or viewer role rather than sharing the server's recovery credential.
+Use **Reset password** on an operator to replace its password and invalidate its browser sessions.
+Named operators retain an expiration; renew it through the account controls before it expires.
 The recovery operator is shown as `bootstrap` and cannot be edited in the console.
-Named operator credentials expire and can be rotated, reissued or revoked independently.
-An operator's role and expiration are enforced by the server, including requests that wait before a configuration commit.
+An optional automation sign-in method issues an expiring bearer credential with explicit rotation and revocation controls.
+Password login and application client keys are independent of that automation credential.
+The server enforces the current role, expiration and revocation, including requests waiting before a configuration commit.
 
 The audit panel filters changes by actor, action, target and UTC interval.
 Records contain the attributed operator, changed configuration fields, timestamp and request identifier.
@@ -80,6 +146,46 @@ Leaving the provider credential field empty retains the current credential.
 Changing provider kind requires supplying its new credential explicitly.
 Credentials must differ from client and operator credentials.
 The console reports whether a credential is configured and never returns its value.
+
+## Create a policy without code
+
+Open **Policies**, enter a stable **Policy ID** and descriptive **Policy name**, choose a **Template**, and select incoming requests, outgoing responses or both under **Apply to**.
+No Python, regular expression or module path is needed or accepted.
+
+| Template | Result |
+| --- | --- |
+| **Block matching text** | Deny when any configured literal term matches in the selected phase |
+| **Redact matching text** | Replace matching literal terms with the replacement text |
+| **Mask email addresses** | Mask email-like text with `[EMAIL]` unless another replacement is configured |
+| **Mask phone numbers** | Mask supported phone-number text with `[PHONE]` unless another replacement is configured |
+
+Literal terms are case-sensitive text, not patterns; characters such as `.` or `*` have their literal meaning.
+Enter one literal term per line under **Text to match**: 1–32 distinct nonblank terms of at most 128 characters each.
+Masking templates use the existing detectors and do not accept a literal term list.
+Replacement text is bounded to 128 characters; literal redaction defaults to `[REDACTED]`.
+The directory supports up to 64 definitions, with stable ASCII policy IDs of at most 56 characters and labels of at most 64 characters.
+
+1. Enter a synthetic example under **Sample text** and select **Test policy** before saving.
+   Preview accepts at most 8192 characters of plain text and shows the match, replacement or denial without a provider call.
+   Its text is not saved to state, audit history or logs.
+2. Select **Create policy**, then choose **Every user (gateway baseline)** or **One user (after the baseline)** under **Apply policies to**.
+   For one user, enter its exact **User ID**.
+3. Add the policy to the selected order, review it with **Move up** and **Move down**, and select **Save assignments**.
+   New requests use the saved policy without restarting the gateway.
+4. Test an actual synthetic application request using the client's key.
+   A request-phase guard denies a matching request before provider work; response-phase checks occur after provider work.
+
+Managed global policies follow the configured global middleware, and managed client policies follow that client's configured additions.
+Required configured policies remain in place; the editor cannot remove or replace that baseline.
+A policy cannot be assigned globally and again to the same client, and duplicate assignments are rejected.
+Unassign an in-use definition before deleting it.
+Removing a managed assignment removes only that managed policy, not the configured baseline.
+
+Preview checks plain text rather than conversation history, typed tools or a complete pipeline.
+In real requests, matches in protected tool arguments, call IDs or other executable fields are denied instead of rewriting those fields.
+The existing masking [detector limits](middleware-catalog.md) still apply.
+A response or both-phase policy refuses incompatible early delivery before provider work; adding a request-only policy does not bypass another response policy in the chain.
+Installing a different Python plugin or changing startup YAML middleware still follows the server deployment workflow.
 
 ## Pricing and budgets
 

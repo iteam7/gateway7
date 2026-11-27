@@ -3,14 +3,21 @@ import { providerPanel } from "./provider_panel.js";
 import { identityPanels } from "./identity_panel.js";
 import { reportingPanels } from "./reporting_panel.js";
 import { statusText } from "./admin_forms.js";
+import { policyPanel } from "./policy_panel.js";
 
 export function createAdminWorkspace(context) {
   const provider = providerPanel(context);
   const identities = identityPanels(context);
   const reports = reportingPanels(context);
+  const policies = policyPanel(context);
   document
     .getElementById("extended-admin")
-    .append(provider.root, ...identities.roots, ...reports.roots);
+    .append(
+      provider.root,
+      ...identities.roots,
+      ...reports.roots,
+      policies.root,
+    );
   document.getElementById("usage-extra").append(reports.trendRoot);
   let generation = 0;
   async function render(state) {
@@ -25,6 +32,7 @@ export function createAdminWorkspace(context) {
       provider.load(),
       identities.load(),
       reports.load(),
+      policies.load(),
     ]);
     if (current !== generation || !context.connected()) return;
     for (const result of results)
@@ -41,6 +49,7 @@ export function createAdminWorkspace(context) {
     provider.clear();
     identities.clear();
     reports.clear();
+    policies.clear();
     document.getElementById("extended-admin").hidden = true;
     document.getElementById("operator-identity").textContent = "";
     document.getElementById("extended-message").textContent = "";
